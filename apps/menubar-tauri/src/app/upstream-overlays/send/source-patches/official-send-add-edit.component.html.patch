@@ -1,0 +1,86 @@
+--- authority
++++ runtime
+@@ -2,6 +2 @@
+-  <popup-header
+-    slot="header"
+-    [pageTitle]="headerText"
+-    showBackButton
+-    [backAction]="onBackClick.bind(this)"
+-  ></popup-header>
++  <popup-header slot="header" [pageTitle]="title" showBackButton [backAction]="backAction"></popup-header>
+@@ -9,9 +4,5 @@
+-  @if (disabledSendConfig()) {
+-    <bit-callout type="info" [title]="disabledSendConfig().title | i18n">
+-      <div>{{ disabledSendConfig().message | i18n }}</div>
+-      @if (disabledSendConfig().showMakeCopyButton) {
+-        <button class="tw-mt-4" type="button" bitButton buttonType="primary" (click)="makeCopy()">
+-          {{ "makeACopy" | i18n }}
+-        </button>
+-      }
+-    </bit-callout>
++  @if (unavailable()) {
++  <bit-callout type="info" [title]="'send' | i18n"><div role="status">{{ "i18nSendNotFound" | i18n }}</div></bit-callout>
++  } @else {
++    @if (status()) { <bit-callout type="info" [title]="'send' | i18n"><div role="status" data-testid="send-password-error">{{ status() }}</div></bit-callout> }
++    <bw-official-send-details [editing]="editing()" [disabled]="disabled()" [originalHadPassword]="originalHadPassword()" [hideEmailAllowed]="hideEmailAllowed()" [value]="value()" (valueChange)="valueChange.emit($event)" (removePassword)="removePassword.emit()" (generatePassword)="generatePassword.emit()" (copyPassword)="copyPassword.emit($event)"></bw-official-send-details>
+@@ -20,11 +10,0 @@
+-  <tools-send-form
+-    formId="sendForm"
+-    [config]="config"
+-    (onSendCreated)="onSendCreated($event)"
+-    (onSendUpdated)="onSendUpdated($event)"
+-    (openPasswordGenerator)="openGenerator()"
+-    [editing]="editing()"
+-    [submitBtn]="submitBtn()"
+-  >
+-  </tools-send-form>
+-
+@@ -32,15 +12 @@
+-    <!-- Send is disabled -->
+-    @if (disabledSendConfig()) {
+-      <!-- User is allowed to make a copy of the Send -->
+-      @if (disabledSendConfig().showMakeCopyButton) {
+-        <button type="button" bitButton buttonType="primary" (click)="makeCopy()">
+-          {{ "makeACopy" | i18n }}
+-        </button>
+-      } @else {
+-        <button type="button" bitButton buttonType="danger" (click)="deleteSend()">
+-          {{ "delete" | i18n }}
+-        </button>
+-      }
+-      <!-- Send is enabled -->
+-    } @else {
+-      <!-- Send is actively being edited -->
++    @if (!unavailable()) {
+@@ -48,6 +14,2 @@
+-        <button bitButton type="submit" form="sendForm" buttonType="primary" #submitBtn>
+-          {{ "save" | i18n }}
+-        </button>
+-        <button bitButton type="button" buttonType="secondary" (click)="onCancelClick()">
+-          {{ "cancel" | i18n }}
+-        </button>
++        <button bitButton type="button" buttonType="primary" [disabled]="disabled() || pending() || !valid()" (click)="save.emit()">{{ "save" | i18n }}</button>
++        <button bitButton type="button" buttonType="secondary" data-testid="cancel-send-edit" [disabled]="pending()" (click)="cancel.emit()">{{ "cancel" | i18n }}</button>
+@@ -55,3 +17 @@
+-        <button bitButton type="button" buttonType="secondary" (click)="editSend()">
+-          {{ "edit" | i18n }}
+-        </button>
++        <button bitButton type="button" buttonType="secondary" data-testid="edit-send" (click)="edit.emit(); editingChange.emit(true)">{{ "i18nEdit" | i18n }}</button>
+@@ -58,0 +19,3 @@
++      @if (mode() === 'edit') {
++        <button class="tw-ml-auto" type="button" buttonType="dangerGhost" slot="end" bitIconButton="bwi-trash" [disabled]="pending()" (click)="delete.emit()"></button>
++      }
+@@ -60,13 +22,0 @@
+-    @if (
+-      disabledSendConfig()?.showMakeCopyButton || (!disabledSendConfig() && config?.mode !== "add")
+-    ) {
+-      <button
+-        class="tw-ml-auto"
+-        type="button"
+-        buttonType="dangerGhost"
+-        slot="end"
+-        bitIconButton="bwi-trash"
+-        [bitAction]="deleteSend"
+-        label="{{ 'delete' | i18n }}"
+-      ></button>
+-    }

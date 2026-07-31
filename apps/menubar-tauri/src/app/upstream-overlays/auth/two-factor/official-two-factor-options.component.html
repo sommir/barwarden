@@ -1,0 +1,41 @@
+<bw-app-bottom-sheet
+  #dialog
+  labelledBy="two-factor-options-title"
+  testId="two-factor-options-dialog"
+  (dismissed)="onDismissed()"
+  (closed)="onClose()"
+>
+  @if (isOpen) {
+    <form bit-dialog dialogSize="large">
+      <span bitDialogTitle id="two-factor-options-title">
+        {{ "selectTwoStepLoginMethod" | i18n }}
+      </span>
+      <ng-container bitDialogContent>
+        <bit-item-group>
+          <bit-item *ngFor="let provider of providers">
+            <button
+              #firstOption
+              bit-item-content
+              [truncate]="false"
+              type="button"
+              class="tw-h-auto md:tw-h-20"
+              [attr.data-provider]="provider.type"
+              (click)="choose(provider.type)"
+            >
+              <div slot="start" class="tw-w-16 md:tw-w-20 tw-mr-2 sm:tw-mr-4">
+                <bit-svg [content]="provider.type === 0 ? icons.authenticator : icons.email"></bit-svg>
+              </div>
+              {{ provider.name }}
+              <ng-container slot="secondary">{{ provider.description }}</ng-container>
+            </button>
+          </bit-item>
+        </bit-item-group>
+      </ng-container>
+      <ng-container bitDialogFooter>
+        <button bitButton type="button" buttonType="secondary" (click)="cancel()">
+          {{ "cancel" | i18n }}
+        </button>
+      </ng-container>
+    </form>
+  }
+</bw-app-bottom-sheet>

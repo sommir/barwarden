@@ -1,0 +1,38 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "isolatedModules": false,
+    "lib": ["ESNext", "DOM"],
+    "noEmit": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "preserveSymlinks": true,
+    "strict": false,
+    "types": ["node", "vitest/globals"],
+    "useDefineForClassFields": false
+  },
+  "files": [
+    "src/app/vault/personal-cipher-view.adapter.ts",
+    "src/app/upstream-overlays/cipher-detail/official-personal-cipher-detail.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-card-details.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-identity-sections.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-read-only-cipher-card.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-credit-card-number.pipe.ts",
+    "src/app/upstream-overlays/cipher-detail/official-item-details.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-additional-options.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-custom-fields.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-item-history.component.ts",
+    "src/app/vault/retained-personal-cipher-form.adapter.ts",
+    "src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-personal-form-container.ts",
+    "src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-identity-section.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts"
+  ]
+}

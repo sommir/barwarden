@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "pretty": false,
+    "paths": {},
+    "rootDirs": [
+      "src/app/upstream-overlays/settings/generated",
+      "src/app/upstream-overlays/settings/upstream-edge-types"
+    ]
+  },
+  "files": [
+    "src/app/upstream-overlays/settings/generated/apps/browser/src/tools/popup/settings/settings-v2.component.ts",
+    "src/app/upstream-overlays/settings/generated/apps/browser/src/auth/popup/settings/account-security.component.ts",
+    "src/app/upstream-overlays/settings/generated/apps/browser/src/vault/popup/settings/vault-settings.component.ts",
+    "src/app/upstream-overlays/settings/generated/apps/browser/src/vault/popup/settings/appearance.component.ts",
+    "src/app/upstream-overlays/settings/generated/apps/browser/src/tools/popup/settings/about-page/about-page-v2.component.ts",
+    "src/app/upstream-overlays/settings/generated/apps/browser/src/tools/popup/settings/about-dialog/about-dialog.component.ts",
+    "official-settings-upstream.edges.ts"
+  ],
+  "include": [],
+  "exclude": []
+}

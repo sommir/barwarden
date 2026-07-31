@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "experimentalDecorators": true,
+    "lib": ["ES2022", "DOM"],
+    "noEmit": false,
+    "outDir": "./dist/out-tsc/spec",
+    "skipLibCheck": true,
+    "types": ["vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.spec.ts"]
+}

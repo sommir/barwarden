@@ -1,0 +1,811 @@
+{
+  "upstreamRevision": "f47b6946e01aed474875789081966d311d5b8289",
+  "license": "GPL-3.0",
+  "sources": [
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/components/vault/vault-password-history/vault-password-history.component.ts",
+      "sha256": "b0a624c6a958e69b070a4f2f7744b79533612d8aae0c7a477e54da67fb988716",
+      "className": "PasswordHistoryComponent",
+      "members": [
+        "cipher",
+        "Constructor",
+        "ngOnInit",
+        "close",
+        "loadCipher"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/components/vault/vault-password-history/vault-password-history.component.html",
+      "sha256": "2cdf5d22d3f5ea8265f876e2ce16e4a762ae30318fcc116031dc460a2545a36e"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/services/browser-view-password-history.service.ts",
+      "sha256": "f31d73d02bbe206342f4e49068958c62b1b3d55c19a197b0e9354d1a524c9dcf",
+      "className": "BrowserViewPasswordHistoryService",
+      "members": [
+        "router",
+        "viewPasswordHistory"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/vault/src/components/password-history-view/password-history-view.component.ts",
+      "sha256": "6518c3bca9f39b67cb64485afae2c55450c4a38500ea7556b6c3744da1001ab4",
+      "className": "PasswordHistoryViewComponent",
+      "members": [
+        "cipher",
+        "history",
+        "ngOnInit"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/vault/src/components/password-history-view/password-history-view.component.html",
+      "sha256": "86f9bea2c4adfc5f246971be1b45eef80a6b291a2d129102779d8b68d452bcea"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/components/src/color-password/color-password.component.ts",
+      "sha256": "dcfd68d5fa4a5bffbe43ef874f3f5bfe7ef08d344215bb4414876709ebe86e28",
+      "className": "ColorPasswordComponent",
+      "members": [
+        "password",
+        "showCount",
+        "passwordCharArray",
+        "platformUtilsService",
+        "elementRef",
+        "characterStyles",
+        "classList",
+        "getCharacterClass",
+        "getCharacterType",
+        "onCopy"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/folders.component.ts",
+      "sha256": "b143e9a93dd23891e81e35706b3b4a38aa52142489846399f561cd533b77c86c",
+      "className": "FoldersComponent",
+      "members": [
+        "folders$",
+        "NoFoldersIcon",
+        "activeUserId$",
+        "Constructor",
+        "openAddEditFolderDialog"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/folders.component.html",
+      "sha256": "66cef1e46e2c51040b9e6c6aed573082263b210d484611045315f86d502fd8d9"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/vault/src/components/add-edit-folder-dialog/add-edit-folder-dialog.component.ts",
+      "sha256": "2d5b0ecd59d95365e880195b10758eae9600a3153411c2c40efb996f603b2063",
+      "className": "AddEditFolderDialogComponent",
+      "members": [
+        "configService",
+        "btnTextAddCreateFeatureFlag",
+        "bitSubmit",
+        "submitBtn",
+        "folder",
+        "variant",
+        "folderForm",
+        "activeUserId$",
+        "destroyRef",
+        "Constructor",
+        "ngOnInit",
+        "ngAfterViewInit",
+        "submit",
+        "deleteFolder",
+        "title",
+        "close",
+        "open"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/vault/src/components/add-edit-folder-dialog/add-edit-folder-dialog.component.html",
+      "sha256": "f005bd64fedf723be767f6adb3efa380a18d33cbe28f432df72f084eb67ecd98"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/archive.component.ts",
+      "sha256": "e870098158963826976c02d630d444145412704528d762ac7681cff5c00c1ecd",
+      "className": "ArchiveComponent",
+      "members": [
+        "dialogService",
+        "router",
+        "cipherService",
+        "accountService",
+        "logService",
+        "toastService",
+        "i18nService",
+        "cipherArchiveService",
+        "passwordRepromptService",
+        "organizationService",
+        "collectionService",
+        "userId$",
+        "orgMap",
+        "collections",
+        "archivedCiphers$",
+        "userCanArchive$",
+        "CipherViewLikeUtils",
+        "loading$",
+        "canAssignCollections$",
+        "showSubscriptionEndedMessaging$",
+        "userHasPremium$",
+        "navigateToPremium",
+        "view",
+        "edit",
+        "delete",
+        "unarchive",
+        "clone",
+        "conditionallyNavigateToAssignCollections",
+        "canInteract",
+        "orgTierType",
+        "orgIconTooltip"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/archive.component.html",
+      "sha256": "d0a183af8190726f7eeda203cc8a8a336c1fed2be124e6da96c9739b004c430f"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/vault/src/services/archive-cipher-utilities.service.ts",
+      "sha256": "59d7c0b4f49a8223e9e27524ae617fd5bc097e44e8a27777e9b39a60a2af9c6f",
+      "className": "ArchiveCipherUtilitiesService",
+      "members": [
+        "Constructor",
+        "archiveCipher",
+        "unarchiveCipher"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/trash.component.ts",
+      "sha256": "ff6203bf24d7187b453f72aba9faaaa55d6c8efd0eca0c4a80247b1ea95379ac",
+      "className": "TrashComponent",
+      "members": [
+        "deletedCiphers$",
+        "emptyTrashIcon",
+        "Constructor"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/trash.component.html",
+      "sha256": "77370be58eafd47938bc034bcc737623c6a50c6c175555fbd8bd0ad40e1cf7a3"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/trash-list-items-container/trash-list-items-container.component.ts",
+      "sha256": "a0d02d3dae8ccb5bfe62cd68b710336c49b12b4dc482db5d1ae909c30f7e0c35",
+      "className": "TrashListItemsContainerComponent",
+      "members": [
+        "ciphers",
+        "headerText",
+        "Constructor",
+        "orgIconTooltip",
+        "hasAttachments",
+        "getSubtitle",
+        "hasDecryptionFailure",
+        "restore",
+        "delete",
+        "onViewCipher"
+      ]
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/trash-list-items-container/trash-list-items-container.component.html",
+      "sha256": "f221f7dd47225ff184fdee6f9a0b7b021bf0431f831b786dc55ff6857da911e0"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/_locales/zh_CN/messages.json",
+      "sha256": "1f198210faf0d71fc0a8a48307a40eeedccfa7cf2f59b9f47bec5601aec34e3a"
+    }
+  ],
+  "aliases": [
+    "vendor/bitwarden-clients/libs/common/src/vault/models/view/cipher.view.ts",
+    "vendor/bitwarden-clients/libs/common/src/vault/models/view/folder.view.ts",
+    "vendor/bitwarden-clients/libs/common/src/vault/models/view/password-history.view.ts"
+  ],
+  "localRuntimes": [
+    {
+      "path": "apps/menubar-tauri/official-recovery-aliases.ts",
+      "sha256": "24108285de167a5e8d54cdb029c0ee32ea9787e69db36ed31d90a132e17c180d"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/layout/popup-header.component.ts",
+      "sha256": "1a657dc8346d564bc93a5c54248f2ee2af5ad55444f3301b4676d42ebaeab0be"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/layout/popup-page.component.ts",
+      "sha256": "55a456b8b71db14fda681a208ec91a4ee30314cb3dc63432db09151b9113f311"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/accessibility-permission-dialog.service.ts",
+      "sha256": "e2dbb832c4a410b324056e3778d270962689180a08967706e4ad5ec45301ab57"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+      "sha256": "2d340f6272f4616d5f220840dedde76b99573f5e764e1e2d6e77e1f8e97ed602"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts",
+      "sha256": "04c4eadeaa39cf000c651a34f81e409a474442cfe64fc4b3673b42588da8cf27"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts",
+      "sha256": "8d530f5a2a6fb1690816ebb4ff5070a5147a45c64d3d5c2c9a71d6865292d9c9"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+      "sha256": "a7f29e04a68268d2428195edf953dcb8d99dd005dfae7a2a75cc8b12e53b76fe"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+      "sha256": "0600402d511950ffa32cd2d23110a606d668b2c9bf5c547e2df4edaa219dff6c"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "sha256": "e70e118273a93443d77485c86c51748030d1b9478989ba25d2877ef82d0e6fd2"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
+      "sha256": "0b317e0800427f4b8cbb83f76ee4ddc2e5ae7cbe32ffe653c59afd8fa595a867"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
+      "sha256": "7642a6ed18689e5a8f0da7af9aa432403c7373b41250d5cc1409f5b1d936ee27"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+      "sha256": "9af20e663db06c66b1b34c07b75806d7a3d95b9a4738d0a87bf93a1820fa99f5"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
+      "sha256": "91e22974d411716166bbe8621e0578e557b4aa07c17cc5316db1e93de63a3055"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "sha256": "799dfb3c25da9f311d34fa1a7a840f044619fe7de15050609cef29312093dab5"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+      "sha256": "5c55c158a02e25e0f232bec28489887348a98d0bf979cb94ee5a19f88e1274b2"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts",
+      "sha256": "ed5394784e2bb82aaaac11b36f5a854cbfdeb9c22d8df68cc253a17f90e490f7"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.html",
+      "sha256": "b750d622c9157691ffdb6beaad65bdb1181625d26ef3e326061f5e4eeb96ba31"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+      "sha256": "7fbdd843fe3ee83e5253a2b62a8b607fc15ec4af4424fb3e894360a2a92becb8"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-add-edit-folder-dialog.component.html",
+      "sha256": "25663e9d2df097508ccad8ed9d339d33744e7111cb56814f46de846d09302750"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-add-edit-folder-dialog.component.ts",
+      "sha256": "7c9fd2cb1c4a1f65542da9fe065ef1392d1040d16160af9469d866a2543e8fee"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.html",
+      "sha256": "758982e482ac48ad73cfd537f4ca761db473077653c325380137be133dd45545"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
+      "sha256": "c4d57114b7d3a396dc79dfc990dc0838e599b3f08f9d8ed2d239d27f7adc0cf6"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/official-recovery-member-transforms.ts",
+      "sha256": "4c4989c239d15efa359bd288101bdb1055889880566be7256663c1dc0cc2c396"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.html",
+      "sha256": "c9e18511c1d31bd61db36cbecb564bb34c59e46d165ae4b71c38780c9eab12ec"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
+      "sha256": "7ad3842aeda73c58beb203c79af915a41f0ff7811e02ae7cfc396f12be2ae574"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-cipher-icon.component.ts",
+      "sha256": "3e6521a046e50142275a697c27fd619055ff1e99f800ff22aba1c36d2de96261"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-command.ts",
+      "sha256": "015d1e04e6cb96c1b4d9c62e45d8adfc19acaa4e6cffeeb565ec4357e5bb954a"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.html",
+      "sha256": "1abe88c591d811c6b3e1412fb788ff772ed01eaf3f79f2c2c0e4f909293c5035"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",
+      "sha256": "fe17f032df40090cab105eaf0a200013e97359cfda31336acf13ec35620a13d9"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.html",
+      "sha256": "25492959820b3ee53e5af8c66764c2754e98b2b7620299080495947fc8333c0f"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "sha256": "1ac5722f0a03a79f1e34fcbc94bff94868064123680486194582617779a10211"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault-demo.ts",
+      "sha256": "027d1c2aeaa043af9c1f4b9994436e77cc38553b88d301439b8fbf6410c2d43a"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/archive-page.component.ts",
+      "sha256": "cc4bb29e5087837460bfaf12182782fe595165ef663957b4ba5785391d2acb52"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/folders-page.component.ts",
+      "sha256": "3f918d74a26cd44e60ac07fa6155bedf4ea54f4d439c6bc4b9666d5e3c951798"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/opaque-cipher-payload.ts",
+      "sha256": "6e35c4829307ce2ccdef9c44aa1226191257aa395ff9873d9e18c6d98a038b40"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts",
+      "sha256": "e0793e0f453b3a006c9d27b3757cd8165877259ebb365fb7fb6e07377c22bab4"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/recovery-page-actions.adapter.ts",
+      "sha256": "bf19bc30693b0e14744c15bf22dfbcc53cee442546984dbea73a64cbadbaa9e8"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/trash-page.component.ts",
+      "sha256": "5a3673b9c2b52d9b4fcab63abe7efbb69a6796429d909af4c8c2a1f355198eb9"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/vault-actions.service.ts",
+      "sha256": "1a86510f36b99bde3b9be77e733dd1258bde0773c8d936d876858405201cca46"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/vault-folder-dialog.component.ts",
+      "sha256": "41701a9e94878c31c1e66f2cafe90f0b2bb0bb84e3a31b81a8758e2299e37610"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/vault-folder.service.ts",
+      "sha256": "90a390abf8aa560f4234469ef2e9ecf8627df8e42639becd949d12acb23eb853"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/vault-item.model.ts",
+      "sha256": "c2384a1e9cb046ea609246b52ca7a5c8feca0d085e21e76bd35946cc1e09764b"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/vault-password-history-page.component.ts",
+      "sha256": "3658fb0d49341982a489d350554d19d876a15bd1192f628c81399fe082585ffd"
+    },
+    {
+      "path": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
+      "sha256": "72c5e4a81a3a7397317a285c03f42ab10ff67d29540693b06dba660f19ec7389"
+    },
+    {
+      "path": "apps/menubar-tauri/src/host/biometric-host.ts",
+      "sha256": "cb89253fc7cdec31a0893f1ed782e9297f1e0345728a1a4b7c89a366e2daaeb3"
+    },
+    {
+      "path": "apps/menubar-tauri/src/host/global-shortcut.ts",
+      "sha256": "9b52aa899587479c34ee6d2a33c75f1daf3ceafd0384eb0110eb32aacea5d1fd"
+    },
+    {
+      "path": "apps/menubar-tauri/src/host/host-api.ts",
+      "sha256": "07a4b241baed77b0ce4bc4343d86a1bfdaea65a4177267d861c0e7583843cc83"
+    },
+    {
+      "path": "apps/menubar-tauri/src/host/launch-at-login.ts",
+      "sha256": "590ff4252a132957531b5313152a17f2bbaacf3ffa92e07268018af21a0c1d90"
+    },
+    {
+      "path": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "sha256": "e9f2c78a097a74901c9a5e89afc21158b4d810c0b18678a47b640d6e91c35e14"
+    },
+    {
+      "path": "apps/menubar-tauri/src/vault/vault-sync.service.ts",
+      "sha256": "1660fe4ea629cc8729f338bc5f4a8dc8b20009e5df06f57468a88ec25e79fe49"
+    }
+  ],
+  "importClosure": [
+    "apps/menubar-tauri/src/app/layout/popup-header.component.ts",
+    "apps/menubar-tauri/src/app/layout/popup-page.component.ts",
+    "apps/menubar-tauri/src/app/official-ui/accessibility-permission-dialog.service.ts",
+    "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+    "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts",
+    "apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts",
+    "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+    "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+    "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+    "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
+    "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
+    "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-add-edit-folder-dialog.component.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-cipher-icon.component.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-command.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",
+    "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+    "apps/menubar-tauri/src/app/vault-demo.ts",
+    "apps/menubar-tauri/src/app/vault/opaque-cipher-payload.ts",
+    "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts",
+    "apps/menubar-tauri/src/app/vault/vault-item.model.ts",
+    "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
+    "apps/menubar-tauri/src/host/biometric-host.ts",
+    "apps/menubar-tauri/src/host/global-shortcut.ts",
+    "apps/menubar-tauri/src/host/host-api.ts",
+    "apps/menubar-tauri/src/host/launch-at-login.ts",
+    "apps/menubar-tauri/src/host/tauri-host.service.ts"
+  ],
+  "importEdges": [
+    {
+      "importer": "apps/menubar-tauri/src/app/layout/popup-header.component.ts",
+      "specifier": "@bitwarden/browser-popup/layout/popup-header.component",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/official-ui/accessibility-permission-dialog.service.ts",
+      "specifier": "../../host/host-api",
+      "target": "apps/menubar-tauri/src/host/host-api.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/official-ui/accessibility-permission-dialog.service.ts",
+      "specifier": "../../host/tauri-host.service",
+      "target": "apps/menubar-tauri/src/host/tauri-host.service.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+      "specifier": "./macos-alert-strip.component",
+      "target": "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+      "specifier": "./official-i18n.service",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts",
+      "specifier": "./official-i18n.service",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+      "specifier": "./callout-compatibility.component",
+      "target": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+      "specifier": "./popup-route-reuse.strategy",
+      "target": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+      "specifier": "./popup-router-cache.lifecycle",
+      "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
+      "specifier": "@bitwarden/common/platform/misc/utils",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "specifier": "../../official-ui/official-i18n.service",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "specifier": "@bitwarden/ui-common",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+      "specifier": "./popup-router-cache.adapter",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+      "specifier": "@bitwarden/angular/jslib.module",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts",
+      "specifier": "../../platform/popup-router-cache.service",
+      "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+      "specifier": "../../../layout/popup-header.component",
+      "target": "apps/menubar-tauri/src/app/layout/popup-header.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+      "specifier": "../../../layout/popup-page.component",
+      "target": "apps/menubar-tauri/src/app/layout/popup-page.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+      "specifier": "../../../official-ui/official-components",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+      "specifier": "../../../official-ui/official-ui-common",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+      "specifier": "../../../vault/popup-cipher-view.adapter",
+      "target": "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+      "specifier": "../recovery-cipher-icon.component",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-cipher-icon.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+      "specifier": "../recovery-command",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-command.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-add-edit-folder-dialog.component.ts",
+      "specifier": "../../../official-ui/macos-alert-strip.component",
+      "target": "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-add-edit-folder-dialog.component.ts",
+      "specifier": "../../../official-ui/official-components",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-add-edit-folder-dialog.component.ts",
+      "specifier": "../../../official-ui/official-ui-common",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
+      "specifier": "../../../layout/popup-header.component",
+      "target": "apps/menubar-tauri/src/app/layout/popup-header.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
+      "specifier": "../../../layout/popup-page.component",
+      "target": "apps/menubar-tauri/src/app/layout/popup-page.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
+      "specifier": "../../../official-ui/official-components",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
+      "specifier": "../../../official-ui/official-ui-common",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
+      "specifier": "../../../official-ui/official-components",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
+      "specifier": "../../../official-ui/official-i18n.service",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
+      "specifier": "../../../official-ui/official-ui-common",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
+      "specifier": "../../cipher-detail/official-color-password.component",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-cipher-icon.component.ts",
+      "specifier": "../../vault/popup-cipher-view.adapter",
+      "target": "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-command.ts",
+      "specifier": "../../vault/popup-cipher-view.adapter",
+      "target": "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",
+      "specifier": "../../../official-ui/official-components",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",
+      "specifier": "../../../official-ui/official-ui-common",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",
+      "specifier": "../../../vault/popup-cipher-view.adapter",
+      "target": "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",
+      "specifier": "../recovery-cipher-icon.component",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-cipher-icon.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",
+      "specifier": "../recovery-command",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-command.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "specifier": "../../../layout/popup-header.component",
+      "target": "apps/menubar-tauri/src/app/layout/popup-header.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "specifier": "../../../layout/popup-page.component",
+      "target": "apps/menubar-tauri/src/app/layout/popup-page.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "specifier": "../../../official-ui/macos-alert-strip.component",
+      "target": "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "specifier": "../../../official-ui/official-components",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "specifier": "../../../official-ui/official-ui-common",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "specifier": "../../../vault/popup-cipher-view.adapter",
+      "target": "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "specifier": "../recovery-command",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-command.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+      "specifier": "./official-trash-list-items-container.component",
+      "target": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault-demo.ts",
+      "specifier": "../host/host-api",
+      "target": "apps/menubar-tauri/src/host/host-api.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault-demo.ts",
+      "specifier": "./official-ui/accessibility-permission-dialog.service",
+      "target": "apps/menubar-tauri/src/app/official-ui/accessibility-permission-dialog.service.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault-demo.ts",
+      "specifier": "./vault/vault-item.model",
+      "target": "apps/menubar-tauri/src/app/vault/vault-item.model.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault-demo.ts",
+      "specifier": "./vault/vault-item.model",
+      "target": "apps/menubar-tauri/src/app/vault/vault-item.model.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault/opaque-cipher-payload.ts",
+      "specifier": "../../bitwarden-api/bitwarden-api",
+      "target": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts",
+      "specifier": "../vault-demo",
+      "target": "apps/menubar-tauri/src/app/vault-demo.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault/popup-cipher-view.adapter.ts",
+      "specifier": "./vault-item.model",
+      "target": "apps/menubar-tauri/src/app/vault/vault-item.model.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault/vault-item.model.ts",
+      "specifier": "../official-ui/official-i18n.service",
+      "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/app/vault/vault-item.model.ts",
+      "specifier": "./opaque-cipher-payload",
+      "target": "apps/menubar-tauri/src/app/vault/opaque-cipher-payload.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/host/host-api.ts",
+      "specifier": "./global-shortcut",
+      "target": "apps/menubar-tauri/src/host/global-shortcut.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "specifier": "../bitwarden-api/bitwarden-api",
+      "target": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "specifier": "./biometric-host",
+      "target": "apps/menubar-tauri/src/host/biometric-host.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "specifier": "./global-shortcut",
+      "target": "apps/menubar-tauri/src/host/global-shortcut.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "specifier": "./host-api",
+      "target": "apps/menubar-tauri/src/host/host-api.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "specifier": "./host-api",
+      "target": "apps/menubar-tauri/src/host/host-api.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "specifier": "./launch-at-login",
+      "target": "apps/menubar-tauri/src/host/launch-at-login.ts"
+    }
+  ],
+  "sourceRuntimeEdges": [
+    {
+      "authority": "vendor/bitwarden-clients/libs/vault/src/components/password-history-view/password-history-view.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts"
+    },
+    {
+      "authority": "vendor/bitwarden-clients/libs/components/src/color-password/color-password.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts"
+    },
+    {
+      "authority": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/folders.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts"
+    },
+    {
+      "authority": "vendor/bitwarden-clients/libs/vault/src/components/add-edit-folder-dialog/add-edit-folder-dialog.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-add-edit-folder-dialog.component.ts"
+    },
+    {
+      "authority": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/archive.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts"
+    },
+    {
+      "authority": "vendor/bitwarden-clients/libs/vault/src/services/archive-cipher-utilities.service.ts",
+      "runtime": "apps/menubar-tauri/src/app/vault/recovery-page-actions.adapter.ts"
+    },
+    {
+      "authority": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/trash.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts"
+    },
+    {
+      "authority": "vendor/bitwarden-clients/apps/browser/src/_locales/zh_CN/messages.json",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash.component.ts"
+    },
+    {
+      "authority": "vendor/bitwarden-clients/apps/browser/src/vault/popup/settings/trash-list-items-container/trash-list-items-container.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts"
+    }
+  ],
+  "excludedDependencies": [
+    "BrowserApi and current tab/current URL access",
+    "autofill, content, and background integrations",
+    "organization and collection administration, organization icons, and server UI permission flags",
+    "attachments, SSH, FIDO/passkeys, decryption-failure dialogs, and premium/archive upsells",
+    "import/export, native messaging, arbitrary clipboard access, and local optimistic lifecycle fallback"
+  ]
+}

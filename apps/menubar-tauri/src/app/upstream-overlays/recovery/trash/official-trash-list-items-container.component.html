@@ -1,0 +1,42 @@
+@if (items.length) {
+  <bit-section>
+    <bit-section-header>
+      <h2 bitTypography="h6">{{ headerText }}</h2>
+      <span bitTypography="body1" slot="end">{{ items.length }}</span>
+    </bit-section-header>
+    <bit-item-group>
+      @for (item of items; track item.id) {
+        <bit-item>
+          <button
+            bit-item-content
+            type="button"
+            [attr.aria-label]="'i18nViewItem' | i18n: item.name"
+            [attr.data-testid]="'trash-view-' + item.id"
+            (click)="emit('view', item)"
+          >
+            <div slot="start" class="tw-justify-start tw-w-7 tw-flex">
+              <bw-vault-item-icon [item]="item" />
+            </div>
+            <span data-testid="item-name">{{ item.name }}</span>
+            <span slot="secondary">{{ item.subtitle }}</span>
+          </button>
+          <ng-container slot="end">
+            <bit-item-action>
+              <button
+                type="button"
+                bitIconButton="bwi-ellipsis-v"
+                size="small"
+                [label]="'i18nTrashOptions' | i18n: item.name"
+                [bitMenuTriggerFor]="moreOptions"
+              ></button>
+              <bit-menu #moreOptions [ariaLabel]="'i18nTrashOptions' | i18n: item.name">
+                <button type="button" bitMenuItem (click)="emit('restore', item)">{{ "i18nRestore" | i18n }}</button>
+                <button type="button" bitMenuItem (click)="emit('permanent-delete', item)">{{ "i18nPermanentDelete" | i18n }}</button>
+              </bit-menu>
+            </bit-item-action>
+          </ng-container>
+        </bit-item>
+      }
+    </bit-item-group>
+  </bit-section>
+}

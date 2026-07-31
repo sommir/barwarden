@@ -1,0 +1,62 @@
+<popup-page>
+  <popup-header slot="header" [pageTitle]="'folders' | i18n" showBackButton [backAction]="backAction">
+    <ng-container slot="end">
+      <button
+        bitButton
+        size="small"
+        buttonType="primary"
+        type="button"
+        (click)="addFolder.emit()"
+        startIcon="bwi-plus"
+        [attr.aria-label]="'new' | i18n"
+        data-testid="new-folder-button"
+      >
+        {{ "new" | i18n }}
+      </button>
+      <button
+        bitIconButton="bwi-popout"
+        size="small"
+        type="button"
+        [label]="'i18nPopOut' | i18n"
+        (click)="popOut.emit()"
+      ></button>
+    </ng-container>
+  </popup-header>
+
+  @if (folders.length) {
+    <bit-item-group>
+      @for (folder of folders; track folder.id) {
+        <bit-item>
+          <bit-item-content>
+            {{ folder.name }}
+            <button
+              slot="end"
+              type="button"
+              (click)="editFolder.emit(folder)"
+              [label]="'i18nEditFolderLabel' | i18n: folder.name"
+              bitIconButton="bwi-pencil-square"
+              class="tw-self-end"
+              [attr.data-testid]="'edit-folder-' + folder.id"
+            ></button>
+          </bit-item-content>
+        </bit-item>
+      }
+    </bit-item-group>
+  } @else {
+    <bit-no-items [icon]="NoFoldersIcon" class="tw-h-full tw-flex tw-items-center">
+      <ng-container slot="title">{{ "i18nNoFolders" | i18n }}</ng-container>
+      <ng-container slot="description">{{ "i18nFolderDescription" | i18n }}</ng-container>
+      <button
+        bitButton
+        buttonType="primary"
+        type="button"
+        slot="button"
+        (click)="addFolder.emit()"
+        data-testid="empty-new-folder-button"
+        startIcon="bwi-plus"
+      >
+        {{ "i18nNewFolder" | i18n }}
+      </button>
+    </bit-no-items>
+  }
+</popup-page>

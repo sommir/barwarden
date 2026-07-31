@@ -1,0 +1,131 @@
+[
+  {
+    "packages": [
+      {
+        "ecosystem": "npm",
+        "name": "@ng-select/ng-select",
+        "versions": ["21.8.2"]
+      }
+    ],
+    "source": "https://github.com/ng-select/ng-select/blob/fd41d662c00c14a0a7edcd226d8a60e6771cc6c1/LICENSE",
+    "documents": ["ng-select/LICENSE"]
+  },
+  {
+    "packages": [
+      {
+        "ecosystem": "cargo",
+        "name": "objc2",
+        "versions": ["0.6.4"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-encode",
+        "versions": ["4.1.0"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-exception-helper",
+        "versions": ["0.1.1"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-app-kit",
+        "versions": ["0.3.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "block2",
+        "versions": ["0.6.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-core-foundation",
+        "versions": ["0.3.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-core-graphics",
+        "versions": ["0.3.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-foundation",
+        "versions": ["0.3.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-quartz-core",
+        "versions": ["0.3.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-local-authentication",
+        "versions": ["0.3.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-service-management",
+        "versions": ["0.3.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-web-kit",
+        "versions": ["0.3.2"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "dispatch2",
+        "versions": ["0.3.1"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "objc2-osa-kit",
+        "versions": ["0.3.2"]
+      }
+    ],
+    "source": "https://github.com/madsmtm/objc2/blob/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md",
+    "documents": ["objc2/LICENSE.md", "objc2/LICENSE-MIT"]
+  },
+  {
+    "packages": [
+      {
+        "ecosystem": "cargo",
+        "name": "alloc-stdlib",
+        "versions": ["0.2.4"]
+      }
+    ],
+    "source": "https://github.com/dropbox/rust-alloc-no-stdlib/blob/ae42d22078b98549e987d2f03d12df7b984fde47/LICENSE",
+    "documents": ["alloc-no-stdlib/LICENSE"]
+  },
+  {
+    "packages": [
+      {
+        "ecosystem": "cargo",
+        "name": "unic-ucd-ident",
+        "versions": ["0.9.0"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "unic-char-property",
+        "versions": ["0.9.0"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "unic-char-range",
+        "versions": ["0.9.0"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "unic-ucd-version",
+        "versions": ["0.9.0"]
+      },
+      {
+        "ecosystem": "cargo",
+        "name": "unic-common",
+        "versions": ["0.9.0"]
+      }
+    ],
+    "source": "https://github.com/open-i18n/rust-unic/blob/8a6ce83063d90b91ae2ce59eddb803edd393fca9/LICENSE-MIT",
+    "documents": ["rust-unic/LICENSE-MIT"]
+  }
+]

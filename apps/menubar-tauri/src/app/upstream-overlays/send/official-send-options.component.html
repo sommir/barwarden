@@ -1,0 +1,28 @@
+<bit-section disableMargin>
+  @if (anyOptionFieldVisible()) {
+    <bit-section-header>
+      <h2 class="tw-mt-4" bitTypography="h6">{{ "additionalOptions" | i18n }}</h2>
+    </bit-section-header>
+    <bit-card>
+      @if (maxAccessCountVisible()) {
+        <bit-form-field [disableMargin]="!hideEmailVisible() && !privateNoteVisible()">
+          <bit-label>{{ "i18nMaxAccessCount" | i18n }}</bit-label>
+          <input bitInput [value]="value().maxAccessCount" [readonly]="!editing()" id="maxAccessCountInput" (input)="valueChange.emit({ maxAccessCount: inputValue($event) })" />
+          @if (editing()) { <bit-hint>{{ "i18nMaxAccessCountHint" | i18n }}</bit-hint> }
+        </bit-form-field>
+      }
+      @if (hideEmailVisible()) {
+        <bit-form-control class="tw-flex tw-align-middle" [disableMargin]="!privateNoteVisible()">
+          <input bitCheckbox type="checkbox" [checked]="value().hideEmail" [disabled]="!editing()" (change)="valueChange.emit({ hideEmail: checked($event) })" />
+          <bit-label>{{ "i18nHideEmailFromRecipients" | i18n }}</bit-label>
+        </bit-form-control>
+      }
+      @if (privateNoteVisible()) {
+        <bit-form-field disableMargin>
+          <bit-label>{{ "i18nPrivateNotes" | i18n }}</bit-label>
+          <textarea bitInput rows="3" [value]="value().notes" [readonly]="!editing()" (input)="valueChange.emit({ notes: inputValue($event) })"></textarea>
+        </bit-form-field>
+      }
+    </bit-card>
+  }
+</bit-section>

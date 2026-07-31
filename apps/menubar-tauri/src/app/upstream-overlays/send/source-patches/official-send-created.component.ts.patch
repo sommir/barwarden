@@ -1,0 +1,137 @@
+--- authority
++++ runtime
+@@ -1,7 +1 @@
+-// FIXME: Update this file to be type safe and remove this and next line
+-// @ts-strict-ignore
+-import { CommonModule } from "@angular/common";
+-import { Component } from "@angular/core";
+-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+-import { ActivatedRoute, Router, RouterModule } from "@angular/router";
+-import { firstValueFrom } from "rxjs";
++import { ChangeDetectionStrategy, Component, input, output } from "@angular/core";
+@@ -9 +2,0 @@
+-import { JslibModule } from "@bitwarden/angular/jslib.module";
+@@ -11,7 +4 @@
+-import { EnvironmentService } from "@bitwarden/common/platform/abstractions/environment.service";
+-import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+-import { PlatformUtilsService } from "@bitwarden/common/platform/abstractions/platform-utils.service";
+-import { SendView } from "@bitwarden/common/tools/send/models/view/send.view";
+-import { SendService } from "@bitwarden/common/tools/send/services/send.service.abstraction";
+-import { AuthType } from "@bitwarden/common/tools/send/types/auth-type";
+-import { ButtonModule, SvgModule, ToastService } from "@bitwarden/components";
++import { SvgModule } from "@bitwarden/components";
+@@ -19,4 +6,6 @@
+-import { PopOutComponent } from "../../../../platform/popup/components/pop-out.component";
+-import { PopupFooterComponent } from "../../../../platform/popup/layout/popup-footer.component";
+-import { PopupHeaderComponent } from "../../../../platform/popup/layout/popup-header.component";
+-import { PopupPageComponent } from "../../../../platform/popup/layout/popup-page.component";
++import { PopupFooterComponent } from "@bitwarden/browser-popup/layout/popup-footer.component";
++import { PopupHeaderComponent } from "@bitwarden/browser-popup/layout/popup-header.component";
++import { PopupPageComponent } from "@bitwarden/browser-popup/layout/popup-page.component";
++import { ButtonComponent } from "@bitwarden/components/button/button.component";
++import { BitIconButtonComponent } from "@bitwarden/components/icon-button/icon-button.component";
++import { I18nPipe } from "../../official-ui/official-ui-common";
+@@ -24,2 +13,7 @@
+-// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
+-// eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
++export interface OfficialCreatedTextSend {
++  readonly id: string;
++  readonly name: string;
++  readonly deletionDate: string;
++  readonly hasPassword: boolean;
++}
++
+@@ -27,2 +21,2 @@
+-  selector: "app-send-created",
+-  templateUrl: "./send-created.component.html",
++  selector: "bw-official-send-created",
++  standalone: true,
+@@ -30,4 +24,4 @@
+-    ButtonModule,
+-    CommonModule,
+-    JslibModule,
+-    PopOutComponent,
++    BitIconButtonComponent,
++    ButtonComponent,
++    I18nPipe,
++    PopupFooterComponent,
+@@ -36,2 +29,0 @@
+-    RouterModule,
+-    PopupFooterComponent,
+@@ -39,0 +32,2 @@
++  templateUrl: "./official-send-created.component.html",
++  changeDetection: ChangeDetectionStrategy.OnPush,
+@@ -41,6 +35,6 @@
+-export class SendCreatedComponent {
+-  readonly AuthType = AuthType;
+-  protected sendCreatedIcon = ActiveSendIcon;
+-  protected send: SendView;
+-  protected daysAvailable = 0;
+-  protected hoursAvailable = 0;
++export class OfficialSendCreatedComponent {
++  readonly send = input.required<OfficialCreatedTextSend>();
++  readonly formattedExpiration = input.required<string>();
++  readonly copyLink = output<Event>();
++  readonly close = output<void>();
++  readonly popOut = output<void>();
+@@ -48,56 +42,4 @@
+-  constructor(
+-    private i18nService: I18nService,
+-    private platformUtilsService: PlatformUtilsService,
+-    private sendService: SendService,
+-    private route: ActivatedRoute,
+-    private toastService: ToastService,
+-    private router: Router,
+-    private environmentService: EnvironmentService,
+-  ) {
+-    const sendId = this.route.snapshot.queryParamMap.get("sendId");
+-
+-    this.sendService.sendViews$.pipe(takeUntilDestroyed()).subscribe((sendViews) => {
+-      this.send = sendViews.find((s) => s.id === sendId);
+-      if (this.send) {
+-        this.hoursAvailable = this.getHoursAvailable(this.send);
+-        this.daysAvailable = Math.ceil(this.hoursAvailable / 24);
+-      }
+-    });
+-  }
+-
+-  get formattedExpirationTime(): string {
+-    if (!this.send?.deletionDate) {
+-      return "";
+-    }
+-    if (this.hoursAvailable < 24) {
+-      return this.hoursAvailable === 1
+-        ? this.i18nService.t("oneHour").toLowerCase()
+-        : this.i18nService.t("durationTimeHours", String(this.hoursAvailable)).toLowerCase();
+-    }
+-    return this.daysAvailable === 1
+-      ? this.i18nService.t("oneDay").toLowerCase()
+-      : this.i18nService.t("days", String(this.daysAvailable)).toLowerCase();
+-  }
+-
+-  getHoursAvailable(send: SendView): number {
+-    const now = new Date().getTime();
+-    return Math.max(0, Math.ceil((send.deletionDate.getTime() - now) / (1000 * 60 * 60)));
+-  }
+-
+-  async goBack() {
+-    await this.router.navigate(["/tabs/send"]);
+-  }
+-
+-  async copyLink() {
+-    if (!this.send || !this.send.accessId || !this.send.urlB64Key) {
+-      return;
+-    }
+-    const env = await firstValueFrom(this.environmentService.environment$);
+-    const link = env.getSendUrl() + this.send.accessId + "/" + this.send.urlB64Key;
+-    this.platformUtilsService.copyToClipboard(link);
+-    this.toastService.showToast({
+-      variant: "success",
+-      title: null,
+-      message: this.i18nService.t("sendLinkCopied"),
+-    });
+-  }
++  readonly sendCreatedIcon = ActiveSendIcon;
++  readonly backAction: import("@bitwarden/components/utils/function-to-observable").FunctionReturningAwaitable = () => {
++    this.close.emit();
++  };

@@ -1,0 +1,70 @@
+<popup-page>
+  <popup-header slot="header" [pageTitle]="'settings' | i18n">
+    <ng-container slot="end">
+      <ng-content select="[slot=end]" />
+    </ng-container>
+  </popup-header>
+
+  <div class="tw-px-4 tw-pt-4">
+    <h2 bitTypography="h6" class="tw-mb-2">{{ "i18nGeneral" | i18n }}</h2>
+
+    <bit-item-group>
+      <bit-item>
+        <label
+          bit-item-content
+          class="settings-row official-settings-row"
+          data-testid="launch-at-login-row"
+        >
+          <input
+            slot="start"
+            bitCheckbox
+            id="launch-at-login"
+            type="checkbox"
+            [attr.aria-label]="'i18nLaunchAtLogin' | i18n"
+            [checked]="launchAtLoginEnabled"
+            [disabled]="launchAtLoginBusy"
+            (change)="requestLaunchAtLoginChange($event)"
+          />
+          <span
+            class="launch-at-login-row__copy tw-inline-flex tw-max-w-full tw-items-baseline tw-gap-2 tw-whitespace-nowrap"
+          >
+            <span class="launch-at-login-row__title tw-font-medium">
+              {{ "i18nLaunchAtLogin" | i18n }}
+            </span>
+            <span class="launch-at-login-row__hint tw-truncate tw-text-sm tw-text-muted">
+              {{ "i18nLaunchAtLoginHint" | i18n }}
+            </span>
+          </span>
+        </label>
+      </bit-item>
+
+      @for (item of items; track item.route) {
+        <bit-item>
+          <button
+            type="button"
+            bit-item-content
+            class="settings-row official-settings-row"
+            [truncate]="false"
+            (click)="navigate.emit(item.route)"
+          >
+            <i slot="start" class="bwi" [class]="item.icon" aria-hidden="true"></i>
+            {{ item.label }}
+            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+          </button>
+        </bit-item>
+      }
+    </bit-item-group>
+
+    @if (launchAtLoginError) {
+      <bw-macos-alert-strip
+        class="tw-mt-3"
+        kind="danger"
+        testId="launch-at-login-error"
+        [title]="'i18nUnableToUpdateLaunchAtLoginTitle' | i18n"
+        [message]="launchAtLoginError"
+        [dismissible]="true"
+        (dismiss)="dismissLaunchAtLoginError.emit()"
+      />
+    }
+  </div>
+</popup-page>

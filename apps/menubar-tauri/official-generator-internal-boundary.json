@@ -1,0 +1,19 @@
+{
+  "coreRoot": "vendor/bitwarden-clients/libs/tools/generator/core/src",
+  "importers": [
+    "engine/sdk-password-randomizer.ts",
+    "engine/email-randomizer.ts",
+    "engine/username-randomizer.ts",
+    "metadata/generator-metadata.ts",
+    "metadata/email/catchall.ts",
+    "metadata/email/plus-address.ts",
+    "metadata/password/eff-word-list.ts",
+    "metadata/password/random-password.ts",
+    "metadata/username/eff-word-list.ts",
+    "policies/passphrase-policy-constraints.ts",
+    "policies/password-policy-constraints.ts",
+    "util.ts"
+  ],
+  "barrels": ["data", "engine", "metadata", "policies", "providers", "types"],
+  "boundary": "apps/menubar-tauri/src/app/generator/official-generator-vendor-runtime.boundary.ts"
+}

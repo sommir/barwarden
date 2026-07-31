@@ -1,0 +1,29 @@
+<bit-item-action>
+  <button
+    #menuTrigger="menuTrigger"
+    type="button"
+    bitIconButton="bwi-ellipsis-v"
+    size="small"
+    [label]="'i18nMore' | i18n"
+    [bitMenuTriggerFor]="moreOptions"
+    (click)="menuToggled()"
+  ></button>
+  <bit-menu #moreOptions [ariaLabel]="'i18nMore' | i18n" (closed)="menuClosed()">
+    <div class="tw-contents" (keydown)="handleMenuKeydown($event)">
+      <button type="button" bitMenuItem (click)="onView()">{{ "i18nView" | i18n }}</button>
+      <button type="button" bitMenuItem (click)="onToggleFavorite()">{{ favoriteText }}</button>
+      @if (cipher.edit) {
+        <button type="button" bitMenuItem (click)="onEdit()">
+          {{ "i18nEdit" | i18n }}
+        </button>
+        @if (cipher.viewPassword) {
+          <button type="button" bitMenuItem (click)="onClone()">
+            {{ "i18nClone" | i18n }}
+          </button>
+        }
+        <button type="button" bitMenuItem (click)="onArchive()">{{ "archive" | i18n }}</button>
+        <button type="button" bitMenuItem variant="danger" (click)="onDelete()">{{ "i18nDelete" | i18n }}</button>
+      }
+    </div>
+  </bit-menu>
+</bit-item-action>

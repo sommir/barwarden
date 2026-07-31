@@ -1,0 +1,58 @@
+<bit-section disableMargin>
+  <bit-section-header class="tw-mt-2">
+    <h2 bitTypography="h6">{{ "i18nSendDetails" | i18n }}</h2>
+  </bit-section-header>
+
+  <bit-card>
+    <bit-form-field>
+      <bit-label>{{ "i18nSendName" | i18n }}</bit-label>
+      <input bitInput type="text" [value]="value().name" [readonly]="!editing()" (input)="valueChange.emit({ name: inputValue($event) })" />
+    </bit-form-field>
+
+    <bw-official-send-text-details [editing]="editing()" [value]="value()" (valueChange)="valueChange.emit($event)"></bw-official-send-text-details>
+
+    <bit-form-field>
+      <bit-label>{{ "i18nDeleteDate" | i18n }}</bit-label>
+      @if (!editing()) {
+        <input bitInput type="text" [value]="deletionLabel()" readonly />
+      } @else {
+        <bit-select [ngModel]="value().deletionPresetHours" (ngModelChange)="valueChange.emit({ deletionPresetHours: deletionPreset($event) })" [ngModelOptions]="{ standalone: true }">
+          @for (option of datePresetOptions; track option.value) {
+            <bit-option [value]="option.value" [label]="option.label"></bit-option>
+          }
+        </bit-select>
+      }
+      @if (editing()) { <bit-hint>{{ "i18nSendDeletionHint" | i18n }}</bit-hint> }
+    </bit-form-field>
+
+    <bit-form-field [disableMargin]="value().authType === 'none'">
+      <bit-label>{{ "i18nWhoCanAccess" | i18n }}</bit-label>
+      @if (!editing()) {
+        <input bitInput type="text" [value]="authTypeLabel()" readonly />
+      } @else {
+        <bit-select [ngModel]="value().authType" (ngModelChange)="valueChange.emit({ authType: authType($event) })" [ngModelOptions]="{ standalone: true }">
+          @for (option of authorizationOptions; track option.value) {
+            <bit-option [value]="option.value" [label]="option.label"></bit-option>
+          }
+        </bit-select>
+      }
+      @if (editing() && value().authType === 'password') { <bit-hint class="tw-mt-2">{{ "i18nPasswordRequiredForSend" | i18n }}</bit-hint> }
+    </bit-form-field>
+
+    @if (value().authType === 'password') {
+      <bit-form-field disableMargin>
+        <bit-label>{{ originalHadPassword() ? ("i18nNewPassword" | i18n) : ("password" | i18n) }}</bit-label>
+        <input bitInput type="password" [value]="value().password" [readonly]="!editing() || originalHadPassword()" (input)="valueChange.emit({ password: inputValue($event) })" />
+        <div bitSuffix ngProjectAs="[bitSuffix]" class="tw-flex tw-items-center">
+          @if (!originalHadPassword()) {
+            <button type="button" bitIconButton="bwi-generate" size="small" [disabled]="disabled()" (click)="generatePassword.emit()" data-testid="generate-password"></button>
+            <button type="button" bitIconButton="bwi-clone" size="small" [disabled]="disabled() || !value().password" (click)="copyPassword.emit($event)"></button>
+          } @else if (editing()) {
+            <button type="button" buttonType="dangerGhost" bitIconButton="bwi-minus-circle" size="small" [disabled]="disabled()" (click)="removePassword.emit()"></button>
+          }
+        </div>
+      </bit-form-field>
+    }
+  </bit-card>
+  <bw-official-send-options [editing]="editing()" [hideEmailAllowed]="hideEmailAllowed()" [value]="value()" (valueChange)="valueChange.emit($event)"></bw-official-send-options>
+</bit-section>

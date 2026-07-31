@@ -1,0 +1,5409 @@
+@import "./official-theme.css";
+@import "./macos-tokens.css";
+@import "./macos-materials.css";
+@import "./macos-motion.css";
+
+:root {
+  --bw-sheet-max-height: 80vh;
+  --bw-sheet-motion: var(--mac-sheet-motion);
+  --mac-form-control-height: 40px;
+  --mac-form-control-radius: 10px;
+  --mac-floating-navigation-height: 58px;
+  --mac-floating-navigation-bottom-offset: 13px;
+  --mac-floating-navigation-safe-gap: var(--mac-space-3);
+  color: var(--bw-text-main);
+  background: transparent;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* One route-level canvas and responsive content track for every navigable page. */
+.macos-page {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--mac-canvas);
+  color: var(--mac-text-primary);
+}
+
+/* PopupPage's vendor host is a flex column.  Route pages also carry the
+ * macos-page canvas class, whose generic block display must never replace that
+ * layout contract: it would leave the scroll child with no constrained flex
+ * height and let long vault trees grow underneath the floating navigation. */
+popup-page.macos-page {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+/* Every routed page has one scrolling owner: PopupPage's content region.
+ * Without the explicit min-height contract, a long form can grow its flex
+ * ancestors past the native 600px popup and be clipped by the rounded window
+ * instead of becoming scrollable. */
+popup-page,
+popup-page > main,
+popup-page [data-testid="popup-layout-scroll-region"] {
+  min-height: 0;
+}
+
+popup-page > main {
+  flex: 1 1 auto;
+}
+
+popup-page [data-testid="popup-layout-scroll-region"] {
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Navigation intentionally floats over the continuous canvas.  The scroll
+ * owner still needs a transparent terminal inset, otherwise its final vault
+ * disclosure is physically reachable only behind the navigation. */
+.popup-shell popup-page [data-testid="popup-layout-scroll-region"] {
+  padding-bottom: calc(
+    var(--mac-floating-navigation-height) +
+    var(--mac-floating-navigation-bottom-offset) +
+    var(--mac-floating-navigation-safe-gap)
+  ) !important;
+  scroll-padding-bottom: calc(
+    var(--mac-floating-navigation-height) +
+    var(--mac-floating-navigation-bottom-offset) +
+    var(--mac-floating-navigation-safe-gap)
+  );
+}
+
+/* Native-style overlay scrollbars: a restrained 2px glass thumb that is
+ * shared by routed pages, retained detail pages, authentication challenges,
+ * and sheet bodies. The track remains transparent so it never creates a
+ * second visual layer over the continuous material canvas. */
+:is(
+  [data-testid="popup-layout-scroll-region"],
+  .detail-scroll,
+  .official-login-challenge-content,
+  .app-bottom-sheet-body
+) {
+  scrollbar-color: rgb(82 99 126 / 52%) transparent;
+  scrollbar-width: thin;
+}
+
+:is(
+  [data-testid="popup-layout-scroll-region"],
+  .detail-scroll,
+  .official-login-challenge-content,
+  .app-bottom-sheet-body
+)::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+
+:is(
+  [data-testid="popup-layout-scroll-region"],
+  .detail-scroll,
+  .official-login-challenge-content,
+  .app-bottom-sheet-body
+)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:is(
+  [data-testid="popup-layout-scroll-region"],
+  .detail-scroll,
+  .official-login-challenge-content,
+  .app-bottom-sheet-body
+)::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 58%),
+    rgb(82 99 126 / 44%)
+  );
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 34%);
+}
+
+:is(
+  [data-testid="popup-layout-scroll-region"],
+  .detail-scroll,
+  .official-login-challenge-content,
+  .app-bottom-sheet-body
+)::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 70%),
+    rgb(82 99 126 / 58%)
+  );
+}
+
+/*
+ * Upstream pages own their scroll containers at different levels. Apply the
+ * same compact glass treatment to every descendant so unclassified pages do
+ * not fall back to macOS's wide opaque scrollbar.
+ */
+:where(*) {
+  scrollbar-color: rgb(82 99 126 / 52%) transparent;
+  scrollbar-width: thin;
+}
+
+:where(*)::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+
+:where(*)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:where(*)::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border: 0.5px solid rgb(255 255 255 / 30%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(116 137 168 / 58%), rgb(74 95 128 / 52%));
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 0.5px rgb(44 63 94 / 22%);
+}
+
+:where(*)::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgb(106 124 153 / 72%), rgb(75 93 122 / 68%));
+}
+
+:root[data-bw-window="popout"] .macos-page--secondary [data-testid="popup-layout-scroll-region"] > * {
+  width: min(100%, var(--bw-popout-content-width));
+  margin-inline: auto;
+}
+
+/* One form shell vocabulary across retained, Send, Vault, and authentication forms. */
+:is(.macos-field, .form-field, .send-form-field, .cipher-form-field) {
+  --app-form-border: var(--mac-border);
+  --app-form-background: var(--mac-surface-solid);
+  min-width: 0;
+  color: var(--mac-text-primary);
+}
+
+:is(
+  .macos-field [bitfieldcontainer],
+  .form-field :is(input, select, textarea),
+  .send-form-field :is(input, select, textarea),
+  .cipher-form-field :is(input, select, textarea)
+) {
+  min-width: 0;
+  min-height: var(--mac-form-control-height);
+  border: 1px solid var(--app-form-border);
+  border-radius: var(--mac-form-control-radius);
+  background: var(--app-form-background);
+  color: var(--mac-text-primary);
+  font: inherit;
+}
+
+:is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
+  :is(input, select, textarea):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
+  outline-offset: 1px;
+}
+
+:is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
+  :is(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--mac-destructive);
+}
+
+:is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
+  :is(input, select, textarea):disabled,
+:is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
+  :is(input, select, textarea)[readonly] {
+  background: color-mix(in srgb, var(--mac-surface-solid) 90%, var(--mac-canvas));
+  color: var(--mac-disabled);
+  cursor: default;
+}
+
+:is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
+  :is(small, bit-hint, bit-error, [role="alert"]) {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+:root[data-bw-compact-mode="true"] {
+  --bw-row-content-height: 52px;
+  --bw-row-gap: 0;
+  --bw-section-gap: 8px;
+}
+
+:root[data-bw-compact-mode="false"],
+:root:not([data-bw-compact-mode]) {
+  --bw-row-content-height: 52px;
+  --bw-row-gap: 6px;
+  --bw-section-gap: 16px;
+}
+
+:root[data-bw-animations="false"] *,
+:root[data-bw-animations="false"] *::before,
+:root[data-bw-animations="false"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  background: transparent;
+}
+
+body {
+  display: grid;
+  min-height: 100vh;
+  overflow: hidden;
+  place-items: start center;
+}
+
+barwarden-root {
+  position: relative;
+  display: block;
+  width: var(--bw-popup-width);
+  min-height: var(--bw-popup-height);
+  overflow: hidden;
+  border-radius: var(--mac-window-radius);
+  background: var(--mac-canvas);
+  contain: paint;
+}
+
+.app-bootstrap-loading {
+  display: grid;
+  min-height: var(--bw-popup-height);
+  place-items: center;
+  color: var(--mac-text-secondary);
+  text-align: center;
+}
+
+.app-bootstrap-loading > div {
+  display: grid;
+  justify-items: center;
+  gap: var(--mac-space-2);
+}
+
+.app-bootstrap-loading strong {
+  color: var(--mac-text-primary);
+  font-size: 18px;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+}
+
+.app-bootstrap-loading span {
+  font-size: 13px;
+}
+
+.app-bootstrap-loading progress {
+  width: 112px;
+  height: 4px;
+  margin-top: var(--mac-space-1);
+  accent-color: var(--mac-accent);
+}
+
+/* Route content may grow for native size measurement, but the web popup frame
+ * must give popup-page's 100% height a definite 480×600 containing block. */
+barwarden-root > .popup-window-size-source {
+  position: relative;
+  width: 100%;
+  height: max(var(--bw-popup-height), 100vh);
+  min-height: var(--bw-popup-height);
+}
+
+/* WebKit can discard the layer tree while the native menu-bar popup is hidden.
+ * This class is applied for two frames after the window is shown, forcing a
+ * fresh composited surface without changing the visible layout. */
+barwarden-root > .popup-window-size-source.popup-window-size-source--render-recovery {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.app-bootstrap-loading--runtime {
+  position: absolute;
+  z-index: 40;
+  inset: 0;
+  background: var(--mac-canvas);
+}
+
+barwarden-root > .popup-window-size-source > :is(bw-vault-item-detail-page, bw-vault-add-edit-page) {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
+barwarden-root > .popup-window-size-source > bw-popup-shell {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
+barwarden-root > .popup-window-size-source > bw-popup-shell > .popup-shell {
+  height: 100%;
+}
+
+barwarden-root > router-outlet {
+  display: none;
+}
+
+barwarden-root > router-outlet + * {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0 solid transparent;
+  background-color: transparent;
+  background-image: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.popup-page {
+  width: var(--bw-popup-width);
+  height: var(--bw-popup-height);
+  overflow: hidden;
+  background: var(--mac-canvas);
+  color: var(--mac-text-primary);
+}
+
+.popup-shell {
+  position: relative;
+  display: flex;
+  width: var(--bw-popup-width);
+  height: var(--bw-popup-height);
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mac-canvas);
+}
+
+:root[data-bw-window="popout"] body {
+  place-items: stretch;
+}
+
+:root[data-bw-window="popout"] barwarden-root {
+  width: 100vw;
+  min-height: 100vh;
+  border-radius: 0;
+}
+
+:root[data-bw-window="popout"] :is(
+  .popup-window-size-source,
+  .popup-shell,
+  .popup-page
+) {
+  width: 100%;
+  height: 100vh;
+}
+
+.primary-action {
+  display: inline-flex;
+  min-height: var(--mac-control-min-size);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--mac-control-radius);
+  padding: 0 14px;
+  background: var(--bw-primary);
+  color: var(--bw-background);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.primary-action:hover {
+  background: var(--bw-primary-hover);
+}
+
+.secondary-action {
+  display: inline-grid;
+  min-height: var(--mac-control-min-size);
+  place-items: center;
+  border: 1px solid var(--bw-border);
+  border-radius: var(--mac-control-radius);
+  padding: 0 16px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.secondary-action:hover:not(:disabled) {
+  border-color: var(--mac-focus);
+  background: var(--mac-hover);
+}
+
+.secondary-action:disabled {
+  color: var(--mac-disabled);
+  cursor: default;
+}
+
+.icon-button,
+.filter-button,
+.icon-action {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--bw-text-main);
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  font-size: 21px;
+}
+
+.popup-tab-scroll-host {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  padding: 0;
+  scrollbar-width: thin;
+}
+
+.popup-tab-scroll-host > router-outlet {
+  display: none;
+}
+
+.popup-tab-scroll-host > router-outlet + * {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+popup-page {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.floating-tab-switcher {
+  position: absolute;
+  z-index: 20;
+  right: 14px;
+  bottom: 13px;
+  left: 14px;
+  display: grid;
+  grid-template-columns: repeat(var(--segment-count), minmax(0, 1fr));
+  min-height: 58px;
+  padding: 4px;
+  border-radius: var(--mac-floating-radius);
+  /* This is chrome laid over the same canvas as the content, not a footer.
+   * Routed pages deliberately scroll beneath its translucent material. */
+  isolation: isolate;
+}
+
+:root[data-bw-window="popout"] .floating-tab-switcher {
+  right: auto;
+  left: 50%;
+  width: var(--bw-popout-content-width);
+  transform: translateX(-50%);
+}
+
+.floating-tab-switcher__indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--segment-count));
+  border-radius: 10px;
+  background: var(--mac-selected);
+  box-shadow: inset 0 0 0 1px var(--mac-border-subtle);
+  transform: translateX(calc(var(--selected-index) * 100%));
+  transition: transform var(--mac-motion-duration) cubic-bezier(.2, .8, .2, 1);
+}
+
+.floating-tab-switcher__segment {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 0;
+  min-height: 50px;
+  grid-template-rows: auto auto;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  border-radius: 10px;
+  padding: 3px 2px;
+  color: var(--mac-text-secondary);
+  font-weight: 600;
+}
+
+.floating-tab-switcher__icon {
+  display: block;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.floating-tab-switcher__label {
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.floating-tab-switcher__segment[aria-current="page"] {
+  color: var(--mac-accent);
+}
+
+.floating-tab-switcher__segment:focus-visible {
+  outline: 2px solid var(--mac-focus);
+  outline-offset: -2px;
+}
+
+.app-feedback {
+  position: absolute;
+  z-index: 60;
+  right: 16px;
+  bottom: calc(13px + 58px + var(--mac-space-3));
+  left: 16px;
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+}
+
+:root[data-bw-window="popout"] .app-feedback {
+  right: max(16px, calc((100vw - var(--bw-popout-content-width)) / 2 + 16px));
+  left: max(16px, calc((100vw - var(--bw-popout-content-width)) / 2 + 16px));
+}
+
+.app-feedback[data-has-main-switcher="false"] {
+  bottom: var(--mac-space-5);
+}
+
+/* Detail routes keep their action footer pinned.  Feedback is non-blocking,
+ * so it sits directly above that action surface instead of covering Edit or
+ * Delete while the user is deciding their next step. */
+barwarden-root:has(popup-footer) .app-feedback {
+  bottom: calc(64px + var(--mac-space-3));
+}
+
+.app-feedback[data-focus-overlap="true"] {
+  visibility: hidden;
+}
+
+.app-feedback__message {
+  display: inline-flex;
+  width: fit-content;
+  max-width: min(100%, 24rem);
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--mac-border) 82%, white);
+  border-radius: 12px;
+  padding: 10px 8px 10px 10px;
+  background: color-mix(in srgb, var(--mac-surface-solid) 93%, white);
+  box-shadow: 0 12px 30px rgb(15 23 42 / 14%), 0 2px 6px rgb(15 23 42 / 8%);
+  color: var(--mac-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.002em;
+  line-height: 1.35;
+  text-align: center;
+  backdrop-filter: blur(24px) saturate(125%);
+  transform-origin: center bottom;
+  animation: macos-feedback-arrive 180ms cubic-bezier(.2, .82, .25, 1) both;
+}
+
+.app-feedback__message[data-kind="success"] .app-feedback__icon {
+  color: var(--mac-success);
+}
+
+.app-feedback__message[data-kind="warning"] {
+  border-color: color-mix(in srgb, var(--mac-destructive) 36%, var(--mac-border));
+  background: color-mix(in srgb, var(--mac-surface-solid) 91%, var(--mac-destructive));
+}
+
+.app-feedback__message[data-kind="warning"] .app-feedback__icon {
+  color: var(--mac-destructive);
+}
+
+.app-feedback__icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentcolor 13%, transparent);
+  font-size: 13px;
+}
+
+.app-feedback__dismiss {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mac-text-secondary);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.app-feedback__dismiss:hover {
+  background: color-mix(in srgb, var(--mac-text-primary) 8%, transparent);
+  color: var(--mac-text-primary);
+}
+
+.app-feedback__dismiss:focus-visible {
+  outline: 2px solid var(--mac-focus);
+  outline-offset: -2px;
+}
+
+@keyframes macos-feedback-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-feedback__message {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .app-feedback__message {
+    border-color: var(--mac-border);
+    background: var(--mac-surface-raised);
+    backdrop-filter: none;
+  }
+}
+
+.accessibility-permission-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--mac-space-5);
+  background: rgb(15 23 42 / 18%);
+  backdrop-filter: blur(5px) saturate(115%);
+}
+
+.accessibility-permission-dialog {
+  width: min(100%, 352px);
+  padding: var(--mac-space-5);
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: var(--mac-sheet-radius);
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 18px 48px rgb(15 23 42 / 22%), 0 1px 2px rgb(0 0 0 / 16%);
+  color: var(--mac-text-primary);
+}
+
+.accessibility-permission-dialog__icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--mac-space-3);
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--mac-accent) 13%, transparent);
+  color: var(--mac-accent);
+  font-size: 18px;
+}
+
+.accessibility-permission-dialog h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.accessibility-permission-dialog p {
+  margin: var(--mac-space-2) 0 0;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.accessibility-permission-dialog__error {
+  color: var(--mac-destructive) !important;
+}
+
+.accessibility-permission-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--mac-space-2);
+  margin-top: var(--mac-space-5);
+}
+
+.accessibility-permission-dialog__actions button {
+  min-height: 34px;
+  padding: 0 var(--mac-space-3);
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-control-radius);
+  background: var(--mac-surface-raised);
+  color: var(--mac-text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.accessibility-permission-dialog__actions .macos-button--primary {
+  border-color: transparent;
+  background: var(--mac-accent);
+  color: white;
+}
+
+.accessibility-permission-dialog__actions button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .accessibility-permission-backdrop {
+    background: rgb(0 0 0 / 34%);
+    backdrop-filter: none;
+  }
+
+  .accessibility-permission-dialog {
+    background: var(--mac-surface-solid);
+  }
+}
+
+.popup-tab-scroll-host,
+.popup-tab-scroll-host > router-outlet + *,
+.popup-page,
+popup-page > main {
+  background: var(--mac-canvas) !important;
+}
+
+/* The upstream page adds a divider below the search region after any scroll.
+ * Our search and content share one canvas beneath the floating tab bar, so the
+ * transient divider reads as a leftover layer during tab changes. */
+popup-page > main > div:first-of-type {
+  border-bottom-color: transparent !important;
+}
+
+.cdk-virtual-scroll-content-wrapper {
+  width: 100%;
+}
+
+/* The upstream fade host occasionally remains at its enter opacity in the
+ * native WebKit popup after an account unlock or a tab swap.  That leaves the
+ * content in the accessibility tree but paints a blank page.  Keep the
+ * retained component for parity, while making its settled, visible state
+ * explicit in the desktop shell. */
+vault-fade-in-out {
+  display: block;
+  opacity: 1 !important;
+}
+
+popup-header,
+popup-footer {
+  display: block;
+  width: 100%;
+}
+
+popup-header > header {
+  display: grid;
+  min-height: 60px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  border-color: transparent !important;
+  padding: var(--mac-space-3) var(--mac-space-4) var(--mac-space-2) !important;
+  background: transparent !important;
+}
+
+.macos-page-heading {
+  display: grid;
+  box-sizing: border-box;
+  min-height: 60px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--mac-space-3);
+  width: 100%;
+  padding: var(--mac-space-3) var(--mac-space-4) var(--mac-space-2);
+}
+
+@media (min-width: 640px) {
+  :root[data-bw-window="popout"] .macos-page-heading {
+    width: var(--bw-popout-content-width);
+    margin-inline: auto;
+  }
+}
+
+.macos-page-heading__leading {
+  display: flex;
+  min-width: 0;
+  grid-column: 1;
+  align-items: center;
+  gap: var(--mac-space-2);
+  justify-self: start;
+}
+
+.macos-page-heading__titles {
+  min-width: 0;
+  max-width: min(100%, 24rem);
+  grid-column: 2;
+  justify-self: center;
+  text-align: center;
+}
+
+.macos-page-heading h1 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--mac-text-primary);
+  font-size: 18px;
+  font-weight: 680;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.015em;
+}
+
+.macos-page-heading__actions {
+  display: flex;
+  min-width: 0;
+  grid-column: 3;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mac-space-2);
+  justify-self: end;
+}
+
+.macos-page-heading__actions > * {
+  max-width: 100%;
+}
+
+/* The Vault add action belongs to the same right-side action cluster as
+ * Pop Out and the account switcher.  Keeping it out of the leading column
+ * preserves the visual centre of the title and its relationship to the
+ * action it precedes. */
+:is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.official-popup-footer-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Persistent action bars are floating tools, not a second opaque page
+ * background.  The light material keeps their controls legible while the
+ * document canvas continues underneath. */
+popup-page > popup-footer > footer {
+  border-top-color: color-mix(in srgb, var(--mac-border) 58%, transparent) !important;
+  background: color-mix(in srgb, var(--mac-surface-raised) 78%, transparent) !important;
+  box-shadow: 0 -8px 20px color-mix(in srgb, var(--mac-shadow) 12%, transparent);
+  backdrop-filter: saturate(1.25) blur(18px);
+  -webkit-backdrop-filter: saturate(1.25) blur(18px);
+}
+
+.assign-collections-card {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--bw-background);
+  box-shadow: inset 0 -1px 0 #aeb9ca;
+}
+
+.assign-collections-card > p {
+  margin: 0;
+  color: var(--bw-text-main);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.assign-collections-organization {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--bw-text-main);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.assign-collections-organization .bwi-business {
+  color: var(--bw-text-muted);
+  font-size: 18px;
+}
+
+.assign-collections-fieldset {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.assign-collections-fieldset legend {
+  width: 100%;
+  padding: 0 0 8px;
+  color: var(--bw-text-main);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.assign-collection-option {
+  display: grid;
+  min-height: 44px;
+  grid-template-columns: 20px 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  color: var(--bw-text-main);
+  font-size: 14px;
+}
+
+.assign-collection-option:last-child {
+  border-bottom: 0;
+}
+
+.assign-collection-option input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--bw-primary);
+}
+
+.assign-collection-option .bwi-collection-shared {
+  color: var(--bw-text-muted);
+  font-size: 16px;
+}
+
+.assign-collections-read-only {
+  display: grid;
+  border-top: 1px solid var(--bw-border);
+  padding-top: 12px;
+}
+
+.assign-collections-read-only > p {
+  margin: 0 0 4px;
+  color: var(--bw-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.assign-collection-option.is-read-only {
+  color: var(--bw-text-muted);
+}
+
+.assign-collections-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+popup-footer .primary-action:disabled {
+  background: #8b98ad;
+  cursor: default;
+}
+
+.official-detail-section {
+  margin: 0 0 20px;
+}
+
+bw-vault-detail-section,
+bw-vault-detail-field {
+  display: block;
+}
+
+.official-detail-section > .bit-section-header {
+  display: block;
+  border: 0;
+  padding: 0 2px 6px;
+}
+
+.official-detail-section > .bit-section-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.read-only-cipher-card {
+  overflow: hidden;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bw-background);
+  box-shadow: inset 0 -1px 0 #aeb9ca;
+}
+
+.official-read-only-field {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.official-read-only-field:last-child {
+  margin-bottom: 0;
+}
+
+.official-read-only-field > label {
+  color: var(--bw-text-main);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.official-read-only-control {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--bw-border);
+  border-radius: 8px;
+  background: var(--bw-background);
+}
+
+.official-read-only-control > input {
+  min-width: 0;
+  height: 38px;
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--bw-text-main);
+}
+
+.official-read-only-control > .icon-action {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  font-size: 17px;
+}
+
+.official-read-only-control > .field-action {
+  min-height: 30px;
+  flex: 0 0 auto;
+  margin-right: 4px;
+}
+
+.official-totp-countdown {
+  position: relative;
+  display: inline-grid;
+  width: 32px;
+  height: 36px;
+  flex: 0 0 32px;
+  place-items: center;
+  color: var(--bw-text-main);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.official-totp-countdown > span {
+  position: relative;
+  z-index: 1;
+}
+
+.official-totp-countdown svg {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+}
+
+.official-totp-countdown circle {
+  fill: none;
+  stroke: currentcolor;
+}
+
+.official-totp-countdown.is-expiring {
+  color: #b42318;
+}
+
+.cipher-view {
+  padding-top: 12px;
+}
+
+.cipher-item-details-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bw-background);
+  box-shadow: inset 0 -1px 0 #aeb9ca;
+}
+
+.cipher-item-details-heading {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.cipher-item-details-icon {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: #7b879b;
+  font-size: 28px;
+}
+
+.cipher-item-details-heading h2 {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--bw-text-main);
+  font-size: 18px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.cipher-item-details-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+}
+
+.official-detail-item {
+  display: grid;
+  min-height: 46px;
+  grid-template-columns: minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  color: var(--bw-text-main);
+  text-decoration: none;
+}
+
+.official-detail-item:last-child {
+  border-bottom: 0;
+}
+
+.official-detail-item small {
+  color: var(--bw-text-muted);
+}
+
+.official-item-history {
+  color: var(--bw-text-muted);
+  font-size: 12px;
+}
+
+.official-item-history p {
+  margin: 0 0 4px;
+}
+
+.official-item-history p:last-of-type {
+  margin-bottom: 0;
+}
+
+.official-item-history strong {
+  color: var(--bw-text-muted);
+  font-weight: 600;
+}
+
+.official-item-history a {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--bw-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bit-no-items {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: 330px;
+  gap: 8px;
+  text-align: center;
+}
+
+.bit-no-items-icon {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border-radius: 999px;
+  background: #eaf1ff;
+  color: var(--bw-primary);
+  font-size: 34px;
+}
+
+.bit-no-items h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.bit-no-items p {
+  max-width: 290px;
+  margin: 0;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.bit-menu {
+  position: absolute;
+  z-index: 20;
+  display: grid;
+  min-width: 170px;
+  overflow: hidden;
+  border: 1px solid var(--bw-border);
+  border-radius: var(--mac-floating-radius);
+  background: var(--bw-background);
+  box-shadow: 0 8px 22px var(--mac-shadow);
+}
+
+.bit-menu button,
+.bit-menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  border: 0;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  padding: 0 12px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.bit-menu button:last-child,
+.bit-menu a:last-child {
+  border-bottom: 0;
+}
+
+.bit-menu button:hover:not(:disabled),
+.bit-menu a:hover {
+  background: var(--bw-hover);
+}
+
+.bit-menu .is-danger {
+  color: #b42318;
+}
+
+.bit-menu .is-danger:hover:not(:disabled) {
+  background: #fff1f0;
+}
+
+.bit-menu button:disabled {
+  color: #8b98ad;
+  cursor: default;
+}
+
+.bit-menu-panel [role="menu"] {
+  min-width: 156px;
+  max-width: min(220px, calc(100vw - 24px));
+  gap: 2px;
+  overflow: hidden;
+  border: 1px solid var(--mac-border-subtle) !important;
+  border-radius: 12px;
+  padding: 6px !important;
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, transparent) !important;
+  box-shadow:
+    0 14px 34px color-mix(in srgb, #0b1220 18%, transparent),
+    0 2px 8px color-mix(in srgb, #0b1220 10%, transparent) !important;
+  backdrop-filter: blur(20px) saturate(1.18);
+  animation: macos-menu-appear 100ms ease-out;
+}
+
+.bit-menu-panel--closing [role="menu"] {
+  pointer-events: none;
+  animation: macos-menu-disappear 100ms ease-in forwards;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"] {
+  min-height: 36px;
+  border-radius: 8px;
+  padding: 0 10px !important;
+  color: var(--mac-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"]:is(:hover, :focus-visible) {
+  background: var(--mac-hover) !important;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"].tw-text-fg-danger:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--mac-destructive) 11%, transparent) !important;
+  color: var(--mac-destructive) !important;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"].tw-text-fg-danger {
+  margin-top: 5px;
+  border-top: 1px solid var(--mac-border-subtle);
+  border-radius: 0 0 8px 8px;
+  padding-top: 5px !important;
+}
+
+@keyframes macos-menu-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes macos-menu-disappear {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0;
+  border: 2px solid var(--bw-primary);
+  border-radius: 12px;
+  padding: 0 8px 0 12px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+}
+
+.search-row > .bwi {
+  color: var(--bw-text-main);
+  font-size: 18px;
+}
+
+.search-row input {
+  min-width: 0;
+  height: 42px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--bw-text-main);
+  font-size: 17px;
+}
+
+.search-row input::placeholder {
+  color: var(--bw-text-muted);
+}
+
+.search-row input[type="search"]::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.filter-button {
+  position: relative;
+  width: var(--bw-control-sm);
+  height: var(--bw-control-sm);
+  font-size: 22px;
+}
+
+.popup-above-scroll-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.filter-toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.bit-section {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.bit-section-header {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  color: var(--bw-text-main);
+  text-align: left;
+}
+
+.bit-section-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.bit-item-group {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--bw-border);
+  border-radius: 8px;
+  background: var(--bw-background);
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: var(--bw-text-main);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.section-heading span {
+  color: var(--bw-text-muted);
+  font-size: 15px;
+}
+
+.item-group {
+  overflow: visible;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  background: var(--bw-background);
+  box-shadow: inset 0 -1px 0 #aeb9ca;
+}
+
+.vault-item-icon-slot {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 28px;
+  place-items: center;
+}
+
+.vault-item-icon-image {
+  display: block;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.vault-item-icon-image.is-pending {
+  position: absolute;
+  visibility: hidden;
+}
+
+.item-trailing-indicators {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  color: #6b7890;
+  font-size: 13px;
+}
+
+.item-trailing-indicators .bwi-star-filled {
+  color: #d79a00;
+}
+
+.vault-loading-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 4px 16px;
+}
+
+.vault-skeleton-heading,
+.vault-skeleton-icon,
+.vault-skeleton-line {
+  overflow: hidden;
+  position: relative;
+  border-radius: 999px;
+  background: var(--mac-hover);
+}
+
+.vault-skeleton-heading::after,
+.vault-skeleton-icon::after,
+.vault-skeleton-line::after {
+  position: absolute;
+  inset: 0;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.62), transparent);
+  content: "";
+  transform: translateX(-100%);
+}
+
+.vault-skeleton-heading {
+  width: 138px;
+  height: 12px;
+  margin: 2px 0 0 4px;
+}
+
+.vault-skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  background: var(--bw-background);
+}
+
+.vault-skeleton-row {
+  display: grid;
+  min-height: var(--mac-row-height);
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  padding: 8px 10px;
+}
+
+.vault-skeleton-row:last-child {
+  border-bottom: 0;
+}
+
+.vault-skeleton-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.vault-skeleton-text {
+  display: grid;
+  gap: 8px;
+}
+
+.vault-skeleton-line {
+  height: 10px;
+}
+
+.vault-skeleton-line.is-title {
+  width: min(164px, 74%);
+}
+
+.vault-skeleton-line.is-subtitle {
+  width: min(108px, 52%);
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.icon-action {
+  width: var(--bw-control-sm);
+  height: var(--bw-control-sm);
+  color: var(--bw-text-main);
+  font-size: 18px;
+}
+
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.auth-header {
+  border-bottom: 1px solid var(--bw-border);
+  padding: 18px 16px 12px;
+  background: var(--bw-background);
+}
+
+.auth-header h1,
+.auth-header p {
+  margin: 0;
+}
+
+.auth-header h1 {
+  font-size: 24px;
+}
+
+.auth-header p {
+  margin-top: 4px;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+}
+
+.lock-header {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.lock-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 999px;
+  margin-bottom: 8px;
+  background: #eaf1ff;
+  color: var(--bw-primary);
+  font-size: 24px;
+}
+
+.login-field {
+  display: grid;
+  gap: 6px;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.login-field input {
+  min-height: 44px;
+  border: 1px solid var(--bw-border);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+  font-size: 16px;
+}
+
+.login-submit {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--bw-primary);
+  color: var(--bw-background);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.login-submit:disabled {
+  background: #9ab4ea;
+}
+
+.login-error {
+  margin: 0;
+  border: 1px solid #f0b8b8;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fff4f4;
+  color: #8f1d1d;
+  font-size: 14px;
+}
+
+.auth-secondary-link {
+  justify-self: center;
+  color: var(--bw-primary);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-inline-link {
+  justify-self: start;
+  margin-top: -8px;
+  color: var(--bw-primary);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-helper-text {
+  margin: 0;
+  color: var(--bw-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.auth-centered-text {
+  text-align: center;
+}
+
+.auth-inline-text-link,
+.auth-text-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--bw-primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-text-button {
+  cursor: pointer;
+}
+
+.auth-link-stack {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.auth-challenge-panel {
+  color: #586889;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.auth-challenge-panel p {
+  margin: 0;
+}
+
+.auth-provider-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auth-provider-list span {
+  border: 1px solid #bdd6ff;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #f4f8ff;
+  color: var(--bw-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.official-login-page {
+  display: grid;
+  min-height: var(--bw-popup-height);
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  background: var(--bw-background-alt);
+}
+
+.official-login-header {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  border-bottom: 1px solid var(--bw-border);
+  padding: 0 18px;
+  background: var(--bw-background);
+}
+
+.official-login-header strong {
+  color: var(--bw-text-main);
+  font-size: 18px;
+}
+
+.official-login-hero {
+  padding: 24px 24px 16px;
+  text-align: center;
+}
+
+.official-login-hero h1,
+.official-login-hero p {
+  margin: 0;
+}
+
+.official-login-hero h1 {
+  color: var(--bw-text-main);
+  font-size: 22px;
+}
+
+.official-login-hero p {
+  margin-top: 6px;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.official-login-content {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 28px 16px;
+}
+
+.official-login-field {
+  display: grid;
+  gap: 6px;
+  color: var(--bw-text-main);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.official-login-field input,
+.official-login-self-hosted input {
+  min-width: 0;
+  height: 42px;
+  border: 1px solid var(--bw-border);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+  font: inherit;
+  font-size: 16px;
+}
+
+.official-login-field input:focus,
+.official-login-self-hosted input:focus {
+  outline: 2px solid #7aa7f7;
+  outline-offset: 1px;
+}
+
+.official-login-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--bw-text-main);
+  font-size: 14px;
+}
+
+.official-login-remember input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--bw-primary);
+}
+
+.official-login-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.official-login-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--bw-primary);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--bw-primary);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.official-login-button:disabled {
+  border-color: #9ab4ea;
+  background: #9ab4ea;
+}
+
+.official-login-button--secondary {
+  background: var(--bw-background);
+  color: var(--bw-primary);
+}
+
+.official-login-button .bwi {
+  font-size: 17px;
+}
+
+.official-login-divider {
+  margin: 0;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.official-login-error {
+  margin: 0;
+  color: #8f1d1d;
+  font-size: 13px;
+}
+
+.official-login-footer {
+  padding: 12px 28px;
+  border-top: 1px solid var(--bw-border);
+  color: var(--bw-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.official-login-footer a,
+.official-login-hint {
+  color: var(--bw-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.official-login-page--auth {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.official-login-challenge-content {
+  gap: 18px;
+  overflow-y: auto;
+  padding-bottom: 28px;
+}
+
+.official-login-helper {
+  margin: 0;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.official-login-provider-list {
+  display: grid;
+  margin: 0;
+  border: 1px solid var(--bw-border);
+  border-radius: 6px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.official-login-provider-list legend {
+  width: 100%;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  padding: 9px 12px;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.official-login-provider-row {
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  padding: 10px 12px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.official-login-provider-row:last-child {
+  border-bottom: 0;
+}
+
+.official-login-provider-row input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--bw-primary);
+}
+
+.official-login-provider-row--static {
+  min-height: 42px;
+  grid-template-columns: minmax(0, 1fr);
+  border: 1px solid var(--bw-border);
+  border-radius: 6px;
+}
+
+.official-login-actions .official-login-button {
+  width: 100%;
+}
+
+bw-login-environment-selector {
+  display: block;
+  width: min(100%, 360px);
+  margin: var(--mac-space-3) auto 0;
+}
+
+.official-login-environment {
+  position: relative;
+  padding: 12px 28px 18px;
+  background: var(--bw-background-alt);
+  color: var(--bw-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.official-login-environment-trigger {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--bw-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.official-login-environment-menu {
+  position: absolute;
+  z-index: 2;
+  right: 28px;
+  bottom: calc(100% - 8px);
+  display: grid;
+  min-width: 220px;
+  overflow: hidden;
+  border: 1px solid var(--bw-border);
+  border-radius: 6px;
+  background: var(--bw-background);
+  box-shadow: 0 6px 18px rgb(22 44 82 / 18%);
+  text-align: left;
+}
+
+.official-login-environment-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  padding: 10px 12px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+}
+
+.official-login-environment-option:last-child {
+  border-bottom: 0;
+}
+
+.official-login-environment-option:hover,
+.official-login-environment-option:focus-visible {
+  background: var(--mac-hover);
+  outline: 2px solid var(--mac-focus);
+}
+
+.official-login-environment-check {
+  color: var(--bw-primary);
+  visibility: hidden;
+}
+
+.official-login-environment-option[aria-checked="true"] .official-login-environment-check {
+  visibility: visible;
+}
+
+bw-login-environment-selector > .tw-mb-1 {
+  display: flex;
+  justify-content: center;
+  margin: 0 !important;
+}
+
+bw-login-environment-selector [bitTypography="body2"] {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--mac-border-subtle) 72%, transparent);
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: color-mix(in srgb, var(--mac-surface-solid) 55%, transparent);
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.25;
+  text-align: center;
+}
+
+bw-login-environment-selector [bitTypography="body2"] button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 24px;
+  align-items: center;
+  gap: 1px;
+  padding: 0 2px !important;
+  color: var(--mac-accent) !important;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+bw-login-environment-selector [bitTypography="body2"] button b {
+  overflow: hidden;
+  max-width: 220px;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+bw-login-environment-selector [bitTypography="body2"] button bit-icon {
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+/* Authentication is a separate, quiet composition: it never inherits the main-route switcher. */
+:root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)),
+body:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)),
+barwarden-root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)) {
+  background: var(--mac-canvas);
+}
+
+barwarden-root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)),
+barwarden-root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)) .popup-window-size-source,
+bw-login-page,
+bw-password-hint-page,
+bw-lock-page,
+bw-two-factor-page,
+bw-new-device-verification-page {
+  display: block;
+  min-height: var(--bw-popup-height);
+  overflow-x: hidden;
+  background: var(--mac-canvas);
+}
+
+barwarden-root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)) .popup-window-size-source {
+  height: var(--bw-popup-height);
+}
+
+bw-login-page > bw-official-anonymous-shell,
+bw-password-hint-page > bw-official-anonymous-shell,
+bw-two-factor-page > bw-official-anonymous-shell,
+bw-new-device-verification-page > bw-official-anonymous-shell,
+bw-lock-page > bw-official-lock,
+bw-official-anonymous-shell popup-page,
+bw-official-lock > popup-page,
+.macos-auth-page {
+  background: var(--mac-canvas);
+  color: var(--mac-text-primary);
+}
+
+bw-official-anonymous-shell popup-page,
+bw-official-lock > popup-page {
+  height: 100%;
+  min-height: 0;
+}
+
+popup-page:has(.macos-auth-page) [data-testid="popup-layout-scroll-region"] {
+  padding-block: 0;
+}
+
+.macos-auth-page {
+  display: grid;
+  box-sizing: border-box;
+  min-height: 100%;
+  align-content: center;
+  justify-items: center;
+  gap: var(--mac-space-4);
+  padding: var(--mac-space-6) var(--mac-space-5);
+  overflow-x: hidden;
+}
+
+.macos-auth-page > * {
+  width: min(100%, 360px);
+}
+
+.macos-auth-card {
+  width: min(100%, 360px);
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--mac-space-5);
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  box-shadow: 0 1px 2px var(--mac-shadow);
+}
+
+bw-official-anonymous-shell auth-anon-layout {
+  display: block;
+  min-height: inherit;
+  overflow-x: hidden;
+  background: var(--mac-canvas);
+}
+
+bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
+  color: var(--mac-text-primary);
+  font-weight: 680;
+}
+
+.macos-auth-heading {
+  width: 100%;
+  margin: 0;
+  color: var(--mac-text-primary);
+  font-size: 1.5rem;
+  font-weight: 680;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.macos-auth-product {
+  display: inline-flex;
+  min-width: 0;
+  color: var(--mac-text-primary);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.macos-auth-product strong {
+  font-size: 1.5rem;
+  font-weight: 680;
+  line-height: 1.2;
+}
+
+.macos-auth-card bit-form-field,
+.macos-auth-card bit-form-control {
+  display: block;
+  min-width: 0;
+}
+
+.macos-two-factor-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mac-space-3);
+  min-height: 24px;
+  margin: 0 0 var(--mac-space-5);
+  color: var(--mac-text-primary);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.macos-two-factor-remember > input[type="checkbox"][bitcheckbox] {
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  height: 24px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-two-factor-remember > input[type="checkbox"][bitcheckbox]::before,
+.macos-two-factor-remember > input[type="checkbox"][bitcheckbox]::after {
+  inset: 2px;
+  width: 20px;
+  height: 20px;
+}
+
+.macos-field :is(input, select, textarea),
+.macos-auth-card :is(input, select, textarea) {
+  min-width: 0;
+  min-height: var(--mac-control-min-size);
+  border-color: var(--mac-border);
+  border-radius: var(--mac-control-radius);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+}
+
+.macos-field [bitfieldcontainer] {
+  min-width: 0;
+  min-height: var(--mac-form-control-height);
+  overflow: hidden;
+  border-color: var(--mac-border);
+  border-radius: var(--mac-form-control-radius);
+  background: var(--mac-surface-solid) !important;
+}
+
+.macos-field [bitfieldcontainer] input {
+  min-width: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-field [bitfieldcontainer] :is([bitprefix], [bitsuffix]),
+.macos-field [bitfieldcontainer] button {
+  background: transparent !important;
+}
+
+.macos-form-field__control {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 40px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-form-field__suffix {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  flex: 0 0 40px;
+  border-radius: var(--mac-control-radius);
+  background: transparent !important;
+}
+
+.macos-field :is(input, select, textarea):focus-visible,
+.macos-auth-card :is(button, [role="button"], a):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
+  outline-offset: 1px;
+}
+
+.macos-auth-card .macos-field :is(input, select, textarea):focus-visible {
+  outline: none !important;
+}
+
+.macos-auth-card :is(button, [role="button"], a) {
+  min-height: var(--mac-control-min-size);
+}
+
+.macos-primary-action {
+  min-height: var(--mac-control-min-size) !important;
+  border-color: var(--mac-accent) !important;
+  border-radius: var(--mac-control-radius) !important;
+  background: var(--mac-accent) !important;
+  color: var(--mac-surface-solid) !important;
+}
+
+.macos-primary-action:hover:not(:disabled) {
+  background: var(--bw-primary-hover) !important;
+}
+
+.macos-auth-validation {
+  min-block-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.macos-auth-validation bit-callout,
+.macos-auth-validation [role="alert"] {
+  margin-block: 0;
+}
+
+.macos-auth-validation bit-callout .macos-alert-strip {
+  margin: 0 !important;
+  border-radius: 10px;
+  padding: 10px 12px !important;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.macos-auth-validation bit-callout .macos-alert-strip :is(.macos-alert-strip__title, p) {
+  margin: 0;
+  line-height: inherit;
+}
+
+/* Credential failures belong to the field being corrected. Keep them compact
+ * and directly dismissible instead of inserting a second warning card between
+ * the password field and its primary action. */
+.macos-auth-validation--field bit-callout .macos-alert-strip {
+  grid-template-columns: 16px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px !important;
+  border: 0;
+  border-radius: 0;
+  padding: 0 2px !important;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-auth-validation--field .macos-alert-strip__icon {
+  margin: 0;
+  font-size: 14px;
+}
+
+.macos-auth-validation--field .macos-alert-strip__message,
+.macos-auth-validation--field .macos-alert-strip__message :is(p, span, div, [bitTypography]) {
+  color: var(--mac-destructive);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.macos-auth-validation--field .macos-alert-strip__dismiss {
+  display: grid;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--mac-destructive);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.macos-auth-validation--field .macos-alert-strip__dismiss:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--mac-destructive) 10%, transparent);
+}
+
+.macos-alert-strip {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--mac-space-2);
+  margin: var(--mac-space-2) var(--mac-space-3);
+  border: 1px solid color-mix(in srgb, var(--mac-destructive) 32%, var(--mac-border-subtle));
+  border-radius: var(--mac-control-radius);
+  padding: 9px 10px;
+  background: color-mix(in srgb, var(--mac-destructive) 8%, var(--mac-surface-solid));
+  color: var(--mac-text-primary);
+  animation: macos-alert-materialize 140ms ease-out;
+}
+
+.macos-alert-strip[data-presentation="toast"] {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: 16px;
+  width: min(352px, calc(100vw - 32px));
+  max-height: min(168px, calc(100vh - 32px));
+  overflow: auto;
+  margin: 0 !important;
+  border-radius: 12px;
+  padding: 12px;
+  background:
+    color-mix(
+      in srgb,
+      var(--mac-destructive) 6%,
+      color-mix(in srgb, var(--mac-surface-solid) 96%, white)
+    );
+  box-shadow:
+    0 12px 30px color-mix(in srgb, #0b1220 16%, transparent),
+    0 2px 6px color-mix(in srgb, #0b1220 8%, transparent);
+  backdrop-filter: blur(24px) saturate(1.12);
+  transform: translateX(-50%);
+  animation: macos-alert-toast-in 180ms cubic-bezier(.2, .82, .25, 1);
+}
+
+/* Startup recovery belongs to the application window, not to a routed page.
+ * Anchor its host inside the rounded root so it cannot be clipped by the
+ * fixed-height authentication canvas or drift beyond the native viewport. */
+.app-startup-alert {
+  position: absolute;
+  z-index: 70;
+  right: 16px;
+  bottom: 16px;
+  display: block;
+  width: min(320px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+}
+
+.app-startup-alert .macos-alert-strip[data-presentation="toast"] {
+  position: static;
+  left: auto;
+  width: 100%;
+  max-height: inherit;
+  transform: none;
+  animation: macos-alert-materialize 140ms ease-out;
+}
+
+:root[data-bw-window="popout"] .app-startup-alert {
+  right: max(18px, calc((100vw - var(--bw-popout-content-width)) / 2 + 18px));
+}
+
+:root:has(.floating-tab-switcher) .macos-alert-strip[data-presentation="toast"] {
+  bottom: calc(13px + 58px + var(--mac-space-3));
+}
+
+:root[data-bw-window="popout"] .macos-alert-strip[data-presentation="toast"] {
+  left: 50%;
+}
+
+.macos-auth-validation .macos-alert-strip {
+  margin-inline: 0;
+}
+
+.macos-alert-strip[data-kind="warning"] {
+  border-color: color-mix(in srgb, var(--mac-warning) 34%, var(--mac-border-subtle));
+  background: color-mix(in srgb, var(--mac-warning) 9%, var(--mac-surface-solid));
+}
+
+.macos-alert-strip[data-kind="info"] {
+  border-color: color-mix(in srgb, var(--mac-accent) 28%, var(--mac-border-subtle));
+  background: color-mix(in srgb, var(--mac-accent) 7%, var(--mac-surface-solid));
+}
+
+.macos-alert-strip[data-kind="success"] {
+  border-color: color-mix(in srgb, var(--mac-success) 30%, var(--mac-border-subtle));
+  background: color-mix(in srgb, var(--mac-success) 8%, var(--mac-surface-solid));
+}
+
+.macos-alert-strip[data-kind="subtle"] {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-surface-raised);
+  color: var(--mac-text-primary);
+}
+
+.macos-alert-strip__icon {
+  margin-top: 1px;
+  color: var(--mac-destructive);
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.macos-alert-strip[data-kind="warning"] .macos-alert-strip__icon {
+  color: var(--mac-warning);
+}
+
+.macos-alert-strip[data-kind="info"] .macos-alert-strip__icon {
+  color: var(--mac-accent);
+}
+
+.macos-alert-strip[data-kind="success"] .macos-alert-strip__icon {
+  color: var(--mac-success);
+}
+
+.macos-alert-strip__content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  overflow-wrap: anywhere;
+}
+
+.macos-alert-strip__title {
+  /* Keep the diagnostic label visually ahead of its explanation.  Projected
+   * upstream body typography may otherwise make the message appear larger. */
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+}
+
+.macos-alert-strip__title:empty,
+.macos-alert-strip__end:empty {
+  display: none;
+}
+
+.macos-alert-strip__end {
+  grid-column: 2 / -1;
+  display: flex;
+  gap: var(--mac-space-2);
+}
+
+.macos-alert-strip__message {
+  margin: 0;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.45;
+}
+
+.macos-alert-strip .macos-alert-strip__message :is(p, span, div, [bitTypography]) {
+  margin: 0;
+  color: inherit;
+  font-family: inherit;
+  /* TypographyDirective projects `body1` as `!tw-text-base`; retain the
+   * compact alert scale even when that upstream utility is important. */
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit;
+}
+
+.macos-alert-strip__action {
+  min-height: 28px;
+  align-self: center;
+  border-radius: 7px;
+  padding-inline: var(--mac-space-2);
+  color: var(--mac-accent);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.macos-alert-strip__action:is(:hover, :focus-visible) {
+  background: var(--mac-hover);
+}
+
+.macos-alert-strip[data-presentation="toast"] {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    system-ui,
+    sans-serif;
+  font-size: 13px;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.macos-alert-strip[data-presentation="toast"] .macos-alert-strip__title {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+}
+
+.macos-alert-strip[data-presentation="toast"] .macos-alert-strip__message {
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.macos-alert-strip[data-presentation="toast"] .macos-alert-strip__message :is(p, span, div, [bitTypography]) {
+  margin: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit;
+}
+
+.macos-alert-strip[data-presentation="toast"] .macos-alert-strip__action {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.macos-alert-strip[data-presentation="toast"] .macos-alert-strip__dismiss {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  place-items: center;
+  border-radius: 7px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.macos-alert-strip[data-presentation="toast"] .macos-alert-strip__dismiss:is(:hover, :focus-visible) {
+  background: var(--mac-hover);
+}
+
+@keyframes macos-alert-materialize {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes macos-alert-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.macos-auth-identity {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--mac-space-3);
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  padding: var(--mac-space-3);
+  background: color-mix(in srgb, var(--mac-surface-solid) 86%, transparent);
+  color: var(--mac-text-secondary);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.macos-auth-identity__icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mac-selected);
+  color: var(--mac-accent);
+  font-size: 17px;
+}
+
+.macos-auth-identity__text {
+  min-width: 0;
+}
+
+.macos-auth-identity__text > * {
+  min-width: 0;
+  margin-block: 0;
+  overflow-wrap: anywhere;
+}
+
+.macos-auth-identity__primary {
+  color: var(--mac-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.macos-auth-identity__secondary {
+  margin-top: 2px !important;
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.macos-auth-skeleton {
+  min-height: 72px;
+  color: var(--mac-text-secondary);
+}
+
+auth-account .macos-account-label {
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-auth-skeleton .bwi-spin {
+    animation: none !important;
+  }
+}
+
+/* Generator, Send, and Settings retain their upstream behavior behind solid page-family surfaces. */
+.macos-page--generator,
+.macos-page--generator-history,
+.macos-page--send,
+.macos-page--send-form,
+.macos-page--send-created,
+.macos-page--settings,
+.macos-page--appearance,
+.macos-page--about {
+  min-width: 0;
+  overflow-x: hidden;
+  background: var(--mac-canvas);
+  color: var(--mac-text-primary);
+}
+
+.macos-page--generator :is(bit-card, bit-item),
+.macos-page--generator-history :is(bit-item, bit-no-items),
+.macos-page--send :is(bit-item, bit-callout, bit-no-items),
+.macos-page--send-form :is(bit-card, bit-callout),
+.macos-page--send-created :is(bit-card, bit-callout),
+.macos-page--settings :is(bit-item, bit-item-group),
+.macos-page--appearance :is(bit-card, bit-item, bit-item-group),
+.macos-page--about :is(bit-item, bit-item-group, .about-metadata-list) {
+  border-color: var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  box-shadow: none;
+}
+
+.macos-page.macos-page--settings bit-item-group {
+  background: transparent;
+}
+
+.macos-page--generator bw-official-generator-core > bit-card:first-of-type {
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  box-shadow: none;
+}
+
+/* Upstream success and custom-field templates carry utility background
+ * classes intended for a full-page browser popup. In the menu-bar app those
+ * surfaces sit inside an already materialized page/card and become an
+ * accidental second white layer. */
+.macos-page--send-created .tw-bg-background-alt {
+  background: transparent !important;
+}
+
+.macos-page--vault-form [data-testid="custom-fields"] > .tw-bg-background,
+.macos-page--vault-form [data-testid="custom-fields"] > .tw-bg-background-alt {
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.macos-generator-preparing {
+  margin: 0;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.macos-page--settings .settings-row {
+  min-height: var(--mac-row-height);
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  box-shadow: none;
+}
+
+.macos-page--settings bit-item + bit-item {
+  margin-top: var(--mac-space-1);
+}
+
+.macos-page :is(input, select, textarea):focus-visible,
+.macos-page :is(button, a):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
+  outline-offset: 1px;
+}
+
+.macos-page :is(bit-search, bit-form-field, bit-form-control) :is(input, select, textarea):focus-visible {
+  outline: none;
+}
+
+.macos-page--send :is([role="menu"], .send-create-menu),
+.macos-page--send-form :is([role="menu"], .send-create-menu) {
+  border-radius: var(--mac-control-radius);
+}
+
+.macos-page--send [data-testid="popup-layout-scroll-region"] > .tw-h-full {
+  height: auto !important;
+  min-height: 0 !important;
+  justify-content: flex-start !important;
+  padding-block: var(--mac-space-5);
+}
+
+.macos-page--send [data-testid="popup-layout-scroll-region"] > .tw-h-full bit-no-items {
+  width: 100%;
+  min-height: 0;
+  padding: var(--mac-space-5) var(--mac-space-4);
+}
+
+@media (prefers-contrast: more) {
+  .floating-tab-switcher__segment[aria-current="page"] {
+    border-bottom: 2px solid currentcolor;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .macos-page :is(bit-item, bit-card, bit-callout, .settings-row) {
+    border-color: var(--mac-border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-tab-switcher__indicator {
+    transition: none;
+  }
+
+  .app-bottom-sheet,
+  .app-bottom-sheet[data-state="opening"],
+  .app-bottom-sheet[data-state="closing"] {
+    transform: none;
+  }
+
+  .macos-pressable:active {
+    opacity: 0.86;
+    transform: none;
+  }
+
+  .macos-page--send bit-skeleton .tw-animate-pulse {
+    animation: none !important;
+  }
+
+  .otp-code-row__copy-icon,
+  .otp-code-row__copy.is-copied .otp-code-row__copy-icon,
+  .macos-copy-feedback-icon,
+  .macos-alert-strip,
+  .bit-menu-panel [role="menu"] {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  popup-page > popup-footer > footer {
+    background: var(--mac-surface-solid) !important;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .macos-auth-card {
+    box-shadow: none;
+  }
+
+  .macos-alert-strip[data-presentation="toast"] {
+    background: color-mix(in srgb, var(--mac-destructive) 7%, var(--mac-surface-solid));
+    backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-auth-card,
+  .macos-field :is(input, select, textarea) {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .macos-primary-action {
+    border-color: Highlight !important;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+}
+
+.app-bottom-sheet-host {
+  display: contents;
+}
+
+.app-bottom-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  width: 100%;
+  max-width: none;
+  max-height: var(--bw-sheet-max-height);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-sheet-radius) var(--mac-sheet-radius) 0 0;
+  background: var(--mac-sheet-material-background);
+  color: inherit;
+  opacity: 0;
+  transform: translateY(100%);
+  transition:
+    opacity var(--bw-sheet-motion) cubic-bezier(.2, .8, .2, 1),
+    transform var(--bw-sheet-motion) cubic-bezier(.2, .8, .2, 1),
+    display var(--bw-sheet-motion) allow-discrete,
+    overlay var(--bw-sheet-motion) allow-discrete;
+}
+
+.app-bottom-sheet[data-state="open"],
+.app-bottom-sheet[open]:not([data-state]) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.app-bottom-sheet[data-state="opening"],
+.app-bottom-sheet[data-state="closing"] {
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+:root[data-bw-window="popout"] .app-bottom-sheet {
+  right: auto;
+  left: 50%;
+  width: var(--bw-popout-content-width);
+  max-width: var(--bw-popout-content-width);
+  transform: translate(-50%, 100%);
+}
+
+:root[data-bw-window="popout"] .app-bottom-sheet[data-state="open"],
+:root[data-bw-window="popout"] .app-bottom-sheet[open]:not([data-state]) {
+  transform: translate(-50%, 0);
+}
+
+:root[data-bw-window="popout"] .app-bottom-sheet[data-state="opening"],
+:root[data-bw-window="popout"] .app-bottom-sheet[data-state="closing"] {
+  transform: translate(-50%, 100%);
+}
+
+.app-bottom-sheet button:has(.bwi-close) {
+  display: none;
+}
+
+.app-bottom-sheet::backdrop {
+  background: var(--mac-scrim);
+  opacity: 0;
+  transition:
+    opacity var(--bw-sheet-motion) ease-out,
+    display var(--bw-sheet-motion) allow-discrete,
+    overlay var(--bw-sheet-motion) allow-discrete;
+}
+
+.app-bottom-sheet[data-state="open"]::backdrop,
+.app-bottom-sheet[open]:not([data-state])::backdrop {
+  opacity: 1;
+}
+
+.app-bottom-sheet [bit-dialog],
+.app-bottom-sheet [bit-simple-dialog],
+.app-bottom-sheet > ng-component {
+  width: 100%;
+  max-width: none;
+  max-height: var(--bw-sheet-max-height);
+  margin: 0;
+  padding: 0;
+}
+
+.app-bottom-sheet [bit-dialog] > section,
+.app-bottom-sheet [bit-simple-dialog] > div {
+  width: 100%;
+  max-width: none;
+  max-height: var(--bw-sheet-max-height);
+  margin: 0;
+  border-radius: var(--bw-sheet-radius) var(--bw-sheet-radius) 0 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.app-bottom-sheet-panel {
+  display: flex;
+  width: 100%;
+  max-height: var(--bw-sheet-max-height);
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--bw-text-main);
+  box-shadow: none;
+}
+
+.app-bottom-sheet-header {
+  flex: 0 0 auto;
+  border-bottom: 1px solid transparent;
+  padding: 20px 24px 16px;
+}
+
+.app-bottom-sheet-header h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.app-bottom-sheet-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0 24px 24px;
+}
+
+.app-bottom-sheet-body p {
+  margin: 0;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app-bottom-sheet-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--bw-border-subtle);
+  padding: 16px 24px 24px;
+  background: transparent;
+}
+
+.cdk-global-overlay-wrapper:has(.cdk-dialog-container) {
+  align-items: flex-end !important;
+  justify-content: center !important;
+}
+
+.cdk-overlay-pane:has(.cdk-dialog-container) {
+  width: min(100%, var(--bw-popup-width)) !important;
+  max-width: var(--bw-popup-width) !important;
+  max-height: var(--bw-sheet-max-height);
+  margin: 0 !important;
+}
+
+:root[data-bw-window="popout"] .cdk-overlay-pane:has(.cdk-dialog-container) {
+  width: min(100%, var(--bw-popout-content-width)) !important;
+  max-width: var(--bw-popout-content-width) !important;
+}
+
+.cdk-dialog-container {
+  width: 100%;
+  max-height: var(--bw-sheet-max-height);
+  overflow: hidden;
+}
+
+.cdk-dialog-container [bit-dialog] > section {
+  max-height: var(--bw-sheet-max-height);
+  border-radius: var(--bw-sheet-radius) var(--bw-sheet-radius) 0 0;
+  border-bottom: 0;
+  box-shadow: 0 -12px 32px var(--mac-shadow);
+}
+
+@starting-style {
+  .app-bottom-sheet[data-state="open"] {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+
+  :root[data-bw-window="popout"] .app-bottom-sheet[data-state="open"] {
+    transform: translate(-50%, 100%);
+  }
+
+  .app-bottom-sheet[data-state="open"]::backdrop {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-bw-window="popout"] .app-bottom-sheet,
+  :root[data-bw-window="popout"] .app-bottom-sheet[data-state="open"],
+  :root[data-bw-window="popout"] .app-bottom-sheet[open]:not([data-state]),
+  :root[data-bw-window="popout"] .app-bottom-sheet[data-state="opening"],
+  :root[data-bw-window="popout"] .app-bottom-sheet[data-state="closing"] {
+    transform: translateX(-50%);
+  }
+
+  @starting-style {
+    :root[data-bw-window="popout"] .app-bottom-sheet[data-state="open"] {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+.official-self-hosted-dialog {
+  position: fixed;
+  inset: auto 0 0;
+  width: 100vw;
+  max-width: 100vw;
+  max-height: 90vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.official-self-hosted-dialog::backdrop {
+  background: rgb(0 0 0 / 32%);
+}
+
+.official-self-hosted-dialog > form[bit-dialog] {
+  width: 100%;
+  max-width: 100%;
+}
+
+.official-login-self-hosted {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--bw-text-main);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.settings-list,
+.generator-panel,
+.detail-card {
+  display: flex;
+  flex-direction: column;
+  margin: 12px;
+  overflow: hidden;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  background: var(--bw-background);
+  box-shadow: inset 0 -1px 0 #aeb9ca;
+}
+
+.setting-row {
+  display: grid;
+  min-height: 54px;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid #eef2f6;
+  padding: 9px 12px;
+  background: var(--bw-background);
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.setting-row:last-child {
+  border-bottom: 0;
+}
+
+.setting-row span {
+  color: #586889;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.setting-row strong {
+  overflow-wrap: anywhere;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.folder-row {
+  grid-template-columns: minmax(0, 1fr) auto 24px;
+}
+
+.folder-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.folder-row > .bwi {
+  color: var(--bw-text-muted);
+  font-size: 18px;
+}
+
+.folder-edit-card {
+  gap: 12px;
+}
+
+.folder-edit-card h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.folder-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.folder-edit-actions .danger-action {
+  border-color: #f0b8b8;
+  color: #b91c1c;
+}
+
+.vault-status-section {
+  display: grid;
+  gap: 8px;
+}
+
+.status-section-header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vault-status-row {
+  display: grid;
+  min-height: 52px;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  padding: 8px 10px;
+  background: var(--bw-background);
+}
+
+.vault-status-row:last-child {
+  border-bottom: 0;
+}
+
+.vault-status-item-content {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.vault-status-item-title,
+.vault-status-item-subtitle {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-status-item-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vault-status-item-subtitle {
+  color: var(--bw-text-muted);
+  font-size: 12px;
+}
+
+.status-row-action {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.status-row-action.is-danger {
+  border-color: #f0b8b8;
+  color: #9f1f1f;
+}
+
+.trash-warning {
+  margin: 12px 12px 0;
+  border: 1px solid #f2d7a8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff8e8;
+  color: #76521c;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.bit-callout {
+  border: 1px solid #b9d3fb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #eef6ff;
+  color: #183b6b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.bit-callout strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--bw-text-main);
+  font-weight: 700;
+}
+
+.bit-callout p {
+  margin: 0;
+}
+
+.about-metadata-list {
+  display: grid;
+  gap: 0;
+  margin: var(--bw-space-4) 0 0;
+  overflow: hidden;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 10px;
+  background: var(--bw-background);
+}
+
+.about-metadata-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: var(--bw-space-3);
+  border-bottom: 1px solid var(--bw-border-subtle);
+  padding: var(--bw-space-3);
+}
+
+.about-metadata-row:last-child {
+  border-bottom: 0;
+}
+
+.about-metadata-row dt {
+  color: var(--bw-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.about-metadata-row dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--bw-text-main);
+  font-size: 13px;
+}
+
+.about-revision-cell {
+  display: grid;
+  gap: var(--bw-space-2);
+}
+
+.about-revision-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.about-revision-cell button {
+  width: fit-content;
+}
+
+.about-copy-error {
+  margin: var(--bw-space-2) 0 0;
+  color: #b42318;
+  font-size: 12px;
+}
+
+.password-history-list,
+.attachment-list {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  background: var(--bw-surface);
+}
+
+.password-history-row,
+.attachment-row {
+  display: grid;
+  min-height: 52px;
+  align-items: center;
+  border-bottom: 1px solid var(--bw-border-subtle);
+  padding: 8px 12px;
+}
+
+.attachment-row {
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.attachment-row .bwi {
+  color: var(--bw-text-muted);
+}
+
+.password-history-row:last-child,
+.attachment-row:last-child {
+  border-bottom: 0;
+}
+
+.password-history-row span,
+.attachment-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.password-history-row strong,
+.password-history-row small,
+.attachment-row strong,
+.attachment-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.password-history-row small,
+.attachment-row small {
+  color: var(--bw-text-muted);
+}
+
+.account-switcher-scroll {
+  padding: 0 12px 12px;
+}
+
+.account-switcher-page {
+  position: relative;
+}
+
+.detail-header.account-switcher-header {
+  grid-template-columns: 36px minmax(0, 1fr) 80px;
+}
+
+.account-switcher-header-actions {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.account-switcher-header-actions > bw-popup-header-actions {
+  display: block;
+  width: 80px;
+}
+
+.account-switcher-header-actions .header-actions {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  justify-content: flex-end;
+}
+
+.account-switcher-account:disabled,
+.account-switcher-option:disabled {
+  cursor: not-allowed;
+}
+
+.account-switcher-avatar {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+  background: #8ed5cc;
+  color: #0b1f2b;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.account-switcher-email,
+.account-switcher-server {
+  display: block;
+  max-width: 256px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-switcher-server {
+  color: var(--bw-text-muted);
+}
+
+.account-switcher-status {
+  display: block;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.account-switcher-status.is-success,
+.account-switcher-status-icon.is-success {
+  color: #16723a;
+  font-weight: 700;
+}
+
+.account-switcher-status-icon {
+  font-size: 18px;
+}
+
+.account-switcher-limit {
+  margin: 8px 4px 0;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+}
+
+.account-switcher-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 4px 0;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+}
+
+.account-switcher-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(100%, 360px);
+  border: 1px solid var(--bw-border);
+  border-radius: 8px;
+  margin: auto;
+  padding: 20px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+  box-shadow: 0 12px 28px rgb(17 24 39 / 24%);
+}
+
+.account-switcher-dialog:not([open]) {
+  display: none;
+}
+
+.account-switcher-dialog::backdrop {
+  background: rgb(17 24 39 / 36%);
+}
+
+.account-switcher-dialog h2,
+.account-switcher-dialog p {
+  margin: 0;
+}
+
+.account-switcher-dialog h2 {
+  font-size: 18px;
+}
+
+.account-switcher-dialog p {
+  margin-top: 10px;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+}
+
+.account-switcher-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.account-switcher-destructive-action {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #c62828;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.account-switcher-destructive-action:hover:not(:disabled) {
+  background: #a71d1d;
+}
+
+.account-switcher-destructive-action:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  position: relative;
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  margin: 12px;
+  padding: 24px;
+  background: var(--bw-background);
+  color: var(--bw-text-muted);
+  text-align: center;
+}
+
+.empty-state strong,
+.empty-state p {
+  margin: 0;
+}
+
+.empty-inline,
+.status-message {
+  margin: 12px;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+}
+
+.status-message {
+  position: sticky;
+  bottom: 0;
+  border: 1px solid var(--bw-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--bw-background);
+}
+
+.tab-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--bw-border);
+  background: var(--bw-background);
+}
+
+.tab-button {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  border: 0;
+  background: transparent;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tab-button .bwi {
+  font-size: 22px;
+}
+
+.tab-button.is-active {
+  color: var(--bw-primary);
+}
+
+.tab-button span {
+  overflow: hidden;
+  max-width: 86px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  gap: 8px;
+  justify-content: initial;
+}
+
+.detail-header h1 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.vault-form-page .detail-scroll,
+.send-form-page .detail-scroll {
+  padding-bottom: 72px;
+}
+
+.detail-summary-card {
+  display: grid;
+  gap: 14px;
+  margin: 12px;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bw-background);
+  box-shadow: inset 0 -1px 0 #aeb9ca;
+}
+
+.detail-summary-main {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.detail-item-icon {
+  width: 34px;
+  height: 34px;
+  font-size: 25px;
+}
+
+.detail-summary-main h2,
+.detail-summary-main p,
+.detail-card h2 {
+  margin: 0;
+}
+
+.detail-summary-main h2 {
+  overflow: hidden;
+  color: var(--bw-text-main);
+  font-size: 17px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-summary-main p {
+  margin-top: 6px;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+}
+
+.detail-autofill {
+  display: grid;
+  width: 100%;
+  justify-content: center;
+  margin: 0;
+}
+
+.detail-card {
+  box-shadow: inset 0 -1px 0 #aeb9ca;
+}
+
+.detail-card h2 {
+  border-bottom: 1px solid #eef2f6;
+  padding: 10px 12px;
+  color: var(--bw-text-main);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.detail-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 58px;
+  border-bottom: 1px solid #eef2f6;
+  padding: 9px 12px;
+}
+
+.detail-field-row .icon-action {
+  width: auto;
+  min-width: 32px;
+  padding: 0 4px;
+  color: var(--bw-text-main);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.detail-field:last-child {
+  border-bottom: 0;
+}
+
+.detail-field span {
+  grid-column: 1 / -1;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.detail-field strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--bw-text-main);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-action {
+  min-height: 30px;
+  border: 1px solid var(--bw-border);
+  border-radius: 7px;
+  padding: 0 9px;
+  background: var(--bw-background);
+  color: var(--bw-primary);
+  font-weight: 700;
+}
+
+.detail-footer {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) 44px 44px;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--bw-border);
+  padding: 10px 12px;
+  background: var(--bw-background);
+}
+
+.detail-footer button {
+  min-height: 36px;
+}
+
+.detail-footer .primary-action {
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 16px;
+}
+
+.detail-footer .icon-button {
+  width: 38px;
+  height: 36px;
+  border: 0;
+  color: var(--bw-text-main);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.detail-footer .danger {
+  color: #b42318;
+}
+
+.detail-confirm-bar {
+  position: sticky;
+  bottom: 57px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--bw-border);
+  padding: 10px 12px;
+  background: var(--bw-surface);
+  box-shadow: 0 -8px 18px rgba(15, 23, 42, 0.08);
+  font-size: 13px;
+}
+
+.detail-confirm-bar span {
+  overflow: hidden;
+  color: var(--bw-text-main);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-confirm-bar .primary-action,
+.detail-confirm-bar .secondary-action {
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.detail-confirm-bar .danger-action {
+  border-color: #b91c1c;
+  background: #b91c1c;
+}
+
+.detail-history-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  border-bottom: 1px solid #eef2f6;
+  padding: 8px 12px;
+  color: var(--bw-text-muted);
+  font-size: 13px;
+}
+
+.detail-history-row:last-child {
+  border-bottom: 0;
+}
+
+.detail-history-row strong {
+  color: var(--bw-text-main);
+  font-weight: 500;
+}
+
+.generator-error {
+  margin: -4px 0 0;
+  color: #b42318;
+  font-size: 13px;
+}
+
+.generator-history-content {
+  min-height: 100%;
+}
+
+.generator-history-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 180px;
+  margin: 0;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+}
+
+
+.generator-history-error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 13px;
+}
+
+.generator-history-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(100%, 360px);
+  border: 1px solid var(--bw-border);
+  border-radius: 8px;
+  margin: auto;
+  padding: 20px;
+  background: var(--bw-background);
+  color: var(--bw-text-main);
+  box-shadow: 0 12px 28px rgb(17 24 39 / 24%);
+}
+
+.generator-history-dialog:not([open]) {
+  display: none;
+}
+
+.generator-history-dialog::backdrop {
+  background: rgb(17 24 39 / 36%);
+}
+
+.generator-history-dialog h2,
+.generator-history-dialog p {
+  margin: 0;
+}
+
+.generator-history-dialog h2 {
+  font-size: 18px;
+}
+
+.generator-history-dialog p {
+  margin-top: 10px;
+  color: var(--bw-text-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.generator-history-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.vault-reprompt-dialog {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  max-width: none;
+  border: 0;
+  margin: auto;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.vault-reprompt-dialog:not([open]) {
+  display: none;
+}
+
+.vault-reprompt-dialog::backdrop {
+  background: rgb(17 24 39 / 36%);
+}
+
+.vault-native-official-dialog {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  max-width: none;
+  border: 0;
+  margin: auto;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.vault-native-official-dialog:not([open]) {
+  display: none;
+}
+
+.vault-native-official-dialog::backdrop {
+  background: rgb(17 24 39 / 36%);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.send-empty p {
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.send-empty {
+  align-content: center;
+  gap: 12px;
+}
+
+.send-empty-illustration {
+  position: relative;
+  display: grid;
+  width: 92px;
+  height: 88px;
+  place-items: center;
+  justify-self: center;
+  margin-bottom: 4px;
+  color: #17223b;
+}
+
+.send-empty-illustration::before {
+  position: absolute;
+  inset: 6px 26px 14px 14px;
+  border: 2px solid #53617c;
+  border-radius: 4px;
+  background: #eaf1ff;
+  box-shadow: 8px 8px 0 #d8e5ff;
+  content: "";
+}
+
+.send-empty-illustration .bwi-send {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  color: var(--bw-primary);
+  font-size: 44px;
+}
+
+.send-empty-illustration .bwi-key {
+  position: absolute;
+  top: 31px;
+  left: 39px;
+  color: #111827;
+  font-size: 19px;
+}
+
+.send-create-menu {
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+}
+
+.send-search-row {
+  margin-top: var(--bw-space-4);
+}
+
+.send-list-section bit-section-header h2 {
+  margin-block-start: 0;
+}
+
+.send-list {
+  display: grid;
+  gap: 12px;
+}
+
+.send-item-row {
+  align-items: center;
+  border-bottom: 1px solid var(--bw-border);
+  min-height: 72px;
+}
+
+.send-icon {
+  color: var(--bw-primary);
+}
+
+.send-row-meta {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  position: relative;
+}
+
+.send-row-menu {
+  right: 0;
+  top: 34px;
+}
+
+.status-chip {
+  border: 1px solid var(--bw-border);
+  border-radius: 999px;
+  color: var(--bw-text-muted);
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.send-form-card {
+  gap: 0;
+}
+
+.form-field,
+.send-form-field,
+.send-checkbox-row {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid #eef2f6;
+  padding: 12px;
+}
+
+.form-field:last-child,
+.send-form-field:last-child,
+.send-checkbox-row:last-child {
+  border-bottom: 0;
+}
+
+.form-field span,
+.send-form-field span,
+.send-checkbox-row span {
+  color: var(--bw-text-main);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.form-field span strong,
+.send-form-field span strong {
+  color: #b42318;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea,
+.send-form-field input,
+.send-form-field select,
+.send-form-field textarea {
+  width: 100%;
+  border: 1px solid var(--app-form-border);
+  border-radius: var(--mac-form-control-radius);
+  background: var(--app-form-background);
+  color: var(--mac-text-primary);
+  font: inherit;
+}
+
+.form-field input,
+.form-field select,
+.send-form-field input,
+.send-form-field select {
+  min-height: var(--mac-form-control-height);
+  padding: 0 10px;
+}
+
+.form-field textarea,
+.send-form-field textarea {
+  min-height: 86px;
+  resize: vertical;
+  padding: 10px;
+}
+
+.form-field small,
+.send-form-field small {
+  color: var(--bw-text-muted);
+  font-size: 13px;
+}
+
+.send-checkbox-row {
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+}
+
+.send-checkbox-row input {
+  width: 16px;
+  height: 16px;
+}
+
+.send-form-footer {
+  grid-template-columns: 86px 86px minmax(0, 1fr);
+}
+
+.send-form-footer .secondary-action {
+  padding: 0 16px;
+}
+
+.vault-form-footer {
+  grid-template-columns: 86px 86px minmax(0, 1fr);
+}
+
+.vault-form-card {
+  gap: 0;
+}
+
+.official-form-section {
+  margin: 16px 12px;
+}
+
+.official-form-section-header {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 2px 8px;
+}
+
+.official-form-section-header h2 {
+  margin: 0;
+  color: var(--bw-text-main);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cipher-form-card {
+  overflow: hidden;
+  border: 1px solid var(--bw-border-subtle);
+  border-radius: 8px;
+  background: var(--bw-background);
+  box-shadow: inset 0 -1px 0 #aeb9ca;
+}
+
+.cipher-form-field {
+  display: grid;
+  gap: 6px;
+  border-bottom: 1px solid #eef2f6;
+  padding: 12px;
+}
+
+.cipher-form-field:last-child {
+  border-bottom: 0;
+}
+
+.cipher-form-field > label {
+  color: var(--bw-text-main);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cipher-form-required {
+  color: #b42318;
+}
+
+.cipher-form-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cipher-form-control input,
+.cipher-form-control select,
+.cipher-form-control textarea {
+  width: 100%;
+  border: 1px solid var(--app-form-border);
+  border-radius: var(--mac-form-control-radius);
+  background: var(--app-form-background);
+  color: var(--mac-text-primary);
+  font: inherit;
+}
+
+.cipher-form-control input,
+.cipher-form-control select {
+  min-height: var(--mac-form-control-height);
+  padding: 0 38px 0 10px;
+}
+
+.cipher-form-control textarea {
+  min-height: 86px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.cipher-form-suffix {
+  position: absolute;
+  right: 4px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  color: var(--bw-text-muted);
+}
+
+.cipher-form-field small {
+  color: var(--bw-text-muted);
+  font-size: 13px;
+}
+
+.cipher-form-two-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cipher-form-two-columns > bw-vault-edit-field + bw-vault-edit-field {
+  border-left: 1px solid #eef2f6;
+  padding-left: 8px;
+}
+
+.cipher-uri-field {
+  position: relative;
+}
+
+.cipher-uri-field .cipher-form-field {
+  padding-right: 46px;
+}
+
+.cipher-uri-remove {
+  position: absolute;
+  right: 8px;
+  top: 36px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  color: #b42318;
+}
+
+.cipher-form-disabled-option {
+  border-top: 1px solid #eef2f6;
+}
+
+.cipher-form-disabled-option .add-inline-row:disabled {
+  opacity: 0.55;
+}
+
+.cipher-custom-field {
+  position: relative;
+  border-bottom: 1px solid #eef2f6;
+  padding-right: 44px;
+}
+
+.cipher-custom-field:last-child {
+  border-bottom: 0;
+}
+
+.cipher-custom-field-remove {
+  position: absolute;
+  top: 36px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  color: #b42318;
+}
+
+.has-trailing-actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.has-trailing-actions span {
+  grid-column: 1 / -1;
+}
+
+.two-column-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.two-column-fields span {
+  grid-column: 1 / -1;
+}
+
+.add-inline-row {
+  min-height: 42px;
+  border: 0;
+  border-top: 1px solid #eef2f6;
+  padding: 0 12px;
+  background: var(--bw-background);
+  color: var(--bw-primary);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.add-inline-row:disabled {
+  color: #8b98ad;
+  cursor: default;
+}
+
+.send-created-page {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  background: var(--bw-background-alt);
+  text-align: center;
+}
+
+.send-created-icon {
+  display: grid;
+  width: 86px;
+  height: 86px;
+  place-items: center;
+  border-radius: 50%;
+  background: #eaf2ff;
+  color: var(--bw-primary);
+  font-size: 38px;
+}
+
+.send-created-page h2 {
+  margin: 0;
+  color: var(--bw-text-main);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.send-created-page p {
+  max-width: 310px;
+  margin: 0;
+  color: #586889;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.new-item-page {
+  padding: 12px;
+}
+
+.new-item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.new-item-option {
+  display: grid;
+  min-height: 112px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  padding: 13px 12px;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.new-item-option:hover {
+  border-color: var(--mac-border);
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, var(--mac-hover));
+}
+
+.new-item-icon {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: var(--mac-control-radius);
+  background: var(--mac-selected);
+  color: var(--mac-accent);
+  font-size: 18px;
+}
+
+.new-item-text {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.new-item-label {
+  color: var(--bw-text-main);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.new-item-description {
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+/* Vault routes retain their pinned behavior while sharing the macOS surface vocabulary. */
+.macos-page--vault-list,
+.macos-page--vault-detail,
+.macos-page--vault-form,
+.macos-page--vault-recovery {
+  overflow-x: hidden;
+  background: var(--mac-canvas);
+  color: var(--mac-text-primary);
+}
+
+.macos-page--vault-list[data-vault-state="loading"] .vault-loading-skeleton,
+.macos-page--vault-list[data-vault-state="empty"] .bit-no-items,
+.macos-page--vault-list[data-vault-state="no-results"] .bit-no-items,
+.macos-page--vault-list[data-vault-state="unavailable"] .bit-no-items {
+  min-width: 0;
+}
+
+.vault-root-header {
+  display: grid;
+  min-height: 54px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  padding: var(--mac-space-3) var(--mac-space-4) var(--mac-space-2);
+}
+
+.vault-root-header__title {
+  grid-column: 2;
+  margin: 0;
+  color: var(--mac-text-primary);
+  font-size: 18px;
+  font-weight: 680;
+  line-height: 1.2;
+  text-align: center;
+  letter-spacing: -0.015em;
+}
+
+.vault-root-header__actions {
+  min-width: 0;
+  grid-column: 3;
+  justify-self: end;
+}
+
+.vault-root-header__actions .header-actions {
+  gap: var(--mac-space-1);
+}
+
+.vault-root-header__actions .header-actions > :is(app-pop-out, app-current-account) button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+
+.vault-root-header__search {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: var(--mac-space-2);
+  margin: 0 var(--mac-space-5) var(--mac-space-1);
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: color-mix(in srgb, var(--mac-surface-solid) 88%, transparent);
+  color: var(--mac-text-secondary);
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--mac-shadow) 35%, transparent);
+}
+
+.vault-root-header__search:focus-within {
+  border-color: color-mix(in srgb, var(--mac-focus) 54%, var(--mac-border-subtle));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 22%, transparent);
+}
+
+.vault-root-header__search > .bwi {
+  flex: 0 0 auto;
+  color: var(--mac-text-secondary);
+  font-size: 16px;
+}
+
+.vault-root-header__search input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--mac-text-primary);
+  font-size: 15px;
+}
+
+.vault-root-header__search input:focus-visible {
+  outline: none !important;
+}
+
+.vault-root-header__search input::placeholder {
+  color: var(--mac-text-tertiary);
+  opacity: 1;
+}
+
+/* Search-first pages previously combined the PopupPage defaults (12px above
+ * and below), the search component's own margin, and the scroll region's
+ * top inset.  That became a conspicuous empty band before the first result.
+ * Keep the same compact 20px rhythm for Vault, OTP, and Send search screens. */
+popup-page > main > div:has(bw-root-search),
+popup-page > main > div:has(bit-search) {
+  padding-block: var(--mac-space-2) !important;
+}
+
+popup-page > main > div:has(bw-root-search) + [data-testid="popup-layout-scroll-region"],
+popup-page > main > div:has(bit-search) + [data-testid="popup-layout-scroll-region"] {
+  padding-top: var(--mac-space-2) !important;
+}
+
+.vault-hierarchy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0 var(--mac-space-4) var(--mac-space-4);
+}
+
+/* Angular component hosts are inline by default.  In the native WebKit
+ * popup that leaves the hierarchy, virtual list, and floating New control in
+ * anonymous inline layout boxes: their accessibility nodes exist, but they
+ * can fail to paint after the vault route is restored. */
+bw-vault-hierarchy,
+app-vault-list-items-container,
+bw-retained-new-item-dropdown {
+  display: block;
+}
+
+.vault-hierarchy__node {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.vault-hierarchy__trigger {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mac-space-2);
+  padding: 0 var(--mac-space-3);
+  background: transparent;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.vault-hierarchy__trigger:hover {
+  color: var(--mac-text-primary);
+}
+
+.vault-hierarchy__trigger > .bwi {
+  flex: 0 0 auto;
+  color: var(--mac-text-tertiary);
+  font-size: 13px;
+}
+
+.vault-hierarchy__trigger[aria-expanded="true"] {
+  border: 1px solid var(--mac-border-subtle);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+}
+
+.vault-hierarchy__content {
+  display: none;
+  min-width: 0;
+  margin-bottom: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    margin-bottom var(--mac-disclosure-motion) ease-out,
+    opacity var(--mac-disclosure-motion) ease-out,
+    transform var(--mac-disclosure-motion) ease-out,
+    display 0s var(--mac-disclosure-motion) allow-discrete;
+}
+
+.vault-hierarchy__content.is-open {
+  display: block;
+  margin-bottom: var(--mac-space-2);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.vault-hierarchy__content > * {
+  min-height: 0;
+  overflow: visible;
+}
+
+.vault-hierarchy__children {
+  overflow: hidden;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+}
+
+/* A menu-bar window has a single native material field. Route shells must be
+ * transparent so the cool-to-neutral tint remains continuous when switching
+ * pages or scrolling underneath the floating navigation. */
+:root:not([data-bw-window="popout"]) barwarden-root {
+  background: var(--mac-popup-material);
+}
+
+:root:not([data-bw-window="popout"]) :is(
+  barwarden-root > .popup-window-size-source,
+  barwarden-root > .popup-window-size-source > bw-popup-shell,
+  barwarden-root > .popup-window-size-source > bw-popup-shell > .popup-shell,
+  .popup-tab-scroll-host,
+  .popup-tab-scroll-host > router-outlet + *,
+  .popup-page,
+  popup-page,
+  popup-page > main,
+  .macos-page,
+  .macos-page--generator,
+  .macos-page--generator-history,
+  .macos-page--send,
+  .macos-page--send-form,
+  .macos-page--send-created,
+  .macos-page--settings,
+  .macos-page--appearance,
+  .macos-page--about,
+  .app-bootstrap-loading--runtime
+) {
+  background: transparent !important;
+}
+
+/* Authentication has a deliberately separate layout, so it does not flow
+ * through the main route-shell rule above. Keep that layout transparent too;
+ * otherwise its retained canvas hides the popup material just on login. */
+:root:has(
+  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
+) :is(
+  .popup-window-size-source,
+  bw-login-page,
+  bw-password-hint-page,
+  bw-lock-page,
+  bw-two-factor-page,
+  bw-new-device-verification-page,
+  bw-official-anonymous-shell,
+  bw-official-lock,
+  auth-anon-layout,
+  popup-page,
+  popup-page > main,
+  .macos-auth-page
+) {
+  background: transparent !important;
+}
+
+/* auth-anon-layout renders this utility background inside its landing-content
+ * template. It is below the host elements above, so it needs its own rule or
+ * it paints a flat canvas over the middle of the login gradient. */
+:root:has(
+  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
+) auth-anon-layout bit-landing-content > .tw-bg-background-alt,
+:root:has(
+  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
+) auth-anon-layout bit-landing-footer > footer {
+  background: transparent !important;
+}
+
+:root:has(
+  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
+) body {
+  background: var(--mac-auth-background) !important;
+}
+
+:root:has(
+  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
+) barwarden-root {
+  background: var(--mac-auth-background) !important;
+}
+
+.vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__children {
+  border-radius: 0 0 12px 12px;
+}
+
+/* A root disclosure is one connected surface: only its outer lower corners
+ * are rounded.  The previous standalone empty-state card created two rounded
+ * top corners directly underneath the already rounded header. */
+.vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__empty {
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+}
+
+.vault-hierarchy__child {
+  display: grid;
+  width: 100%;
+  min-height: 48px;
+  grid-template-columns: 28px minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: var(--mac-space-2);
+  border-bottom: 1px solid var(--mac-border-subtle);
+  padding: 0 var(--mac-space-3);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  text-align: left;
+}
+
+.vault-hierarchy__child:last-of-type {
+  border-bottom: 0;
+}
+
+.vault-hierarchy__child-content {
+  display: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--mac-disclosure-motion) ease-out,
+    transform var(--mac-disclosure-motion) ease-out,
+    display 0s var(--mac-disclosure-motion) allow-discrete;
+}
+
+.vault-hierarchy__child-content.is-open {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.vault-hierarchy__child-content > div {
+  min-height: 0;
+  overflow: visible;
+}
+
+@starting-style {
+  .vault-hierarchy__content.is-open,
+  .vault-hierarchy__child-content.is-open {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.vault-hierarchy__child:hover {
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, var(--mac-hover));
+}
+
+.vault-hierarchy__child > .bwi:first-child {
+  color: color-mix(in srgb, var(--mac-text-secondary) 92%, var(--mac-accent));
+  font-size: 19px;
+  text-align: center;
+}
+
+.vault-hierarchy__child > .bwi:last-child,
+.vault-hierarchy__count {
+  color: var(--mac-text-tertiary);
+  font-size: 13px;
+}
+
+.vault-hierarchy__child-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-hierarchy__empty {
+  margin: 0;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  padding: var(--mac-space-5) var(--mac-space-4);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.vault-hierarchy__items {
+  display: block;
+  min-width: 0;
+}
+
+.vault-hierarchy__items bit-section > .tw-pl-1.tw-mb-0\.5 {
+  display: none;
+}
+
+.vault-hierarchy__items bit-item-group {
+  overflow: hidden;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+}
+
+.vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__items bit-item-group {
+  border-radius: 0 0 12px 12px;
+}
+
+.vault-hierarchy__children > .vault-hierarchy__items bit-item-group {
+  border-inline: 0;
+  border-bottom: 0;
+  border-radius: 0;
+}
+
+/* Child results are part of their parent enclosure, not a second card inside
+ * it.  Keep their edges square so rows flow directly out of the child.
+ */
+.vault-hierarchy__children .vault-hierarchy__child-content .vault-hierarchy__items bit-item-group {
+  border: 0;
+  border-radius: 0;
+}
+
+.vault-hierarchy__items app-retained-vault-list-item > bit-item {
+  display: flex;
+  position: relative;
+  min-height: var(--mac-row-height);
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  contain: layout paint style;
+}
+
+.vault-hierarchy__items app-retained-vault-list-item > bit-item:focus-within {
+  background: var(--mac-selected);
+}
+
+.vault-hierarchy__items app-retained-vault-list-item > bit-item.is-menu-open {
+  background: color-mix(in srgb, var(--mac-accent) 9%, var(--mac-surface-solid));
+}
+
+.vault-hierarchy__items app-retained-vault-list-item:last-child > bit-item {
+  border-bottom: 0;
+}
+
+/* The Vault add control is a peer to the account avatar: same circular target,
+ * immediately before Pop Out, with the glyph centred by its own grid box
+ * rather than a font baseline. */
+:is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] {
+  display: grid;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 999px;
+  padding: 0 !important;
+  place-items: center;
+  font-size: 0;
+  line-height: 0;
+}
+
+/* BitButton renders an icon and label as a flex row.  In this icon-only
+ * control, hiding text with font-size alone leaves the row gap behind and
+ * shifts the plus left of the circular target. */
+:is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] > span > span {
+  gap: 0 !important;
+}
+
+:is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] > span > span > div {
+  display: none;
+}
+
+:is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] .bwi {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  margin: 0 !important;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 20px;
+  transform: translateY(1px);
+}
+
+.macos-page--otp {
+  overflow-x: hidden;
+  background: var(--mac-canvas);
+  color: var(--mac-text-primary);
+}
+
+.otp-page {
+  min-width: 0;
+  padding: 0 var(--mac-space-4) var(--mac-space-4);
+}
+
+.otp-page__heading {
+  margin: var(--mac-space-3) var(--mac-space-3) var(--mac-space-2);
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.otp-page__list {
+  overflow: hidden;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+}
+
+bw-otp-code-row {
+  display: block;
+}
+
+.otp-code-row {
+  display: grid;
+  min-width: 0;
+  min-height: 64px;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--mac-space-2);
+  border-bottom: 1px solid var(--mac-border-subtle);
+  padding: var(--mac-space-2) var(--mac-space-3);
+  background: var(--mac-surface-solid);
+}
+
+bw-otp-code-row:last-child .otp-code-row {
+  border-bottom: 0;
+}
+
+.otp-code-row:hover {
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, var(--mac-hover));
+}
+
+.otp-code-row__icon {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+
+.otp-code-row__identity {
+  min-width: 0;
+}
+
+.otp-code-row__name,
+.otp-code-row__subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.otp-code-row__name {
+  color: var(--mac-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.otp-code-row__subtitle {
+  margin-top: 2px;
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.otp-code-row__countdown {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--mac-accent);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.otp-code-row__countdown.is-expiring {
+  color: var(--mac-destructive);
+}
+
+.otp-code-row__countdown > span,
+.otp-code-row__countdown > svg {
+  grid-area: 1 / 1;
+}
+
+.otp-code-row__countdown > svg {
+  width: 30px;
+  height: 30px;
+  overflow: visible;
+}
+
+.otp-code-row__progress,
+.otp-code-row__track {
+  fill: none;
+  stroke: currentcolor;
+}
+
+.otp-code-row__track {
+  opacity: 0.22;
+}
+
+.otp-code-row__copy {
+  display: flex;
+  min-width: 116px;
+  min-height: 40px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mac-space-2);
+  border-radius: var(--mac-control-radius);
+  padding: 0 var(--mac-space-2);
+  color: var(--mac-text-primary);
+}
+
+.otp-code-row__copy:hover {
+  background: var(--mac-hover);
+}
+
+.otp-code-row__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+  letter-spacing: 0.035em;
+  white-space: nowrap;
+}
+
+.otp-code-row__copy > .bwi {
+  color: var(--mac-text-secondary);
+  font-size: 17px;
+}
+
+.otp-code-row__copy.is-copied,
+.otp-code-row__copy.is-copied > .bwi {
+  color: var(--mac-accent);
+}
+
+.otp-code-row__copy-icon {
+  transition:
+    color var(--mac-motion-duration) ease-out,
+    transform var(--mac-motion-duration) ease-out;
+}
+
+.otp-code-row__copy.is-copied .otp-code-row__copy-icon {
+  animation: macos-copy-confirm 220ms ease-out;
+}
+
+.otp-code-row__status {
+  display: flex;
+  min-height: 40px;
+  grid-column: 3 / 5;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mac-space-2);
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+}
+
+.otp-code-row__retry {
+  min-height: 32px;
+  border-radius: var(--mac-control-radius);
+  padding-inline: var(--mac-space-2);
+  color: var(--mac-accent);
+  font-weight: 650;
+}
+
+.otp-code-row__retry:is(:hover, :focus-visible) {
+  background: var(--mac-hover);
+}
+
+@keyframes macos-copy-confirm {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.macos-copy-feedback-icon {
+  color: var(--mac-accent) !important;
+  animation: macos-copy-confirm 140ms ease-out;
+}
+
+button.is-copy-confirmed {
+  color: var(--mac-success) !important;
+}
+
+button.is-copy-failed {
+  color: var(--mac-destructive) !important;
+}
+
+.otp-page__empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  align-content: center;
+  gap: var(--mac-space-2);
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  padding: var(--mac-space-5);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-secondary);
+  text-align: center;
+}
+
+.otp-page__empty > .bwi {
+  color: var(--mac-text-tertiary);
+  font-size: 28px;
+}
+
+.otp-page__empty > p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.macos-list {
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.macos-list :is(bit-section, bit-item-group),
+.macos-page--vault-recovery :is(bit-section, bit-item-group) {
+  min-width: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-list app-retained-vault-list-item > bit-item,
+.macos-page--vault-recovery bit-item {
+  min-height: var(--mac-row-height);
+  margin-bottom: var(--mac-space-1);
+  overflow: visible;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  transition:
+    background-color var(--mac-motion-duration) ease-out,
+    box-shadow var(--mac-motion-duration) ease-out;
+}
+
+.macos-list app-retained-vault-list-item > bit-item:hover,
+.macos-page--vault-recovery bit-item:hover {
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, var(--mac-hover));
+}
+
+.macos-list app-retained-vault-list-item > bit-item:active,
+.macos-list app-retained-vault-list-item > bit-item.is-menu-open,
+.macos-page--vault-recovery bit-item:active {
+  background: color-mix(in srgb, var(--mac-surface-solid) 91%, var(--mac-pressed));
+}
+
+.macos-list app-retained-vault-list-item > bit-item.is-menu-open {
+  border-color: color-mix(in srgb, var(--mac-accent) 30%, var(--mac-border-subtle));
+  background: color-mix(in srgb, var(--mac-accent) 9%, var(--mac-surface-solid));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--mac-accent) 12%, transparent);
+}
+
+.macos-list app-retained-vault-list-item > bit-item:focus-within,
+.macos-page--vault-recovery bit-item:focus-within {
+  border-color: color-mix(in srgb, var(--mac-focus) 42%, var(--mac-border-subtle));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 30%, transparent);
+}
+
+.macos-list app-retained-vault-list-item [data-testid="vault-item-content"],
+.macos-page--vault-recovery bit-item [bit-item-content] {
+  min-width: 0;
+  min-height: var(--mac-row-height);
+  overflow: hidden;
+}
+
+.macos-list app-retained-vault-list-item [data-testid="vault-item-content"] {
+  background: transparent !important;
+}
+
+.macos-list app-retained-vault-list-item [data-testid="item-name"],
+.macos-list app-retained-vault-list-item [slot="secondary"],
+.macos-page--vault-recovery [data-testid="item-name"],
+.macos-page--vault-recovery [slot="secondary"] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.macos-list bit-item-action + bit-item-action,
+.macos-list bit-item-action + app-item-more-options,
+.macos-page--vault-recovery bit-item-action + bit-item-action {
+  margin-left: var(--mac-space-1);
+}
+
+.macos-list bit-item-action button:not([bit-item-content]),
+.macos-list app-item-more-options > button,
+.macos-page--vault-recovery bit-item-action button:not([bit-item-content]) {
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
+}
+
+.macos-card,
+.macos-page--vault-detail :is(bit-card, .read-only-cipher-card, .cipher-item-details-card),
+.macos-page--vault-form :is(.cipher-form-card, .official-form-section),
+.macos-page--vault-recovery :is(bit-callout, .bit-no-items) {
+  min-width: 0;
+  border-color: var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.macos-page--vault-detail .cipher-view,
+.macos-page--vault-form .cipher-form-scroll {
+  padding-bottom: var(--mac-space-6);
+}
+
+/* Cipher view is only a scroll/layout wrapper. Keeping it transparent makes
+ * the window material continuous between the individual detail cards instead
+ * of nesting a large white card behind them. */
+.macos-page--vault-detail .cipher-view {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, .official-read-only-field, .official-detail-item),
+.macos-page--vault-form :is(.cipher-form-field, .official-form-section) {
+  min-width: 0;
+  border-color: var(--mac-border-subtle);
+}
+
+.macos-page--vault-detail .official-read-only-control,
+.macos-page--vault-form :is(input, select, textarea) {
+  border-color: var(--mac-border);
+  border-radius: var(--mac-control-radius);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+}
+
+.macos-page--vault-detail :is(button, input, a):focus-visible,
+.macos-page--vault-form :is(button, input, select, textarea):focus-visible,
+.macos-page--vault-recovery :is(button, input):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
+  outline-offset: 1px;
+}
+
+.macos-page--vault-form :is(input, select, textarea),
+.macos-page--vault-detail :is(input, .official-detail-item) {
+  max-width: 100%;
+}
+
+.vault-skeleton-stack {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.vault-skeleton-row {
+  margin-bottom: var(--mac-space-1);
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  background: var(--mac-surface-solid);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-skeleton-heading::after,
+  .vault-skeleton-icon::after,
+  .vault-skeleton-line::after {
+    animation: none;
+  }
+}

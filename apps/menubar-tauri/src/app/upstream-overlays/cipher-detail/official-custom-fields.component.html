@@ -1,0 +1,139 @@
+<section class="tw-mb-5 bit-compact:tw-mb-4">
+  <bit-section-header>
+    <h2 bitTypography="h6">{{ "customFields" | i18n }}</h2>
+  </bit-section-header>
+  <bit-card>
+    @for (field of projection.cipher.fields; track $index; let last = $last; let i = $index) {
+      <div
+        class="tw-border-secondary-300 [&_bit-form-field:last-of-type]:tw-mb-0"
+        [class.tw-mb-4]="!last"
+        data-testid="custom-field"
+      >
+        @if (field.type === fieldType.Text) {
+          <bit-form-field>
+            <bit-label>{{ field.name }}</bit-label>
+            <textarea
+              readonly
+              bitInput
+              [value]="field.value ?? ''"
+              aria-readonly="true"
+              [attr.aria-label]="emptyFieldAriaLabel(field)"
+            ></textarea>
+            @if (field.value) {
+              <button
+                bitIconButton="bwi-clone"
+                bitSuffix
+                type="button"
+                [label]="'copyCustomField' | i18n: field.name"
+                data-testid="copy-custom-field"
+                (click)="copyField.emit(actionField(i))"
+              ></button>
+              @if (canFill) {
+                <button
+                  bitIconButton="bwi-sign-in"
+                  bitSuffix
+                  type="button"
+                  [label]="'i18nFillField' | i18n: field.name"
+                  data-testid="fill-custom-field"
+                  (click)="fillField.emit(actionField(i))"
+                ></button>
+              }
+            }
+          </bit-form-field>
+        }
+        @if (field.type === fieldType.Hidden) {
+          <bit-form-field>
+            <bit-label>{{ field.name }}</bit-label>
+            @if (!isRevealed(i)) {
+              <input
+                readonly
+                bitInput
+                type="password"
+                [value]="field.value ?? ''"
+                aria-readonly="true"
+                [attr.aria-label]="emptyFieldAriaLabel(field)"
+                class="tw-font-mono"
+              />
+            } @else {
+              <textarea
+                readonly
+                bitInput
+                [value]="field.value ?? ''"
+                aria-readonly="true"
+                class="tw-font-mono"
+              ></textarea>
+            }
+            @if (isRevealed(i)) {
+              <button
+                bitIconButton="bwi-numbered-list"
+                bitSuffix
+                type="button"
+                data-testid="toggle-hidden-field-value-count"
+                [label]="(showsCount(i) ? 'hideCharacterCount' : 'showCharacterCount') | i18n"
+                [attr.aria-expanded]="showsCount(i)"
+                (click)="toggleCount(i)"
+              ></button>
+            }
+            @if (field.value) {
+              <button
+                bitIconButton="bwi-eye"
+                bitSuffix
+                type="button"
+                [label]="isRevealed(i) ? ('i18nHideField' | i18n: field.name) : ('i18nShowField' | i18n: field.name)"
+                data-testid="toggle-hidden-field"
+                (click)="toggleReveal.emit(actionField(i).id)"
+              ></button>
+              <button
+                bitIconButton="bwi-clone"
+                bitSuffix
+                type="button"
+                [label]="'copyCustomField' | i18n: field.name"
+                data-testid="copy-custom-field"
+                (click)="copyField.emit(actionField(i))"
+              ></button>
+              @if (canFill) {
+                <button
+                  bitIconButton="bwi-sign-in"
+                  bitSuffix
+                  type="button"
+                  [label]="'i18nFillField' | i18n: field.name"
+                  data-testid="fill-custom-field"
+                  (click)="fillField.emit(actionField(i))"
+                ></button>
+              }
+            }
+          </bit-form-field>
+          @if (showsCount(i) && isRevealed(i)) {
+            <div class="tw-mt-3 tw-mb-2">
+              <bit-color-password [password]="field.value" [showCount]="true"></bit-color-password>
+            </div>
+          }
+        }
+        @if (field.type === fieldType.Boolean) {
+          <bit-form-control>
+            <input
+              bitCheckbox
+              type="checkbox"
+              [checked]="field.value === 'true'"
+              aria-readonly="true"
+              disabled
+            />
+            <bit-label>{{ field.name }}</bit-label>
+          </bit-form-control>
+        }
+        @if (field.type === fieldType.Linked) {
+          <bit-form-field>
+            <bit-label>{{ "cfTypeLinked" | i18n }}: {{ field.name }}</bit-label>
+            <input
+              readonly
+              bitInput
+              type="text"
+              [value]="linkedType(field.linkedId)"
+              aria-readonly="true"
+            />
+          </bit-form-field>
+        }
+      </div>
+    }
+  </bit-card>
+</section>

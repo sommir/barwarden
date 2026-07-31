@@ -1,0 +1,100 @@
+<section [formGroup]="loginDetailsForm" class="tw-mb-5 bit-compact:tw-mb-4">
+  <bit-section-header>
+    <h2 bitTypography="h6">
+      {{ "loginCredentials" | i18n }}
+    </h2>
+  </bit-section-header>
+
+  <bit-card>
+    <bit-form-field>
+      <bit-label>{{ "username" | i18n }}</bit-label>
+      <input bitInput formControlName="username" />
+      @if (loginDetailsForm.controls.username.enabled) {
+        <button
+          type="button"
+          bitIconButton="bwi-generate"
+          bitSuffix
+          data-testid="generate-username-button"
+          [label]="'generateUsername' | i18n"
+          [bitAction]="generateUsername"
+        ></button>
+      }
+    </bit-form-field>
+
+    <bit-form-field>
+      <bit-label>{{ "password" | i18n }}</bit-label>
+      <input bitInput formControlName="password" type="password" class="tw-font-mono" />
+      @if (loginDetailsForm.controls.password.enabled) {
+        <bit-hint>
+          @if (newPasswordGenerated) {
+            <ng-container>
+              {{ "securePasswordGenerated" | i18n }}
+            </ng-container>
+          } @else {
+            <ng-container>
+              <span class="tw-sr-only">
+                {{ "useGeneratorHelpTextPartOne" | i18n }}
+                {{ "useGeneratorHelpTextPartTwo" | i18n }}
+              </span>
+              <span aria-hidden="true">
+                {{ "useGeneratorHelpTextPartOne" | i18n }}
+                <i class="bwi bwi-generate" aria-hidden="true"></i>
+                {{ "useGeneratorHelpTextPartTwo" | i18n }}
+              </span>
+            </ng-container>
+          }
+        </bit-hint>
+      }
+      @if (viewHiddenFields) {
+        <button
+          type="button"
+          bitIconButton
+          bitSuffix
+          data-testid="toggle-password-visibility"
+          bitPasswordInputToggle
+        ></button>
+      }
+      @if (loginDetailsForm.controls.password.enabled) {
+        <button
+          type="button"
+          bitIconButton="bwi-generate"
+          bitSuffix
+          data-testid="generate-password-button"
+          [label]="'generatePassword' | i18n"
+          [bitAction]="generatePassword"
+        ></button>
+      }
+    </bit-form-field>
+
+    <bit-form-field disableMargin>
+      <bit-label>
+        {{ "authenticatorKey" | i18n }}
+        <button
+          bitLink
+          type="button"
+          [bitPopoverTriggerFor]="totpPopover"
+          [attr.aria-label]="'learnMoreAboutAuthenticators' | i18n"
+          slot="end"
+          startIcon="bwi-question-circle"
+        ></button>
+        <bit-popover #totpPopover [title]="'totpHelperTitle' | i18n">
+          <p class="tw-mb-0">
+            {{ "totpHelper" | i18n }}
+          </p>
+        </bit-popover>
+      </bit-label>
+      <input bitInput formControlName="totp" type="password" class="tw-font-mono" />
+      @if (viewHiddenFields) {
+        <button
+          type="button"
+          bitIconButton
+          bitSuffix
+          data-testid="toggle-totp-visibility"
+          bitPasswordInputToggle
+        ></button>
+      }
+    </bit-form-field>
+  </bit-card>
+</section>
+
+<vault-autofill-options></vault-autofill-options>

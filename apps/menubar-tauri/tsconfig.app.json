@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "experimentalDecorators": true,
+    "lib": ["ES2022", "DOM"],
+    "noEmit": false,
+    "outDir": "./dist/out-tsc",
+    "skipLibCheck": true,
+    "types": []
+  },
+  "files": ["src/main.ts"],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}

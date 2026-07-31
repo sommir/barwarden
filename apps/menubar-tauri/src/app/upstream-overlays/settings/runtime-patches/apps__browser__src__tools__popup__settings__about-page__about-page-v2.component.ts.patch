@@ -1,0 +1,151 @@
+--- a/apps/browser/src/tools/popup/settings/about-page/about-page-v2.component.ts
++++ b/apps/browser/src/tools/popup/settings/about-page/about-page-v2.component.ts
+@@ -1,5 +1 @@
+-// Official Settings overlay source; generated.
+-import { CommonModule } from "@angular/common";
+-import { Component } from "@angular/core";
+-import { RouterModule } from "@angular/router";
+-import { firstValueFrom } from "rxjs";
++import { Component, EventEmitter, Input, Output } from "@angular/core";
+@@ -7,5 +3,17 @@
+-import { EnvironmentService } from "@bitwarden/common/platform/abstractions/environment.service";
+-import { PlatformUtilsService } from "@bitwarden/common/platform/abstractions/platform-utils.service";
+-import { CenterPositionStrategy, DialogService, ItemModule } from "@bitwarden/components";
+-import { TroubleshootingDialogComponent } from "@bitwarden/logging-angular";
+-import { I18nPipe } from "@bitwarden/ui-common";
++import { PopupHeaderComponent } from "../../layout/popup-header.component";
++import { PopupPageComponent } from "../../layout/popup-page.component";
++import {
++  ItemComponent,
++  ItemContentComponent,
++  ItemGroupComponent,
++} from "../../official-ui/official-components";
++import {
++  OfficialAboutDialogComponent,
++  type OfficialAboutDialogMetadata,
++  type OfficialAboutRevisionCopyStatus,
++  type OfficialAboutDialogView,
++} from "./official-about-dialog.component";
++import { MacosAlertStripComponent } from "../../official-ui/macos-alert-strip.component";
++import { translateOfficialMessage } from "../../official-ui/official-i18n.service";
++import { I18nPipe } from "../../official-ui/official-ui-common";
++import type { AppUpdateView } from "../../updates/app-update.service";
+@@ -13,7 +20,0 @@
+-import { PopOutComponent } from "../../../../platform/popup/components/pop-out.component";
+-import { PopupHeaderComponent } from "../../../../platform/popup/layout/popup-header.component";
+-import { PopupPageComponent } from "../../../../platform/popup/layout/popup-page.component";
+-import { AboutDialogComponent } from "../about-dialog/about-dialog.component";
+-
+-// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
+-// eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
+@@ -21 +22,2 @@
+-  templateUrl: "about-page-v2.component.html",
++  selector: "bw-official-about",
++  standalone: true,
+@@ -23,6 +25,3 @@
+-    CommonModule,
+-    RouterModule,
+-    PopupPageComponent,
+-    PopupHeaderComponent,
+-    PopOutComponent,
+-    ItemModule,
++    ItemComponent,
++    ItemContentComponent,
++    ItemGroupComponent,
+@@ -29,0 +29,4 @@
++    MacosAlertStripComponent,
++    OfficialAboutDialogComponent,
++    PopupHeaderComponent,
++    PopupPageComponent,
+@@ -30,0 +34 @@
++  templateUrl: "./official-about.component.html",
+@@ -32,6 +36,22 @@
+-export class AboutPageV2Component {
+-  constructor(
+-    private dialogService: DialogService,
+-    private environmentService: EnvironmentService,
+-    private platformUtilsService: PlatformUtilsService,
+-  ) {}
++export class OfficialAboutComponent {
++  @Input({ required: true }) metadata!: Readonly<OfficialAboutDialogMetadata>;
++  @Input({ required: true }) metadataView: OfficialAboutDialogView | null = null;
++  @Input() revisionCopyStatus: OfficialAboutRevisionCopyStatus = "idle";
++  @Input() handoffError = "";
++  @Input() updateView: AppUpdateView = {
++    status: "idle",
++    version: null,
++    notes: null,
++    progress: null,
++    message: "",
++  };
++  @Output() readonly back = new EventEmitter<void>();
++  @Output() readonly metadataViewChange = new EventEmitter<OfficialAboutDialogView | null>();
++  @Output() readonly openThirdPartyNotices = new EventEmitter<void>();
++  @Output() readonly openHelp = new EventEmitter<void>();
++  @Output() readonly openWebVault = new EventEmitter<void>();
++  @Output() readonly openProjectSource = new EventEmitter<void>();
++  @Output() readonly copyRevision = new EventEmitter<void>();
++  @Output() readonly checkForUpdates = new EventEmitter<void>();
++  @Output() readonly downloadAndRestart = new EventEmitter<void>();
++  @Output() readonly dismissUpdate = new EventEmitter<void>();
+@@ -39,5 +59,2 @@
+-  about() {
+-    this.dialogService.open(AboutDialogComponent, {
+-      positionStrategy: new CenterPositionStrategy(),
+-    });
+-  }
++  readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
++    this.back.emit();
+@@ -45,2 +62,14 @@
+-  troubleshoot() {
+-    TroubleshootingDialogComponent.open(this.dialogService);
++  get updateActionLabel(): string {
++    switch (this.updateView.status) {
++      case "checking":
++        return translateOfficialMessage("i18nCheckingUpdates");
++      case "downloading":
++        return this.updateView.progress === null
++          ? translateOfficialMessage("i18nDownloadingUpdate")
++          : translateOfficialMessage(
++              "i18nDownloadingUpdateProgress",
++              Math.round(this.updateView.progress * 100),
++            );
++      default:
++        return translateOfficialMessage("i18nCheckForUpdates");
++    }
+@@ -49,10 +78,2 @@
+-  async launchHelp() {
+-    const confirmed = await this.dialogService.openSimpleDialog({
+-      title: { key: "continueToHelpCenter" },
+-      content: { key: "continueToHelpCenterDesc" },
+-      type: "info",
+-      acceptButtonText: { key: "continue" },
+-    });
+-    if (confirmed) {
+-      this.platformUtilsService.launchUri("https://bitwarden.com/help/");
+-    }
++  get updateActionPending(): boolean {
++    return this.updateView.status === "checking" || this.updateView.status === "downloading";
+@@ -61,10 +82,5 @@
+-  async openWebVault() {
+-    const confirmed = await this.dialogService.openSimpleDialog({
+-      title: { key: "continueToWebApp" },
+-      content: { key: "continueToWebAppDesc" },
+-      type: "info",
+-      acceptButtonText: { key: "continue" },
+-    });
+-    if (confirmed) {
+-      const env = await firstValueFrom(this.environmentService.environment$);
+-      this.platformUtilsService.launchUri(env.getWebVaultUrl());
++  activateMetadataFromKeyboard(
++    event: KeyboardEvent,
++  ): void {
++    if (event.key !== "Enter" && event.key !== " ") {
++      return;
+@@ -71,0 +88,6 @@
++    event.preventDefault();
++    if (event.repeat) {
++      return;
++    }
++    const button = event.currentTarget as HTMLButtonElement;
++    globalThis.setTimeout(() => button.click(), 0);

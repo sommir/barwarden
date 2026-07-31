@@ -1,0 +1,12 @@
+<bit-section disableMargin>
+  <bit-form-field>
+    <bit-label>{{ "i18nTextToShare" | i18n }}</bit-label>
+    <textarea bitInput id="text" rows="3" [value]="value().text" [readonly]="!editing()" (input)="valueChange.emit({ text: inputValue($event) })"></textarea>
+  </bit-form-field>
+  @if (showHiddenCheckbox()) {
+    <bit-form-control>
+      <input bitCheckbox type="checkbox" [checked]="value().hidden" [disabled]="!editing()" (change)="valueChange.emit({ hidden: checked($event) })" />
+      <bit-label>{{ "i18nDefaultHideText" | i18n }}</bit-label>
+    </bit-form-control>
+  }
+</bit-section>

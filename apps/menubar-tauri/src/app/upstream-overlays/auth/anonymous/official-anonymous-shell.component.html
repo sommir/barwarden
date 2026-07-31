@@ -1,0 +1,34 @@
+<popup-page [disablePadding]="true">
+  <popup-header
+    slot="header"
+    [background]="'alt'"
+    [showBackButton]="showBackButton"
+    [pageTitle]="''"
+  >
+    <div class="macos-auth-product">
+      <strong>Barwarden</strong>
+    </div>
+
+    <ng-container slot="end">
+      <app-pop-out></app-pop-out>
+    </ng-container>
+  </popup-header>
+
+  <auth-anon-layout
+    [title]="pageTitle"
+    [subtitle]="pageSubtitle"
+    [icon]="pageIcon"
+    [showReadonlyHostname]="showReadonlyHostname"
+    [hideLogo]="true"
+    [maxWidth]="maxWidth"
+    [hideFooter]="hideFooter"
+    [hideCardWrapper]="hideCardWrapper"
+    [hidePageIcon]="hidePageIcon"
+    [contentVerticalPadding]="contentVerticalPadding"
+    [footerVerticalPadding]="footerVerticalPadding"
+    [heroTextAlignment]="heroTextAlignment"
+    [secondaryContentLocation]="secondaryContentLocation"
+  >
+    <ng-content></ng-content>
+  </auth-anon-layout>
+</popup-page>

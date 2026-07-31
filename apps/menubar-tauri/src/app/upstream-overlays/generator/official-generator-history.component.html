@@ -1,0 +1,73 @@
+<popup-page [attr.aria-busy]="loading$ | async">
+  <popup-header slot="header" [pageTitle]="'generatorHistory' | i18n" showBackButton>
+    <ng-container slot="end">
+      <app-pop-out></app-pop-out>
+    </ng-container>
+  </popup-header>
+  @if (!(loading$ | async)) {
+    <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />
+    <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />
+  }
+  @if (statusMessage$ | async; as statusMessage) {
+    <bw-macos-alert-strip
+      kind="danger"
+      [title]="'i18nGeneratorHistoryFailed' | i18n"
+      [message]="statusMessage"
+    />
+  }
+  @if ((hasHistory$ | async) && !(loading$ | async)) {
+    <popup-footer slot="footer">
+      <button
+        #clearTrigger
+        [disabled]="clearing$ | async"
+        bitButton
+        type="submit"
+        buttonType="primary"
+        (click)="clear()"
+      >
+        {{ "clearHistory" | i18n }}
+      </button>
+    </popup-footer>
+  }
+  <bw-app-bottom-sheet
+    #clearDialog
+    labelledBy="generator-history-dialog-title"
+    describedBy="generator-history-dialog-description"
+    testId="generator-history-dialog"
+    (dismissed)="cancelClear()"
+  >
+    <form class="app-bottom-sheet-panel">
+      <header class="app-bottom-sheet-header">
+        <h2 id="generator-history-dialog-title">
+          {{ "clearGeneratorHistoryTitle" | i18n }}
+        </h2>
+      </header>
+      <div class="app-bottom-sheet-body">
+        <p id="generator-history-dialog-description">
+          {{ "cleargGeneratorHistoryDescription" | i18n }}
+        </p>
+      </div>
+      <footer class="app-bottom-sheet-footer">
+        <button
+          #clearConfirm
+          bitButton
+          buttonType="danger"
+          type="button"
+          [disabled]="confirming || (clearing$ | async)"
+          (click)="confirmClear()"
+        >
+          {{ "clearHistory" | i18n }}
+        </button>
+        <button
+          bitButton
+          buttonType="secondary"
+          type="button"
+          [disabled]="confirming || (clearing$ | async)"
+          (click)="cancelClear()"
+        >
+          {{ "cancel" | i18n }}
+        </button>
+      </footer>
+    </form>
+  </bw-app-bottom-sheet>
+</popup-page>

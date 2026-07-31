@@ -1,0 +1,32 @@
+--- authority
++++ runtime
+@@ -1 +1 @@
+-<bit-section [formGroup]="sendOptionsForm" disableMargin>
++<bit-section disableMargin>
+@@ -9,13 +9,3 @@
+-          <bit-label>{{ "maxAccessCount" | i18n }}</bit-label>
+-          <input
+-            bitInput
+-            formControlName="maxAccessCount"
+-            [readonly]="!editing()"
+-            id="maxAccessCountInput"
+-          />
+-          @if (editing()) {
+-            <bit-hint>{{ "limitSendViewsHint" | i18n }}</bit-hint>
+-          }
+-          @if (showAccessCount()) {
+-            <bit-hint>&nbsp;{{ "limitSendViewsCount" | i18n: viewsLeft() }}</bit-hint>
+-          }
++          <bit-label>{{ "i18nMaxAccessCount" | i18n }}</bit-label>
++          <input bitInput [value]="value().maxAccessCount" [readonly]="!editing()" id="maxAccessCountInput" (input)="valueChange.emit({ maxAccessCount: inputValue($event) })" />
++          @if (editing()) { <bit-hint>{{ "i18nMaxAccessCountHint" | i18n }}</bit-hint> }
+@@ -26,2 +16,2 @@
+-          <input bitCheckbox type="checkbox" formControlName="hideEmail" />
+-          <bit-label>{{ "hideMyEmail" | i18n }}</bit-label>
++          <input bitCheckbox type="checkbox" [checked]="value().hideEmail" [disabled]="!editing()" (change)="valueChange.emit({ hideEmail: checked($event) })" />
++          <bit-label>{{ "i18nHideEmailFromRecipients" | i18n }}</bit-label>
+@@ -32,2 +22,2 @@
+-          <bit-label>{{ "privateNote" | i18n }}</bit-label>
+-          <textarea bitInput rows="3" formControlName="notes" [readonly]="!editing()"></textarea>
++          <bit-label>{{ "i18nPrivateNotes" | i18n }}</bit-label>
++          <textarea bitInput rows="3" [value]="value().notes" [readonly]="!editing()" (input)="valueChange.emit({ notes: inputValue($event) })"></textarea>

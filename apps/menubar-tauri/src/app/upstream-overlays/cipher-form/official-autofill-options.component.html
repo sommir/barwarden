@@ -1,0 +1,37 @@
+<section class="tw-mb-5 bit-compact:tw-mb-4" [formGroup]="autofillOptionsForm">
+  <bit-section-header>
+    <h2 bitTypography="h6">
+      {{ "autofillOptions" | i18n }}
+    </h2>
+  </bit-section-header>
+
+  <bit-card cdkDropList (cdkDropListDropped)="onUriItemDrop($event)">
+    <ng-container formArrayName="uris">
+      @for (uri of uriControls; track $index; let i = $index) {
+        <vault-autofill-uri-option
+          cdkDrag
+          [cdkDragDisabled]="uriControls.length <= 1 || autofillOptionsForm.disabled"
+          [formControlName]="i"
+          (remove)="removeUri(i)"
+          (onKeydown)="onUriItemKeydown($event, i)"
+          [canReorder]="uriControls.length > 1 && autofillOptionsForm.enabled"
+          [canRemove]="uriControls.length > 1 && autofillOptionsForm.enabled"
+          [defaultMatchDetection]="defaultMatchDetection"
+          [index]="i"
+        ></vault-autofill-uri-option>
+      }
+    </ng-container>
+
+    @if (autofillOptionsForm.enabled) {
+      <button
+        type="button"
+        bitLink
+        linkType="primary"
+        (click)="addUri({ uri: null, matchDetection: null }, true)"
+        startIcon="bwi-plus"
+      >
+        {{ "addWebsite" | i18n }}
+      </button>
+    }
+  </bit-card>
+</section>
