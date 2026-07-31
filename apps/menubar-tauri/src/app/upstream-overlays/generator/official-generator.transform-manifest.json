@@ -4618,7 +4618,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/pop-out/platform-utils.adapter.ts",
-        "sha256": "346423f0be177e1859ff6acbcdc78c09fbd7c184a84698aa86f70812b957e529"
+        "sha256": "05bc25a08d5a7d9e4a9266d254d81604c2e48c740b4748c1dddd026d51fa8ce7"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/pop-out/pop-out.component.html",
@@ -4658,7 +4658,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
-        "sha256": "1820f30b1e0e1dc7b31bce172ed4cf53bd858dcfd5ba9d36ee8a61374338f8c8"
+        "sha256": "71d605c5f0b19b8bbfdf822e22d2641cad3cad5a077908468f6304c44d483ad8"
       },
       {
         "path": "apps/menubar-tauri/src/host/biometric-host.ts",

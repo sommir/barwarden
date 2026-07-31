@@ -20,8 +20,8 @@ export class TauriPopupPlatformUtilsAdapter extends PlatformUtilsService {
   isPopupOpen(): Promise<boolean> { return Promise.resolve(true); }
   isAnyViewFocused(): Promise<boolean> { return Promise.resolve(true); }
   launchUri(_uri: string, _options?: unknown): void {}
-  getApplicationVersion(): Promise<string> { return Promise.resolve("0.1.1"); }
-  getApplicationVersionNumber(): Promise<string> { return Promise.resolve("0.1.1"); }
+  getApplicationVersion(): Promise<string> { return Promise.resolve("0.1.2"); }
+  getApplicationVersionNumber(): Promise<string> { return Promise.resolve("0.1.2"); }
   supportsWebAuthn(_win: Window): boolean { return false; }
   supportsDuo(): boolean { return false; }
   supportsAutofill(): boolean { return false; }

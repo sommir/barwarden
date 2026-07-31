@@ -27,7 +27,7 @@ const maximumCaptureBytes = 1_048_576;
 const expectedProduct = Object.freeze({
   name: BARWARDEN_RELEASE_BRAND.productName,
   identifier: BARWARDEN_RELEASE_BRAND.bundleIdentifier,
-  version: "0.1.1",
+  version: "0.1.2",
   minimumMacosVersion: "13.0",
 });
 
@@ -35,7 +35,7 @@ export const artifactPaths = Object.freeze({
   app: `apps/menubar-tauri/src-tauri/target/release/bundle/macos/${BARWARDEN_RELEASE_BRAND.productName}.app`,
   executable: `apps/menubar-tauri/src-tauri/target/release/bundle/macos/${BARWARDEN_RELEASE_BRAND.productName}.app/Contents/MacOS/${BARWARDEN_RELEASE_BRAND.executableName}`,
   infoPlist: `apps/menubar-tauri/src-tauri/target/release/bundle/macos/${BARWARDEN_RELEASE_BRAND.productName}.app/Contents/Info.plist`,
-  dmg: `apps/menubar-tauri/src-tauri/target/release/bundle/dmg/${BARWARDEN_RELEASE_BRAND.productName}_0.1.1_aarch64.dmg`,
+  dmg: `apps/menubar-tauri/src-tauri/target/release/bundle/dmg/${BARWARDEN_RELEASE_BRAND.productName}_0.1.2_aarch64.dmg`,
 });
 
 const externalBlockerCodes = Object.freeze([
