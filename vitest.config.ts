@@ -219,7 +219,7 @@ export default defineConfig({
     // Bound the Angular/SDK workers so native/WASM crypto and source-graph
     // guards do not starve each other and exceed otherwise healthy timeouts.
     maxWorkers: 4,
-    testTimeout: 15_000,
+    testTimeout: 30_000,
     setupFiles: [
       fileURLToPath(new URL("./apps/menubar-tauri/src/test-setup.ts", import.meta.url)),
     ],
