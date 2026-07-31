@@ -1,0 +1,1 @@
+../../../../vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts

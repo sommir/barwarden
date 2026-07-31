@@ -1,0 +1,19 @@
+<header class="macos-page-heading">
+  <div class="macos-page-heading__leading">
+    <ng-content select="[slot=start]"></ng-content>
+    <button
+      *ngIf="showBackButton"
+      bitIconButton="bwi-angle-left"
+      type="button"
+      [label]="'back' | i18n"
+      [bitAction]="backAction"
+    ></button>
+  </div>
+  <div class="macos-page-heading__titles">
+    <h1 *ngIf="pageTitle" bitTypography="h3">{{ pageTitle }}</h1>
+    <ng-content></ng-content>
+  </div>
+  <div class="macos-page-heading__actions">
+    <ng-content select="[slot=end]"></ng-content>
+  </div>
+</header>

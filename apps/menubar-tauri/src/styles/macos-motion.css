@@ -1,0 +1,37 @@
+:root {
+  --mac-motion-duration: 100ms;
+  --mac-motion-distance: 2px;
+  --mac-sheet-motion: 200ms;
+  --mac-disclosure-motion: 200ms;
+}
+
+.macos-pressable {
+  transition:
+    background-color var(--mac-motion-duration) ease-out,
+    color var(--mac-motion-duration) ease-out,
+    transform var(--mac-motion-duration) ease-out;
+}
+
+.macos-pressable:active {
+  transform: scale(0.975);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mac-motion-duration: 1ms;
+    --mac-motion-distance: 0px;
+    --mac-sheet-motion: 1ms;
+    --mac-disclosure-motion: 1ms;
+  }
+
+  :root .vault-skeleton-heading::after,
+  :root .vault-skeleton-icon::after,
+  :root .vault-skeleton-line::after {
+    animation: none;
+  }
+
+  :root .app-bottom-sheet,
+  :root .app-bottom-sheet::backdrop {
+    transition-duration: var(--mac-motion-duration);
+  }
+}

@@ -1,0 +1,41 @@
+<div data-testid="official-login-detail">
+  <official-item-details
+    [cipher]="projection.cipher"
+    [folder]="projection.folder"
+  />
+  <official-login-credentials
+    [projection]="projection"
+    [canFill]="canFill"
+    [revealedFieldIds]="revealedFieldIds"
+    (copyField)="copyField.emit($event)"
+    (fillField)="fillField.emit($event)"
+    (toggleReveal)="toggleReveal.emit($event)"
+  />
+  @if (projection.cipher.login.uris.length > 0) {
+    <official-login-uri-options
+      [projection]="projection"
+      (copyField)="copyField.emit($event)"
+      (launchUri)="launchUri.emit($event)"
+    />
+  }
+  @if (projection.cipher.notes) {
+    <app-additional-options
+      [notes]="projection.cipher.notes"
+      (copyField)="copyField.emit($event)"
+    />
+  }
+  @if (projection.cipher.hasFields) {
+    <official-custom-fields
+      [projection]="projection"
+      [canFill]="canFill"
+      [revealedFieldIds]="revealedFieldIds"
+      (copyField)="copyField.emit($event)"
+      (fillField)="fillField.emit($event)"
+      (toggleReveal)="toggleReveal.emit($event)"
+    />
+  }
+  <app-item-history-v2
+    [cipher]="projection.cipher"
+    (viewPasswordHistory)="viewPasswordHistory.emit()"
+  />
+</div>

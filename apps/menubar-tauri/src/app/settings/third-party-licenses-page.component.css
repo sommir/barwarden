@@ -1,0 +1,16 @@
+.third-party-license-text {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  margin: 16px;
+  padding: 16px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  user-select: text;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.55;
+}

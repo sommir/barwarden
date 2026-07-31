@@ -1,0 +1,89 @@
+<popup-page [hideOverflow]="loading()">
+  <popup-header slot="header" pageTitle="Send">
+    <ng-container slot="end">
+      @if (!disabled()) {
+        <button bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+          {{ "new" | i18n }}
+        </button>
+      }
+    </ng-container>
+  </popup-header>
+  <ng-container slot="above-scroll-area">
+    @if (disabled()) {
+      <bit-callout class="send-disabled-callout" [title]="'i18nSendDisabled' | i18n">
+        {{ "i18nOrganizationPolicyDisabledSend" | i18n }}
+      </bit-callout>
+    }
+    @if (state() !== "empty") {
+      <div class="tw-flex tw-gap-1 tw-items-center">
+        <bit-search
+          class="tw-flex-1"
+          autocomplete="off"
+          [placeholder]="'i18nSearchSend' | i18n"
+          [ngModel]="query()"
+          (ngModelChange)="queryChange.emit($event ?? '')"
+        />
+        <button
+          bitIconButton="bwi-sliders"
+          buttonType="primaryGhost"
+          type="button"
+          [attr.aria-label]="'i18nFilterSend' | i18n"
+          [attr.aria-expanded]="filtersVisible()"
+          (click)="toggleFilters.emit()"
+        ></button>
+      </div>
+      @if (filtersVisible()) {
+        <div class="send-filter-disclosure">
+          <select [attr.aria-label]="'type' | i18n" (change)="filterChange.emit(inputValue($event))">
+            <option value="">{{ "type" | i18n }}</option>
+            <option value="text">{{ "i18nTextSend" | i18n }}</option>
+          </select>
+        </div>
+      }
+    }
+  </ng-container>
+
+  @if (state() === "empty" && !loading()) {
+    <div class="tw-flex tw-flex-col tw-h-full tw-justify-center">
+      <bit-no-items class="tw-text-main">
+        <ng-container slot="title">{{ "i18nSendEmptyTitle" | i18n }}</ng-container>
+        <ng-container slot="description">
+          <p bitTypography="body2" class="tw-mx-6 tw-mt-2">{{ "i18nSendEmptyDescription" | i18n }}</p>
+        </ng-container>
+        @if (!disabled()) {
+          <button slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+            {{ "i18nCreateSend" | i18n }}
+          </button>
+        }
+      </bit-no-items>
+    </div>
+  }
+
+  @if (state() !== "empty" && !loading()) {
+    @if (state() === "no-results") {
+      <div class="tw-flex tw-flex-col tw-justify-center tw-h-auto tw-pt-12">
+        <bit-no-items>
+          <ng-container slot="title">{{ "i18nNoMatchingSends" | i18n }}</ng-container>
+          <ng-container slot="description">{{ "i18nNoSearchMatchesHint" | i18n }}</ng-container>
+        </bit-no-items>
+      </div>
+    }
+    <bw-official-send-list-items-container
+      [headerText]="'i18nAllSends' | i18n"
+      [sends]="sends()"
+      (open)="open.emit($event)"
+      (copyLink)="copyLink.emit($event)"
+      (delete)="delete.emit($event)"
+    />
+  }
+  @if (loading()) {
+    <bit-item-group [attr.aria-label]="'i18nLoadingSends' | i18n">
+      @for (row of [0, 1, 2, 3, 4]; track row) {
+        <div class="tw-flex tw-items-center tw-gap-3 tw-h-[59px] tw-px-3">
+          <bit-skeleton edgeShape="circle" class="tw-size-8 tw-flex-none" />
+          <bit-skeleton class="tw-h-4 tw-flex-1" />
+        </div>
+      }
+    </bit-item-group>
+  }
+</popup-page>

@@ -1,0 +1,223 @@
+--- a/apps/browser/src/vault/popup/settings/appearance.component.ts
++++ b/apps/browser/src/vault/popup/settings/appearance.component.ts
+@@ -1,12 +1,2 @@
+-// Official Settings overlay source; generated.
+-// FIXME: Update this file to be type safe and remove this and next line
+-// @ts-strict-ignore
+-import { CommonModule } from "@angular/common";
+-import { Component, DestroyRef, inject, OnInit } from "@angular/core";
+-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+-import { FormBuilder, ReactiveFormsModule } from "@angular/forms";
+-import { firstValueFrom } from "rxjs";
+-
+-import { JslibModule } from "@bitwarden/angular/jslib.module";
+-import { DomainSettingsService } from "@bitwarden/common/autofill/services/domain-settings.service";
+-import { AnimationControlService } from "@bitwarden/common/platform/abstractions/animation-control.service";
++import { Component, EventEmitter, Input, Output } from "@angular/core";
++import { FormsModule } from "@angular/forms";
+@@ -14,2 +4,3 @@
+-import { Theme, ThemeTypes } from "@bitwarden/common/platform/enums";
+-import { ThemeStateService } from "@bitwarden/common/platform/theming/theme-state.service";
++
++import { PopupHeaderComponent } from "../../layout/popup-header.component";
++import { PopupPageComponent } from "../../layout/popup-page.component";
+@@ -16,0 +8,2 @@
++  BitFormFieldComponent,
++  BitLabelComponent,
+@@ -18,5 +11,15 @@
+-  CheckboxModule,
+-  FormFieldModule,
+-  SelectModule,
+-} from "@bitwarden/components";
+-import { PermitCipherDetailsPopoverComponent } from "@bitwarden/vault";
++  CheckboxComponent,
++  FormControlComponent,
++  SectionComponent,
++  SectionHeaderComponent,
++  SelectComponent,
++  TypographyDirective,
++} from "../../official-ui/official-components";
++import {
++  isThemeMode,
++  themeValues,
++  type ThemeMode,
++} from "../../settings/settings-options";
++import type { SettingsSnapshot } from "../../settings/settings.service";
++import type { OfficialLocale } from "../../official-ui/official-i18n.service";
++import { I18nPipe } from "../../official-ui/official-ui-common";
+@@ -24,8 +26,0 @@
+-import { PopOutComponent } from "../../../platform/popup/components/pop-out.component";
+-import { PopupCompactModeService } from "../../../platform/popup/layout/popup-compact-mode.service";
+-import { PopupHeaderComponent } from "../../../platform/popup/layout/popup-header.component";
+-import { PopupPageComponent } from "../../../platform/popup/layout/popup-page.component";
+-import { VaultPopupCopyButtonsService } from "../services/vault-popup-copy-buttons.service";
+-
+-// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
+-// eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
+@@ -33 +28,2 @@
+-  templateUrl: "./appearance.component.html",
++  selector: "bw-official-appearance",
++  standalone: true,
+@@ -35,5 +31,2 @@
+-    CommonModule,
+-    JslibModule,
+-    PopupPageComponent,
+-    PopupHeaderComponent,
+-    PopOutComponent,
++    BitFormFieldComponent,
++    BitLabelComponent,
+@@ -41,5 +34,10 @@
+-    FormFieldModule,
+-    SelectModule,
+-    ReactiveFormsModule,
+-    CheckboxModule,
+-    PermitCipherDetailsPopoverComponent,
++    CheckboxComponent,
++    FormControlComponent,
++    FormsModule,
++    I18nPipe,
++    PopupHeaderComponent,
++    PopupPageComponent,
++    SectionComponent,
++    SectionHeaderComponent,
++    SelectComponent,
++    TypographyDirective,
+@@ -46,0 +45 @@
++  templateUrl: "./official-appearance.component.html",
+@@ -48,3 +47,10 @@
+-export class AppearanceComponent implements OnInit {
+-  private compactModeService = inject(PopupCompactModeService);
+-  private copyButtonsService = inject(VaultPopupCopyButtonsService);
++export class OfficialAppearanceComponent {
++  @Input({ required: true }) settings!: Readonly<SettingsSnapshot>;
++  @Input() language: OfficialLocale | null = null;
++  @Output() readonly back = new EventEmitter<void>();
++  @Output() readonly themeChange = new EventEmitter<ThemeMode>();
++  @Output() readonly languageChange = new EventEmitter<OfficialLocale | null>();
++  @Output() readonly compactModeChange = new EventEmitter<boolean>();
++  @Output() readonly animationsChange = new EventEmitter<boolean>();
++  @Output() readonly showFaviconsChange = new EventEmitter<boolean>();
++  @Output() readonly showQuickCopyActionsChange = new EventEmitter<boolean>();
+@@ -52,7 +58,5 @@
+-  appearanceForm = this.formBuilder.nonNullable.group({
+-    enableFavicon: false,
+-    theme: ThemeTypes.System as Theme,
+-    enableAnimations: true,
+-    enableCompactMode: false,
+-    showQuickCopyActions: false,
+-  });
++  readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
++    this.back.emit();
++  private optionsLocale: string | null = null;
++  private cachedThemeOptions: ReturnType<OfficialAppearanceComponent["buildThemeOptions"]> = [];
++  private cachedLanguageOptions: ReturnType<OfficialAppearanceComponent["buildLanguageOptions"]> = [];
+@@ -60,2 +64 @@
+-  formLoading = true;
+-  themeOptions: { name: string; value: Theme }[];
++  constructor(private readonly i18n: I18nService) {}
+@@ -63,13 +66,3 @@
+-  constructor(
+-    private domainSettingsService: DomainSettingsService,
+-    private themeStateService: ThemeStateService,
+-    private formBuilder: FormBuilder,
+-    private destroyRef: DestroyRef,
+-    private animationControlService: AnimationControlService,
+-    i18nService: I18nService,
+-  ) {
+-    this.themeOptions = [
+-      { name: i18nService.t("systemDefault"), value: ThemeTypes.System },
+-      { name: i18nService.t("light"), value: ThemeTypes.Light },
+-      { name: i18nService.t("dark"), value: ThemeTypes.Dark },
+-    ];
++  get themeOptions() {
++    this.refreshLocalizedOptions();
++    return this.cachedThemeOptions;
+@@ -78,10 +71,4 @@
+-  async ngOnInit() {
+-    const enableFavicon = await firstValueFrom(this.domainSettingsService.showFavicons$);
+-    const theme = await firstValueFrom(this.themeStateService.selectedTheme$);
+-    const enableAnimations = await firstValueFrom(
+-      this.animationControlService.enableRoutingAnimation$,
+-    );
+-    const enableCompactMode = await firstValueFrom(this.compactModeService.enabled$);
+-    const showQuickCopyActions = await firstValueFrom(
+-      this.copyButtonsService.showQuickCopyActions$,
+-    );
++  get languageOptions(): { value: "" | OfficialLocale; label: string }[] {
++    this.refreshLocalizedOptions();
++    return this.cachedLanguageOptions;
++  }
+@@ -89,8 +76,4 @@
+-    this.appearanceForm.setValue({
+-      enableFavicon,
+-      theme,
+-      enableAnimations,
+-      enableCompactMode,
+-      showQuickCopyActions,
+-    });
+-    this.formLoading = false;
++  private refreshLocalizedOptions(): void {
++    if (this.optionsLocale === this.i18n.translationLocale) {
++      return;
++    }
+@@ -98,15 +81,3 @@
+-    this.appearanceForm.controls.theme.valueChanges
+-      .pipe(takeUntilDestroyed(this.destroyRef))
+-      .subscribe((newTheme) => void this.saveTheme(newTheme));
+-    this.appearanceForm.controls.enableFavicon.valueChanges
+-      .pipe(takeUntilDestroyed(this.destroyRef))
+-      .subscribe((enableFavicon) => void this.updateFavicon(enableFavicon));
+-    this.appearanceForm.controls.enableAnimations.valueChanges
+-      .pipe(takeUntilDestroyed(this.destroyRef))
+-      .subscribe((enableAnimations) => void this.updateAnimations(enableAnimations));
+-    this.appearanceForm.controls.enableCompactMode.valueChanges
+-      .pipe(takeUntilDestroyed(this.destroyRef))
+-      .subscribe((enableCompactMode) => void this.updateCompactMode(enableCompactMode));
+-    this.appearanceForm.controls.showQuickCopyActions.valueChanges
+-      .pipe(takeUntilDestroyed(this.destroyRef))
+-      .subscribe((showQuickCopyActions) => void this.updateQuickCopyActions(showQuickCopyActions));
++    this.optionsLocale = this.i18n.translationLocale;
++    this.cachedThemeOptions = this.buildThemeOptions();
++    this.cachedLanguageOptions = this.buildLanguageOptions();
+@@ -115,2 +86,7 @@
+-  async updateFavicon(enableFavicon: boolean) {
+-    await this.domainSettingsService.setShowFavicons(enableFavicon);
++  private buildThemeOptions() {
++    return themeValues.map((value) => ({
++      value,
++      label: this.i18n.t(
++        value === "system" ? "i18nFollowSystem" : value === "light" ? "i18nThemeLight" : "i18nThemeDark",
++      ),
++    }));
+@@ -119,2 +95,6 @@
+-  async saveTheme(newTheme: Theme) {
+-    await this.themeStateService.setSelectedTheme(newTheme);
++  private buildLanguageOptions(): { value: "" | OfficialLocale; label: string }[] {
++    return [
++      { value: "", label: this.i18n.t("i18nFollowSystem") },
++      { value: "zh-CN", label: this.i18n.t("i18nSimplifiedChinese") },
++      { value: "en-US", label: this.i18n.t("i18nEnglish") },
++    ];
+@@ -123,2 +103,4 @@
+-  async updateAnimations(enableAnimations: boolean) {
+-    await this.animationControlService.setEnableRoutingAnimation(enableAnimations);
++  setThemeValue(value: unknown): void {
++    if (isThemeMode(value)) {
++      this.themeChange.emit(value);
++    }
+@@ -127,2 +109,4 @@
+-  async updateCompactMode(enableCompactMode: boolean) {
+-    await this.compactModeService.setEnabled(enableCompactMode);
++  setLanguageValue(value: unknown): void {
++    if (value === "" || value === "zh-CN" || value === "en-US") {
++      this.languageChange.emit(value || null);
++    }
+@@ -131,2 +115,4 @@
+-  async updateQuickCopyActions(showQuickCopyActions: boolean) {
+-    await this.copyButtonsService.setShowQuickCopyActions(showQuickCopyActions);
++  emitChecked(event: Event, output: EventEmitter<boolean>): void {
++    if (event.target instanceof HTMLInputElement) {
++      output.emit(event.target.checked);
++    }
+@@ -134 +119,0 @@
+-

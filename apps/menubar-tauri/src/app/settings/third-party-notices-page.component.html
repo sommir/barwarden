@@ -1,0 +1,54 @@
+<popup-page>
+  <popup-header
+    slot="header"
+    [pageTitle]="'i18nThirdPartyOpenSourceLicenses' | i18n"
+    showBackButton
+    [backAction]="backAction"
+  />
+
+  <div class="third-party-notices-summary">
+    <p class="third-party-notices-description">
+      {{ "i18nThirdPartyLicenseSummaryDescription" | i18n }}
+    </p>
+
+    <div
+      class="third-party-notices-counts"
+      [attr.aria-label]="'i18nRuntimeComponents' | i18n"
+    >
+      <div class="third-party-notices-count-card">
+        <span class="third-party-notices-count">{{ counts.npm }}</span>
+        <span class="third-party-notices-count-label">
+          {{ "i18nNpmRuntimeComponents" | i18n }}
+        </span>
+      </div>
+      <div class="third-party-notices-count-card">
+        <span class="third-party-notices-count">{{ counts.cargo }}</span>
+        <span class="third-party-notices-count-label">
+          {{ "i18nCargoRuntimeComponents" | i18n }}
+        </span>
+      </div>
+    </div>
+
+    <section class="third-party-license-groups">
+      <h2>{{ "i18nLicenseCategories" | i18n }}</h2>
+      <ul>
+        @for (group of licenseGroups; track group.expression) {
+          <li>
+            <span>{{ group.expression }}</span>
+            <span class="third-party-license-group-count">{{ group.count }}</span>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <button
+      type="button"
+      class="third-party-license-action"
+      data-testid="view-complete-third-party-licenses"
+      (click)="openCompleteLicenses()"
+    >
+      <span>{{ "i18nViewCompleteLicenseText" | i18n }}</span>
+      <span aria-hidden="true">›</span>
+    </button>
+  </div>
+</popup-page>

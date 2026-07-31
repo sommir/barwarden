@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "isolatedModules": false,
+    "noEmit": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "preserveSymlinks": true,
+    "strict": false,
+    "useDefineForClassFields": false
+  },
+  "files": ["src/app/official-ui/official-components.ts"]
+}

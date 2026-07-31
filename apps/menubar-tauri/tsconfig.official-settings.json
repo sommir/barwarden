@@ -1,0 +1,47 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "experimentalDecorators": true,
+    "isolatedModules": false,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "preserveSymlinks": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": ["node"],
+    "useDefineForClassFields": false
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [
+    "official-settings-aliases.ts",
+    "src/app/upstream-overlays/settings/official-settings-member-transforms.ts",
+    "src/app/upstream-overlays/settings/official-settings.component.ts",
+    "src/app/upstream-overlays/settings/official-account-security.component.ts",
+    "src/app/upstream-overlays/settings/official-vault-settings.component.ts",
+    "src/app/upstream-overlays/settings/official-appearance.component.ts",
+    "src/app/upstream-overlays/settings/official-about.component.ts",
+    "src/app/upstream-overlays/settings/official-about-dialog.component.ts",
+    "src/app/settings/settings-page.component.ts",
+    "src/app/settings/global-shortcut-settings.service.ts",
+    "src/app/settings/keyboard-shortcut-page.component.ts",
+    "src/app/settings/account-security-page.component.ts",
+    "src/app/settings/vault-settings-page.component.ts",
+    "src/app/settings/autofill-settings-page.component.ts",
+    "src/app/settings/appearance-page.component.ts",
+    "src/app/settings/about-page.component.ts",
+    "src/app/settings/settings-password-page.component.ts",
+    "src/app/settings/settings.service.ts",
+    "src/app/settings/environment-handoff.service.ts",
+    "src/build-metadata.d.ts"
+  ],
+  "include": []
+}

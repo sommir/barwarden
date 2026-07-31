@@ -1,0 +1,123 @@
+<popup-page>
+  <section class="tw-flex tw-flex-col tw-gap-4 macos-auth-page">
+    <h1 class="macos-auth-heading">Barwarden</h1>
+    @if (account$ | async; as account) {
+      <div class="macos-auth-identity">
+        <i class="bwi bwi-user macos-auth-identity__icon" aria-hidden="true"></i>
+        <div class="macos-auth-identity__text">
+          <p bitTypography="body1" class="macos-auth-identity__primary">{{ account.email }}</p>
+          <p bitTypography="body2" class="macos-auth-identity__secondary">{{ account.server }}</p>
+        </div>
+      </div>
+    }
+
+    @if (!initialized) {
+      <div
+        class="tw-flex tw-items-center tw-justify-center tw-py-8 macos-auth-skeleton"
+        role="status"
+        [attr.aria-label]="'i18nLoadingUnlockMethods' | i18n"
+        data-testid="lock-methods-loading"
+      >
+        <i class="bwi bwi-spinner bwi-spin bwi-3x" aria-hidden="true"></i>
+      </div>
+    } @else {
+      <div class="macos-auth-validation">
+        @if (alternativeErrorMessage) {
+          <bit-callout type="danger" data-testid="lock-alternative-error">
+            <p bitTypography="body1" role="alert">{{ alternativeErrorMessage }}</p>
+          </bit-callout>
+        }
+      </div>
+
+      @switch (activeMethod) {
+        @case ("biometric") {
+          <button
+            type="button"
+            bitButton
+            buttonType="primary"
+            class="macos-primary-action"
+            block
+            [disabled]="submitting"
+            (click)="unlockWithBiometric()"
+            data-testid="lock-biometric-button"
+          >
+            {{ "i18nUnlockWithTouchId" | i18n }}
+          </button>
+
+          <div class="tw-flex tw-flex-col tw-space-y-3">
+            <p class="tw-text-center tw-mb-0">{{ "or" | i18n }}</p>
+
+            @if (availability.pinEnabled) {
+              <button
+                type="button"
+                bitButton
+                buttonType="secondary"
+                block
+                [disabled]="submitting"
+                (click)="selectMethod('pin')"
+                data-testid="lock-switch-pin"
+              >
+                {{ "i18nUsePin" | i18n }}
+              </button>
+            }
+
+            <button
+              type="button"
+              bitButton
+              buttonType="secondary"
+              block
+              [disabled]="submitting"
+              (click)="selectMethod('masterPassword')"
+              data-testid="lock-switch-master-password"
+            >
+              {{ "i18nUseMasterPassword" | i18n }}
+            </button>
+
+            <button
+              type="button"
+              bitButton
+              block
+              [disabled]="submitting"
+              (click)="logout()"
+              data-testid="lock-logout-button"
+            >
+              {{ "logOut" | i18n }}
+            </button>
+          </div>
+        }
+        @case ("pin") {
+          <bw-official-pin-lock
+            [submitting]="submitting"
+            [showBiometric]="biometricAvailable()"
+            [resetEpoch]="credentialResetEpoch"
+            (pinSubmitted)="unlockWithPin($event)"
+            (loggedOut)="logout()"
+            (methodSelected)="selectMethod($event)"
+          />
+        }
+        @default {
+          <bw-official-master-password-lock
+            [showBiometric]="biometricAvailable()"
+            [showPin]="availability.pinEnabled"
+            [resetEpoch]="credentialResetEpoch"
+            (unlocked)="unlockSucceeded($event)"
+            (loggedOut)="logoutSucceeded()"
+            (methodSelected)="selectMethod($event)"
+          />
+        }
+      }
+    }
+
+    <div class="macos-auth-validation">
+      @if (navigationFailed) {
+        <bit-callout type="danger" data-testid="lock-navigation-error">
+          <p bitTypography="body1">
+          {{ "i18nUnableToCompleteNavigation" | i18n }}
+          </p>
+        </bit-callout>
+      }
+    </div>
+
+    <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+  </section>
+</popup-page>

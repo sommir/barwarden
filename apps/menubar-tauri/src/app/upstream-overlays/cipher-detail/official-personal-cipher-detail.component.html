@@ -1,0 +1,53 @@
+<div data-testid="official-personal-cipher-detail">
+  @if (cardIsExpired) {
+    <bw-macos-alert-strip
+      kind="info"
+      [title]="'cardExpiredTitle' | i18n"
+      [message]="'cardExpiredMessage' | i18n"
+    />
+  }
+  <official-item-details
+    [cipher]="projection.cipher"
+    [folder]="projection.folder"
+  />
+  @if (projection.cipher.type === cipherType.Card) {
+    <official-card-details
+      [projection]="projection"
+      [revealedFieldIds]="effectiveRevealedFieldIds"
+      [allowLocalReveal]="allowLocalReveal"
+      (copyField)="copyField.emit($event)"
+      (toggleReveal)="onToggleReveal($event)"
+    />
+  }
+  @if (projection.cipher.type === cipherType.Identity) {
+    <official-identity-sections
+      [projection]="projection"
+      [canFill]="canFill"
+      [revealedFieldIds]="effectiveRevealedFieldIds"
+      [allowLocalReveal]="allowLocalReveal"
+      (copyField)="copyField.emit($event)"
+      (fillField)="fillField.emit($event)"
+      (toggleReveal)="onToggleReveal($event)"
+    />
+  }
+  @if (projection.cipher.notes) {
+    <app-additional-options
+      [notes]="projection.cipher.notes"
+      (copyField)="copyField.emit($event)"
+    />
+  }
+  @if (projection.cipher.hasFields) {
+    <official-custom-fields
+      [projection]="projection"
+      [canFill]="canFill"
+      [revealedFieldIds]="effectiveRevealedFieldIds"
+      (copyField)="copyField.emit($event)"
+      (fillField)="fillField.emit($event)"
+      (toggleReveal)="onToggleReveal($event)"
+    />
+  }
+  <app-item-history-v2
+    [cipher]="projection.cipher"
+    (viewPasswordHistory)="viewPasswordHistory.emit()"
+  />
+</div>

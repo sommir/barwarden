@@ -1,0 +1,30 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "isolatedModules": false,
+    "lib": ["ESNext", "DOM"],
+    "noEmit": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "preserveSymlinks": true,
+    "strict": false,
+    "types": ["node", "vitest/globals"],
+    "useDefineForClassFields": false
+  },
+  "files": [
+    "official-recovery-aliases.ts",
+    "src/app/upstream-overlays/recovery/official-recovery-member-transforms.ts",
+    "src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
+    "src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
+    "src/app/upstream-overlays/recovery/folders/official-add-edit-folder-dialog.component.ts",
+    "src/app/upstream-overlays/recovery/recovery-command.ts",
+    "src/app/upstream-overlays/recovery/recovery-cipher-icon.component.ts",
+    "src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
+    "src/app/upstream-overlays/recovery/trash/official-trash.component.ts",
+    "src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",
+    "src/app/vault/recovery-page-actions.adapter.ts"
+  ]
+}

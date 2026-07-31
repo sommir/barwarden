@@ -1,0 +1,32 @@
+<section
+  class="tw-mb-5 bit-compact:tw-mb-4"
+  [attr.data-favorite]="cipher().favorite"
+>
+  <bit-card>
+    <div class="tw-flex tw-place-items-center tw-w-full tw-mb-2">
+      <div class="tw-flex tw-items-center tw-justify-center" style="width: 40px; height: 40px">
+        <div class="tw-flex tw-items-center tw-justify-center tw-bg-illustration-bg-primary tw-rounded-full" style="width: 36px; height: 36px" aria-hidden="true">
+          <i class="tw-text-muted bwi bwi-lg bwi-globe"></i>
+        </div>
+      </div>
+      <h2
+        bitTypography="h4"
+        class="tw-ml-2 tw-mt-2 tw-select-auto tw-flex-1 tw-break-all tw-line-clamp-2"
+        data-testid="item-name"
+      >
+        {{ cipher().name }}
+      </h2>
+    </div>
+    <div class="tw-flex tw-flex-col tw-mt-2 md:tw-flex-row md:tw-flex-wrap">
+      <span
+        class="tw-flex tw-items-center tw-mt-2 tw-mr-4"
+        bitTypography="body2"
+        [attr.aria-label]="'i18nFolderValue' | i18n: (folder()?.name || ('i18nNoFolder' | i18n))"
+        data-testid="item-details-list"
+      >
+        <i class="bwi bwi-lg bwi-folder" aria-hidden="true" [attr.title]="'folder' | i18n"></i>
+        <span aria-hidden="true" class="tw-pl-1.5">{{ folder()?.name || ("i18nNoFolder" | i18n) }}</span>
+      </span>
+    </div>
+  </bit-card>
+</section>

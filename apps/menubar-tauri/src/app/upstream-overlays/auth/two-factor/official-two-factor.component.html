@@ -1,0 +1,93 @@
+<ng-container *ngIf="loading">
+  <div class="tw-flex tw-items-center tw-justify-center macos-auth-card macos-auth-skeleton">
+    <bit-icon name="bwi-spinner" class="bwi-spin bwi-3x" [ariaLabel]="'loading' | i18n"></bit-icon>
+  </div>
+</ng-container>
+
+<ng-container *ngIf="!loading">
+  <form
+    [bitSubmit]="submit"
+    [formGroup]="form"
+    autocomplete="off"
+    class="macos-auth-card"
+    (keydown.enter)="handleEnterKeyPress()"
+  >
+    <bw-official-two-factor-email
+      [tokenFormControl]="tokenFormControl"
+      (submitOnPaste)="submit()"
+      *ngIf="providers.length > 0 && selectedProviderType === providerType.Email"
+    />
+
+    <bw-official-two-factor-authenticator
+      [tokenFormControl]="tokenFormControl"
+      (submitOnPaste)="submit()"
+      *ngIf="providers.length > 0 && selectedProviderType === providerType.Authenticator"
+    />
+
+    <ng-container *ngIf="providers.length === 0">
+      <p bitTypography="body1">{{ "noTwoStepProviders" | i18n }}</p>
+    </ng-container>
+
+    <label class="macos-two-factor-remember" *ngIf="providers.length > 0 && !hideRememberMe()">
+      <input type="checkbox" bitCheckbox formControlName="remember" />
+      <span>{{ "dontAskAgainOnThisDeviceFor30Days" | i18n }}</span>
+    </label>
+
+    <div class="macos-auth-validation">
+      <bit-callout
+        *ngIf="loginError"
+        type="danger"
+        [title]="null"
+        [accessibleName]="'i18nTwoFactorError' | i18n"
+        data-testid="two-factor-error"
+      >
+        <p bitTypography="body1" role="alert">{{ loginError }}</p>
+      </bit-callout>
+    </div>
+    <p *ngIf="deliveryStatus && !loginError" bitTypography="body1" role="status">
+      {{ deliveryStatus }}
+    </p>
+
+    <div class="tw-flex tw-flex-col tw-space-y-3">
+      <button
+        type="submit"
+        buttonType="primary"
+        bitButton
+        bitFormButton
+        class="macos-primary-action"
+        data-testid="two-factor-continue"
+        [disabled]="submitting"
+        *ngIf="providers.length > 0 && showContinueButton()"
+      >
+        <span>{{ "continueLoggingIn" | i18n }}</span>
+      </button>
+
+      <p *ngIf="providers.length > 0" class="tw-text-center tw-mb-0">{{ "or" | i18n }}</p>
+
+      <button
+        type="button"
+        buttonType="secondary"
+        bitButton
+        bitFormButton
+        data-testid="two-factor-other-method"
+        *ngIf="providers.length > 1"
+        [disabled]="submitting"
+        (click)="selectOtherTwoFactorMethod($event)"
+      >
+        <span>{{ "selectAnotherMethod" | i18n }}</span>
+      </button>
+
+      <button
+        type="button"
+        buttonType="secondary"
+        bitButton
+        data-testid="two-factor-back"
+        (click)="back()"
+      >
+        <span>{{ "back" | i18n }}</span>
+      </button>
+    </div>
+  </form>
+</ng-container>
+
+<bw-official-two-factor-options (chosen)="selectProvider($event)" />

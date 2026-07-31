@@ -1,0 +1,32 @@
+{
+  "extends": "../../vendor/bitwarden-clients/libs/tools/generator/components/tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noCheck": true,
+    "noEmit": false,
+    "outDir": "./dist/official-generator-upstream-types",
+    "pretty": false
+  },
+  "files": [
+    "../../vendor/bitwarden-clients/libs/tools/generator/components/src/password-settings.component.ts",
+    "../../vendor/bitwarden-clients/libs/tools/generator/components/src/passphrase-settings.component.ts",
+    "../../vendor/bitwarden-clients/libs/tools/generator/components/src/username-settings.component.ts",
+    "../../vendor/bitwarden-clients/libs/tools/generator/components/src/subaddress-settings.component.ts",
+    "../../vendor/bitwarden-clients/libs/tools/generator/components/src/catchall-settings.component.ts",
+    "src/app/generator/official-generator-core.boundary.ts",
+    "src/app/generator/official-generator-history.boundary.ts",
+    "src/app/generator/official-generator-vendor-runtime.boundary.ts",
+    "official-components-overlay/index.ts",
+    "src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+    "src/app/official-ui/official-ui-common.ts",
+    "src/app/upstream-overlays/popup-header/popup-header.component.ts",
+    "src/app/upstream-overlays/pop-out/pop-out.component.ts",
+    "../../vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+    "../../vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.ts",
+    "../../vendor/bitwarden-clients/libs/assets/src/svg/index.ts",
+    "../../vendor/bitwarden-clients/apps/browser/src/auth/popup/account-switching/current-account.component.ts"
+  ],
+  "include": [],
+  "exclude": ["../../vendor/bitwarden-clients/node_modules", "../../vendor/bitwarden-clients/dist"]
+}

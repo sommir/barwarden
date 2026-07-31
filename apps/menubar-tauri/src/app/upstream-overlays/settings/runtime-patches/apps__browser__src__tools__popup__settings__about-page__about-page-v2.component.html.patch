@@ -1,0 +1,105 @@
+--- a/apps/browser/src/tools/popup/settings/about-page/about-page-v2.component.html
++++ b/apps/browser/src/tools/popup/settings/about-page/about-page-v2.component.html
+@@ -1 +1,0 @@
+-<!-- Official Settings overlay source; generated. -->
+@@ -3,5 +2 @@
+-  <popup-header slot="header" pageTitle="{{ 'about' | i18n }}" showBackButton>
+-    <ng-container slot="end">
+-      <app-pop-out></app-pop-out>
+-    </ng-container>
+-  </popup-header>
++  <popup-header slot="header" [pageTitle]="'i18nAbout' | i18n" showBackButton [backAction]="backAction" />
+@@ -11,2 +6,7 @@
+-      <button type="button" bit-item-content (click)="troubleshoot()">
+-        {{ "troubleshooting" | i18n }}
++      <button
++        type="button"
++        bit-item-content
++        (click)="metadataViewChange.emit('troubleshooting')"
++        (keydown)="activateMetadataFromKeyboard($event)"
++      >
++        {{ "i18nTroubleshooting" | i18n }}
+@@ -16,2 +16,16 @@
+-      <button type="button" bit-item-content (click)="about()">
+-        {{ "aboutBitwarden" | i18n }}
++      <button
++        type="button"
++        bit-item-content
++        data-testid="check-for-updates"
++        [disabled]="updateActionPending"
++        (click)="checkForUpdates.emit()"
++      >{{ updateActionLabel }}</button>
++    </bit-item>
++    <bit-item>
++      <button
++        type="button"
++        bit-item-content
++        (click)="metadataViewChange.emit('about')"
++        (keydown)="activateMetadataFromKeyboard($event)"
++      >
++        {{ "i18nAboutProduct" | i18n: metadata.productName }}
+@@ -21 +35,6 @@
+-      <button type="button" bit-item-content (click)="launchHelp()">
++      <button type="button" bit-item-content (click)="openThirdPartyNotices.emit()">
++        {{ "i18nThirdPartyOpenSourceLicenses" | i18n }}
++      </button>
++    </bit-item>
++    <bit-item>
++      <button type="button" bit-item-content (click)="openHelp.emit()">
+@@ -27,2 +46,2 @@
+-      <button type="button" bit-item-content (click)="openWebVault()">
+-        {{ "bitWebVaultApp" | i18n }}
++      <button type="button" bit-item-content (click)="openWebVault.emit()">
++        Web Vault
+@@ -31,0 +51,6 @@
++    <bit-item>
++      <button type="button" bit-item-content (click)="openProjectSource.emit()">
++        {{ "i18nProjectSource" | i18n }}
++        <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
++      </button>
++    </bit-item>
+@@ -32,0 +58,44 @@
++
++  @if (updateView.status === "up-to-date" || updateView.status === "error") {
++    <bw-macos-alert-strip
++      [kind]="updateView.status === 'error' ? 'danger' : 'success'"
++      [title]="'i18nAppUpdate' | i18n"
++      [message]="updateView.message"
++    />
++  }
++
++  @if (updateView.status === "available") {
++    <bw-macos-alert-strip
++      kind="info"
++      [title]="'i18nNewVersionAvailable' | i18n: (updateView.version || '')"
++      [message]="updateView.notes || ('i18nUpdateReadyToDownload' | i18n)"
++    />
++    <bit-item-group>
++      <bit-item>
++        <button type="button" bit-item-content (click)="dismissUpdate.emit()">
++          {{ "i18nLater" | i18n }}
++        </button>
++      </bit-item>
++      <bit-item>
++        <button type="button" bit-item-content (click)="downloadAndRestart.emit()">
++          {{ "i18nDownloadAndRestart" | i18n }}
++        </button>
++      </bit-item>
++    </bit-item-group>
++  }
++
++  <bw-official-about-dialog
++    [metadata]="metadata"
++    [view]="metadataView"
++    [revisionCopyStatus]="revisionCopyStatus"
++    (close)="metadataViewChange.emit(null)"
++    (copyRevision)="copyRevision.emit()"
++  />
++
++  @if (handoffError) {
++    <bw-macos-alert-strip
++      kind="danger"
++      [title]="'i18nUnableToOpenLinkTitle' | i18n"
++      [message]="handoffError"
++    />
++  }

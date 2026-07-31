@@ -1,0 +1,113 @@
+<section class="tw-mb-5 bit-compact:tw-mb-4">
+  <bit-section-header>
+    <h2 bitTypography="h6">{{ setSectionTitle }}</h2>
+  </bit-section-header>
+  <read-only-cipher-card>
+    @if (cipher.card.cardholderName) {
+      <bit-form-field>
+        <bit-label>{{ "cardholderName" | i18n }}</bit-label>
+        <input
+          id="cardholderName"
+          readonly
+          bitInput
+          type="text"
+          [value]="cipher.card.cardholderName"
+          aria-readonly="true"
+          data-testid="cardholder-name"
+        />
+        @if (actionField("cardholder-name"); as field) {
+          <button
+            bitIconButton="bwi-clone"
+            bitSuffix
+            type="button"
+            [label]="'copyCardholderName' | i18n"
+            data-testid="copy-cardholder-name"
+            (click)="copyField.emit(field)"
+          ></button>
+        }
+      </bit-form-field>
+    }
+    @if (cipher.card.number) {
+      <bit-form-field>
+        <bit-label>{{ "number" | i18n }}</bit-label>
+        <input
+          id="cardNumber"
+          readonly
+          bitInput
+          [type]="isRevealed('number') ? 'text' : 'password'"
+          [value]="cipher.card.number | creditCardNumber: cipher.card.brand"
+          aria-readonly="true"
+          data-testid="cardholder-number"
+          class="tw-font-mono"
+        />
+        <button
+          bitSuffix
+          type="button"
+          [bitIconButton]="isRevealed('number') ? 'bwi-eye-slash' : 'bwi-eye'"
+          [label]="isRevealed('number') ? ('i18nHideField' | i18n: ('i18nCardNumber' | i18n)) : ('i18nShowField' | i18n: ('i18nCardNumber' | i18n))"
+          [attr.aria-pressed]="isRevealed('number')"
+          data-testid="toggle-number"
+          (click)="toggle('number')"
+        ></button>
+        @if (actionField("number"); as field) {
+          <button
+            bitIconButton="bwi-clone"
+            bitSuffix
+            type="button"
+            [label]="'copyNumber' | i18n"
+            data-testid="copy-number"
+            (click)="copyField.emit(field)"
+          ></button>
+        }
+      </bit-form-field>
+    }
+    @if (cipher.card.expiration) {
+      <bit-form-field>
+        <bit-label>{{ "expiration" | i18n }}</bit-label>
+        <input
+          id="expiration"
+          readonly
+          bitInput
+          type="text"
+          [value]="cipher.card.expiration"
+          aria-readonly="true"
+          data-testid="cardholder-expiration"
+        />
+      </bit-form-field>
+    }
+    @if (cipher.card.code) {
+      <bit-form-field>
+        <bit-label>{{ "securityCode" | i18n }}</bit-label>
+        <input
+          id="securityCode"
+          readonly
+          bitInput
+          [type]="isRevealed('code') ? 'text' : 'password'"
+          [value]="cipher.card.code"
+          aria-readonly="true"
+          data-testid="cardholder-code"
+          class="tw-font-mono"
+        />
+        <button
+          bitSuffix
+          type="button"
+          [bitIconButton]="isRevealed('code') ? 'bwi-eye-slash' : 'bwi-eye'"
+          [label]="isRevealed('code') ? ('i18nHideField' | i18n: ('securityCode' | i18n)) : ('i18nShowField' | i18n: ('securityCode' | i18n))"
+          [attr.aria-pressed]="isRevealed('code')"
+          data-testid="toggle-code"
+          (click)="toggle('code')"
+        ></button>
+        @if (actionField("code"); as field) {
+          <button
+            bitIconButton="bwi-clone"
+            bitSuffix
+            type="button"
+            [label]="'copySecurityCode' | i18n"
+            data-testid="copy-code"
+            (click)="copyField.emit(field)"
+          ></button>
+        }
+      </bit-form-field>
+    }
+  </read-only-cipher-card>
+</section>

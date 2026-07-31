@@ -1,0 +1,1 @@
+../../../../../../../../../../../../vendor/bitwarden-clients/apps/browser/src/vault/popup/components/vault/vault-header/vault-header.component.ts

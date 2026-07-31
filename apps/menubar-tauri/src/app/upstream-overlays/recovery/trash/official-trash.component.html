@@ -1,0 +1,30 @@
+<popup-page>
+  <popup-header slot="header" [pageTitle]="'trash' | i18n" showBackButton [backAction]="backAction">
+    <ng-container slot="end">
+      <button
+        bitIconButton="bwi-popout"
+        size="small"
+        type="button"
+        [label]="'i18nPopOut' | i18n"
+        (click)="popOut.emit()"
+      ></button>
+    </ng-container>
+  </popup-header>
+  @if (items.length) {
+    <bw-macos-alert-strip
+      kind="warning"
+      [title]="'i18nTrashAutoDeleteTitle' | i18n"
+      [message]="'i18nTrashAutoDeleteMessage' | i18n"
+    />
+    <bw-official-trash-list-items-container
+      [headerText]="'i18nTrashItems' | i18n"
+      [items]="items"
+      (command)="command.emit($event)"
+    />
+  } @else {
+    <bit-no-items [icon]="emptyTrashIcon" class="tw-flex tw-h-full tw-items-center tw-justify-center">
+      <ng-container slot="title">{{ "i18nNoTrashItems" | i18n }}</ng-container>
+      <ng-container slot="description">{{ "i18nDeletedItemsHint" | i18n }}</ng-container>
+    </bit-no-items>
+  }
+</popup-page>

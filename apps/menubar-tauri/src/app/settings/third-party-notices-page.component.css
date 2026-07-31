@@ -1,0 +1,108 @@
+.third-party-notices-summary {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  margin: 16px;
+  color: var(--mac-text-primary);
+}
+
+.third-party-notices-description {
+  margin: 0 0 16px;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.third-party-notices-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.third-party-notices-count-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+}
+
+.third-party-notices-count {
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.third-party-notices-count-label {
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+}
+
+.third-party-license-groups {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+}
+
+.third-party-license-groups h2 {
+  margin: 0;
+  padding: 14px 16px 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.third-party-license-groups ul {
+  max-height: 230px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.third-party-license-groups li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-top: 1px solid var(--mac-border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+
+.third-party-license-group-count {
+  flex: 0 0 auto;
+  min-width: 24px;
+  color: var(--mac-text-secondary);
+  text-align: right;
+}
+
+.third-party-license-action {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.third-party-license-action:hover {
+  background: var(--mac-surface-hover);
+}
+
+.third-party-license-action:focus-visible {
+  outline: 2px solid var(--mac-accent);
+  outline-offset: 2px;
+}

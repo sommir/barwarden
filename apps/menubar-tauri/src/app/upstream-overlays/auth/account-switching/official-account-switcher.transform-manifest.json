@@ -1,0 +1,372 @@
+{
+  "revision": "f47b6946e01aed474875789081966d311d5b8289",
+  "license": {
+    "rootPackageSha256": "87bc10c665ed6aab6d7296219756548f6fa02085bb1a7b08cbcabe6972dcc532",
+    "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+    "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
+    "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"
+  },
+  "authorities": [
+    {
+      "path": "apps/browser/src/auth/popup/account-switching/current-account.component.ts",
+      "sha256": "f35f02559ccb0ea1c357d2db0575802e4f6c79452dde4d035af551f7a848479f"
+    },
+    {
+      "path": "apps/browser/src/auth/popup/account-switching/current-account.component.html",
+      "sha256": "97d8958fadfe2ab228621fe7a249f28eb3e8cba00b0964a89523b07930513a67"
+    },
+    {
+      "path": "apps/browser/src/auth/popup/account-switching/account-switcher.component.ts",
+      "sha256": "5f50dfbb92b7c100687b1884b724531f4fdac7da7ddd0939e25e3f5114694e9e"
+    },
+    {
+      "path": "apps/browser/src/auth/popup/account-switching/account-switcher.component.html",
+      "sha256": "4de2735e1f7b9acb5a7b756f5f8859f74e82e0f73ea1080d427be1e88d05e4fc"
+    },
+    {
+      "path": "apps/browser/src/auth/popup/account-switching/account.component.ts",
+      "sha256": "e4173562ef1d4ab1920eccd65c5f5333dbb11b7b1ddafab0d9ce0b3fe3fbb784"
+    },
+    {
+      "path": "apps/browser/src/auth/popup/account-switching/account.component.html",
+      "sha256": "6ca5ecb9447d051ef96934bcf09562a915e9f246c93d30678d7e3ce50270f573"
+    },
+    {
+      "path": "apps/browser/src/auth/popup/account-switching/services/account-switcher.service.ts",
+      "sha256": "87fa6bb3e5a3942a09deff69c4452ccb8378059a5613731489a8338ac36c7d0a"
+    }
+  ],
+  "localRuntimes": [
+    {
+      "path": "apps/menubar-tauri/src/app/auth/official-account-switcher.adapter.ts",
+      "sha256": "4978e3d816beceec90a6b6039ce5df38cdc8a4e12600232ee916f52ed34736ba"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/popup-header-actions.component.ts",
+      "sha256": "4634149ff5c3cd512751d0a0d7549d8dfe05d9a1911cd203dc3ce2cd45952f48"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
+      "sha256": "451a64921ec3aab37653cc40c22be79651211106d51368f04cb2908dcd80ff80"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.html",
+      "sha256": "b860e6dc49422ccf15626b42bb7103bfc1dfacf7c087b21874fb3a76ef48829b"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+      "sha256": "0c9232b6fa99f8bbd3932e391e9f7ac226a310830df0f4ea30ffd81b7cbe1293"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.html",
+      "sha256": "cf98ccfb090cea3a3f9d9e398089733989394a4f09caffdaa677d1af6c5da240"
+    }
+  ],
+  "directGraph": {
+    "authority": "apps/browser/src/auth/popup/account-switching/current-account.component.ts",
+    "consumers": [
+      "apps/menubar-tauri/src/app/popup-header-actions.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts"
+    ],
+    "imports": [
+      "@angular/common",
+      "@angular/core",
+      "@angular/router",
+      "rxjs",
+      "@bitwarden/angular/jslib.module",
+      "@bitwarden/common/auth/abstractions/account.service",
+      "@bitwarden/common/auth/abstractions/auth.service",
+      "@bitwarden/common/auth/abstractions/avatar.service",
+      "@bitwarden/common/auth/enums/authentication-status",
+      "@bitwarden/common/types/guid",
+      "@bitwarden/components"
+    ]
+  },
+  "exactPartitions": [
+    {
+      "authority": "apps/browser/src/auth/popup/account-switching/account.component.ts",
+      "memberMappings": [
+        {
+          "upstreamMember": "account",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
+            "className": "OfficialAccountComponent",
+            "member": "account"
+          }
+        },
+        {
+          "upstreamMember": "loading",
+          "disposition": "removed",
+          "runtime": null
+        },
+        {
+          "upstreamMember": "specialAccountAddId",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
+            "className": "OfficialAccountComponent",
+            "member": "specialAccountAddId"
+          }
+        },
+        {
+          "upstreamMember": "selectAccount",
+          "disposition": "adapted",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
+            "className": "OfficialAccountComponent",
+            "member": "selectAccount"
+          }
+        },
+        {
+          "upstreamMember": "status",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
+            "className": "OfficialAccountComponent",
+            "member": "status"
+          }
+        }
+      ]
+    },
+    {
+      "authority": "apps/browser/src/auth/popup/account-switching/account-switcher.component.ts",
+      "memberMappings": [
+        {
+          "upstreamMember": "lockedStatus",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "lockedStatus"
+          }
+        },
+        {
+          "upstreamMember": "destroy$",
+          "disposition": "removed",
+          "runtime": null
+        },
+        {
+          "upstreamMember": "loading",
+          "disposition": "adapted",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "loading"
+          }
+        },
+        {
+          "upstreamMember": "activeUserCanLock",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "activeUserCanLock"
+          }
+        },
+        {
+          "upstreamMember": "enableAccountSwitching$",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "enableAccountSwitching$"
+          }
+        },
+        {
+          "upstreamMember": "accountLimit",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "accountLimit"
+          }
+        },
+        {
+          "upstreamMember": "specialAddAccountId",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "specialAddAccountId"
+          }
+        },
+        {
+          "upstreamMember": "availableAccounts$",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "availableAccounts$"
+          }
+        },
+        {
+          "upstreamMember": "currentAccount$",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "currentAccount$"
+          }
+        },
+        {
+          "upstreamMember": "showLockAll$",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "showLockAll$"
+          }
+        },
+        {
+          "upstreamMember": "ngOnInit",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "ngOnInit"
+          }
+        },
+        {
+          "upstreamMember": "back",
+          "disposition": "removed",
+          "runtime": null
+        },
+        {
+          "upstreamMember": "lock",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "lock"
+          }
+        },
+        {
+          "upstreamMember": "lockAll",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "lockAll"
+          }
+        },
+        {
+          "upstreamMember": "logOut",
+          "disposition": "retained",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "logOut"
+          }
+        },
+        {
+          "upstreamMember": "ngOnDestroy",
+          "disposition": "removed",
+          "runtime": null
+        }
+      ]
+    },
+    {
+      "authority": "apps/browser/src/auth/popup/account-switching/services/account-switcher.service.ts",
+      "memberMappings": [
+        {
+          "upstreamMember": "incompleteAccountSwitchError",
+          "disposition": "removed",
+          "runtime": null
+        },
+        {
+          "upstreamMember": "ACCOUNT_LIMIT",
+          "disposition": "adapted",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/auth/official-account-switcher.adapter.ts",
+            "className": "OfficialAccountSwitcherAdapter",
+            "member": "ACCOUNT_LIMIT"
+          }
+        },
+        {
+          "upstreamMember": "SPECIAL_ADD_ACCOUNT_ID",
+          "disposition": "adapted",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "specialAddAccountId"
+          }
+        },
+        {
+          "upstreamMember": "availableAccounts$",
+          "disposition": "adapted",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "availableAccounts$"
+          }
+        },
+        {
+          "upstreamMember": "switchAccountFinished$",
+          "disposition": "removed",
+          "runtime": null
+        },
+        {
+          "upstreamMember": "accountSwitchingEnabled$",
+          "disposition": "adapted",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
+            "className": "OfficialAccountSwitcherComponent",
+            "member": "enableAccountSwitching$"
+          }
+        },
+        {
+          "upstreamMember": "specialAccountAddId",
+          "disposition": "adapted",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
+            "className": "OfficialAccountComponent",
+            "member": "specialAccountAddId"
+          }
+        },
+        {
+          "upstreamMember": "selectAccount",
+          "disposition": "adapted",
+          "runtime": {
+            "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
+            "className": "OfficialAccountComponent",
+            "member": "selectAccount"
+          }
+        },
+        {
+          "upstreamMember": "listenForSwitchAccountFinish",
+          "disposition": "removed",
+          "runtime": null
+        }
+      ]
+    }
+  ],
+  "templateTransforms": [
+    {
+      "authority": "apps/browser/src/auth/popup/account-switching/account.component.html",
+      "runtime": "official-account.component.html",
+      "transform": "replace four translated status.text active comparisons with account.isActive boolean ownership checks and add stable wrapping-label hooks"
+    },
+    {
+      "authority": "apps/browser/src/auth/popup/account-switching/account-switcher.component.html",
+      "runtime": "official-account-switcher.component.html",
+      "transform": "remove both row loading outputs and insert fixed account operation callout exactly once after popup-header"
+    }
+  ],
+  "excludedIntegrations": [
+    "chrome.runtime.onMessage",
+    "BrowserApi",
+    "fromChromeEvent",
+    "Safari flags",
+    "biometrics autoprompt",
+    "foreground-lock messages",
+    "extension logout messages",
+    "signup and registration",
+    "browser tabs"
+  ],
+  "resolverDecision": [
+    "CurrentAccountComponent resolves directly to the pinned authority with its exact static dependency graph",
+    "production account hierarchy is PopupHeaderActionsComponent/OfficialAccountSwitcherComponent -> CurrentAccountComponent plus guarded account and switcher overlays -> OfficialAccountSwitcherAdapter -> AuthFacade",
+    "browser events, tabs/runtime, Safari flags, biometrics autoprompt, foreground-lock and extension logout messages, signup, and registration are deleted rather than resolved"
+  ]
+}

@@ -1,0 +1,61 @@
+<bit-section class="send-list-section" *ngIf="sends().length > 0" disableMargin>
+  <bit-section-header>
+    <h2 class="tw-font-medium" bitTypography="h6">
+      {{ headerText() }}
+    </h2>
+    <span bitTypography="body1" slot="end">{{ sends().length }}</span>
+  </bit-section-header>
+  <bit-item-group>
+    <bit-item *ngFor="let send of sends(); trackBy: trackById">
+      <button
+        bit-item-content
+        [attr.aria-label]="'i18nViewItem' | i18n: send.name"
+        (click)="open.emit(send)"
+        type="button"
+      >
+        <div slot="start" class="tw-justify-start">
+          <bit-icon name="bwi-file-text" class="bwi-lg tw-text-muted tw-w-6" />
+        </div>
+        {{ send.name }}
+        <div slot="default-trailing" class="tw-flex tw-gap-2 tw-relative tw-z-10">
+          @if (send.hasPassword) {
+            <bit-icon name="bwi-lock" [title]="'i18nPasswordProtected' | i18n"></bit-icon>
+          }
+          @if (send.disabled) {
+            <bit-icon name="bwi-exclamation-triangle" [title]="'i18nSendPolicyViolation' | i18n"></bit-icon>
+          }
+          @if (send.expired) {
+            <bit-icon name="bwi-clock" [title]="'i18nExpired' | i18n"></bit-icon>
+          }
+          @if (send.maxAccessCountReached) {
+            <bit-icon name="bwi-exclamation-triangle" [title]="'i18nMaxAccessReached' | i18n"></bit-icon>
+          }
+        </div>
+        <span slot="secondary">
+          {{ "i18nDeleteDateValue" | i18n: (send.deletionDate | date: "mediumDate") }}
+        </span>
+      </button>
+      <ng-container slot="end">
+        <bit-item-action>
+          <button
+            class="tw-p-1"
+            bitIconButton="bwi-clone"
+            size="small"
+            type="button"
+            (click)="copyLink.emit({ send, trigger: $event })"
+            [attr.aria-label]="'i18nCopySendLinkFor' | i18n: send.name"
+          ></button>
+        </bit-item-action>
+        <bit-item-action>
+          <button
+            bitIconButton="bwi-trash"
+            size="small"
+            type="button"
+            (click)="delete.emit(send)"
+            [attr.aria-label]="'i18nDeleteSendFor' | i18n: send.name"
+          ></button>
+        </bit-item-action>
+      </ng-container>
+    </bit-item>
+  </bit-item-group>
+</bit-section>

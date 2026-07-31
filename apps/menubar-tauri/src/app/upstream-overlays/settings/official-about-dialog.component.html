@@ -1,0 +1,109 @@
+<bw-app-bottom-sheet
+  #metadataDialog
+  labelledBy="about-metadata-title"
+  testId="about-metadata-dialog"
+  [dismissOnBackdrop]="true"
+  (dismissed)="requestClose()"
+  (click)="onDialogClick($event)"
+>
+  <form bit-dialog dialogSize="small">
+    <div bitDialogIcon>
+      <i class="bwi bwi-shield bwi-3x" aria-hidden="true"></i>
+    </div>
+    <span bitDialogTitle id="about-metadata-title">
+      {{
+        view === "troubleshooting"
+          ? ("i18nTroubleshooting" | i18n)
+          : ("i18nAboutProduct" | i18n: metadata.productName)
+      }}
+    </span>
+    <ng-container bitDialogContent>
+      @if (view === "troubleshooting") {
+        <dl class="about-metadata-list">
+          <div class="about-metadata-row">
+            <dt>{{ "i18nCurrentWebVault" | i18n }}</dt>
+            <dd>{{ metadata.currentWebVaultUrl }}</dd>
+          </div>
+          <div class="about-metadata-row">
+            <dt>{{ "i18nVersion" | i18n }}</dt>
+            <dd>{{ metadata.appVersion }}</dd>
+          </div>
+          <div class="about-metadata-row">
+            <dt>{{ "i18nUpstreamRevision" | i18n }}</dt>
+            <dd class="about-revision-cell">
+              <code class="about-revision-value">{{ metadata.upstreamRevision }}</code>
+              <button
+                bitButton
+                buttonType="secondary"
+                type="button"
+                data-testid="copy-about-revision"
+                [disabled]="revisionCopyStatus === 'copying'"
+                (click)="copyRevision.emit()"
+              >
+                {{
+                  revisionCopyStatus === "copying"
+                    ? ("i18nCopying" | i18n)
+                    : revisionCopyStatus === "copied"
+                      ? ("copied" | i18n)
+                      : ("copy" | i18n)
+                }}
+              </button>
+            </dd>
+          </div>
+        </dl>
+        <p class="tw-mt-2">{{ "i18nTroubleshootingHint" | i18n }}</p>
+      } @else {
+        <p>{{ metadata.productName }}</p>
+        <dl class="about-metadata-list">
+          <div class="about-metadata-row">
+            <dt>{{ "i18nVersion" | i18n }}</dt>
+            <dd>{{ metadata.appVersion }}</dd>
+          </div>
+          <div class="about-metadata-row">
+            <dt>{{ "i18nUpstreamRevision" | i18n }}</dt>
+            <dd class="about-revision-cell">
+              <code class="about-revision-value">{{ metadata.upstreamRevision }}</code>
+              <button
+                bitButton
+                buttonType="secondary"
+                type="button"
+                data-testid="copy-about-revision"
+                [disabled]="revisionCopyStatus === 'copying'"
+                (click)="copyRevision.emit()"
+              >
+                {{
+                  revisionCopyStatus === "copying"
+                    ? ("i18nCopying" | i18n)
+                    : revisionCopyStatus === "copied"
+                      ? ("copied" | i18n)
+                      : ("copy" | i18n)
+                }}
+              </button>
+            </dd>
+          </div>
+          <div class="about-metadata-row">
+            <dt>{{ "i18nCurrentWebVault" | i18n }}</dt>
+            <dd>{{ metadata.currentWebVaultUrl }}</dd>
+          </div>
+          <div class="about-metadata-row">
+            <dt>{{ "i18nLicense" | i18n }}</dt>
+            <dd>{{ metadata.license }}</dd>
+          </div>
+        </dl>
+        @if (revisionCopyStatus === "error") {
+          <bw-macos-alert-strip
+            kind="danger"
+            [title]="'i18nUnableToCopyRevision' | i18n"
+            [message]="'i18nRetry' | i18n"
+          />
+        }
+        <p class="tw-mt-2">{{ "i18nUnofficialMacClient" | i18n }}</p>
+      }
+    </ng-container>
+    <ng-container bitDialogFooter>
+      <button bitButton buttonType="secondary" type="button" (click)="requestClose()">
+        {{ "close" | i18n }}
+      </button>
+    </ng-container>
+  </form>
+</bw-app-bottom-sheet>

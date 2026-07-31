@@ -1,0 +1,62 @@
+<form [formGroup]="formGroup" [bitSubmit]="submit" class="macos-auth-card">
+  <bit-form-field class="!tw-mb-1 macos-field">
+    <bit-label>{{ "verificationCode" | i18n }}</bit-label>
+    <input
+      bitInput
+      type="text"
+      id="verificationCode"
+      name="verificationCode"
+      formControlName="code"
+      autocomplete="one-time-code"
+      (paste)="onPaste($event)"
+    />
+  </bit-form-field>
+
+  <div class="macos-auth-validation">
+    <bit-callout *ngIf="loginError" type="danger" data-testid="new-device-error">
+      <p bitTypography="body1" role="alert">{{ loginError }}</p>
+    </bit-callout>
+  </div>
+
+  <button
+    bitLink
+    type="button"
+    linkType="primary"
+    data-testid="new-device-resend"
+    (click)="resendOTP()"
+    [disabled]="disableRequestOTP"
+    class="tw-text-sm"
+  >
+    {{ "resendCode" | i18n }}
+  </button>
+
+  <div class="tw-grid tw-gap-3 tw-mt-4">
+    <button
+      bitButton
+      bitFormButton
+      buttonType="primary"
+      class="macos-primary-action"
+      type="submit"
+      [block]="true"
+      data-testid="new-device-continue"
+      [disabled]="formGroup.invalid || store.snapshot().isLoggingIn || disableRequestOTP"
+    >
+      {{ "continueLoggingIn" | i18n }}
+    </button>
+
+    @if (showBackButton) {
+      <div class="tw-text-center">{{ "or" | i18n }}</div>
+
+      <button
+        type="button"
+        bitButton
+        block
+        buttonType="secondary"
+        data-testid="new-device-back"
+        (click)="goBack()"
+      >
+        {{ "back" | i18n }}
+      </button>
+    }
+  </div>
+</form>

@@ -1,0 +1,48 @@
+<form bit-dialog id="add-edit-folder" (submit)="submit($event)">
+  <span bitDialogTitle id="folder-dialog-title">
+    {{ mode === "add" ? ("i18nNewFolder" | i18n) : ("i18nEditFolder" | i18n) }}
+  </span>
+  <div bitDialogContent>
+    <bit-form-field disableMargin>
+      <bit-label>{{ "i18nFolderName" | i18n }}</bit-label>
+      <input
+        bitInput
+        id="folderName"
+        type="text"
+        autocomplete="off"
+        [value]="name"
+        [disabled]="saving"
+        (input)="inputValue($event)"
+      />
+      <bit-hint>
+        {{ "i18nFolderHelp" | i18n }}
+      </bit-hint>
+    </bit-form-field>
+    @if (errorMessage) {
+      <bw-macos-alert-strip
+        kind="danger"
+        [title]="mode === 'edit' ? ('i18nUnableToUpdateFolder' | i18n) : ('i18nUnableToCreateFolder' | i18n)"
+        [message]="errorMessage"
+      />
+    }
+  </div>
+  <ng-container bitDialogFooter>
+    <button bitButton buttonType="primary" type="submit" form="add-edit-folder" [disabled]="!name.trim() || saving">
+      {{ saving ? ("i18nSaving" | i18n) : ("save" | i18n) }}
+    </button>
+    <button bitButton buttonType="secondary" type="button" [disabled]="saving" (click)="cancel.emit()">
+      {{ "cancel" | i18n }}
+    </button>
+    @if (mode === "edit") {
+      <button
+        type="button"
+        buttonType="dangerGhost"
+        class="tw-ml-auto"
+        bitIconButton="bwi-trash"
+        [label]="'i18nDeleteFolder' | i18n"
+        [disabled]="saving"
+        (click)="deleteFolder.emit()"
+      ></button>
+    }
+  </ng-container>
+</form>

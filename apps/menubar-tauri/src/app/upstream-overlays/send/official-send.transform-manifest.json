@@ -1,0 +1,3196 @@
+{
+  "version": 1,
+  "upstreamRevision": "f47b6946e01aed474875789081966d311d5b8289",
+  "license": "GPL-3.0-only",
+  "authorities": [
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/tools/popup/send-v2/add-edit/send-add-edit.component.html",
+      "sha256": "a2730a0d91b19ac28e272471d02c6a1244d1c0bfff2399e3881ba78b63c3f803"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/tools/popup/send-v2/add-edit/send-add-edit.component.ts",
+      "sha256": "5da4021ac7001642173b7e7ae8771adf67b8e50590ca7d6c88d720d67f9823de"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/tools/popup/send-v2/send-created/send-created.component.html",
+      "sha256": "9770325116224a4b10722b54ceb001ea6e1436223d56ebd527190b1e24eb9e88"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/tools/popup/send-v2/send-created/send-created.component.ts",
+      "sha256": "84f5fa48f78a9b9d52189fb43812ed7bd638f17e9f9f0f77d057a0911e27e5ae"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/tools/popup/send-v2/send-v2.component.html",
+      "sha256": "43e955124658d0c0b4d7683557ac119950c63df500b854e73da83a022ffb2e82"
+    },
+    {
+      "path": "vendor/bitwarden-clients/apps/browser/src/tools/popup/send-v2/send-v2.component.ts",
+      "sha256": "84544c71f1eba031a1e1e9867e95836b89f01c9b9fa03f758365394b19834ef3"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-form/components/options/send-options.component.html",
+      "sha256": "de83dc0a6e24c1bb5fd41480eeab668b674a4dd5f509f072b0824c47326d7bf4"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-form/components/options/send-options.component.ts",
+      "sha256": "b8d23cdecd7b7df82ef54e072628b668e0fae78faf47237f5a8b10015b1b950c"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-form/components/send-details/send-details.component.html",
+      "sha256": "c352417674e54cbdf368d68a393b5f93b6397ea67b4277a13346c12fc3e11fb1"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-form/components/send-details/send-details.component.ts",
+      "sha256": "6eec99e7e0d83214b0b88cb3c55702d85ee518e0b58e89c059cfe1bc70293012"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-form/components/send-details/send-text-details.component.html",
+      "sha256": "6f618f3dea5b370c131494a945e7023b38b7038cfcf9f8a7162944bb8834893f"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-form/components/send-details/send-text-details.component.ts",
+      "sha256": "25925ca466087bdc3604462cec5db5409f375a4dd1c0494b7ab4fe936197db8d"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-list-items-container/send-list-items-container.component.html",
+      "sha256": "550f4fd09d002e5ac80c8f45e3f62ca8949478f6ff2a03ca77902eff58bc5e02"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-list-items-container/send-list-items-container.component.ts",
+      "sha256": "e341b2b8bfec76b52003a91186e05dcfee16ec9e403be658d18ac4d189c8a24b"
+    },
+    {
+      "path": "vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-list/send-list.component.ts",
+      "sha256": "34992501db328590360fa2dc4b9e935ce399afa3451757da4e5a17dba8c03aac"
+    }
+  ],
+  "localRuntimes": [
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.html",
+      "sha256": "455e84fe51e8782a25f7b15a2206f80d09e29a97c9effc0063d490bc38bc6b12"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+      "sha256": "d76c1f8f98556b761d0d3a113a885b33a7aa68d6f25e881f8f5d52ef1d9ef9c6"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.html",
+      "sha256": "93768bcb18e258a788e031edda966bf28f48bbd1ea8d438cbb49f80a200c5ed1"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+      "sha256": "3497af4c624f2b9fdcef7f9cf3517c0ef95cd40af98d929a869b6978209811cb"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.html",
+      "sha256": "471c14ddcac88a9f7f9e3bd6b70e4cb1308f32d3ad63c072fab2f84ae9fc7098"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+      "sha256": "930b814a4b461563f23426d382461b0bc1aa161bb5d8e70d3f678b376a1e6cd5"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.html",
+      "sha256": "45759eb76ebd52cd6bbf6ab5ae99c4dc019abb86ab6c122ac2f5188fc138cc89"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+      "sha256": "469cca0dc3539d94988ae7832a363032f3271cabef8229fcf430c20274d4e96a"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.html",
+      "sha256": "663c470eed05611fae21e59b8f2586a7fe935b91919fdac2107c5280698eda79"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+      "sha256": "4a6a3ec5e94dacc1dd87c09073c6687d58b8750043317c84ea6ed41df8f0d72c"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
+      "sha256": "38b5ca9d0edbf2c39d8ddab4107ba01cbc03a04613cabc889ac58bbed4090641"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html",
+      "sha256": "7fdf948bc699e06f315b76991fad8265f180a04bdf576f12ad4bbac92a39e322"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
+      "sha256": "12a3b1199d1d6fa24a5fbf3931abf34c0dda8fb5d8b8bfb350e3a028cb0369db"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-raw-template.d.ts",
+      "sha256": "851369552ba787e739470684aa9fb8a96eda09797e40aa65634fbfc83832c172"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html",
+      "sha256": "2cd16bdda2cd34e65ca43c66498259821f023e9dbeb258e5f3cdf1988e31541f"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
+      "sha256": "0ff545f96df27ca4b299da0e4b7ed9914865b00f904472e4dafcf9039bcdc72d"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.html.patch",
+      "sha256": "815e8d1ce49c115c22cdc555390150cdfbb86ed265b240fdc32f166d7d5c03a2"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.ts.patch",
+      "sha256": "bb5a9d6072955c6c18165f99761796ae9816681738de8a10effc7ae2d40eb8af"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-created.component.ts.patch",
+      "sha256": "dab1892da661e66b7891c12c7b55ed50bb0981ce94d8136a51a795065064f0e2"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.html.patch",
+      "sha256": "2a51e10d06a40bbd6a1ca1f3ea40c80f7304975d34d955e5d0efc19e6097e3f7"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.ts.patch",
+      "sha256": "7a3ba9d03bf0cadc71f6fd8695e79c00b641bbbf3c7fba054a3ba0cb34c473bc"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-list-items-container.component.ts.patch",
+      "sha256": "055d0fc018822667810a54759dc795cf6da63da92e0cbb140d273ed0ac4918bb"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-list.component.ts.patch",
+      "sha256": "6fe9af2a72b75610f736ddccbadb8e5e04d4a6b9c51f60a1d6e2c2174480c277"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.html.patch",
+      "sha256": "88e39e07974fe88100cc885389ea0d1beaecf636e6d68b53a3fb4bf7c9c12d04"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.ts.patch",
+      "sha256": "c0e07160467dc79309b9db707445fa73a9490f4d17c4336d37f90365adbec264"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.html.patch",
+      "sha256": "a303d3b598455f7aad548cf0b00bf85c6ee50c76c1d5a4c25d0616c5be0b7ab5"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.ts.patch",
+      "sha256": "0755c9e0347874f6be358161ee4d0e75fa7363a1c6aa3159637274d9f1aac263"
+    }
+  ],
+  "aliases": [
+    {
+      "specifier": "@bitwarden/send-overlay/add-edit",
+      "source": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts"
+    },
+    {
+      "specifier": "@bitwarden/send-overlay/created",
+      "source": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts"
+    },
+    {
+      "specifier": "@bitwarden/send-overlay/list",
+      "source": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts"
+    },
+    {
+      "specifier": "@bitwarden/send-overlay/list-items",
+      "source": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts"
+    }
+  ],
+  "transformContract": {
+    "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
+    "sha256": "38b5ca9d0edbf2c39d8ddab4107ba01cbc03a04613cabc889ac58bbed4090641"
+  },
+  "productionRoots": [
+    "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+    "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+    "apps/menubar-tauri/src/app/send/send-page.component.ts"
+  ],
+  "forbiddenClosureRules": [
+    {
+      "id": "file-send",
+      "pattern": "send-file|SendFile|FileReader|upload.*send|download.*send",
+      "flags": "i"
+    },
+    {
+      "id": "premium-billing",
+      "pattern": "Billing|PremiumUpgrade|hasPremiumFromAnySource",
+      "flags": "i"
+    },
+    {
+      "id": "organization-admin",
+      "pattern": "OrganizationService|allowedDomains|SpecificPeople",
+      "flags": "i",
+      "ignoredContentPaths": [
+        "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json"
+      ]
+    },
+    {
+      "id": "browser-runtime",
+      "pattern": "CurrentAccount|PopOutComponent|nativeMessaging|webRequest|webNavigation|contentScript|browser\\.tabs|chrome\\.tabs",
+      "flags": "i",
+      "ignoredContentPaths": [
+        "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json"
+      ]
+    },
+    {
+      "id": "sso",
+      "pattern": "@bitwarden/auth/sso|singleSignOn",
+      "flags": "i",
+      "ignoredContentPaths": [
+        "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json"
+      ]
+    }
+  ],
+  "productionClosure": {
+    "roots": [
+      "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+      "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+      "apps/menubar-tauri/src/app/send/send-page.component.ts"
+    ],
+    "paths": [
+      "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts",
+      "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/error.component.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+      "apps/menubar-tauri/official-components-overlay/index.ts",
+      "apps/menubar-tauri/src/app/official-ui/app-bottom-sheet.component.ts",
+      "apps/menubar-tauri/src/app/official-ui/app-overlay-stack.service.ts",
+      "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+      "apps/menubar-tauri/src/app/official-ui/local-copy-feedback-event.ts",
+      "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts",
+      "apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts",
+      "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+      "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+      "apps/menubar-tauri/src/app/official-ui/official-platform.adapter.ts",
+      "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
+      "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
+      "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+      "apps/menubar-tauri/src/app/pop-out-host.port.ts",
+      "apps/menubar-tauri/src/app/send/retained-text-send-form.service.ts",
+      "apps/menubar-tauri/src/app/send/send-actions.service.ts",
+      "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+      "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+      "apps/menubar-tauri/src/app/send/send-page.component.ts",
+      "apps/menubar-tauri/src/app/send/send-request.service.ts",
+      "apps/menubar-tauri/src/app/send/text-send-operation.ts",
+      "apps/menubar-tauri/src/app/send/text-send-sync-projection.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.html",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.html",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.html",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.html",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.html",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.html",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html",
+      "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
+      "apps/menubar-tauri/src/auth/bitwarden-crypto.ts",
+      "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
+      "apps/menubar-tauri/src/host/biometric-host.ts",
+      "apps/menubar-tauri/src/host/global-shortcut.ts",
+      "apps/menubar-tauri/src/host/host-api.ts",
+      "apps/menubar-tauri/src/host/launch-at-login.ts",
+      "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json",
+      "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.html",
+      "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.ts",
+      "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.html",
+      "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+      "vendor/bitwarden-clients/libs/assets/src/svg/index.ts",
+      "vendor/bitwarden-clients/libs/assets/src/svg/svg.ts",
+      "vendor/bitwarden-clients/libs/assets/src/svg/svgs/active-send.icon.ts",
+      "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts",
+      "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/common/src/tools/send/send-kdf.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/aria-disabled-click-capture.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/set-a11y-title-and-aria-label.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/dirty-form.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.html",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.html",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-close.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-title-container.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.html",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.html",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.html",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.html",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/label.component.html",
+      "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/forbidden-characters.validator.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/trim.validator.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/error.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.html",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.html",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.html",
+      "vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-tile/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon/icon.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/item/item-action.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/item/item-content.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/item/item-group.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/item/item.component.html",
+      "vendor/bitwarden-clients/libs/components/src/item/item.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/layout/scroll-layout.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.html",
+      "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/search/search.component.html",
+      "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/section/section-header.component.html",
+      "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/section/section.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/option.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.html",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/shared/focusable-element.ts",
+      "vendor/bitwarden-clients/libs/components/src/shared/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/shared/root-font-size.ts",
+      "vendor/bitwarden-clients/libs/components/src/skeleton/skeleton.component.html",
+      "vendor/bitwarden-clients/libs/components/src/skeleton/skeleton.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/spinner/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.html",
+      "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/svg/svg.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/svg/svg.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip-positions.ts",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.html",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/typography/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/aria-disable-element.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/dom-observables.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/index.ts",
+      "vendor/bitwarden-clients/libs/ui/common/src/i18n.pipe.ts"
+    ],
+    "edges": [
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts",
+        "kind": "import",
+        "specifier": "./bit-action.directive",
+        "target": "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts",
+        "kind": "import",
+        "specifier": "./bit-submit.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts",
+        "kind": "import",
+        "specifier": "./form-button.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts",
+        "kind": "import",
+        "specifier": "../utils/function-to-observable",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/error.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "../form-control/hint.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "../form-control/label.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./error.component",
+        "target": "apps/menubar-tauri/official-components-overlay/form-field/error.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./field-container.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./form-field-control.directive",
+        "target": "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./prefix.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./suffix.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./form-field.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/index.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/async-actions/async-actions.module",
+        "target": "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/index.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/icon-button/icon-button.module",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/index.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/icon/icon.module",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/icon.module.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/index.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/layout/scroll-layout.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/layout/scroll-layout.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/index.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/layout/scroll-layout.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/layout/scroll-layout.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/index.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/svg/svg.module",
+        "target": "vendor/bitwarden-clients/libs/components/src/svg/svg.module.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/index.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/typography/typography.module",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/app-bottom-sheet.component.ts",
+        "kind": "import",
+        "specifier": "./app-overlay-stack.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/app-overlay-stack.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/app-bottom-sheet.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/app-overlay-stack.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+        "kind": "import",
+        "specifier": "./macos-alert-strip.component",
+        "target": "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+        "kind": "import",
+        "specifier": "./official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/abstractions/i18n.service",
+        "target": "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts",
+        "kind": "import",
+        "specifier": "./official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/macos-alert-strip.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "./callout-compatibility.component",
+        "target": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "./callout-compatibility.component",
+        "target": "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/button/button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/button/button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/button/button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/card/card.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/card/card.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/checkbox/checkbox.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/checkbox/checkbox.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/dialog/dialog/dialog.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/dialog/simple-dialog/simple-dialog.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-control/form-control.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-control/form-control.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-control/hint.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-control/hint.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-control/label.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-control/label.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-control/label.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-field/form-field.component",
+        "target": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-field/form-field.component",
+        "target": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-field/form-field.component",
+        "target": "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/form-field/suffix.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/icon-button/icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/input/input.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/input/input.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/input/input.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/section/section-header.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/section/section-header.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/section/section.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/section/section.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/section/section.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/section/section.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/section/section.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/section/section.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/select/option.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/select/option.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/select/select.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/typography/typography.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/typography/typography.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+        "kind": "import",
+        "specifier": "../../../../../vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json",
+        "target": "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+        "kind": "import",
+        "specifier": "../../../../../vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json",
+        "target": "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+        "kind": "export",
+        "specifier": "../../../../../vendor/bitwarden-clients/libs/ui/common/src/i18n.pipe",
+        "target": "vendor/bitwarden-clients/libs/ui/common/src/i18n.pipe.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
+        "kind": "import",
+        "specifier": "@angular/router",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "./popup-route-reuse.strategy",
+        "target": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "./popup-router-cache.lifecycle",
+        "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "@angular/router",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components",
+        "target": "apps/menubar-tauri/official-components-overlay/index.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/pop-out-host.port.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-actions.service.ts",
+        "kind": "import",
+        "specifier": "../../bitwarden-api/bitwarden-api",
+        "target": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-actions.service.ts",
+        "kind": "import",
+        "specifier": "../../host/tauri-host.service",
+        "target": "apps/menubar-tauri/src/host/tauri-host.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-actions.service.ts",
+        "kind": "import",
+        "specifier": "./send-request.service",
+        "target": "apps/menubar-tauri/src/app/send/send-request.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-actions.service.ts",
+        "kind": "import",
+        "specifier": "./text-send-sync-projection",
+        "target": "apps/menubar-tauri/src/app/send/text-send-sync-projection.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-actions.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-actions.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "../../host/tauri-host.service",
+        "target": "apps/menubar-tauri/src/host/tauri-host.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/local-copy-feedback-event",
+        "target": "apps/menubar-tauri/src/app/official-ui/local-copy-feedback-event.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "../upstream-overlays/send/official-send-add-edit.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "./retained-text-send-form.service",
+        "target": "apps/menubar-tauri/src/app/send/retained-text-send-form.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "./send-actions.service",
+        "target": "apps/menubar-tauri/src/app/send/send-actions.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "./send-created-page.component",
+        "target": "apps/menubar-tauri/src/app/send/send-created-page.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "./text-send-operation",
+        "target": "apps/menubar-tauri/src/app/send/text-send-operation.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+        "kind": "import",
+        "specifier": "../../host/tauri-host.service",
+        "target": "apps/menubar-tauri/src/host/tauri-host.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/local-copy-feedback-event",
+        "target": "apps/menubar-tauri/src/app/official-ui/local-copy-feedback-event.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+        "kind": "import",
+        "specifier": "../pop-out-host.port",
+        "target": "apps/menubar-tauri/src/app/pop-out-host.port.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+        "kind": "import",
+        "specifier": "../upstream-overlays/send/official-send-created.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-created-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "export",
+        "specifier": "./send-actions.service",
+        "target": "apps/menubar-tauri/src/app/send/send-actions.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "../../host/tauri-host.service",
+        "target": "apps/menubar-tauri/src/host/tauri-host.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/app-bottom-sheet.component",
+        "target": "apps/menubar-tauri/src/app/official-ui/app-bottom-sheet.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/local-copy-feedback-event",
+        "target": "apps/menubar-tauri/src/app/official-ui/local-copy-feedback-event.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/official-components",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "../official-ui/official-ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "../upstream-overlays/send/official-send-list.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "./send-actions.service",
+        "target": "apps/menubar-tauri/src/app/send/send-actions.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "./send-created-page.component",
+        "target": "apps/menubar-tauri/src/app/send/send-created-page.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "./text-send-operation",
+        "target": "apps/menubar-tauri/src/app/send/text-send-operation.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/dialog",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-request.service.ts",
+        "kind": "import",
+        "specifier": "../../auth/bitwarden-crypto",
+        "target": "apps/menubar-tauri/src/auth/bitwarden-crypto.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/send-request.service.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/tools/send/send-kdf",
+        "target": "vendor/bitwarden-clients/libs/common/src/tools/send/send-kdf.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/text-send-operation.ts",
+        "kind": "import",
+        "specifier": "../official-ui/official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/send/text-send-sync-projection.ts",
+        "kind": "import",
+        "specifier": "../../auth/bitwarden-crypto",
+        "target": "apps/menubar-tauri/src/auth/bitwarden-crypto.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/abstractions/i18n.service",
+        "target": "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/input/autofocus.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+        "kind": "import",
+        "specifier": "./popup-router-cache.adapter",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/coercion",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/angular/jslib.module",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components",
+        "target": "apps/menubar-tauri/official-components-overlay/index.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
+        "kind": "templateUrl",
+        "specifier": "popup-header.component.html",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts",
+        "kind": "export",
+        "specifier": "../../platform/popup-router-cache.service",
+        "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-components",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "import",
+        "specifier": "./official-send-details.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/browser-popup/layout/popup-footer.component",
+        "target": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/browser-popup/layout/popup-header.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/browser-popup/layout/popup-page.component",
+        "target": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./official-send-add-edit.component.html",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/assets/svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/browser-popup/layout/popup-footer.component",
+        "target": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/browser-popup/layout/popup-header.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/browser-popup/layout/popup-page.component",
+        "target": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components",
+        "target": "apps/menubar-tauri/official-components-overlay/index.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/button/button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/icon-button/icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./official-send-created.component.html",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-components",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-i18n.service",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+        "kind": "import",
+        "specifier": "./official-send-options.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+        "kind": "import",
+        "specifier": "./official-send-text-details.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./official-send-details.component.html",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/icon-button/icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/icon/icon.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/item/item-action.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/item/item-action.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/item/item-content.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/item/item-content.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/item/item-group.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/item/item-group.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/item/item.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/item/item.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/section/section-header.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/section/section.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/section/section.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./official-send-list-items-container.component.html",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-components",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "./official-send-list-items-container.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/browser-popup/layout/popup-header.component",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/browser-popup/layout/popup-page.component",
+        "target": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/button/button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/icon-button/icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/item/item-group.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/item/item-group.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/no-items/no-items.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/search/search.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components/skeleton/skeleton.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/skeleton/skeleton.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./official-send-list.component.html",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-components",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./official-send-options.component.html",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-components",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
+        "kind": "import",
+        "specifier": "../../official-ui/official-ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./official-send-text-details.component.html",
+        "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/launch-at-login.ts",
+        "kind": "import",
+        "specifier": "@tauri-apps/api/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "../bitwarden-api/bitwarden-api",
+        "target": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "./biometric-host",
+        "target": "apps/menubar-tauri/src/host/biometric-host.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "./global-shortcut",
+        "target": "apps/menubar-tauri/src/host/global-shortcut.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "./host-api",
+        "target": "apps/menubar-tauri/src/host/host-api.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "./launch-at-login",
+        "target": "apps/menubar-tauri/src/host/launch-at-login.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "@tauri-apps/api/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.ts",
+        "kind": "templateUrl",
+        "specifier": "popup-footer.component.html",
+        "target": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/abstractions/i18n.service",
+        "target": "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/components",
+        "target": "apps/menubar-tauri/official-components-overlay/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.ts",
+        "kind": "templateUrl",
+        "specifier": "popup-page.component.html",
+        "target": "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-page.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts",
+        "kind": "export",
+        "specifier": "./svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svg.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts",
+        "kind": "export",
+        "specifier": "./svgs",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts",
+        "kind": "export",
+        "specifier": "./svgs",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts",
+        "kind": "export",
+        "specifier": "./svgs",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/active-send.icon.ts",
+        "kind": "import",
+        "specifier": "../svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svg.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts",
+        "kind": "export",
+        "specifier": "./active-send.icon",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/active-send.icon.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts",
+        "kind": "export",
+        "specifier": "./no-results",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts",
+        "kind": "import",
+        "specifier": "../svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svg.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts",
+        "kind": "import",
+        "specifier": "./aria-disabled-click-capture.service",
+        "target": "vendor/bitwarden-clients/libs/components/src/a11y/aria-disabled-click-capture.service.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/a11y/aria-disabled-click-capture.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts",
+        "kind": "import",
+        "specifier": "../input",
+        "target": "vendor/bitwarden-clients/libs/components/src/input/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/misc/utils",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/a11y/index.ts",
+        "kind": "export",
+        "specifier": "./aria-disable.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+        "kind": "import",
+        "specifier": "../utils/function-to-observable",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+        "kind": "import",
+        "specifier": "./dirty-form.service",
+        "target": "vendor/bitwarden-clients/libs/components/src/async-actions/dirty-form.service.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/async-actions/dirty-form.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+        "kind": "import",
+        "specifier": "../a11y",
+        "target": "vendor/bitwarden-clients/libs/components/src/a11y/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+        "kind": "import",
+        "specifier": "../shared/base-button.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+        "kind": "import",
+        "specifier": "../shared/button-like.abstraction",
+        "target": "vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+        "kind": "import",
+        "specifier": "../spinner",
+        "target": "vendor/bitwarden-clients/libs/components/src/spinner/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+        "kind": "import",
+        "specifier": "../utils",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+        "kind": "templateUrl",
+        "specifier": "button.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/button/index.ts",
+        "kind": "export",
+        "specifier": "./button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
+        "kind": "import",
+        "specifier": "./base-card/base-card.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
+        "kind": "import",
+        "specifier": "../form-control",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
+        "kind": "import",
+        "specifier": "../form-control/form-control-card.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
+        "kind": "import",
+        "specifier": "../form-control/form-control-group.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../../a11y/autofocus-fallback.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../../icon-button/icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../../shared",
+        "target": "vendor/bitwarden-clients/libs/components/src/shared/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../../spinner",
+        "target": "vendor/bitwarden-clients/libs/components/src/spinner/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../../typography/typography.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../../utils/",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../../utils/has-scrolled-from",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../dialog-ref",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../directives/dialog-close.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-close.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../directives/dialog-title-container.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-title-container.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../drawer.service",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "../simple-dialog/simple-dialog.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/a11y",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/scrolling",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./dialog.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-close.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-title-container.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts",
+        "kind": "import",
+        "specifier": "@angular/router",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts",
+        "kind": "import",
+        "specifier": "../../button",
+        "target": "vendor/bitwarden-clients/libs/components/src/button/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./simple-dialog.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts",
+        "kind": "import",
+        "specifier": "./form-control.abstraction",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.abstraction.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/abstractions/i18n.service",
+        "target": "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "import",
+        "specifier": "../icon-tile",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-tile/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "import",
+        "specifier": "../icon",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "import",
+        "specifier": "../typography/typography.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "import",
+        "specifier": "./form-control-base.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "import",
+        "specifier": "./form-control-group.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "import",
+        "specifier": "./hint.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+        "kind": "templateUrl",
+        "specifier": "form-control-card.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "../icon",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "./hint.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "./label.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/abstractions/i18n.service",
+        "target": "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+        "kind": "templateUrl",
+        "specifier": "form-control-group.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+        "kind": "import",
+        "specifier": "../icon",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+        "kind": "import",
+        "specifier": "../typography/typography.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+        "kind": "import",
+        "specifier": "./form-control-base.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+        "kind": "templateUrl",
+        "specifier": "form-control.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/index.ts",
+        "kind": "export",
+        "specifier": "./form-control.abstraction",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/form-control.abstraction.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts",
+        "kind": "templateUrl",
+        "specifier": "label.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/forbidden-characters.validator.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/index.ts",
+        "kind": "export",
+        "specifier": "./forbidden-characters.validator",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/forbidden-characters.validator.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/index.ts",
+        "kind": "export",
+        "specifier": "./trim.validator",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/trim.validator.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/trim.validator.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/error.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "../form-control/hint.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "../form-control/label.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./error.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/error.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./field-container.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./form-field-control.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./prefix.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "./suffix.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./form-field.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/index.ts",
+        "kind": "export",
+        "specifier": "./bit-validators",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/index.ts",
+        "kind": "export",
+        "specifier": "./form-field-control.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts",
+        "kind": "import",
+        "specifier": "../icon-button/icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "../a11y",
+        "target": "vendor/bitwarden-clients/libs/components/src/a11y/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "../a11y/set-a11y-title-and-aria-label",
+        "target": "vendor/bitwarden-clients/libs/components/src/a11y/set-a11y-title-and-aria-label.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "../shared/base-button.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "../shared/button-like.abstraction",
+        "target": "vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "../shared/focusable-element",
+        "target": "vendor/bitwarden-clients/libs/components/src/shared/focusable-element.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "../spinner",
+        "target": "vendor/bitwarden-clients/libs/components/src/spinner/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "../tooltip",
+        "target": "vendor/bitwarden-clients/libs/components/src/tooltip/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "../utils",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+        "kind": "templateUrl",
+        "specifier": "icon-button.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+        "kind": "import",
+        "specifier": "./icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-button/index.ts",
+        "kind": "export",
+        "specifier": "./icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.ts",
+        "kind": "templateUrl",
+        "specifier": "icon-tile.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon-tile/index.ts",
+        "kind": "export",
+        "specifier": "./icon-tile.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon/icon.module.ts",
+        "kind": "import",
+        "specifier": "./icon.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon/icon.module.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+        "kind": "export",
+        "specifier": "./icon.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/misc/utils",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs/operators",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/input/index.ts",
+        "kind": "export",
+        "specifier": "./autofocus.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts",
+        "kind": "import",
+        "specifier": "../form-field/form-field-control.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts",
+        "kind": "import",
+        "specifier": "../form-field/form-field.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/item/item-action.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/item/item-content.component.ts",
+        "kind": "import",
+        "specifier": "../typography",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/item/item-content.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/item/item-content.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/item/item-group.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/item/item.component.ts",
+        "kind": "import",
+        "specifier": "./item-action.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/item/item-action.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/item/item.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/item/item.component.ts",
+        "kind": "templateUrl",
+        "specifier": "item.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/item/item.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/layout/scroll-layout.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/layout/scroll-layout.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/layout/scroll-layout.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/layout/scroll-layout.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.ts",
+        "kind": "import",
+        "specifier": "../svg/svg.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/svg/svg.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/assets/svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./no-items.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "import",
+        "specifier": "../form-field/field-container.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "import",
+        "specifier": "../icon-button",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "import",
+        "specifier": "../icon",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "import",
+        "specifier": "../shared/focusable-element",
+        "target": "vendor/bitwarden-clients/libs/components/src/shared/focusable-element.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/platform",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-platform.adapter.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/ui-common",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/search/search.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./search.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/search/search.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+        "kind": "import",
+        "specifier": "../typography",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./section-header.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/section/section-header.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/section/section.component.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/coercion",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/section/section.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/section/section.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/option.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "../form-field",
+        "target": "vendor/bitwarden-clients/libs/components/src/form-field/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "../icon",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "../typography/typography.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "./option.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/select/option.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/keycodes",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "@angular/forms",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/abstractions/i18n.service",
+        "target": "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "import",
+        "specifier": "@ng-select/ng-select",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+        "kind": "templateUrl",
+        "specifier": "select.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/select/select.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/shared/index.ts",
+        "kind": "export",
+        "specifier": "./root-font-size",
+        "target": "vendor/bitwarden-clients/libs/components/src/shared/root-font-size.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/skeleton/skeleton.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/skeleton/skeleton.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/skeleton/skeleton.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./skeleton.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/skeleton/skeleton.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/spinner/index.ts",
+        "kind": "export",
+        "specifier": "./spinner.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/abstractions/i18n.service",
+        "target": "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.ts",
+        "kind": "templateUrl",
+        "specifier": "spinner.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/svg/svg.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/svg/svg.component.ts",
+        "kind": "import",
+        "specifier": "@angular/platform-browser",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/svg/svg.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/assets/svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/svg/svg.module.ts",
+        "kind": "import",
+        "specifier": "./svg.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/svg/svg.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/svg/svg.module.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/index.ts",
+        "kind": "export",
+        "specifier": "./tooltip.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./tooltip.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "./tooltip-positions",
+        "target": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip-positions.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "./tooltip.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/overlay",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/portal",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/typography/index.ts",
+        "kind": "export",
+        "specifier": "./typography.module",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+        "kind": "import",
+        "specifier": "./typography.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/aria-disable-element.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/dom-observables.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/common/platform/misc/utils",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts",
+        "kind": "import",
+        "specifier": "./dom-observables",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/dom-observables.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts",
+        "kind": "import",
+        "specifier": "rxjs/operators",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/scrolling",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/index.ts",
+        "kind": "export",
+        "specifier": "./aria-disable-element",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/aria-disable-element.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/utils/index.ts",
+        "kind": "export",
+        "specifier": "./has-scrollable-content",
+        "target": "vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/ui/common/src/i18n.pipe.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      }
+    ],
+    "sha256": "2d4b27b540e79d52011ce18d7774122bebb6279bdaf4de5dd2ae627ab224e4ba"
+  }
+}

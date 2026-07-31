@@ -1,0 +1,308 @@
+{
+  "revision": "f47b6946e01aed474875789081966d311d5b8289",
+  "license": {
+    "rootPackageSha256": "87bc10c665ed6aab6d7296219756548f6fa02085bb1a7b08cbcabe6972dcc532",
+    "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+    "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
+    "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"
+  },
+  "authorities": [
+    {
+      "path": "libs/common/src/vault/models/view/cipher.view.ts",
+      "sha256": "7895537739285f595cd14e29aab30d3b096090ad9baf81a8de0f892afed05b93"
+    },
+    {
+      "path": "libs/common/src/vault/models/view/login.view.ts",
+      "sha256": "87c0927fcfdd50856a3bf5a811ff9deca044c552f5ea15fb9956cfada57453af"
+    },
+    {
+      "path": "libs/common/src/vault/models/view/login-uri.view.ts",
+      "sha256": "72ae5d386596455e181d2c99601390d50b7fbd318d81a8b74220ab04fb2704a5"
+    },
+    {
+      "path": "libs/common/src/vault/models/view/field.view.ts",
+      "sha256": "2a957247ee24edba3803e390b9c6946c692b70ca4f503d0fc888f0484e50fa57"
+    },
+    {
+      "path": "libs/common/src/vault/models/view/folder.view.ts",
+      "sha256": "6de687dc7d0bd48c3a456a3180062e3282ab419e0947a67ec6cd639a150b2c4a"
+    },
+    {
+      "path": "libs/common/src/vault/models/view/password-history.view.ts",
+      "sha256": "859b275958569562c1805701ec2372b992583d6eb549c339898c461758f43385"
+    },
+    {
+      "path": "libs/common/src/vault/abstractions/totp.service.ts",
+      "sha256": "a2c2adc23973d4418745fa06717928dccf88c588641f36c4d1f2ff4c06892394"
+    },
+    {
+      "path": "libs/common/src/vault/services/totp.service.ts",
+      "sha256": "00a1c3d54584a52ab0d3b0f77e6fb83f0351269eb2448d6198bb787945dd148d"
+    },
+    {
+      "path": "libs/components/src/color-password/color-password.component.ts",
+      "sha256": "dcfd68d5fa4a5bffbe43ef874f3f5bfe7ef08d344215bb4414876709ebe86e28"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/item-details/item-details-v2.component.ts",
+      "sha256": "e0b0dc8544c3888d3d96e1ea0bc779c8d1345f990e78f740f2ac79fdc0d9e11a"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/item-details/item-details-v2.component.html",
+      "sha256": "53e0da7f3714c94cb51beedd65a04899ef34a7f309291decb08976105bd620e1"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/login-credentials/login-credentials-view.component.ts",
+      "sha256": "af5543326f5c77b3d9e072860437c6623a9c1b5034f01f40ac0e5ce9efb2fe84"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/login-credentials/login-credentials-view.component.html",
+      "sha256": "37093d444bc001afa92598a26bed811688512a75758fd2849376071c6a089649"
+    },
+    {
+      "path": "libs/vault/src/components/totp-countdown/totp-countdown.component.ts",
+      "sha256": "8f04c61dc3117ee1de4e7f135ce67fee282458325524923ee6b61cdc9002c070"
+    },
+    {
+      "path": "libs/vault/src/components/totp-countdown/totp-countdown.component.html",
+      "sha256": "837958a5199a14d23a8a800f80f444c59832d86e6d6571942673301291990d83"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/autofill-options/autofill-options-view.component.ts",
+      "sha256": "c1a8fb68d0c16e6e6de29c73bcb7468a79363521b84e945add5223e687460bc9"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/autofill-options/autofill-options-view.component.html",
+      "sha256": "b5ad963e6cad93d347cc8a6eaadc8ac864222c42442158154ec19a9ac45de871"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/additional-options/additional-options.component.ts",
+      "sha256": "b09b3b75d172dbe5a568eb854de1c599f5a1c01497273057058a8e484cf194b7"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/additional-options/additional-options.component.html",
+      "sha256": "38a3d48eeb67735c5462e8ab10c8a144f12008aa6e2fe5034645c3d33de79b51"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/custom-fields/custom-fields-v2.component.ts",
+      "sha256": "c66d431167bd39fd6891090f0c42689d68a3336c3f6c789578333b1e7e7ed405"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/custom-fields/custom-fields-v2.component.html",
+      "sha256": "3b6bfa57297a8b6f5c74ab5b404aab5733204bf9facde9ddca7dfaa544b82300"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/item-history/item-history-v2.component.ts",
+      "sha256": "4ea3880c89c536cd0e22adeafb1425779f6287bfdfa304ce1782795a1c377cd3"
+    },
+    {
+      "path": "libs/vault/src/cipher-view/item-history/item-history-v2.component.html",
+      "sha256": "b8827462dc0bd2d0ce9fc1b387ebe0f8df425c03a1426c6078852c6c198efc0c"
+    }
+  ],
+  "transforms": [
+    {
+      "authority": "libs/components/src/color-password/color-password.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
+      "allowedDifferences": [
+        "retain official character colors, count layout, selector, and classes",
+        "remove PlatformUtilsService clipboard writes and block browser selection-copy so typed native actions remain the sole clipboard owner"
+      ]
+    },
+    {
+      "authority": "libs/vault/src/cipher-view/item-details/item-details-v2.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-details.component.ts",
+      "allowedDifferences": [
+        "remove organization, collection, responsive show-more, and configuration-backed favicon dependencies",
+        "retain Login icon, name, folder, card, typography, and test IDs"
+      ]
+    },
+    {
+      "authority": "libs/vault/src/cipher-view/login-credentials/login-credentials-view.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-credentials.component.ts",
+      "allowedDifferences": [
+        "remove premium, passkey, billing, event-log, and change-password branches",
+        "replace browser copy with typed copy and native one-field outputs",
+        "retain the official BitTotpCountdownComponent through the narrow deterministic TotpService adapter"
+      ]
+    },
+    {
+      "authority": "libs/vault/src/components/totp-countdown/totp-countdown.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-totp-countdown.component.ts",
+      "allowedDifferences": [
+        "replace only the broad @bitwarden/components TypographyModule barrel import with the exact TypographyDirective import; preserve all countdown behavior and template bytes"
+      ]
+    },
+    {
+      "authority": "libs/vault/src/cipher-view/autofill-options/autofill-options-view.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-uri-options.component.ts",
+      "allowedDifferences": [
+        "remove account, CipherService, PlatformUtilsService, and browser launch state",
+        "replace website launch and copy with typed host outputs"
+      ]
+    },
+    {
+      "authority": "libs/vault/src/cipher-view/additional-options/additional-options.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-additional-options.component.ts",
+      "allowedDifferences": [
+        "replace unavailable appCopyClick browser clipboard directive with typed notes copy output"
+      ]
+    },
+    {
+      "authority": "libs/vault/src/cipher-view/custom-fields/custom-fields-v2.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-custom-fields.component.ts",
+      "allowedDifferences": [
+        "restrict rendering to retained Login text, hidden, and boolean fields",
+        "remove event logging and browser copy/text-drag directives",
+        "replace copy and native one-field actions with original VaultField outputs"
+      ]
+    },
+    {
+      "authority": "libs/vault/src/cipher-view/item-history/item-history-v2.component.ts",
+      "runtime": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-history.component.ts",
+      "allowedDifferences": [
+        "replace aggregate components barrel with exact component imports",
+        "replace ViewPasswordHistoryService with typed navigation output"
+      ]
+    }
+  ],
+  "restoredLibraries": [
+    {
+      "path": "libs/storage-core",
+      "fileCount": 22,
+      "treeSha256": "7e80d0cbbd2c696f098f81736b0c3e59d67589f57c449de74554355a0c0795d7"
+    },
+    {
+      "path": "libs/guid",
+      "fileCount": 11,
+      "treeSha256": "d254744a33a8e06bbbca4e3c09ea10340edae97295be9566e093e64e5223a28d"
+    },
+    {
+      "path": "libs/user-core",
+      "fileCount": 10,
+      "treeSha256": "a9e0a809cb9df3e161771098f2461fa99683d2a55a255d5d56ffdaac76a7f220"
+    }
+  ],
+  "localRuntimes": [
+    {
+      "path": "apps/menubar-tauri/src/app/vault/login-cipher-view.adapter.ts",
+      "sha256": "be91cb13905fa893308427dddfdba497d67e5ea6a4017c17741781fa6fc242e9"
+    },
+    {
+      "path": "apps/menubar-tauri/official-login-detail-aliases.ts",
+      "sha256": "1891091a22a08d5b143c5db09f65680ae2e8c797429d377e713a36ab961d80f8"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/official-key-management.adapter.ts",
+      "sha256": "4fc2b5824b4b20a99a0271949ba702c71bd6d8266d10a3ffd1cccce378a4eb14"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
+      "sha256": "b9e0be6923d1b13591dbe00bf7aa009bc6bb62587d51c3e79148fae281c9dafb"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/vault/official-totp.service.adapter.ts",
+      "sha256": "5d95d7d48b98a8183b4373e8928035acd9ef8999e501c3f8788943b60f89d193"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-detail.component.ts",
+      "sha256": "b676cc7940e260f22a5f515d8d817b93b36cfdb39fc13b7c934e396dc7b9188a"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-detail.component.html",
+      "sha256": "b0ab4488fb7da3f9377b4f551797abc55ebced30f2b9a3ae308a10e7881c3028"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
+      "sha256": "91e22974d411716166bbe8621e0578e557b4aa07c17cc5316db1e93de63a3055"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-details.component.ts",
+      "sha256": "453696ecf250666a7c1291da0b9b764385dfd55bd35049bfdd3182502eee90a2"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-details.component.html",
+      "sha256": "ad9a00fd52289d3e283eee9b45561e0424c076ac67465f3564db05d203b91f77"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-credentials.component.ts",
+      "sha256": "6313d243bab2248a910b38b33ca116e58dca727b4413ba06d88fe40c8f0a337e"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-credentials.component.html",
+      "sha256": "1b7f016f70f9e171e2d8cf16813266be3e09d064ac9bc6de205e85da2d3082f3"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-totp-countdown.component.ts",
+      "sha256": "3bcc97dd7d128cda8e65e26c87bcaa74c011eab90b84fc54ff4f0eebae635b49"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/totp-countdown.component.html",
+      "sha256": "837958a5199a14d23a8a800f80f444c59832d86e6d6571942673301291990d83"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-uri-options.component.ts",
+      "sha256": "19c68fe168df6dcab79177408dcb4abde43fa93782109211badf600ab231e406"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-uri-options.component.html",
+      "sha256": "7579a33c84153c9affb7aa7ab1fb409eedea311eab790b7d7c2262066d0d4ee8"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-additional-options.component.ts",
+      "sha256": "5817663f7ba7bdbe157cd06ad6247d46f87b255172a1651aa7b6e8b5b012cd7f"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-additional-options.component.html",
+      "sha256": "6d0d4d2804206ac6bb5d423861b79019a7b5e8ccaf1965e171730b913851a7c3"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-custom-fields.component.ts",
+      "sha256": "6a715163e9b9982fd7b74edad8a762fd0c753bdd876a06d74e074a0297efdbd5"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-custom-fields.component.html",
+      "sha256": "592cc6291d06a9f1d0a211be9738cb1e3ea50c80e30253ec2550196973632121"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-history.component.ts",
+      "sha256": "6a77876eff127495a135a6620690bc18da9ac3ee56084b47614953705c3e6229"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-history.component.html",
+      "sha256": "c9e35ec47a145433dd5c61a9bb0e1acbb7902242014c59bc77f9f65c4aeb93ff"
+    }
+  ],
+  "aliases": {
+    "@bitwarden/official-login-detail/item-details": "vendor/bitwarden-clients/libs/vault/src/cipher-view/item-details/item-details-v2.component.ts",
+    "@bitwarden/official-login-detail/login-credentials": "vendor/bitwarden-clients/libs/vault/src/cipher-view/login-credentials/login-credentials-view.component.ts",
+    "@bitwarden/official-login-detail/uri-options": "vendor/bitwarden-clients/libs/vault/src/cipher-view/autofill-options/autofill-options-view.component.ts",
+    "@bitwarden/official-login-detail/additional-options": "vendor/bitwarden-clients/libs/vault/src/cipher-view/additional-options/additional-options.component.ts",
+    "@bitwarden/official-login-detail/custom-fields": "vendor/bitwarden-clients/libs/vault/src/cipher-view/custom-fields/custom-fields-v2.component.ts",
+    "@bitwarden/official-login-detail/item-history": "vendor/bitwarden-clients/libs/vault/src/cipher-view/item-history/item-history-v2.component.ts"
+  },
+  "dependencyAliases": {
+    "@bitwarden/storage-core": "vendor/bitwarden-clients/libs/storage-core/src/index.ts",
+    "@bitwarden/guid": "vendor/bitwarden-clients/libs/guid/src/index.ts",
+    "@bitwarden/user-core": "vendor/bitwarden-clients/libs/user-core/src/index.ts",
+    "@bitwarden/key-management": "apps/menubar-tauri/src/app/official-ui/official-key-management.adapter.ts"
+  },
+  "excludedTokens": [
+    "autofill/content",
+    "autofill/background",
+    "BrowserApi",
+    "chrome.",
+    "nativeMessaging",
+    "AttachmentView",
+    "Fido2CredentialView",
+    "SshKeyView",
+    "PremiumBadge",
+    "AccountService",
+    "BillingAccountProfileStateService",
+    "CipherService",
+    "PlatformUtilsService",
+    "EventCollectionService",
+    "CollectionView",
+    "Organization"
+  ]
+}
