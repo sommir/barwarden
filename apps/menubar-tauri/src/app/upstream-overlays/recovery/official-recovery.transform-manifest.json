@@ -378,7 +378,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
-      "sha256": "72c5e4a81a3a7397317a285c03f42ab10ff67d29540693b06dba660f19ec7389"
+      "sha256": "1820f30b1e0e1dc7b31bce172ed4cf53bd858dcfd5ba9d36ee8a61374338f8c8"
     },
     {
       "path": "apps/menubar-tauri/src/host/biometric-host.ts",

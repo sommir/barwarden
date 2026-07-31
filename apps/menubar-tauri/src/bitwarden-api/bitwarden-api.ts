@@ -1,7 +1,7 @@
 declare const __BARWARDEN_VERSION__: string;
 
 const BARWARDEN_CLIENT_VERSION =
-  typeof __BARWARDEN_VERSION__ === "string" ? __BARWARDEN_VERSION__ : "0.1.0";
+  typeof __BARWARDEN_VERSION__ === "string" ? __BARWARDEN_VERSION__ : "0.1.1";
 
 export type BitwardenRegion = "US" | "EU" | "SelfHosted";
 

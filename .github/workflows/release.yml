@@ -65,13 +65,25 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$app_path"
           codesign --verify --strict --verbose=2 "$dmg_path"
           hdiutil verify "$dmg_path"
+          xcrun notarytool submit "$dmg_path" \
+            --key "$api_key_path" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          xcrun stapler staple "$dmg_path"
           xcrun stapler validate "$dmg_path"
           spctl -a -vvv -t open --context context:primary-signature "$dmg_path"
       - name: Generate release feed
         run: |
           artifact=$(find apps/menubar-tauri/src-tauri/target/release/bundle -name '*.app.tar.gz' -print -quit)
+          dmg=$(find apps/menubar-tauri/src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)
           test -n "$artifact" && test -f "$artifact.sig"
+          test -n "$dmg"
           node scripts/create-github-release-feed.mjs "${GITHUB_REF_NAME#v}" "$GITHUB_REPOSITORY" "$artifact" "$artifact.sig" latest.json
+          (
+            cd "$(dirname "$dmg")"
+            shasum -a 256 "$(basename "$dmg")"
+          ) > "$GITHUB_WORKSPACE/SHA256SUMS.txt"
       - name: Publish release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
@@ -80,3 +92,4 @@ jobs:
             apps/menubar-tauri/src-tauri/target/release/bundle/**/*.app.tar.gz
             apps/menubar-tauri/src-tauri/target/release/bundle/**/*.app.tar.gz.sig
             latest.json
+            SHA256SUMS.txt
