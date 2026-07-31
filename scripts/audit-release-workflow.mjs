@@ -125,6 +125,12 @@ export function auditReleaseWorkflow(source) {
   if (!signedBuildStep.includes("codesign --verify")) {
     errors.push("release build must verify Developer ID signing");
   }
+  if (!signedBuildStep.includes("xcrun notarytool submit")) {
+    errors.push("release build must submit the final DMG for notarization");
+  }
+  if (!signedBuildStep.includes("xcrun stapler staple")) {
+    errors.push("release build must staple the final DMG notarization ticket");
+  }
   if (!signedBuildStep.includes("xcrun stapler validate")) {
     errors.push("release build must validate the stapled notarization ticket");
   }
