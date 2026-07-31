@@ -1,0 +1,41 @@
+<bw-app-bottom-sheet
+  #dialog
+  labelledBy="self-hosted-dialog-title"
+  testId="self-hosted-dialog"
+  (dismissed)="onDismissed()"
+  (closed)="onClose()"
+>
+  @if (isOpen) {
+  <form [formGroup]="formGroup" (submit)="submit($event)" bit-dialog dialogSize="small">
+    <span bitDialogTitle id="self-hosted-dialog-title">{{ "selfHostedEnvironment" | i18n }}</span>
+    <ng-container bitDialogContent>
+      <bit-form-field>
+        <bit-label>{{ "baseUrl" | i18n }}</bit-label>
+        <input
+          #baseUrlInput
+          id="self_hosted_env_settings_form_input_base_url"
+          bitInput
+          type="text"
+          formControlName="baseUrl"
+          data-testid="self-hosted-server-url"
+        />
+        <bit-hint>{{ "selfHostedBaseUrlHint" | i18n }}</bit-hint>
+      </bit-form-field>
+
+      @if (showErrorSummary) {
+        <span class="tw-block tw-text-danger tw-mt-2" aria-live="assertive" role="alert">
+          <bit-icon name="bwi-error"></bit-icon> {{ "selfHostedEnvFormInvalid" | i18n }}
+        </span>
+      }
+    </ng-container>
+    <ng-container bitDialogFooter>
+      <button bitButton bitFormButton buttonType="primary" type="submit" data-testid="self-hosted-save">
+        {{ "save" | i18n }}
+      </button>
+      <button bitButton bitFormButton buttonType="secondary" type="button" data-testid="self-hosted-cancel" (click)="cancel()">
+        {{ "cancel" | i18n }}
+      </button>
+    </ng-container>
+  </form>
+  }
+</bw-app-bottom-sheet>

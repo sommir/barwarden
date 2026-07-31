@@ -1,0 +1,235 @@
+--- a/apps/browser/src/auth/popup/settings/account-security.component.ts
++++ b/apps/browser/src/auth/popup/settings/account-security.component.ts
+@@ -1,6 +1,2 @@
+-// Official Settings overlay source; generated.
+-// FIXME: Update this file to be type safe and remove this and next line
+-// @ts-strict-ignore
+-import { CommonModule } from "@angular/common";
+-import { Component } from "@angular/core";
+-import { BehaviorSubject, firstValueFrom } from "rxjs";
++import { Component, EventEmitter, Input, Output } from "@angular/core";
++import { FormsModule } from "@angular/forms";
+@@ -8,7 +4,2 @@
+-import { JslibModule } from "@bitwarden/angular/jslib.module";
+-import { FingerprintDialogComponent } from "@bitwarden/auth/angular";
+-import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
+-import { getUserId } from "@bitwarden/common/auth/services/account.service";
+-import { EnvironmentService } from "@bitwarden/common/platform/abstractions/environment.service";
+-import { LogService } from "@bitwarden/common/platform/abstractions/log.service";
+-import { PlatformUtilsService } from "@bitwarden/common/platform/abstractions/platform-utils.service";
++import { PopupHeaderComponent } from "../../layout/popup-header.component";
++import { PopupPageComponent } from "../../layout/popup-page.component";
+@@ -15,0 +7,3 @@
++  BitFormFieldComponent,
++  BitHintDirective,
++  BitLabelComponent,
+@@ -17,2 +11,5 @@
+-  DialogService,
+-  ItemModule,
++  CheckboxComponent,
++  FormControlComponent,
++  ItemComponent,
++  ItemContentComponent,
++  ItemGroupComponent,
+@@ -21,4 +18,19 @@
+-  TypographyModule,
+-} from "@bitwarden/components";
+-type FingerprintKeyPort = { userPublicKey$(userId: string): import("rxjs").Observable<unknown | null>; getFingerprint(userId: string, publicKey: unknown): Promise<string> };
+-import { SessionTimeoutSettingsComponent } from "@bitwarden/key-management-ui";
++  SelectComponent,
++  TypographyDirective,
++} from "../../official-ui/official-components";
++import {
++  isVaultTimeoutAction,
++  isVaultTimeoutMinutes,
++  vaultTimeoutActionValues,
++  vaultTimeoutMinutesValues,
++  type VaultTimeoutAction,
++  type VaultTimeoutMinutes,
++} from "../../settings/settings-options";
++import type { SettingsSnapshot } from "../../settings/settings.service";
++import { MacosAlertStripComponent } from "../../official-ui/macos-alert-strip.component";
++import {
++  activeOfficialLocale,
++  translateOfficialMessage,
++  type OfficialLocale,
++} from "../../official-ui/official-i18n.service";
++import { I18nPipe } from "../../official-ui/official-ui-common";
+@@ -26,6 +37,0 @@
+-import { PopOutComponent } from "../../../platform/popup/components/pop-out.component";
+-import { PopupHeaderComponent } from "../../../platform/popup/layout/popup-header.component";
+-import { PopupPageComponent } from "../../../platform/popup/layout/popup-page.component";
+-
+-// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
+-// eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
+@@ -33 +39,2 @@
+-  templateUrl: "account-security.component.html",
++  selector: "bw-official-account-security",
++  standalone: true,
+@@ -34,0 +42,3 @@
++    BitFormFieldComponent,
++    BitHintDirective,
++    BitLabelComponent,
+@@ -36,4 +46,8 @@
+-    CommonModule,
+-    ItemModule,
+-    JslibModule,
+-    PopOutComponent,
++    CheckboxComponent,
++    FormControlComponent,
++    FormsModule,
++    ItemComponent,
++    ItemContentComponent,
++    ItemGroupComponent,
++    I18nPipe,
++    MacosAlertStripComponent,
+@@ -44,2 +58,2 @@
+-    SessionTimeoutSettingsComponent,
+-    TypographyModule,
++    SelectComponent,
++    TypographyDirective,
+@@ -46,0 +61 @@
++  templateUrl: "./official-account-security.component.html",
+@@ -48,2 +63,16 @@
+-export class AccountSecurityComponent {
+-  protected refreshTimeoutSettings$ = new BehaviorSubject<void>(undefined);
++export class OfficialAccountSecurityComponent {
++  @Input({ required: true }) settings!: Readonly<SettingsSnapshot>;
++  @Input() handoffError = "";
++  @Input() unlockMethodError = "";
++  @Input() pinEnabled = false;
++  @Input() biometricEnabled = false;
++  @Input() biometricAvailable = false;
++  @Input() biometricUnavailableReason = "";
++  @Input() unlockMethodBusy = false;
++  @Output() readonly back = new EventEmitter<void>();
++  @Output() readonly vaultTimeoutMinutesChange = new EventEmitter<VaultTimeoutMinutes>();
++  @Output() readonly vaultTimeoutActionChange = new EventEmitter<VaultTimeoutAction>();
++  @Output() readonly openTwoStepLogin = new EventEmitter<void>();
++  @Output() readonly openChangePassword = new EventEmitter<void>();
++  @Output() readonly pinEnabledChange = new EventEmitter<boolean>();
++  @Output() readonly biometricEnabledChange = new EventEmitter<boolean>();
+@@ -51,8 +80,5 @@
+-  constructor(
+-    private accountService: AccountService,
+-    private environmentService: EnvironmentService,
+-    private fingerprintKeyPort: FingerprintKeyPort,
+-    private dialogService: DialogService,
+-    private logService: LogService,
+-    private platformUtilsService: PlatformUtilsService,
+-  ) {}
++  readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
++    this.back.emit();
++  private optionsLocale: OfficialLocale | null = null;
++  private cachedTimeoutOptions: ReturnType<typeof buildTimeoutOptions> = [];
++  private cachedTimeoutActionOptions: ReturnType<typeof buildTimeoutActionOptions> = [];
+@@ -60,11 +86,13 @@
+-  async changePassword() {
+-    const confirmed = await this.dialogService.openSimpleDialog({
+-      title: { key: "continueToWebApp" },
+-      content: { key: "changeMasterPasswordOnWebConfirmation" },
+-      type: "info",
+-      acceptButtonText: { key: "continue" },
+-      cancelButtonText: { key: "cancel" },
+-    });
+-    if (confirmed) {
+-      const env = await firstValueFrom(this.environmentService.environment$);
+-      this.platformUtilsService.launchUri(env.getWebVaultUrl());
++  get timeoutOptions() {
++    this.refreshLocalizedOptions();
++    return this.cachedTimeoutOptions;
++  }
++
++  get timeoutActionOptions() {
++    this.refreshLocalizedOptions();
++    return this.cachedTimeoutActionOptions;
++  }
++
++  setVaultTimeoutMinutesValue(value: unknown): void {
++    if (isVaultTimeoutMinutes(value)) {
++      this.vaultTimeoutMinutesChange.emit(value);
+@@ -74,10 +102,3 @@
+-  async twoStep() {
+-    const confirmed = await this.dialogService.openSimpleDialog({
+-      title: { key: "twoStepLoginConfirmationTitle" },
+-      content: { key: "twoStepLoginConfirmationContent" },
+-      type: "info",
+-      acceptButtonText: { key: "continue" },
+-      cancelButtonText: { key: "cancel" },
+-    });
+-    if (confirmed) {
+-      this.platformUtilsService.launchUri("https://bitwarden.com/help/setup-two-step-login/");
++  setVaultTimeoutActionValue(value: unknown): void {
++    if (isVaultTimeoutAction(value)) {
++      this.vaultTimeoutActionChange.emit(value);
+@@ -87,9 +108,15 @@
+-  async openAcctFingerprintDialog() {
+-    const activeUserId = await firstValueFrom(getUserId(this.accountService.activeAccount$));
+-    const publicKey = await firstValueFrom(this.fingerprintKeyPort.userPublicKey$(activeUserId));
+-    if (publicKey == null) {
+-      this.logService.error(
+-        "[AccountSecurityComponent] No public key available for the user: " +
+-          activeUserId +
+-          " fingerprint can't be displayed.",
+-      );
++  setPinEnabledValue(event: Event): void {
++    const requested = checkedValue(event);
++    restoreCheckedValue(event, this.pinEnabled);
++    this.pinEnabledChange.emit(requested);
++  }
++
++  setBiometricEnabledValue(event: Event): void {
++    const requested = checkedValue(event);
++    restoreCheckedValue(event, this.biometricEnabled);
++    this.biometricEnabledChange.emit(requested);
++  }
++
++  private refreshLocalizedOptions(): void {
++    const locale = activeOfficialLocale();
++    if (this.optionsLocale === locale) {
+@@ -98,3 +125,4 @@
+-    const fingerprint = await this.fingerprintKeyPort.getFingerprint(activeUserId, publicKey);
+-    const dialogRef = FingerprintDialogComponent.open(this.dialogService, { fingerprint });
+-    return firstValueFrom(dialogRef.closed);
++
++    this.optionsLocale = locale;
++    this.cachedTimeoutOptions = buildTimeoutOptions();
++    this.cachedTimeoutActionOptions = buildTimeoutActionOptions();
+@@ -102,0 +131,37 @@
++
++function checkedValue(event: Event): boolean {
++  return event.target instanceof HTMLInputElement && event.target.checked;
++}
++
++function restoreCheckedValue(event: Event, checked: boolean): void {
++  if (event.target instanceof HTMLInputElement) {
++    event.target.checked = checked;
++  }
++}
++
++function buildTimeoutOptions() {
++  return vaultTimeoutMinutesValues.map((value) => ({
++    value,
++    label: vaultTimeoutLabel(value),
++  }));
++}
++
++function buildTimeoutActionOptions() {
++  return vaultTimeoutActionValues.map((value) => ({
++    value,
++    label: translateOfficialMessage(value === "lock" ? "i18nLockAction" : "i18nLogOutAction"),
++  }));
++}
++
++function vaultTimeoutLabel(value: VaultTimeoutMinutes): string {
++  if (value < 0) {
++    return translateOfficialMessage("i18nNever");
++  }
++  if (value === 0) {
++    return translateOfficialMessage("i18nImmediately");
++  }
++  if (value < 60) {
++    return translateOfficialMessage("i18nMinutes", value);
++  }
++  return translateOfficialMessage("i18nHours", value / 60);
++}

@@ -1,0 +1,61 @@
+<bit-item class="tw-group/vault-item" [class.is-menu-open]="menuOpen">
+  <button
+    bit-item-content
+    data-testid="vault-item-content"
+    type="button"
+    class="tw-h-[52px]"
+    (click)="selectCipher()"
+  >
+    <span slot="start" class="tw-justify-start tw-w-7 tw-flex item-icon">
+      @if (source; as sourceItem) {
+        <bw-vault-item-icon [item]="sourceItem" />
+      }
+    </span>
+    <span data-testid="item-name">{{ cipher.name }}</span>
+    <span slot="secondary">{{ cipher.subtitle }}</span>
+  </button>
+
+  <ng-container slot="end">
+    @if (cipher.canLaunch && cipher.uri) {
+      <bit-item-action>
+        <button
+          bitIconButton="bwi-external-link"
+          size="small"
+          type="button"
+          [label]="'i18nOpen' | i18n"
+          (click)="launchCipher()"
+        ></button>
+      </bit-item-action>
+    }
+    @if (showQuickCopyActions) {
+      @if (usernameField; as field) {
+        <bit-item-action>
+          <button bitIconButton="bwi-user" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('username' | i18n)" (click)="fillField(field, $event)"></button>
+        </bit-item-action>
+      }
+      @if (cipher.viewPassword) {
+        @if (passwordField; as field) {
+          <bit-item-action>
+            <button bitIconButton="bwi-key" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('password' | i18n)" (click)="fillField(field, $event)"></button>
+          </bit-item-action>
+        }
+      }
+      @if (otpField; as field) {
+        <bit-item-action>
+          <button bitIconButton="bwi-clock" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('verificationCode' | i18n)" (click)="fillField(field, $event)"></button>
+        </bit-item-action>
+      }
+    }
+    <app-item-more-options
+      [cipher]="cipher"
+      [menuOpen]="menuOpen"
+      (view)="emitItem(view)"
+      (edit)="emitItem(edit)"
+      (clone)="emitItem(clone)"
+      (toggleFavorite)="emitItem(toggleFavorite)"
+      (archive)="emitItem(archive)"
+      (delete)="emitItem(delete)"
+      (menuOpenChange)="menuOpenChange.emit($event)"
+    />
+  </ng-container>
+</bit-item>

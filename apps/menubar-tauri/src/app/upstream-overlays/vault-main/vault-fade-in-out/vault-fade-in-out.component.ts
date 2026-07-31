@@ -1,0 +1,1 @@
+../../../../../../../vendor/bitwarden-clients/apps/browser/src/vault/popup/components/vault-fade-in-out/vault-fade-in-out.component.ts

@@ -1,0 +1,14 @@
+<popup-page>
+  <popup-header
+    slot="header"
+    [pageTitle]="'i18nCompleteLicenseText' | i18n"
+    showBackButton
+    [backAction]="backAction"
+  />
+
+  <pre
+    class="third-party-license-text"
+    data-testid="third-party-license-text"
+    tabindex="0"
+  >{{ licenseText }}</pre>
+</popup-page>

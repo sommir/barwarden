@@ -1,0 +1,24 @@
+<popup-page>
+  <popup-header slot="header" [pageTitle]="title" showBackButton [backAction]="backAction"></popup-header>
+
+  @if (unavailable()) {
+  <bit-callout type="info" [title]="'send' | i18n"><div role="status">{{ "i18nSendNotFound" | i18n }}</div></bit-callout>
+  } @else {
+    @if (status()) { <bit-callout type="info" [title]="'send' | i18n"><div role="status" data-testid="send-password-error">{{ status() }}</div></bit-callout> }
+    <bw-official-send-details [editing]="editing()" [disabled]="disabled()" [originalHadPassword]="originalHadPassword()" [hideEmailAllowed]="hideEmailAllowed()" [value]="value()" (valueChange)="valueChange.emit($event)" (removePassword)="removePassword.emit()" (generatePassword)="generatePassword.emit()" (copyPassword)="copyPassword.emit($event)"></bw-official-send-details>
+  }
+
+  <popup-footer slot="footer">
+    @if (!unavailable()) {
+      @if (editing()) {
+        <button bitButton type="button" buttonType="primary" [disabled]="disabled() || pending() || !valid()" (click)="save.emit()">{{ "save" | i18n }}</button>
+        <button bitButton type="button" buttonType="secondary" data-testid="cancel-send-edit" [disabled]="pending()" (click)="cancel.emit()">{{ "cancel" | i18n }}</button>
+      } @else {
+        <button bitButton type="button" buttonType="secondary" data-testid="edit-send" (click)="edit.emit(); editingChange.emit(true)">{{ "i18nEdit" | i18n }}</button>
+      }
+      @if (mode() === 'edit') {
+        <button class="tw-ml-auto" type="button" buttonType="dangerGhost" slot="end" bitIconButton="bwi-trash" [disabled]="pending()" (click)="delete.emit()"></button>
+      }
+    }
+  </popup-footer>
+</popup-page>

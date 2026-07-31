@@ -1,0 +1,13 @@
+{
+  "extends": "../../vendor/bitwarden-clients/libs/tools/send/send-ui/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "pretty": false
+  },
+  "files": [
+    "../../vendor/bitwarden-clients/libs/tools/send/send-ui/src/send-form/abstractions/send-form-generation.service.ts",
+    "official-send-upstream.compatibility.ts"
+  ],
+  "include": [],
+  "exclude": ["../../vendor/bitwarden-clients/node_modules", "../../vendor/bitwarden-clients/dist"]
+}

@@ -1,0 +1,102 @@
+<popup-page>
+  <popup-header slot="header" [pageTitle]="'i18nAbout' | i18n" showBackButton [backAction]="backAction" />
+
+  <bit-item-group>
+    <bit-item>
+      <button
+        type="button"
+        bit-item-content
+        (click)="metadataViewChange.emit('troubleshooting')"
+        (keydown)="activateMetadataFromKeyboard($event)"
+      >
+        {{ "i18nTroubleshooting" | i18n }}
+      </button>
+    </bit-item>
+    <bit-item>
+      <button
+        type="button"
+        bit-item-content
+        data-testid="check-for-updates"
+        [disabled]="updateActionPending"
+        (click)="checkForUpdates.emit()"
+      >{{ updateActionLabel }}</button>
+    </bit-item>
+    <bit-item>
+      <button
+        type="button"
+        bit-item-content
+        (click)="metadataViewChange.emit('about')"
+        (keydown)="activateMetadataFromKeyboard($event)"
+      >
+        {{ "i18nAboutProduct" | i18n: metadata.productName }}
+      </button>
+    </bit-item>
+    <bit-item>
+      <button type="button" bit-item-content (click)="openThirdPartyNotices.emit()">
+        {{ "i18nThirdPartyOpenSourceLicenses" | i18n }}
+      </button>
+    </bit-item>
+    <bit-item>
+      <button type="button" bit-item-content (click)="openHelp.emit()">
+        {{ "helpCenter" | i18n }}
+        <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
+      </button>
+    </bit-item>
+    <bit-item>
+      <button type="button" bit-item-content (click)="openWebVault.emit()">
+        Web Vault
+        <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
+      </button>
+    </bit-item>
+    <bit-item>
+      <button type="button" bit-item-content (click)="openProjectSource.emit()">
+        {{ "i18nProjectSource" | i18n }}
+        <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
+      </button>
+    </bit-item>
+  </bit-item-group>
+
+  @if (updateView.status === "up-to-date" || updateView.status === "error") {
+    <bw-macos-alert-strip
+      [kind]="updateView.status === 'error' ? 'danger' : 'success'"
+      [title]="'i18nAppUpdate' | i18n"
+      [message]="updateView.message"
+    />
+  }
+
+  @if (updateView.status === "available") {
+    <bw-macos-alert-strip
+      kind="info"
+      [title]="'i18nNewVersionAvailable' | i18n: (updateView.version || '')"
+      [message]="updateView.notes || ('i18nUpdateReadyToDownload' | i18n)"
+    />
+    <bit-item-group>
+      <bit-item>
+        <button type="button" bit-item-content (click)="dismissUpdate.emit()">
+          {{ "i18nLater" | i18n }}
+        </button>
+      </bit-item>
+      <bit-item>
+        <button type="button" bit-item-content (click)="downloadAndRestart.emit()">
+          {{ "i18nDownloadAndRestart" | i18n }}
+        </button>
+      </bit-item>
+    </bit-item-group>
+  }
+
+  <bw-official-about-dialog
+    [metadata]="metadata"
+    [view]="metadataView"
+    [revisionCopyStatus]="revisionCopyStatus"
+    (close)="metadataViewChange.emit(null)"
+    (copyRevision)="copyRevision.emit()"
+  />
+
+  @if (handoffError) {
+    <bw-macos-alert-strip
+      kind="danger"
+      [title]="'i18nUnableToOpenLinkTitle' | i18n"
+      [message]="handoffError"
+    />
+  }
+</popup-page>

@@ -1,0 +1,63 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const allowedCommands = [
+  "biometric_disable",
+  "biometric_enable",
+  "biometric_status",
+  "biometric_unlock",
+  "clear_global_shortcut",
+  "copy_text",
+  "get_account_lock_intents",
+  "get_global_shortcut",
+  "get_launch_at_login",
+  "hide_popup",
+  "http_fetch_json",
+  "open_url",
+  "paste_text",
+  "popup_window_metrics",
+  "pop_out",
+  "secure_compare_and_swap",
+  "secure_delete",
+  "secure_get",
+  "secure_get_or_create_uuid",
+  "secure_set",
+  "session_broker_attach",
+  "session_broker_handoff",
+  "session_broker_mutate",
+  "session_broker_set_handoff",
+  "session_broker_snapshot",
+  "set_account_lock_intents",
+  "set_popup_height",
+  "set_global_shortcut",
+  "set_launch_at_login",
+  "show_popup",
+].sort();
+
+describe("native command surface", () => {
+  it("matches the exact Plan A Rust and TypeScript allowlist", () => {
+    const rust = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src-tauri/src/main.rs"),
+      "utf8",
+    );
+    const host = [
+      "tauri-host.service.ts",
+      "launch-at-login.ts",
+    ].map((file) =>
+      readFileSync(join(process.cwd(), "apps/menubar-tauri/src/host", file), "utf8"),
+    ).join("\n");
+    const handler = rust.match(/generate_handler!\[([\s\S]*?)\]/)?.[1] ?? "";
+    const rustCommands = [...handler.matchAll(/\b\w+::(\w+)\s*,/g)]
+      .map((match) => match[1])
+      .sort();
+    const hostCommands = [...new Set(
+      [...host.matchAll(/(?:this\.)?invoke(?:Secure)?(?:<[^>]+>)?\(\s*"([a-z_]+)"/g)]
+        .map((match) => match[1]),
+    )].sort();
+
+    expect(rustCommands).toEqual(allowedCommands);
+    expect(hostCommands).toEqual(allowedCommands);
+  });
+});

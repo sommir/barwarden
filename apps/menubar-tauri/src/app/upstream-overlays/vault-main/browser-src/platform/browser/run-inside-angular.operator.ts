@@ -1,0 +1,1 @@
+../../../../../../../../../vendor/bitwarden-clients/apps/browser/src/platform/browser/run-inside-angular.operator.ts

@@ -1,0 +1,39 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "isolatedModules": false,
+    "lib": ["ESNext", "DOM"],
+    "noEmit": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "preserveSymlinks": true,
+    "strict": false,
+    "types": ["node", "vitest/globals"],
+    "useDefineForClassFields": false
+  },
+  "files": [
+    "src/app/vault/login-cipher-view.adapter.ts",
+    "src/app/vault/official-totp.service.adapter.ts",
+    "src/app/upstream-overlays/cipher-detail/official-login-detail.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-item-details.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-item-history.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-login-credentials.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-login-uri-options.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-additional-options.component.ts",
+    "src/app/upstream-overlays/cipher-detail/official-custom-fields.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-login-cipher-form.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-login-form-container.ts",
+    "src/app/upstream-overlays/cipher-form/official-login-item-details.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-login-details.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-autofill-options.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-uri-option.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-advanced-uri-option-dialog.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-additional-options.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-custom-fields.component.ts",
+    "src/app/upstream-overlays/cipher-form/official-add-edit-custom-field-dialog.component.ts",
+    "src/app/vault/retained-login-form.adapter.ts"
+  ]
+}

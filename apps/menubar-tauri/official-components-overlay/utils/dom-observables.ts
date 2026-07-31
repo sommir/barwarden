@@ -1,0 +1,1 @@
+../../../../vendor/bitwarden-clients/libs/components/src/utils/dom-observables.ts

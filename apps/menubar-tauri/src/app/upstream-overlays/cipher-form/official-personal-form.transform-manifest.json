@@ -1,0 +1,1900 @@
+{
+  "revision": "f47b6946e01aed474875789081966d311d5b8289",
+  "license": {
+    "rootPackageSha256": "87bc10c665ed6aab6d7296219756548f6fa02085bb1a7b08cbcabe6972dcc532",
+    "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+    "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
+    "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"
+  },
+  "authorities": [
+    {
+      "path": "apps/browser/src/vault/popup/components/vault/add-edit/add-edit.component.ts",
+      "sha256": "1bf4d689b73ca0fba9e18f88c3ca792e6f1f697b70d3cd75bf5740bb648ebee5"
+    },
+    {
+      "path": "apps/browser/src/vault/popup/components/vault/add-edit/add-edit.component.html",
+      "sha256": "8a8b6216658dd768f65b2d6d40ce7cac03b8eddf2b6c22cfb141448b25a62c01"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/cipher-form.component.ts",
+      "sha256": "b29250c6046fc1f72513a2b5dcc599c79c8ee98d12504d168b012cc12f36dd82"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/cipher-form.component.html",
+      "sha256": "bb8a1b11bd51aa5e276839719516c2d0614c01a9ede1c27bd6439e6533efbb1b"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/cipher-form-container.ts",
+      "sha256": "d6a7f77b321237c86ebcc70b4f28bbe09b40cd878f5d4df9341091441b664afe"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/abstractions/cipher-form-config.service.ts",
+      "sha256": "ec2399af682532352cd545df9eb330a17f8ec6304721cd63a5e15d1b0a0ed591"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/abstractions/cipher-form.service.ts",
+      "sha256": "78fea6726f03e7e53dafe032c4ff8eab084ca91f98c5c089e38de6ac5c8c69c8"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/item-details/item-details-section.component.ts",
+      "sha256": "acc521629a3bef92da2c71e6c8314f1ba0dff25a4e89e4d673fd70a92ee88f1a"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/item-details/item-details-section.component.html",
+      "sha256": "8aea816b84ef06189353994cc4c4c848d94c332e964c6e46f7cfa0139f2ad148"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/card-details-section/card-details-section.component.ts",
+      "sha256": "4f93d71ede1a090474b83faf65c15152b3d62b931915e4e6e8076f98eecced7f"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/card-details-section/card-details-section.component.html",
+      "sha256": "d8785924b98763c46bf8aaeca1d50289b0ac724f363842577753c5264b0ce3c4"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/identity/identity.component.ts",
+      "sha256": "ce8f12cd3bde0a5f406ee8620cc2ce80c114adb26fa6caa4e447205a1cc235a0"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/identity/identity.component.html",
+      "sha256": "7014a253cf3cd38e9bb8f125305890654b825209a4ad06bda18eb2f6294e45bb"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/additional-options/additional-options-section.component.ts",
+      "sha256": "4a2c8f34f00349fc7da6702620090134a034825b7855f2d5899876abfc87d06f"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/additional-options/additional-options-section.component.html",
+      "sha256": "f0993bc3ad6ad1654668c59db8094b877025648378a239d47d3ab91074345f24"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/custom-fields/custom-fields.component.ts",
+      "sha256": "950793d4f897d21efaa81ede2c6bdaf1ee37bd1f99b1654c5092609f9ec8482c"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/custom-fields/custom-fields.component.html",
+      "sha256": "6de181d09eea2484f5f34b8e8ed5ca5e9d308b33562095e7ad0e466b6edc4ead"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/custom-fields/add-edit-custom-field-dialog/add-edit-custom-field-dialog.component.ts",
+      "sha256": "76e8fddd3f50b19427677aa33f30c93d6e430c6f251a6524135fb1b7e6d04f2b"
+    },
+    {
+      "path": "libs/vault/src/cipher-form/components/custom-fields/add-edit-custom-field-dialog/add-edit-custom-field-dialog.component.html",
+      "sha256": "1b088b9962a9fd2eed3c1cd31979c531c1157e8f0a5cebde96a5ff6cde439de7"
+    }
+  ],
+  "aliases": {
+    "@bitwarden/vault/cipher-form/components/cipher-form.component": "vendor/bitwarden-clients/libs/vault/src/cipher-form/components/cipher-form.component.ts",
+    "@bitwarden/vault/cipher-form/cipher-form-container": "vendor/bitwarden-clients/libs/vault/src/cipher-form/cipher-form-container.ts",
+    "@bitwarden/vault/cipher-form/abstractions/cipher-form-config.service": "vendor/bitwarden-clients/libs/vault/src/cipher-form/abstractions/cipher-form-config.service.ts",
+    "@bitwarden/vault/cipher-form/abstractions/cipher-form.service": "vendor/bitwarden-clients/libs/vault/src/cipher-form/abstractions/cipher-form.service.ts",
+    "@bitwarden/vault/cipher-form/components/item-details/item-details-section.component": "vendor/bitwarden-clients/libs/vault/src/cipher-form/components/item-details/item-details-section.component.ts",
+    "@bitwarden/vault/cipher-form/components/card-details-section/card-details-section.component": "vendor/bitwarden-clients/libs/vault/src/cipher-form/components/card-details-section/card-details-section.component.ts",
+    "@bitwarden/vault/cipher-form/components/identity/identity.component": "vendor/bitwarden-clients/libs/vault/src/cipher-form/components/identity/identity.component.ts",
+    "@bitwarden/vault/cipher-form/components/additional-options/additional-options-section.component": "vendor/bitwarden-clients/libs/vault/src/cipher-form/components/additional-options/additional-options-section.component.ts",
+    "@bitwarden/vault/cipher-form/components/custom-fields/custom-fields.component": "vendor/bitwarden-clients/libs/vault/src/cipher-form/components/custom-fields/custom-fields.component.ts",
+    "@bitwarden/vault/cipher-form/components/custom-fields/add-edit-custom-field-dialog/add-edit-custom-field-dialog.component": "vendor/bitwarden-clients/libs/vault/src/cipher-form/components/custom-fields/add-edit-custom-field-dialog/add-edit-custom-field-dialog.component.ts"
+  },
+  "runtimes": [
+    {
+      "path": "official-personal-cipher-form.component.ts",
+      "sha256": "b4109956921de82d6656a9c36d09b56333f8f0231419f172d970f2f569c2b449"
+    },
+    {
+      "path": "official-personal-cipher-form.component.html",
+      "sha256": "8664136cbabfb86dfc9aa60f0775ca9c6135ea400ca7207a6af6b7ea3a1a4234"
+    },
+    {
+      "path": "official-personal-form-container.ts",
+      "sha256": "d07f8a641330039441970fa33fc2e30ffee5a8a594d974d916f29b4b1bb0d44f"
+    },
+    {
+      "path": "official-personal-item-details.component.ts",
+      "sha256": "4eeba459fd7a498ed1f6a0cbb9d76416f4dfb2dacda74fc86ba2a4565f62afab"
+    },
+    {
+      "path": "official-personal-item-details.component.html",
+      "sha256": "85f9a150975ba7cd4afaac6522b4f4ddafdcfd706b197d5ddaffa237438d9b70"
+    },
+    {
+      "path": "official-card-details-section.component.ts",
+      "sha256": "bc3586af28b84436abb606eccefae3a628d623e4c5ca6865b8652e8a0466d90c"
+    },
+    {
+      "path": "official-card-details-section.component.html",
+      "sha256": "cc731142c6b87f615360e20b29ead929715e566ec47ad3a55cc51acc9db59d1b"
+    },
+    {
+      "path": "official-identity-section.component.ts",
+      "sha256": "21c0de5151969b06dd8cb4563e3cc9692e5e3dd936e7a06f767be46b4f025b6a"
+    },
+    {
+      "path": "official-identity-section.component.html",
+      "sha256": "49a16d35f0ac0c4f908a79226c0c9ebe6631fb62b861053eeda05161edb15534"
+    },
+    {
+      "path": "official-personal-additional-options.component.ts",
+      "sha256": "9fd388c1fd58824e2fb4d2512ebbfd1bb61a191e2fca6757913ab3464facc09c"
+    },
+    {
+      "path": "official-personal-additional-options.component.html",
+      "sha256": "f0993bc3ad6ad1654668c59db8094b877025648378a239d47d3ab91074345f24"
+    },
+    {
+      "path": "official-personal-custom-fields.component.ts",
+      "sha256": "b19d67ca90565af13b8e9e31c8a032575390adaf4de57f4b4b96f574e0310cc8"
+    },
+    {
+      "path": "official-personal-custom-fields.component.html",
+      "sha256": "8b5a69790d76567c53765d1639fbded1896fb1e37765539e44564438e1d47a64"
+    },
+    {
+      "path": "official-personal-add-edit-custom-field-dialog.component.ts",
+      "sha256": "89c0573fd23dc1debdd4ef5b6b373e99bc3a392a21021ab2ffd26764188e4140"
+    },
+    {
+      "path": "official-personal-add-edit-custom-field-dialog.component.html",
+      "sha256": "020be48d3306fe917ec600aa248d8fb6b3eba4b74c42f3d2822537baa404c7a9"
+    }
+  ],
+  "transforms": [
+    {
+      "kind": "members",
+      "authority": "libs/vault/src/cipher-form/components/cipher-form.component.ts",
+      "authoritySha256": "b29250c6046fc1f72513a2b5dcc599c79c8ee98d12504d168b012cc12f36dd82",
+      "runtime": "official-personal-cipher-form.component.ts",
+      "runtimeSha256": "b4109956921de82d6656a9c36d09b56333f8f0231419f172d970f2f569c2b449",
+      "members": [
+        {
+          "authorityMember": "bitSubmit",
+          "runtimeMember": "bitSubmit",
+          "canonicalSha256": "eebebefe8fd69f332635e0c8f422ec627209f0f6beeb6c7deed54f3a457c0de5",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "destroyRef",
+          "runtimeMember": "destroyRef",
+          "canonicalSha256": "5dc1083846fe1972705ae1f165555713e8d6781d3eb62bb2b2ff9f81873c70bf",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "_firstInitialized",
+          "runtimeMember": "_firstInitialized",
+          "canonicalSha256": "ee6590c278567d4f6ddff3a5f80d405bf5b5fcf275bae7460ffbc2c21d03bb7f",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "formId",
+          "runtimeMember": "formId",
+          "canonicalSha256": "26af92577166cf7178a1448134b5ab0fa86b83488647a825b7f7362c86d7cddc",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "config",
+          "runtimeMember": "config",
+          "canonicalSha256": "0ab92e2c5adef78f8323e727d9f436793f9c73064b161e92eb2c15fb709b16de",
+          "operationsSha256": "a81ddcd1f1011cc2bcfff9d61266ca420fb5e392054a5b54a1829d4557610cc7"
+        },
+        {
+          "authorityMember": "submitBtn",
+          "runtimeMember": "submitBtn",
+          "canonicalSha256": "d8325ef81dd0ae473bf039e1f2bd46bc8f6f0d7cfb4b901d02ac9c924ae92cb3",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "beforeSubmit",
+          "runtimeMember": "beforeSubmit",
+          "canonicalSha256": "64a5e9813018dad7457cdd2336009686e2b01a7472ebe046eb806c0e47128ff3",
+          "operationsSha256": "92bd23c2af39a95726ac6de84506c414049aa59b3b82cbbe3c802bc4fab8d06a"
+        },
+        {
+          "authorityMember": "cipherSaved",
+          "runtimeMember": "cipherSaved",
+          "canonicalSha256": "dc250aa9d46b1fd07547766d3e69842f36db1e08ba1b9312694fde8ad0f30703",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "formReadySubject",
+          "runtimeMember": "formReadySubject",
+          "canonicalSha256": "04bf5cb80804ad9e9f40a8d346ecd9d3cbd3b396764745580339ccc91db94a24",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "formReady",
+          "runtimeMember": "formReady",
+          "canonicalSha256": "389284b495c92a62db710b81f7527248cd22bdd772f2b18e1d5bbae8907fe685",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "formStatusChangeSubject",
+          "runtimeMember": "formStatusChangeSubject",
+          "canonicalSha256": "45c748edb9212d8e853a882a60ba2a8097dcdd5f862368df4cbe1240158d57b0",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "formStatusChange$",
+          "runtimeMember": "formStatusChange$",
+          "canonicalSha256": "f64843e3d9b8814a01d3ab5a1b9703bad8387c4d7a34284178822ced12b6bf21",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "originalCipherView",
+          "runtimeMember": "originalCipherView",
+          "canonicalSha256": "7c37968a76f323c420b896db9c0bdf3b4cfaa289b2a413fdd12a3f6d79794648",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "cipherForm",
+          "runtimeMember": "cipherForm",
+          "canonicalSha256": "2685f0ef9030690d3c545ab74b309434c387dbbcb8973ece073d6e9bf403b1f3",
+          "operationsSha256": "66efd47b65696bb3c4ebe40b5fb3efec89e797855f9e8ce0d70533d22b78fd32"
+        },
+        {
+          "authorityMember": "updatedCipherView",
+          "runtimeMember": "updatedCipherView",
+          "canonicalSha256": "e445f1375e6b7bc6819cb705d6494a24ddc33b3219658a986206816fb6d9f403",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "loading",
+          "runtimeMember": "loading",
+          "canonicalSha256": "b9c072173cdfd9a0019b6c301f7f3d89e157127bac86980ff5d849a6a2f95168",
+          "operationsSha256": "47dc5242edbd06229e55bb3abb3c09c265750c21a2979fa082faf054cf59e689"
+        },
+        {
+          "authorityMember": "CipherType",
+          "runtimeMember": "CipherType",
+          "canonicalSha256": "3489b9e4a920410e221702beeb464fe594de81e5dee12d50e8911d7ccbcf5a41",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "website:get",
+          "runtimeMember": "website:get",
+          "canonicalSha256": "43ee589d3d462b10eccb645b75e1d95d530057456480f546d0471a3476bc7f9e",
+          "operationsSha256": "9f30b4553f849c343c91cbb57782c3d39e8a69aa2c8b63c965d955fe4b02d62a"
+        },
+        {
+          "authorityMember": "constructor",
+          "runtimeMember": "constructor",
+          "canonicalSha256": "f0c0973456b97bb26e9fec43fc7708064f866dd15314cdc8ab8541ee0a8cfa88",
+          "operationsSha256": "7b8fc821bb251f4cc3f5ef731a03d4f4d24866b839ffb50f0e59e33835e5bbe9"
+        },
+        {
+          "authorityMember": "ngAfterViewInit",
+          "runtimeMember": "ngAfterViewInit",
+          "canonicalSha256": "5106180618500ec268ad12757986bbc3b99f3b2920f0722c81f076f3bdfeb3ac",
+          "operationsSha256": "47e1891de17c0a4c3c89c652ff5c05e4d7d5889f696536fd871e59b2abcc2b6a"
+        },
+        {
+          "authorityMember": "disableFormFields",
+          "runtimeMember": "disableFormFields",
+          "canonicalSha256": "b51e980a053381a751763b48caa65a494bb6fe0e65d1b362c1a65c47a4695f6b",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "enableFormFields",
+          "runtimeMember": "enableFormFields",
+          "canonicalSha256": "91a02068d6b1020bc4e7955cf24968b279e62bf6f199a8cdf695df9fcc74380a",
+          "operationsSha256": "3c027ecff648e41b3c0530bce59ec24dc6a58ab8f5806c246e1ed438c61baacc"
+        },
+        {
+          "authorityMember": "registerChildForm",
+          "runtimeMember": "registerChildForm",
+          "canonicalSha256": "0e0742a4c3ff786c62a543f21c8a4dffd8fc5b532a0a7ab44f4a0219d696c091",
+          "operationsSha256": "3a62b210637df5c1e967efa4437e6449e97eda6bb2a25578ce69344e0ec0cbfb"
+        },
+        {
+          "authorityMember": "patchCipher",
+          "runtimeMember": "patchCipher",
+          "canonicalSha256": "18796d98870977a62f22fc91cfd784e69395f43ccf1e33dc73ceb33443bb7403",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "getInitialCipherView",
+          "runtimeMember": "getInitialCipherView",
+          "canonicalSha256": "c8a62779918f0e6d018a321c92d88a23cba1f2968234e80a27f8b53a6cbb961d",
+          "operationsSha256": "dee72f549ede3e7a65e99b694fa7f8de887dccd5dbd3951a843990abec049e0a"
+        },
+        {
+          "authorityMember": "initializedWithCachedCipher",
+          "runtimeMember": "initializedWithCachedCipher",
+          "canonicalSha256": "d25efa371aafbfd1074514eb3bc5ff8bf18cd18955b305de0ece06fb529ca5aa",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "ngOnChanges",
+          "runtimeMember": "ngOnChanges",
+          "canonicalSha256": "85bcb40dfd7a45c243b832aa4674d970ebafe619a2bf558e7670b0ee06284852",
+          "operationsSha256": "9ef4f4da4f0fed576142ddd98c5f5f45d30f4ee90a63c4d2b9d7b0e7c2e44913"
+        },
+        {
+          "authorityMember": "ngOnInit",
+          "runtimeMember": "ngOnInit",
+          "canonicalSha256": "05f8eaca2f96d1d17113ed14eaf50e84f14ce5c33ad1dd4742684edfe13b8ccf",
+          "operationsSha256": "6289deedd359a5ccfa8a358f011b98bf1539b4964f9045c67d2f383b05c930e8"
+        },
+        {
+          "authorityMember": "init",
+          "runtimeMember": "init",
+          "canonicalSha256": "058137af9639a8c41ea9561309547a0b137226007507e90c9c30d3c483221441",
+          "operationsSha256": "9f75dc51f76372db7bfef034a60e18512bb6123f9732ea38978445ac3938b859"
+        },
+        {
+          "authorityMember": "setInitialCipherFromCache",
+          "runtimeMember": "setInitialCipherFromCache",
+          "canonicalSha256": "cc94c0605d0a7b52c908cefd323e9cb86a10e0d439fe6f29798d2ce86a86ebd0",
+          "operationsSha256": "695e5885c931bc48371fcd4b1d43040042b4ed957e6c03061f6e77ea878267b0"
+        },
+        {
+          "authorityMember": "countInvalidFields",
+          "runtimeMember": "countInvalidFields",
+          "canonicalSha256": "14d5cb26fe3aa33c028d1aefbc4989df6bac9f2eabca9c6967d3650897108fb0",
+          "operationsSha256": "7bf7974e78b4001e714bcdfbd15751b9c7b0e95b72b9d39d00991cb99c5ba6e6"
+        },
+        {
+          "authorityMember": "submit",
+          "runtimeMember": "submit",
+          "canonicalSha256": "78514fea65f5d70fa355f4a53da0e94243f519fece73fc7c001eb587575f5d24",
+          "operationsSha256": "d8fe0396fb4eb408e9c8c2fbac69d34137909d7019b0a27074053ff0086b3733"
+        },
+        {
+          "runtimeMember": "protectedOriginalCipherView",
+          "canonicalSha256": "4688d84fb485a576580561416bbdea8f49dd871268faf01958cb1aab91b9c0b0",
+          "justification": "Keeps denied server values outside Angular controls for unchanged-value restoration."
+        },
+        {
+          "runtimeMember": "canViewSecrets:get",
+          "canonicalSha256": "1bb55d9d2aceecf4fc34faf0c6c3e898f140b2be5776dd26db2a18cbfc4425af",
+          "justification": "Exposes the retained personal-form permission supplied by the native page boundary."
+        },
+        {
+          "runtimeMember": "cipherForSubmit",
+          "canonicalSha256": "b85f1cab8364d4678a3e68e792fb8294fdbea30130580d6510cbad0b1dde4d22",
+          "justification": "Builds an isolated submit copy and restores only unchanged denied values before transport."
+        },
+        {
+          "runtimeMember": "stripServerState",
+          "canonicalSha256": "86407a10d2d58029f6770575b6916a25ff6504739af55c3e1affbf50158ce55e",
+          "justification": "Clears server and runtime metadata from retained add and clone submission copies."
+        },
+        {
+          "runtimeMember": "restoreDeniedControlState",
+          "canonicalSha256": "5121356854932efe572df622735f548f65421131b75356f14a59849a56fb72a6",
+          "justification": "Re-disables denied secret controls after the awaited native transport restores the form."
+        }
+      ]
+    },
+    {
+      "kind": "members",
+      "authority": "libs/vault/src/cipher-form/cipher-form-container.ts",
+      "authoritySha256": "d6a7f77b321237c86ebcc70b4f28bbe09b40cd878f5d4df9341091441b664afe",
+      "runtime": "official-personal-form-container.ts",
+      "runtimeSha256": "d07f8a641330039441970fa33fc2e30ffee5a8a594d974d916f29b4b1bb0d44f",
+      "members": [
+        {
+          "authorityMember": "config",
+          "runtimeMember": "config",
+          "canonicalSha256": "f47670e73eed8c78fdb4fd8ecd836d2de91748bef3de9c47511c2bddd1e58759",
+          "operationsSha256": "8db76ed78cf1799ab135e519b18c8fc40439584808e12b233b2b21e13306066f"
+        },
+        {
+          "authorityMember": "originalCipherView",
+          "runtimeMember": "originalCipherView",
+          "canonicalSha256": "d1db0b7df09ed2914b11ea5b59244a41aaa60e98b95a307123b70e993c3e819d",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "registerChildForm",
+          "runtimeMember": "registerChildForm",
+          "canonicalSha256": "e4b7417a75d4421ba77088263031468c3a31e28a9e2a7ffd9678372ff3bdfc60",
+          "operationsSha256": "929f701d87db001114208effc76ef7f4157793e041b74255e3656cc3b8aeb386"
+        },
+        {
+          "authorityMember": "website:get",
+          "runtimeMember": "website:get",
+          "canonicalSha256": "f3a39b16814611183f2a007d85b6cf7b75aaf6a40eb2f6c5ab3743d943f8d629",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "patchCipher",
+          "runtimeMember": "patchCipher",
+          "canonicalSha256": "148318217e70613837aa75f562836321b4893beb0045ec34dba4df6019fd5a26",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "getInitialCipherView",
+          "runtimeMember": "getInitialCipherView",
+          "canonicalSha256": "612d4a39ac3a79b3d6657883c371118d63c438e429ceda97b07801fc3e77e72b",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "initializedWithCachedCipher",
+          "runtimeMember": "initializedWithCachedCipher",
+          "canonicalSha256": "e4878c8dc6d886e8eb2573cea346c8515df2aa0c9ebf18c6ad3ae8c5febcf01d",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "disableFormFields",
+          "runtimeMember": "disableFormFields",
+          "canonicalSha256": "c1756b32199264e6c2a4b29ad4078347b6838085f026727299b2fc2c36e37f2f",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "enableFormFields",
+          "runtimeMember": "enableFormFields",
+          "canonicalSha256": "c3f04b0946bca6bcdf8e7646a9c44c53ebbb9594069f4fa03d409339e9ae36f3",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "formStatusChange$",
+          "runtimeMember": "formStatusChange$",
+          "canonicalSha256": "62ce67627b58f577b53660958f912d778bbc9f1949d03b6d59971d571d4fdd5c",
+          "operationsSha256": "9b1395daf7d0909094b581ab5181e2cf7e3a6250d20c5ee17bd6ba0e2a5958e7"
+        },
+        {
+          "runtimeMember": "canViewSecrets",
+          "canonicalSha256": "321ec24ddf4faf6026623d584f9d1587908c1e08394308ef8f85602730109208",
+          "justification": "Adds the retained native permission contract required by secret-bearing child sections."
+        }
+      ]
+    },
+    {
+      "kind": "members",
+      "authority": "libs/vault/src/cipher-form/components/item-details/item-details-section.component.ts",
+      "authoritySha256": "acc521629a3bef92da2c71e6c8314f1ba0dff25a4e89e4d673fd70a92ee88f1a",
+      "runtime": "official-personal-item-details.component.ts",
+      "runtimeSha256": "4eeba459fd7a498ed1f6a0cbb9d76416f4dfb2dacda74fc86ba2a4565f62afab",
+      "members": [
+        {
+          "authorityMember": "itemDetailsForm",
+          "runtimeMember": "itemDetailsForm",
+          "canonicalSha256": "35b9650e0962bfdc0aad943880139527d06f401a6d47fc0415e4a81ee9793012",
+          "operationsSha256": "e62dd300cad5a289d7c46a1d6dc4a275bc6fe653581d1d0f75965565ea1f77c4"
+        },
+        {
+          "authorityMember": "favoriteButtonDisabled",
+          "runtimeMember": "favoriteButtonDisabled",
+          "canonicalSha256": "323e8209005b1afa12dbc378229cb060a7e6cd81dc8a572467ebe8525d919c0f",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "config",
+          "runtimeMember": "config",
+          "canonicalSha256": "0ab92e2c5adef78f8323e727d9f436793f9c73064b161e92eb2c15fb709b16de",
+          "operationsSha256": "a81ddcd1f1011cc2bcfff9d61266ca420fb5e392054a5b54a1829d4557610cc7"
+        },
+        {
+          "authorityMember": "originalCipherView",
+          "runtimeMember": "originalCipherView",
+          "canonicalSha256": "f50ef6e69cb473ddfb190efd138dcbf279fd641decb6a9c8b27f878803a1d11e",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "initialValues:get",
+          "runtimeMember": "initialValues:get",
+          "canonicalSha256": "7402f144cd2721124033c72e50d2a2ad051bd8b117a7037aa0fd22d5fdabb5b6",
+          "operationsSha256": "df322b0b20289c08784eaa761be0d9adff2dd83bd82098d9aa3e5385796d14c8"
+        },
+        {
+          "authorityMember": "constructor",
+          "runtimeMember": "constructor",
+          "canonicalSha256": "aee3c84d8ceb1ffa4e26878de0b2b1c4178aa4facd9a50f0277ccd71becae30c",
+          "operationsSha256": "68f660d35b093665f2c0638645514250b57a23be12ae25b9c6a6933022613e5b"
+        },
+        {
+          "authorityMember": "favoriteIcon:get",
+          "runtimeMember": "favoriteIcon:get",
+          "canonicalSha256": "e9e82d40bdf77ec39e122d14a2df463cdd46af768fe47ada92d1688b06a16b17",
+          "operationsSha256": "4beb6fea31d150316505878cf675752310f7e77463df77a972bd4bac7d58c28e"
+        },
+        {
+          "authorityMember": "toggleFavorite",
+          "runtimeMember": "toggleFavorite",
+          "canonicalSha256": "a7dc74f7b1730c2293ab2cec749687be0bb1595a2abf55490b9f05a5c9ac2c51",
+          "operationsSha256": "4d047f07ee2f81328a0034b9482ac55e7b9bcd2601f5872a46f2d8d9486fd30a"
+        },
+        {
+          "authorityMember": "ngOnInit",
+          "runtimeMember": "ngOnInit",
+          "canonicalSha256": "8b523f1df856914c970666c47439852c30eb3ac766ec0dbf76816a3198b571c3",
+          "operationsSha256": "ec7ef0904623ed7ba80abae3be2132c36a3f7fe411e45ac431d579774a011c48"
+        }
+      ]
+    },
+    {
+      "kind": "members",
+      "authority": "libs/vault/src/cipher-form/components/card-details-section/card-details-section.component.ts",
+      "authoritySha256": "4f93d71ede1a090474b83faf65c15152b3d62b931915e4e6e8076f98eecced7f",
+      "runtime": "official-card-details-section.component.ts",
+      "runtimeSha256": "bc3586af28b84436abb606eccefae3a628d623e4c5ca6865b8652e8a0466d90c",
+      "members": [
+        {
+          "authorityMember": "originalCipherView",
+          "runtimeMember": "originalCipherView",
+          "canonicalSha256": "d2cd966f9224cdfbffb6f70533effa6096d4432863bb297f0a112cd6e13bfd92",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "disabled",
+          "runtimeMember": "disabled",
+          "canonicalSha256": "16d2f5b9649055cc3cc692cd056a049ea31e786ae7d440d67c273e5347e2ba28",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "cardDetailsForm",
+          "runtimeMember": "cardDetailsForm",
+          "canonicalSha256": "ef674490550b34b8898155fac901d95a0c04bdc93c5eddded19a3c4a646df915",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "cardBrands",
+          "runtimeMember": "cardBrands",
+          "canonicalSha256": "ad063150a8166e52e9ecf45c379132eb4d6f1ab0f6407662b344fd51d0abfcb8",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "expirationMonths",
+          "runtimeMember": "expirationMonths",
+          "canonicalSha256": "637ee52c93201dc55dd671c2fa22cdb4568436f651712fad948358708d0d643f",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "initialValues:get",
+          "runtimeMember": "initialValues:get",
+          "canonicalSha256": "83a8077cce100fe005619cbabc199d3607e05bd671edfde512e4c23e38ce8f96",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "constructor",
+          "runtimeMember": "constructor",
+          "canonicalSha256": "5fd1f491a7d12e0cfd16cb8d24361992355e91b47f116956a286e9b4151775d0",
+          "operationsSha256": "7e02cd09383de8a0e89187a15666112eeeab3a4d2da5e2a1a1cf7bc5848062d4"
+        },
+        {
+          "authorityMember": "ngOnInit",
+          "runtimeMember": "ngOnInit",
+          "canonicalSha256": "0603d95fd300c72757746041b7b31fc196e013fd09964e09a1e8afbeab42c43d",
+          "operationsSha256": "ec29f4db80b35d0c8380f31011d23dcad585981ca626e555702b2626db235d0c"
+        },
+        {
+          "authorityMember": "getSectionHeading",
+          "runtimeMember": "getSectionHeading",
+          "canonicalSha256": "816742b600a078cdbe7a35617168f7bb3803cc7375cd1e145b0720cb5a2699fd",
+          "operationsSha256": "095af877b1f3766e098e2d02c4b45ebe8f4d87cdcc6b4004fc7803e1c4553d92"
+        },
+        {
+          "runtimeMember": "canViewSecrets:get",
+          "canonicalSha256": "cfee798323b6dcbe9bdf7ee5fcddf4f67843bc409be1fdb0e21c1b212b3f93be",
+          "justification": "Reads the retained native permission contract for Card secret controls."
+        },
+        {
+          "runtimeMember": "normalizeExpirationMonth",
+          "canonicalSha256": "34f6cae0855531491cc83785cd0bba02ee9c4a33c988ec04834520e750da05ff",
+          "justification": "Maps canonical zero-padded Card months onto official select option values."
+        }
+      ]
+    },
+    {
+      "kind": "members",
+      "authority": "libs/vault/src/cipher-form/components/identity/identity.component.ts",
+      "authoritySha256": "ce8f12cd3bde0a5f406ee8620cc2ce80c114adb26fa6caa4e447205a1cc235a0",
+      "runtime": "official-identity-section.component.ts",
+      "runtimeSha256": "21c0de5151969b06dd8cb4563e3cc9692e5e3dd936e7a06f767be46b4f025b6a",
+      "members": [
+        {
+          "authorityMember": "originalCipherView",
+          "runtimeMember": "originalCipherView",
+          "canonicalSha256": "d2cd966f9224cdfbffb6f70533effa6096d4432863bb297f0a112cd6e13bfd92",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "disabled",
+          "runtimeMember": "disabled",
+          "canonicalSha256": "16d2f5b9649055cc3cc692cd056a049ea31e786ae7d440d67c273e5347e2ba28",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "identityTitleOptions",
+          "runtimeMember": "identityTitleOptions",
+          "canonicalSha256": "4d1591bcdaa1335967c561746de89a69856e303357561e5aaba4dd8c171ca15d",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "identityForm",
+          "runtimeMember": "identityForm",
+          "canonicalSha256": "a42fd48cdcfc4195071ad1fd4b41b62387f7eeaf82604d8835b558d830b70293",
+          "operationsSha256": "bce3a542ceec0bac126a7e561b774d60425e057c592d1a0223145d30c71483cf"
+        },
+        {
+          "authorityMember": "initialValues:get",
+          "runtimeMember": "initialValues:get",
+          "canonicalSha256": "83a8077cce100fe005619cbabc199d3607e05bd671edfde512e4c23e38ce8f96",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "constructor",
+          "runtimeMember": "constructor",
+          "canonicalSha256": "551126ec02132334c54dce9333ff2d0788e1f7228371bc6e51e563cc1d81df82",
+          "operationsSha256": "e7669734ccbce019bbdcadf743afef3c9a94cd03c056d09182c3c4177cb2d928"
+        },
+        {
+          "authorityMember": "ngOnInit",
+          "runtimeMember": "ngOnInit",
+          "canonicalSha256": "93ce3646e6bc6ffbe4a18e9c89f01b8ea54a81f8196c6c6497f7119815a91fda",
+          "operationsSha256": "55957bfa286d59be35e1a60286b9a5ebaff7647f345a80c4e2d2d108d891350b"
+        },
+        {
+          "runtimeMember": "canViewSecrets:get",
+          "canonicalSha256": "cfee798323b6dcbe9bdf7ee5fcddf4f67843bc409be1fdb0e21c1b212b3f93be",
+          "justification": "Reads the retained native permission contract for Identity secret controls."
+        },
+        {
+          "runtimeMember": "localizedTitle",
+          "canonicalSha256": "caf6371c99a54662833c5d8096dc2a041674f69b20b563a522fa648d47d8d067",
+          "justification": "Maps canonical Identity titles onto exact pinned localized select option values."
+        },
+        {
+          "runtimeMember": "canonicalTitle",
+          "canonicalSha256": "5b829fa92a3226cf6fa6f09faed8a65d2a55b01b615edcf6dd6a7514d0d052eb",
+          "justification": "Maps localized Identity select values back to canonical Task 3 draft values."
+        }
+      ]
+    },
+    {
+      "kind": "members",
+      "authority": "libs/vault/src/cipher-form/components/additional-options/additional-options-section.component.ts",
+      "authoritySha256": "4a2c8f34f00349fc7da6702620090134a034825b7855f2d5899876abfc87d06f",
+      "runtime": "official-personal-additional-options.component.ts",
+      "runtimeSha256": "9fd388c1fd58824e2fb4d2512ebbfd1bb61a191e2fca6757913ab3464facc09c",
+      "members": [
+        {
+          "authorityMember": "customFieldsComponent",
+          "runtimeMember": "customFieldsComponent",
+          "canonicalSha256": "da6aca1baecbc4355c483c1c3f7b0157c0e52b1a28ee12e48a8c0a615aa27bdd",
+          "operationsSha256": "0520679cc222fdfe8440504dfb5766ea172ebb01a65e5a03eb53b6b66b77eab7"
+        },
+        {
+          "authorityMember": "additionalOptionsForm",
+          "runtimeMember": "additionalOptionsForm",
+          "canonicalSha256": "cec319cd15544e3283cc6aad7823dd608fa45a79191a98c46bf1694181372d4d",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "passwordRepromptEnabled$",
+          "runtimeMember": "passwordRepromptEnabled$",
+          "canonicalSha256": "46c602952e67d2926bf9615beb81b273c7c70c35ab7042aa2cabd019b355b231",
+          "operationsSha256": "d96f8869a0dd9eb24243fa4f8c15e47f5b253b7cfb749a327b8ab7e52add092c"
+        },
+        {
+          "authorityMember": "hasCustomFields",
+          "runtimeMember": "hasCustomFields",
+          "canonicalSha256": "7a994bac176b1d91063c8d3eb6cb10ff4f6a149e3c30d09ef47c3acd704f19e2",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "isPartialEdit",
+          "runtimeMember": "isPartialEdit",
+          "canonicalSha256": "9f1d17741a3898308bc23fba0415c984081d5086a09ad4071285d5594ebcd1e5",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "disableSectionMargin",
+          "runtimeMember": "disableSectionMargin",
+          "canonicalSha256": "370173de5fe32db6ec56a35636d3413ceb9c01690922931025e2b58088bb6ddd",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "allowNewField:get",
+          "runtimeMember": "allowNewField:get",
+          "canonicalSha256": "78bbfbbead09993f349bf452b18462e97e0ff10ff5cae4e7616bbc94fca3ac36",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "constructor",
+          "runtimeMember": "constructor",
+          "canonicalSha256": "ff5be6a4c80d8da6a61ad57b26506414264f7c4187e0463bb24850da32cfa489",
+          "operationsSha256": "018fe63ea97db66c9fc7218dfb3b42131cc6439f994fab4bed7085977abdc561"
+        },
+        {
+          "authorityMember": "ngOnInit",
+          "runtimeMember": "ngOnInit",
+          "canonicalSha256": "026538be5ab714f4a94d9cd101bf5bd4684764baa0d8b143055bbb6eb4f120f6",
+          "operationsSha256": "7af2014a7fbbdc8674f8e8f97b8dd1a0ee7f5fb5ab362c06a5e0f6f4bf776cc4"
+        },
+        {
+          "authorityMember": "addCustomField",
+          "runtimeMember": "addCustomField",
+          "canonicalSha256": "13237557c88424814f4cc3d30e16628e0f0a02d2847be09c1d0af456dd8fbb0e",
+          "operationsSha256": "34ce2d54add3fef9b2575ce7bb9ae1b571c00ed230360a0d1601b2a674945893"
+        },
+        {
+          "authorityMember": "handleCustomFieldChange",
+          "runtimeMember": "handleCustomFieldChange",
+          "canonicalSha256": "90edfe613c36c0e48205b2c8f1a8b9f374d8b996c22b0a5ed33d39e5aaee0abe",
+          "operationsSha256": "54d35f893aba9d8e7146c75068e96356718eb0223cb98e96d3d04b0fe0925743"
+        }
+      ]
+    },
+    {
+      "kind": "members",
+      "authority": "libs/vault/src/cipher-form/components/custom-fields/custom-fields.component.ts",
+      "authoritySha256": "950793d4f897d21efaa81ede2c6bdaf1ee37bd1f99b1654c5092609f9ec8482c",
+      "runtime": "official-personal-custom-fields.component.ts",
+      "runtimeSha256": "b19d67ca90565af13b8e9e31c8a032575390adaf4de57f4b4b96f574e0310cc8",
+      "members": [
+        {
+          "authorityMember": "numberOfFieldsChange",
+          "runtimeMember": "numberOfFieldsChange",
+          "canonicalSha256": "f11646a11afa9aa0a0b894eadc6d6f579b94dca70b0f0474a59f12869916cc68",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "customFieldRows",
+          "runtimeMember": "customFieldRows",
+          "canonicalSha256": "0537ba486acbb7a3d455e6846e84d99cac78c78822626acf6e0a768c9c050558",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "disableSectionMargin",
+          "runtimeMember": "disableSectionMargin",
+          "canonicalSha256": "370173de5fe32db6ec56a35636d3413ceb9c01690922931025e2b58088bb6ddd",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "customFieldsForm",
+          "runtimeMember": "customFieldsForm",
+          "canonicalSha256": "52ca5f14b4254e5f1397c0e46b4ccc498babd5291edc39817df7fbcd8dc04f84",
+          "operationsSha256": "7153ba3fd57147b7b83cda571e1282873bbd7738c848cccc89b42b021b079de0"
+        },
+        {
+          "authorityMember": "dialogRef",
+          "runtimeMember": "dialogRef",
+          "canonicalSha256": "7695c0ce40c8eaebda0cbe24375b3ae0071fa817483f6bb07171f9699dbf2154",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "linkedFieldOptions",
+          "runtimeMember": "linkedFieldOptions",
+          "canonicalSha256": "2b5ae29084416315dbec2fe68452ba9ddd968bb8d7ffe0edee95c51d92d737a9",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "isPartialEdit",
+          "runtimeMember": "isPartialEdit",
+          "canonicalSha256": "9f1d17741a3898308bc23fba0415c984081d5086a09ad4071285d5594ebcd1e5",
+          "operationsSha256": "800bddde18ee05f78838f73c8f7ba3b185f1e226b274b877b4392c8ad1e5a486"
+        },
+        {
+          "authorityMember": "hasCustomFields",
+          "runtimeMember": "hasCustomFields",
+          "canonicalSha256": "7a994bac176b1d91063c8d3eb6cb10ff4f6a149e3c30d09ef47c3acd704f19e2",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "focusOnNewInput$",
+          "runtimeMember": "focusOnNewInput$",
+          "canonicalSha256": "c4b15f010f3d190cda270b8ec2be1c0300c27d156d3074a200614b3d843af04e",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "parentFormDisabled",
+          "runtimeMember": "parentFormDisabled",
+          "canonicalSha256": "e6ed6f21b9942a7e259a8d892f93fa3c809b230e9d9295a32cd9d3fc8b9c4ef5",
+          "operationsSha256": "9276d2212bb71563fc465bcc310f4e97dae68eb9ee93d7192d0cdc3e79192532"
+        },
+        {
+          "authorityMember": "destroyed$",
+          "runtimeMember": "destroyed$",
+          "canonicalSha256": "84fb1379a12be739a67cd9eefa8fffac6ef0150e9777fa3971577462898972bf",
+          "operationsSha256": "7f4553fcaaeaed7f832a33cf1ef520cf4df726579b05153ed937d4faef55ea62"
+        },
+        {
+          "authorityMember": "FieldType",
+          "runtimeMember": "FieldType",
+          "canonicalSha256": "1ab5f1f0e3b044e0ae0982ae5e48213e4ae9e52c786f977dcab19b063f3bcbe0",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "constructor",
+          "runtimeMember": "constructor",
+          "canonicalSha256": "fa5382bf95f3ffdc4f4c81ae108f7f213ff663ebbbe8e9870b41969123e00eb7",
+          "operationsSha256": "eeb179cb03a60545f78a58cc8c6f7290aedd7ed0b05ee5e6508753292f524dd2"
+        },
+        {
+          "authorityMember": "fields:get",
+          "runtimeMember": "fields:get",
+          "canonicalSha256": "8603b271e5724f1a583858ac6b9434df3edf7a13d25d05272386c99de728e607",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "canEdit",
+          "runtimeMember": "canEdit",
+          "canonicalSha256": "df59d12239c37540f4713e0b2f34360658696c4c8261dccb3a55ebdb098d2fba",
+          "operationsSha256": "c527905df7c348deda389fc29b3fa4d47af41986420d2eeb62dcb0f9232f51a7"
+        },
+        {
+          "authorityMember": "dragDisabled",
+          "runtimeMember": "dragDisabled",
+          "canonicalSha256": "ca910739b15c2ad5861a7ef87968dc0b5b2493a30313abdabb564c44cd02f261",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "ngOnInit",
+          "runtimeMember": "ngOnInit",
+          "canonicalSha256": "23e9ff488a5f0d5b3adc8d30b20da7755210b5126103832c6f88faf27836d162",
+          "operationsSha256": "e0f69b84eb182d4b9b0f54a4f991684766b6d5da9609477b4e1ebcb2fe9a61cb"
+        },
+        {
+          "authorityMember": "ngAfterViewInit",
+          "runtimeMember": "ngAfterViewInit",
+          "canonicalSha256": "2e03791628a8e0a0217adf15630b094b54fb03478119e758f71f55512cc72535",
+          "operationsSha256": "5c2f0589ae785f83f2f151e9344b989ce1e6b8cb9e4caaa36c24caafceeeb455"
+        },
+        {
+          "authorityMember": "openAddEditCustomFieldDialog",
+          "runtimeMember": "openAddEditCustomFieldDialog",
+          "canonicalSha256": "38ce70896614e4cff19bb1f8f71ba7a9189ed49844a12276a32c9ae7aeca741b",
+          "operationsSha256": "31b98c131131ae33eed6dbae6b56a273fbf1cfb79dcbfd9fa8209d7f9ae3db94"
+        },
+        {
+          "authorityMember": "canViewPasswords",
+          "runtimeMember": "canViewPasswords",
+          "canonicalSha256": "728d41c7636ffcbebf54dad9393854bb651e16413000418f0ca0fc4b01d9a8a9",
+          "operationsSha256": "af5267f80245e1bad36826cf115aeafa5c75cb1b4b028ce149f03a678260ab8a"
+        },
+        {
+          "authorityMember": "updateLabel",
+          "runtimeMember": "updateLabel",
+          "canonicalSha256": "8690a932398ee9794485b0bbbc42fe81409d2129ca3d3562b70f6dacd00a0674",
+          "operationsSha256": "cf3ae5556fde5915c074c3c0492cff30bab4132048e8c39f672fafaa7d34ed62"
+        },
+        {
+          "authorityMember": "removeField",
+          "runtimeMember": "removeField",
+          "canonicalSha256": "84f9abfe7ec3d84698e8c90336a702fb626c21b18a371e2868bc26f8bd23ac74",
+          "operationsSha256": "d6a145cf0fe5db068cb10bc5b108c242add9cd1bfc5f54263eeb5b66efb9f771"
+        },
+        {
+          "authorityMember": "addField",
+          "runtimeMember": "addField",
+          "canonicalSha256": "518fa936c59039852aabcd2886c6aba3b958dc1eaf5543c0ac8022058352a323",
+          "operationsSha256": "f3c6aa89b9a09e18cb5a26a2f61be5bcf6fbe82608a393d4f28cfbe61541f951"
+        },
+        {
+          "authorityMember": "drop",
+          "runtimeMember": "drop",
+          "canonicalSha256": "3b42876989acb4d8dc8eb2fead5147f3c5a42c231e9b5b566c0123872392ef0d",
+          "operationsSha256": "a446b387bf999583e49653652b0f4333d16907813fa2b8b6e5015e2e23b90688"
+        },
+        {
+          "authorityMember": "handleKeyDown",
+          "runtimeMember": "handleKeyDown",
+          "canonicalSha256": "ee0cbc036e9ceaf5c6f3f3dedf87228e430fe82f347daf4d8a28aba2d566744c",
+          "operationsSha256": "bac167a2f048419201899399a76591e0c45553fb1c07e9de535b2f4e53c04894"
+        },
+        {
+          "authorityMember": "getLinkedFieldsOptionsForCipher",
+          "runtimeMember": "getLinkedFieldsOptionsForCipher",
+          "canonicalSha256": "d619975323671b4898d4ae42cbadbc638df8a956457e0202652ade8a1bcf86a1",
+          "operationsSha256": "b1e7cfa21058fa48e8924a1c042ae129576c09159a45e8e38820e2f446e809bc"
+        },
+        {
+          "authorityMember": "updateCipher",
+          "runtimeMember": "updateCipher",
+          "canonicalSha256": "05d138762f94a2a9d8c1631863b79109ea9043fe2051870f57e72e69aaea8815",
+          "operationsSha256": "185d00d559a875099df75f818c23e0dd40d06d5e3beed27721b8e8668cf2d878"
+        }
+      ]
+    },
+    {
+      "kind": "members",
+      "authority": "libs/vault/src/cipher-form/components/custom-fields/add-edit-custom-field-dialog/add-edit-custom-field-dialog.component.ts",
+      "authoritySha256": "76e8fddd3f50b19427677aa33f30c93d6e430c6f251a6524135fb1b7e6d04f2b",
+      "runtime": "official-personal-add-edit-custom-field-dialog.component.ts",
+      "runtimeSha256": "89c0573fd23dc1debdd4ef5b6b373e99bc3a392a21021ab2ffd26764188e4140",
+      "members": [
+        {
+          "authorityMember": "variant",
+          "runtimeMember": "variant",
+          "canonicalSha256": "b28a8515bc561c80c5082c4c1a77f71d89dd54dbb82a31a5376f1899c2558a6e",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "customFieldForm",
+          "runtimeMember": "customFieldForm",
+          "canonicalSha256": "2d932bf61e215cf5c8afa7973f1fadb48a632e03d6e344de10e686d736849f76",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "fieldTypeOptions",
+          "runtimeMember": "fieldTypeOptions",
+          "canonicalSha256": "5745aecb575fdf60f72617366c91933b5b1fbeb7c054f78c7740fbe4a4b5a30c",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "FieldType",
+          "runtimeMember": "FieldType",
+          "canonicalSha256": "1ab5f1f0e3b044e0ae0982ae5e48213e4ae9e52c786f977dcab19b063f3bcbe0",
+          "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "authorityMember": "constructor",
+          "runtimeMember": "constructor",
+          "canonicalSha256": "6a7c1fdddb217ea1e67c23631f4b3ed070d72350947e664d59cb09e900100e6c",
+          "operationsSha256": "cf2f8927c1a153442a0a2f8a9d3c4cd0276dfd9ebeb0eb5d951b6123338f94af"
+        },
+        {
+          "authorityMember": "getTypeHint",
+          "runtimeMember": "getTypeHint",
+          "canonicalSha256": "a60d5d19b54bf75f7e354b96877218dc4c1a910cbb833f8ee261a71ce91b1451",
+          "operationsSha256": "fa3f8b10711c4406d077da0bb46e3d06d34f81a21e8cbb6c108447e04a0df7e6"
+        },
+        {
+          "authorityMember": "submit",
+          "runtimeMember": "submit",
+          "canonicalSha256": "f13e42e0d0ce9f767633dccf30951b1ffa0a6662842140296210a0b98c251613",
+          "operationsSha256": "34299a9e34fb71d74eadf2b8f4a174b425320567c443127772bf52e520f47e4f"
+        },
+        {
+          "authorityMember": "addField",
+          "runtimeMember": "addField",
+          "canonicalSha256": "87ce4ba906e474d2111b055d21120b23a037f1e44669ce23328e8cdf0d64e267",
+          "operationsSha256": "709485643d66d6b6f649a1a47b19d939e37c2bd6b4f408eabe6fc3ecd5c2d859"
+        },
+        {
+          "authorityMember": "updateLabel",
+          "runtimeMember": "updateLabel",
+          "canonicalSha256": "d23c52c874450443e7a856864bccaf3ddac576de00a3f7edb5a04207394f70f9",
+          "operationsSha256": "f6edbd9eb33a62e255fa77cb87fbcda664390a8d1cf943b4ca2f1c9d58d2276e"
+        },
+        {
+          "authorityMember": "removeField",
+          "runtimeMember": "removeField",
+          "canonicalSha256": "e33487fff79dd017787653680dced21a4f6616ff6083fcf9a6034578d1fcfca8",
+          "operationsSha256": "c8402bead695f98f6110bfbe8beedfd302829a5256294e7c64e888231afc58e3"
+        }
+      ]
+    },
+    {
+      "kind": "template",
+      "authority": "libs/vault/src/cipher-form/components/cipher-form.component.html",
+      "runtime": "official-personal-cipher-form.component.html",
+      "runtimeSha256": "8664136cbabfb86dfc9aa60f0775ca9c6135ea400ca7207a6af6b7ea3a1a4234",
+      "operationsSha256": "c33e30cdb340126fb86ca722cbe5c643f1b3ebae26cd4afceedf2b192c395387"
+    },
+    {
+      "kind": "template",
+      "authority": "libs/vault/src/cipher-form/components/item-details/item-details-section.component.html",
+      "runtime": "official-personal-item-details.component.html",
+      "runtimeSha256": "85f9a150975ba7cd4afaac6522b4f4ddafdcfd706b197d5ddaffa237438d9b70",
+      "operationsSha256": "72636186621912b40fb1eb954eceedb29744bf193f2ecb391ea9a6bc9fd8c385"
+    },
+    {
+      "kind": "template",
+      "authority": "libs/vault/src/cipher-form/components/card-details-section/card-details-section.component.html",
+      "runtime": "official-card-details-section.component.html",
+      "runtimeSha256": "cc731142c6b87f615360e20b29ead929715e566ec47ad3a55cc51acc9db59d1b",
+      "operationsSha256": "de6b4bec6d06aae51a240bd9bc1420c8498423b572e31deeacdcda7196e674c4"
+    },
+    {
+      "kind": "template",
+      "authority": "libs/vault/src/cipher-form/components/identity/identity.component.html",
+      "runtime": "official-identity-section.component.html",
+      "runtimeSha256": "49a16d35f0ac0c4f908a79226c0c9ebe6631fb62b861053eeda05161edb15534",
+      "operationsSha256": "d2b8fec181f49dc5b0b4b7ac73147c5c46c0ff4f2cf4c574e41fe672c0f874a6"
+    },
+    {
+      "kind": "template",
+      "authority": "libs/vault/src/cipher-form/components/additional-options/additional-options-section.component.html",
+      "runtime": "official-personal-additional-options.component.html",
+      "runtimeSha256": "f0993bc3ad6ad1654668c59db8094b877025648378a239d47d3ab91074345f24",
+      "operationsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "kind": "template",
+      "authority": "libs/vault/src/cipher-form/components/custom-fields/custom-fields.component.html",
+      "runtime": "official-personal-custom-fields.component.html",
+      "runtimeSha256": "8b5a69790d76567c53765d1639fbded1896fb1e37765539e44564438e1d47a64",
+      "operationsSha256": "b5d9ec488825bb207ab589bfaf64b5a5cbf6b2e707900c84a21e994190e9f40c"
+    },
+    {
+      "kind": "template",
+      "authority": "libs/vault/src/cipher-form/components/custom-fields/add-edit-custom-field-dialog/add-edit-custom-field-dialog.component.html",
+      "runtime": "official-personal-add-edit-custom-field-dialog.component.html",
+      "runtimeSha256": "020be48d3306fe917ec600aa248d8fb6b3eba4b74c42f3d2822537baa404c7a9",
+      "operationsSha256": "a362c2f864026ebfcb6ec9b0d9d1e7f4f2006331ec1bd14d645be2ed2cb01b0d"
+    }
+  ],
+  "i18nKeys": [
+    "add",
+    "addField",
+    "additionalOptions",
+    "address",
+    "address1",
+    "address2",
+    "address3",
+    "april",
+    "august",
+    "brand",
+    "cancel",
+    "cardBrandDetails",
+    "cardDetails",
+    "cardholderName",
+    "cfTypeCheckbox",
+    "cfTypeHidden",
+    "cfTypeLinked",
+    "cfTypeText",
+    "checkBoxHelpText",
+    "cityTown",
+    "company",
+    "contactInfo",
+    "country",
+    "customFields",
+    "december",
+    "deleteCustomField",
+    "dr",
+    "editField",
+    "editFieldLabel",
+    "email",
+    "expirationMonth",
+    "expirationYear",
+    "favorite",
+    "february",
+    "fieldAdded",
+    "fieldLabel",
+    "fieldType",
+    "firstName",
+    "folder",
+    "fullName",
+    "hiddenHelpText",
+    "identification",
+    "itemDetails",
+    "itemName",
+    "january",
+    "july",
+    "june",
+    "lastName",
+    "licenseNumber",
+    "linkedHelpText",
+    "march",
+    "may",
+    "middleName",
+    "mr",
+    "mrs",
+    "ms",
+    "multipleFieldsNeedAttention",
+    "mx",
+    "notes",
+    "november",
+    "number",
+    "october",
+    "other",
+    "passportNumber",
+    "passwordPrompt",
+    "personalDetails",
+    "phone",
+    "reorderFieldDown",
+    "reorderFieldUp",
+    "reorderToggleButton",
+    "save",
+    "securityCode",
+    "select",
+    "september",
+    "singleFieldNeedsAttention",
+    "ssn",
+    "stateProvince",
+    "textHelpText",
+    "title",
+    "username",
+    "zipPostalCodeLabel"
+  ],
+  "closure": {
+    "roots": [
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-form-container.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts",
+      "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts"
+    ],
+    "edges": [
+      "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts -> ./bit-action.directive => apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts -> ./bit-submit.directive => vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts -> ./form-button.directive => vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts -> external:@angular/core",
+      "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts -> ../shared/button-like.abstraction => vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts",
+      "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts -> ../utils/function-to-observable => vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts",
+      "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts -> @bitwarden/common/platform/abstractions/log.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/log.service.ts",
+      "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts -> @bitwarden/common/platform/abstractions/validation.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/validation.service.ts",
+      "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts -> external:@angular/core",
+      "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts -> external:@angular/core/rxjs-interop",
+      "apps/menubar-tauri/official-components-overlay/async-actions/bit-action.directive.ts -> external:rxjs",
+      "apps/menubar-tauri/official-components-overlay/form-field/error.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/error.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts -> external:@angular/core",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts -> external:@angular/core/rxjs-interop",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts -> external:@angular/forms",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts -> external:rxjs",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> ../form-control/hint.directive => vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> ../form-control/label.component => vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> ./error.component => apps/menubar-tauri/official-components-overlay/form-field/error.component.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> ./field-container.directive => vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> ./form-field-control.directive => apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> ./prefix.directive => vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> ./suffix.directive => vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> external:@angular/common",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts -> ../form-control => vendor/bitwarden-clients/libs/components/src/form-control/index.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts -> ../input/input.module => vendor/bitwarden-clients/libs/components/src/input/input.module.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts -> ./error.component => apps/menubar-tauri/official-components-overlay/form-field/error.component.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts -> ./form-field.component => apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts -> ./password-input-toggle.directive => apps/menubar-tauri/official-components-overlay/form-field/password-input-toggle.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts -> ./prefix.directive => vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts -> ./suffix.directive => vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts -> external:@angular/core",
+      "apps/menubar-tauri/official-components-overlay/form-field/password-input-toggle.directive.ts -> ../icon-button/icon-button.component => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/password-input-toggle.directive.ts -> ./form-field.component => apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/password-input-toggle.directive.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/official-components-overlay/form-field/password-input-toggle.directive.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts -> ../../../../../vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json => vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json",
+      "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts -> external:rxjs",
+      "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts -> ../../../../../vendor/bitwarden-clients/libs/ui/common/src/i18n.pipe => vendor/bitwarden-clients/libs/ui/common/src/i18n.pipe.ts",
+      "apps/menubar-tauri/src/app/popup-state.ts -> ../bitwarden-api/bitwarden-api => apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
+      "apps/menubar-tauri/src/app/popup-state.ts -> ./official-ui/official-i18n.service => apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+      "apps/menubar-tauri/src/app/popup-state.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/popup-state.ts -> external:rxjs",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> ./official-personal-form-container => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-form-container.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/angular/jslib.module => apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/common/autofill/utils => vendor/bitwarden-clients/libs/common/src/autofill/utils/index.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/common/vault/models/view/card.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/components/card/card.component => vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/components/form-field/form-field.module => apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/components/icon-button/icon-button.module => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/components/section/section-header.component => vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/components/select/select.module => vendor/bitwarden-clients/libs/components/src/select/select.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> @bitwarden/components/typography/typography.module => vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> external:@angular/core/rxjs-interop",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts -> external:@angular/forms",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> ./official-personal-form-container => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-form-container.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/angular/jslib.module => apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/common/vault/models/view/identity.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/components/card/card.component => vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/components/form-field/form-field.module => apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/components/icon-button/icon-button.module => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/components/section/section-header.component => vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/components/select/select.module => vendor/bitwarden-clients/libs/components/src/select/select.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> @bitwarden/components/typography/typography.module => vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> external:@angular/core/rxjs-interop",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts -> external:@angular/forms",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/angular/jslib.module => apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/common/vault/enums/cipher-type => vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-type.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/common/vault/enums/field-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/field-type.enum.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/components/async-actions/async-actions.module => apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/components/button/button.module => vendor/bitwarden-clients/libs/components/src/button/button.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/components/dialog/dialog/dialog.component => vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/components/dialog/directives/dialog-close.directive => vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-close.directive.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/components/dialog/simple-dialog/simple-dialog.component => vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/components/form-field/form-field.module => apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/components/icon-button/icon-button.module => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> @bitwarden/components/select/select.module => vendor/bitwarden-clients/libs/components/src/select/select.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> external:@angular/cdk/dialog",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> external:@angular/common",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts -> external:@angular/forms",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> ./official-personal-custom-fields.component => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> ./official-personal-form-container => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-form-container.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> @bitwarden/angular/jslib.module => apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> @bitwarden/common/vault/enums/cipher-reprompt-type => vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-reprompt-type.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> @bitwarden/components/card/card.component => vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> @bitwarden/components/checkbox/checkbox.module => vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> @bitwarden/components/form-field/form-field.module => apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> @bitwarden/components/link/link.module => vendor/bitwarden-clients/libs/components/src/link/link.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> @bitwarden/components/section/section-header.component => vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> @bitwarden/components/typography/typography.module => vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> external:@angular/common",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> external:@angular/core/rxjs-interop",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> external:@angular/forms",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts -> external:rxjs",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> ../../vault/retained-personal-cipher-form.adapter => apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> ./official-card-details-section.component => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-card-details-section.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> ./official-identity-section.component => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-identity-section.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> ./official-personal-additional-options.component => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-additional-options.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> ./official-personal-form-container => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-form-container.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> ./official-personal-item-details.component => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> @bitwarden/common/vault/enums/cipher-type => vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-type.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> @bitwarden/common/vault/enums/field-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/field-type.enum.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> @bitwarden/common/vault/enums/secure-note-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/secure-note-type.enum.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> @bitwarden/components/async-actions/async-actions.module => apps/menubar-tauri/official-components-overlay/async-actions/async-actions.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> @bitwarden/components/async-actions/bit-submit.directive => vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> @bitwarden/components/button/button.component => vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> external:@angular/core/rxjs-interop",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> external:@angular/forms",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.ts -> external:rxjs",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> ./official-personal-add-edit-custom-field-dialog.component => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-add-edit-custom-field-dialog.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> ./official-personal-form-container => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-form-container.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/angular/jslib.module => apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/common/vault/enums/cipher-type => vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-type.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/common/vault/enums/field-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/field-type.enum.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/common/vault/models/view/card.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/common/vault/models/view/field.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/field.view.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/common/vault/models/view/identity.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/card/card.component => vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/checkbox/checkbox.module => vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/dialog/dialog-ref => vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/dialog/dialog.service => vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/form-field/form-field.module => apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/icon-button/icon-button.module => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/link/link.module => vendor/bitwarden-clients/libs/components/src/link/link.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/section/section-header.component => vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/select/select.module => vendor/bitwarden-clients/libs/components/src/select/select.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> @bitwarden/components/typography/typography.module => vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> external:@angular/cdk/a11y",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> external:@angular/cdk/drag-drop",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> external:@angular/common",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> external:@angular/core/rxjs-interop",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> external:@angular/forms",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-custom-fields.component.ts -> external:rxjs",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> ./official-personal-form-container => apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-form-container.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> @bitwarden/angular/jslib.module => apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> @bitwarden/components/card/card.component => vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> @bitwarden/components/form-field/form-field.module => apps/menubar-tauri/official-components-overlay/form-field/form-field.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> @bitwarden/components/icon-button/icon-button.module => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> @bitwarden/components/section/section-header.component => vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> @bitwarden/components/select/select.module => vendor/bitwarden-clients/libs/components/src/select/select.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> @bitwarden/components/typography/typography.module => vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> external:@angular/core/rxjs-interop",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> external:@angular/forms",
+      "apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-item-details.component.ts -> external:rxjs",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts -> ../../official-ui/official-i18n.service => apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts -> @bitwarden/components/input/autofocus.directive => vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts -> external:@angular/core",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> ../popup-state => apps/menubar-tauri/src/app/popup-state.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/enums/cipher-type => vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-type.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/enums/field-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/field-type.enum.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/enums/linked-id-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/linked-id-type.enum.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/enums/secure-note-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/secure-note-type.enum.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/models/view/card.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/models/view/field.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/field.view.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/models/view/folder.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/folder.view.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/models/view/identity.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> @bitwarden/common/vault/models/view/secure-note.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/secure-note.view.ts",
+      "apps/menubar-tauri/src/app/vault/retained-personal-cipher-form.adapter.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/common/src/auth/abstractions/auth.service.ts -> ../../types/guid => vendor/bitwarden-clients/libs/common/src/types/guid.ts",
+      "vendor/bitwarden-clients/libs/common/src/auth/abstractions/auth.service.ts -> ../enums/authentication-status => vendor/bitwarden-clients/libs/common/src/auth/enums/authentication-status.ts",
+      "vendor/bitwarden-clients/libs/common/src/auth/abstractions/auth.service.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/common/src/autofill/constants/index.ts -> ./match-patterns => vendor/bitwarden-clients/libs/common/src/autofill/constants/match-patterns.ts",
+      "vendor/bitwarden-clients/libs/common/src/autofill/utils/index.ts -> ../../models/domain/domain-service => vendor/bitwarden-clients/libs/common/src/models/domain/domain-service.ts",
+      "vendor/bitwarden-clients/libs/common/src/autofill/utils/index.ts -> ../../platform/misc/utils => vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts",
+      "vendor/bitwarden-clients/libs/common/src/autofill/utils/index.ts -> ../../vault/models/view/card.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts",
+      "vendor/bitwarden-clients/libs/common/src/autofill/utils/index.ts -> ../constants => vendor/bitwarden-clients/libs/common/src/autofill/constants/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/key-management/crypto/abstractions/encrypt.service.ts -> ../../../platform/models/domain/enc-array-buffer => vendor/bitwarden-clients/libs/common/src/platform/models/domain/enc-array-buffer.ts",
+      "vendor/bitwarden-clients/libs/common/src/key-management/crypto/abstractions/encrypt.service.ts -> ../../../platform/models/domain/symmetric-crypto-key => vendor/bitwarden-clients/libs/common/src/platform/models/domain/symmetric-crypto-key.ts",
+      "vendor/bitwarden-clients/libs/common/src/key-management/crypto/abstractions/encrypt.service.ts -> ../models/enc-string => vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts",
+      "vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts -> ../../../platform/enums => vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts -> ../../../platform/misc/utils => vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts",
+      "vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/models/domain/domain-service.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts -> ./translation.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/translation.service.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/common/src/platform/abstractions/log.service.ts -> @bitwarden/logging => apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/html-storage-location.enum.ts -> @bitwarden/storage-core => vendor/bitwarden-clients/libs/storage-core/src/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts -> ./encryption-type.enum => vendor/bitwarden-clients/libs/common/src/platform/enums/encryption-type.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts -> ./file-upload-type.enum => vendor/bitwarden-clients/libs/common/src/platform/enums/file-upload-type.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts -> ./html-storage-location.enum => vendor/bitwarden-clients/libs/common/src/platform/enums/html-storage-location.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts -> ./key-suffix-options.enum => vendor/bitwarden-clients/libs/common/src/platform/enums/key-suffix-options.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts -> ./log-level-type.enum => vendor/bitwarden-clients/libs/common/src/platform/enums/log-level-type.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts -> ./storage-location.enum => vendor/bitwarden-clients/libs/common/src/platform/enums/storage-location.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts -> ./theme-type.enum => vendor/bitwarden-clients/libs/common/src/platform/enums/theme-type.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/log-level-type.enum.ts -> @bitwarden/logging => apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/enums/storage-location.enum.ts -> @bitwarden/storage-core => vendor/bitwarden-clients/libs/storage-core/src/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> ../../key-management/crypto/abstractions/encrypt.service => vendor/bitwarden-clients/libs/common/src/key-management/crypto/abstractions/encrypt.service.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> ../abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> @bitwarden/key-management => apps/menubar-tauri/src/app/official-ui/official-key-management.adapter.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> external:buffer/",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> external:core-js/proposals/array-buffer-base64",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> external:path",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> external:tldts",
+      "vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/domain-base.ts -> ../../../key-management/crypto/models/enc-string => vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/domain-base.ts -> ../../../models/view/view => vendor/bitwarden-clients/libs/common/src/models/view/view.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/domain-base.ts -> ../../misc/utils => vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/domain-base.ts -> ./symmetric-crypto-key => vendor/bitwarden-clients/libs/common/src/platform/models/domain/symmetric-crypto-key.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/domain-base.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/enc-array-buffer.ts -> ../../../platform/misc/utils => vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/enc-array-buffer.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/symmetric-crypto-key.ts -> ../../../platform/misc/utils => vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/symmetric-crypto-key.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/platform/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/symmetric-crypto-key.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/platform/models/domain/symmetric-crypto-key.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/types/guid.ts -> @bitwarden/guid => vendor/bitwarden-clients/libs/guid/src/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/types/guid.ts -> @bitwarden/user-core => vendor/bitwarden-clients/libs/user-core/src/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/types/guid.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-reprompt-type.ts -> ../types/union-of-values => vendor/bitwarden-clients/libs/common/src/vault/types/union-of-values.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-reprompt-type.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/extension-page-urls.enum.ts -> ../types/union-of-values => vendor/bitwarden-clients/libs/common/src/vault/types/union-of-values.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/field-type.enum.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts -> ./bank-account-type => vendor/bitwarden-clients/libs/common/src/vault/enums/bank-account-type.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts -> ./cipher-reprompt-type => vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-reprompt-type.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts -> ./cipher-type => vendor/bitwarden-clients/libs/common/src/vault/enums/cipher-type.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts -> ./extension-page-urls.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/extension-page-urls.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts -> ./field-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/field-type.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts -> ./linked-id-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/linked-id-type.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts -> ./secure-note-type.enum => vendor/bitwarden-clients/libs/common/src/vault/enums/secure-note-type.enum.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/linked-id-type.enum.ts -> ../types/union-of-values => vendor/bitwarden-clients/libs/common/src/vault/types/union-of-values.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/linked-id-type.enum.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/secure-note-type.enum.ts -> ../types/union-of-values => vendor/bitwarden-clients/libs/common/src/vault/types/union-of-values.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/enums/secure-note-type.enum.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/linked-field-option.decorator.ts -> ./enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/linked-field-option.decorator.ts -> ./models/view/item.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/item.view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/api/field.api.ts -> ../../../models/response/base.response => vendor/bitwarden-clients/libs/common/src/models/response/base.response.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/api/field.api.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/api/secure-note.api.ts -> ../../../models/response/base.response => vendor/bitwarden-clients/libs/common/src/models/response/base.response.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/api/secure-note.api.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/data/field.data.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/data/field.data.ts -> ../api/field.api => vendor/bitwarden-clients/libs/common/src/vault/models/api/field.api.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/data/folder.data.ts -> ../response/folder.response => vendor/bitwarden-clients/libs/common/src/vault/models/response/folder.response.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/data/folder.data.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/data/secure-note.data.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/data/secure-note.data.ts -> ../api/secure-note.api => vendor/bitwarden-clients/libs/common/src/vault/models/api/secure-note.api.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> ../../../key-management/crypto/models/enc-string => vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> ../../../platform/models/domain/domain-base => vendor/bitwarden-clients/libs/common/src/platform/models/domain/domain-base.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> ../../../platform/models/domain/symmetric-crypto-key => vendor/bitwarden-clients/libs/common/src/platform/models/domain/symmetric-crypto-key.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> ../../utils/domain-utils => vendor/bitwarden-clients/libs/common/src/vault/utils/domain-utils.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> ../data/field.data => vendor/bitwarden-clients/libs/common/src/vault/models/data/field.data.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> ../view/field.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/field.view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/folder.ts -> ../../../key-management/crypto/abstractions/encrypt.service => vendor/bitwarden-clients/libs/common/src/key-management/crypto/abstractions/encrypt.service.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/folder.ts -> ../../../key-management/crypto/models/enc-string => vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/folder.ts -> ../../../platform/models/domain/domain-base => vendor/bitwarden-clients/libs/common/src/platform/models/domain/domain-base.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/folder.ts -> ../../../platform/models/domain/symmetric-crypto-key => vendor/bitwarden-clients/libs/common/src/platform/models/domain/symmetric-crypto-key.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/folder.ts -> ../data/folder.data => vendor/bitwarden-clients/libs/common/src/vault/models/data/folder.data.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/folder.ts -> ../view/folder.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/folder.view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/folder.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/secure-note.ts -> ../../../platform/models/domain/domain-base => vendor/bitwarden-clients/libs/common/src/platform/models/domain/domain-base.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/secure-note.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/secure-note.ts -> ../data/secure-note.data => vendor/bitwarden-clients/libs/common/src/vault/models/data/secure-note.data.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/secure-note.ts -> ../view/secure-note.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/secure-note.view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/secure-note.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/domain/secure-note.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/response/folder.response.ts -> ../../../models/response/base.response => vendor/bitwarden-clients/libs/common/src/models/response/base.response.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts -> ../../../autofill/utils => vendor/bitwarden-clients/libs/common/src/autofill/utils/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts -> ../../linked-field-option.decorator => vendor/bitwarden-clients/libs/common/src/vault/linked-field-option.decorator.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts -> ./item.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/item.view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/card.view.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/field.view.ts -> ../../../models/view/view => vendor/bitwarden-clients/libs/common/src/models/view/view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/field.view.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/field.view.ts -> ../domain/field => vendor/bitwarden-clients/libs/common/src/vault/models/domain/field.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/field.view.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/field.view.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/folder.view.ts -> ../../../models/view/view => vendor/bitwarden-clients/libs/common/src/models/view/view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/folder.view.ts -> ../domain/folder => vendor/bitwarden-clients/libs/common/src/vault/models/domain/folder.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/folder.view.ts -> ../domain/tree-node => vendor/bitwarden-clients/libs/common/src/vault/models/domain/tree-node.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/folder.view.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts -> ../../../platform/misc/utils => vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts -> ../../linked-field-option.decorator => vendor/bitwarden-clients/libs/common/src/vault/linked-field-option.decorator.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts -> ./item.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/item.view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/identity.view.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/item.view.ts -> ../../../models/view/view => vendor/bitwarden-clients/libs/common/src/models/view/view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/item.view.ts -> ../../linked-field-option.decorator => vendor/bitwarden-clients/libs/common/src/vault/linked-field-option.decorator.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/secure-note.view.ts -> ../../enums => vendor/bitwarden-clients/libs/common/src/vault/enums/index.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/secure-note.view.ts -> ../domain/secure-note => vendor/bitwarden-clients/libs/common/src/vault/models/domain/secure-note.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/secure-note.view.ts -> ./item.view => vendor/bitwarden-clients/libs/common/src/vault/models/view/item.view.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/secure-note.view.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/common/src/vault/models/view/secure-note.view.ts -> external:type-fest",
+      "vendor/bitwarden-clients/libs/common/src/vault/utils/domain-utils.ts -> ../../key-management/crypto/models/enc-string => vendor/bitwarden-clients/libs/common/src/key-management/crypto/models/enc-string.ts",
+      "vendor/bitwarden-clients/libs/common/src/vault/utils/domain-utils.ts -> external:@bitwarden/sdk-internal",
+      "vendor/bitwarden-clients/libs/components/src/a11y/a11y-title.directive.ts -> ./set-a11y-title-and-aria-label => vendor/bitwarden-clients/libs/components/src/a11y/set-a11y-title-and-aria-label.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/a11y-title.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts -> ./aria-disabled-click-capture.service => vendor/bitwarden-clients/libs/components/src/a11y/aria-disabled-click-capture.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/a11y/aria-disabled-click-capture.service.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts -> ../input => vendor/bitwarden-clients/libs/components/src/input/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts -> @bitwarden/common/platform/misc/utils => apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/a11y/index.ts -> ./a11y-title.directive => vendor/bitwarden-clients/libs/components/src/a11y/a11y-title.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/index.ts -> ./aria-disable.directive => vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/index.ts -> ./aria-disabled-click-capture.service => vendor/bitwarden-clients/libs/components/src/a11y/aria-disabled-click-capture.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/index.ts -> ./autofocus-fallback.directive => vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/index.ts -> ./router-focus-manager.service => vendor/bitwarden-clients/libs/components/src/a11y/router-focus-manager.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/router-focus-manager.service.ts -> ../input => vendor/bitwarden-clients/libs/components/src/input/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/a11y/router-focus-manager.service.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/a11y/router-focus-manager.service.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/a11y/router-focus-manager.service.ts -> external:@angular/router",
+      "vendor/bitwarden-clients/libs/components/src/a11y/router-focus-manager.service.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-action.directive.ts -> ../shared/button-like.abstraction => vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-action.directive.ts -> ../utils/function-to-observable => vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-action.directive.ts -> @bitwarden/common/platform/abstractions/log.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/log.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-action.directive.ts -> @bitwarden/common/platform/abstractions/validation.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/validation.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-action.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-action.directive.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-action.directive.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts -> ../utils/function-to-observable => vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts -> ./dirty-form.service => vendor/bitwarden-clients/libs/components/src/async-actions/dirty-form.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts -> @bitwarden/common/platform/abstractions/log.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/log.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts -> @bitwarden/common/platform/abstractions/validation.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/validation.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/dirty-form.service.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/dirty-form.service.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts -> ../shared/button-like.abstraction => vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts -> ./bit-action.directive => vendor/bitwarden-clients/libs/components/src/async-actions/bit-action.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts -> ./bit-submit.directive => vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.ts -> ../a11y => vendor/bitwarden-clients/libs/components/src/a11y/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.ts -> ../shared/base-button.directive => vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.ts -> ../shared/button-like.abstraction => vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.ts -> ../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.ts -> ../spinner => vendor/bitwarden-clients/libs/components/src/spinner/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.ts -> ../utils => vendor/bitwarden-clients/libs/components/src/utils/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/button.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/button/button.module.ts -> ./button.component => vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/button.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/button/index.ts -> ./button.component => vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/button/index.ts -> ./button.module => vendor/bitwarden-clients/libs/components/src/button/button.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/card/card.component.ts -> ./base-card/base-card.directive => vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/card/card.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts -> ../form-control => vendor/bitwarden-clients/libs/components/src/form-control/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts -> ../form-control/form-control-card.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts -> ../form-control/form-control-group.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.module.ts -> ./checkbox.component => vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-action/chip-action.component.ts -> ../../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-action/chip-action.component.ts -> ../shared/base-chip.directive => vendor/bitwarden-clients/libs/components/src/chips/shared/base-chip.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-action/chip-action.component.ts -> ../shared/chip-content.component => vendor/bitwarden-clients/libs/components/src/chips/shared/chip-content.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-action/chip-action.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-action/index.ts -> ./chip-action.component => vendor/bitwarden-clients/libs/components/src/chips/chip-action/chip-action.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../../button => vendor/bitwarden-clients/libs/components/src/button/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../../icon => vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../../icon-button => vendor/bitwarden-clients/libs/components/src/icon-button/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../../menu => vendor/bitwarden-clients/libs/components/src/menu/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../../select/option => vendor/bitwarden-clients/libs/components/src/select/option.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../../typography => vendor/bitwarden-clients/libs/components/src/typography/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../shared/base-chip.directive => vendor/bitwarden-clients/libs/components/src/chips/shared/base-chip.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../shared/chip-content.component => vendor/bitwarden-clients/libs/components/src/chips/shared/chip-content.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> ../shared/chip-dismiss-button.component => vendor/bitwarden-clients/libs/components/src/chips/shared/chip-dismiss-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> @bitwarden/common/platform/misc/compare-values => vendor/bitwarden-clients/libs/common/src/platform/misc/compare-values.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> external:@angular/common",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip-filter/index.ts -> ./chip-filter.component => vendor/bitwarden-clients/libs/components/src/chips/chip-filter/chip-filter.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip/chip.component.ts -> ../../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip/chip.component.ts -> ../shared/base-chip.directive => vendor/bitwarden-clients/libs/components/src/chips/shared/base-chip.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip/chip.component.ts -> ../shared/chip-content.component => vendor/bitwarden-clients/libs/components/src/chips/shared/chip-content.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip/chip.component.ts -> ../shared/chip-dismiss-button.component => vendor/bitwarden-clients/libs/components/src/chips/shared/chip-dismiss-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip/chip.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip/chip.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/chips/chip/index.ts -> ./chip.component => vendor/bitwarden-clients/libs/components/src/chips/chip/chip.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/index.ts -> ./chip => vendor/bitwarden-clients/libs/components/src/chips/chip/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/index.ts -> ./chip-action => vendor/bitwarden-clients/libs/components/src/chips/chip-action/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/index.ts -> ./chip-filter => vendor/bitwarden-clients/libs/components/src/chips/chip-filter/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/base-chip.directive.ts -> ../../a11y/aria-disable.directive => vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/base-chip.directive.ts -> ../../utils/aria-disable-element => vendor/bitwarden-clients/libs/components/src/utils/aria-disable-element.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/base-chip.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/chip-content.component.ts -> ../../icon => vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/chip-content.component.ts -> ../../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/chip-content.component.ts -> ./base-chip.directive => vendor/bitwarden-clients/libs/components/src/chips/shared/base-chip.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/chip-content.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/chip-dismiss-button.component.ts -> ../../a11y/aria-disable.directive => vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/chip-dismiss-button.component.ts -> ../../icon/icon.component => vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/chip-dismiss-button.component.ts -> ../../utils/aria-disable-element => vendor/bitwarden-clients/libs/components/src/utils/aria-disable-element.ts",
+      "vendor/bitwarden-clients/libs/components/src/chips/shared/chip-dismiss-button.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/dialog/animations.ts -> external:@angular/animations",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts -> @bitwarden/logging => apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts -> external:@angular/cdk/dialog",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts -> external:@angular/cdk/overlay",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts -> external:@angular/cdk/portal",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.module.ts -> ./dialog.service => vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.module.ts -> ./dialog/dialog.component => vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.module.ts -> ./directives/dialog-close.directive => vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-close.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.module.ts -> ./simple-dialog/simple-dialog.component => vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.module.ts -> external:@angular/cdk/dialog",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> ../utils/responsive-utils => vendor/bitwarden-clients/libs/components/src/utils/responsive-utils.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> ./dialog-ref => vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> ./drawer.service => vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> ./simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component => vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> ./simple-dialog/types => vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/types.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> @bitwarden/common/auth/abstractions/auth.service => vendor/bitwarden-clients/libs/common/src/auth/abstractions/auth.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> @bitwarden/common/auth/enums/authentication-status => vendor/bitwarden-clients/libs/common/src/auth/enums/authentication-status.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> @bitwarden/logging => apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> external:@angular/cdk/dialog",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> external:@angular/cdk/overlay",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> external:@angular/cdk/portal",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> external:@angular/router",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../../a11y/autofocus-fallback.directive => vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../../icon-button/icon-button.component => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../../shared => vendor/bitwarden-clients/libs/components/src/shared/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../../spinner => vendor/bitwarden-clients/libs/components/src/spinner/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../../typography/typography.directive => vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../../utils/ => vendor/bitwarden-clients/libs/components/src/utils/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../../utils/has-scrolled-from => vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../dialog-ref => vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../directives/dialog-close.directive => vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-close.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../directives/dialog-title-container.directive => vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-title-container.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../drawer.service => vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> ../simple-dialog/simple-dialog.component => vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> external:@angular/cdk/a11y",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> external:@angular/cdk/scrolling",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> external:@angular/common",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-close.directive.ts -> ../dialog-ref => vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-close.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-title-container.directive.ts -> external:@angular/cdk/dialog",
+      "vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-title-container.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts -> ./dialog-ref => vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts -> external:@angular/router",
+      "vendor/bitwarden-clients/libs/components/src/dialog/drawer.service.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/dialog/index.ts -> ./dialog-ref => vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/index.ts -> ./dialog.module => vendor/bitwarden-clients/libs/components/src/dialog/dialog.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/index.ts -> ./dialog.service => vendor/bitwarden-clients/libs/components/src/dialog/dialog.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/index.ts -> ./dialog/dialog.component => vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/index.ts -> ./simple-dialog/types => vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/types.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/index.ts -> external:@angular/cdk/dialog",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> ../.. => vendor/bitwarden-clients/libs/components/src/dialog/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> ../../../async-actions/bit-submit.directive => vendor/bitwarden-clients/libs/components/src/async-actions/bit-submit.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> ../../../async-actions/form-button.directive => vendor/bitwarden-clients/libs/components/src/async-actions/form-button.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> ../../../button/button.component => vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> ../simple-dialog.component => vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> external:@angular/cdk/dialog",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-configurable-dialog/simple-configurable-dialog.component.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts -> ../../a11y/autofocus-fallback.directive => vendor/bitwarden-clients/libs/components/src/a11y/autofocus-fallback.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts -> ../../button => vendor/bitwarden-clients/libs/components/src/button/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts -> ../../icon => vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts -> ../../typography/typography.directive => vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts -> ../animations => vendor/bitwarden-clients/libs/components/src/dialog/animations.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts -> ../directives/dialog-title-container.directive => vendor/bitwarden-clients/libs/components/src/dialog/directives/dialog-title-container.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/dialog/simple-dialog/simple-dialog.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts -> ./form-control.abstraction => vendor/bitwarden-clients/libs/components/src/form-control/form-control.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> ../icon => vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> ../icon-tile => vendor/bitwarden-clients/libs/components/src/icon-tile/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> ../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> ../typography/typography.directive => vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> ./form-control-base.directive => vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> ./form-control-group.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> ./hint.directive => vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> ../icon => vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> ./hint.directive => vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> ./label.component => vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> external:@angular/common",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts -> ../icon => vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts -> ../typography/typography.directive => vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts -> ./form-control-base.directive => vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.module.ts -> ./form-control-card.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.module.ts -> ./form-control-group.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.module.ts -> ./form-control.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.module.ts -> ./hint.directive => vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.module.ts -> ./label.component => vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/form-control.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-control/index.ts -> ./form-control-base.directive => vendor/bitwarden-clients/libs/components/src/form-control/form-control-base.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/index.ts -> ./form-control-card.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control-card.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/index.ts -> ./form-control-group.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control-group.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/index.ts -> ./form-control.abstraction => vendor/bitwarden-clients/libs/components/src/form-control/form-control.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/index.ts -> ./form-control.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/index.ts -> ./form-control.module => vendor/bitwarden-clients/libs/components/src/form-control/form-control.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts -> ./form-control.component => vendor/bitwarden-clients/libs/components/src/form-control/form-control.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts -> external:@angular/common",
+      "vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/forbidden-characters.validator.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/index.ts -> ./forbidden-characters.validator => vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/forbidden-characters.validator.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/index.ts -> ./trim.validator => vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/trim.validator.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/trim.validator.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/form-field/error-summary.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/error-summary.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/error-summary.component.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/form-field/error.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/error.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> ../form-control/hint.directive => vendor/bitwarden-clients/libs/components/src/form-control/hint.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> ../form-control/label.component => vendor/bitwarden-clients/libs/components/src/form-control/label.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> ./error.component => vendor/bitwarden-clients/libs/components/src/form-field/error.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> ./field-container.directive => vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> ./form-field-control.directive => vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> ./prefix.directive => vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> ./suffix.directive => vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> external:@angular/common",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ../form-control => vendor/bitwarden-clients/libs/components/src/form-control/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ../input/input.module => vendor/bitwarden-clients/libs/components/src/input/input.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ../multi-select/multi-select.module => vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ./error-summary.component => vendor/bitwarden-clients/libs/components/src/form-field/error-summary.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ./error.component => vendor/bitwarden-clients/libs/components/src/form-field/error.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ./form-field.component => vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ./password-input-toggle.directive => vendor/bitwarden-clients/libs/components/src/form-field/password-input-toggle.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ./prefix.directive => vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> ./suffix.directive => vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/index.ts -> ./bit-validators => vendor/bitwarden-clients/libs/components/src/form-field/bit-validators/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/index.ts -> ./field-container.directive => vendor/bitwarden-clients/libs/components/src/form-field/field-container.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/index.ts -> ./form-field-control.directive => vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/index.ts -> ./form-field.component => vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/index.ts -> ./form-field.module => vendor/bitwarden-clients/libs/components/src/form-field/form-field.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/index.ts -> ./password-input-toggle.directive => vendor/bitwarden-clients/libs/components/src/form-field/password-input-toggle.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/password-input-toggle.directive.ts -> ../icon-button/icon-button.component => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/password-input-toggle.directive.ts -> ./form-field.component => vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/password-input-toggle.directive.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/password-input-toggle.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts -> ../icon-button/icon-button.component => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/prefix.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts -> ../icon-button/icon-button.component => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> ../a11y => vendor/bitwarden-clients/libs/components/src/a11y/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> ../a11y/set-a11y-title-and-aria-label => vendor/bitwarden-clients/libs/components/src/a11y/set-a11y-title-and-aria-label.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> ../shared/base-button.directive => vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> ../shared/button-like.abstraction => vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> ../shared/focusable-element => vendor/bitwarden-clients/libs/components/src/shared/focusable-element.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> ../spinner => vendor/bitwarden-clients/libs/components/src/spinner/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> ../tooltip => vendor/bitwarden-clients/libs/components/src/tooltip/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> ../utils => vendor/bitwarden-clients/libs/components/src/utils/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts -> ./icon-button.component => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/index.ts -> ./icon-button.component => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-button/index.ts -> ./icon-button.module => vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.ts -> ../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/icon-tile/index.ts -> ./icon-tile.component => vendor/bitwarden-clients/libs/components/src/icon-tile/icon-tile.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts -> ../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/icon/icon.module.ts -> ./icon.component => vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon/icon.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/icon/index.ts -> ./icon.component => vendor/bitwarden-clients/libs/components/src/icon/icon.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/icon/index.ts -> ./icon.module => vendor/bitwarden-clients/libs/components/src/icon/icon.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts -> ../shared/focusable-element => vendor/bitwarden-clients/libs/components/src/shared/focusable-element.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts -> @bitwarden/common/platform/misc/utils => apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts -> external:rxjs/operators",
+      "vendor/bitwarden-clients/libs/components/src/input/index.ts -> ./autofocus.directive => vendor/bitwarden-clients/libs/components/src/input/autofocus.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/index.ts -> ./input.directive => vendor/bitwarden-clients/libs/components/src/input/input.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/index.ts -> ./input.module => vendor/bitwarden-clients/libs/components/src/input/input.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts -> ../form-field/form-field-control.directive => vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts -> ../form-field/form-field.component => vendor/bitwarden-clients/libs/components/src/form-field/form-field.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/input/input.module.ts -> ./input.directive => vendor/bitwarden-clients/libs/components/src/input/input.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/input/input.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/link/link.component.ts -> ../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/link/link.component.ts -> ../utils => vendor/bitwarden-clients/libs/components/src/utils/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/link/link.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/link/link.module.ts -> ./link.component => vendor/bitwarden-clients/libs/components/src/link/link.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/link/link.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/menu/default-positions.ts -> external:@angular/cdk/overlay",
+      "vendor/bitwarden-clients/libs/components/src/menu/index.ts -> ./default-positions => vendor/bitwarden-clients/libs/components/src/menu/default-positions.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/index.ts -> ./menu-divider.component => vendor/bitwarden-clients/libs/components/src/menu/menu-divider.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/index.ts -> ./menu-item.component => vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/index.ts -> ./menu-trigger-for.directive => vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/index.ts -> ./menu.component => vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/index.ts -> ./menu.module => vendor/bitwarden-clients/libs/components/src/menu/menu.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-divider.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts -> external:@angular/cdk/a11y",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts -> external:@angular/cdk/coercion",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> ../tooltip/tooltip.directive => vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> ./default-positions => vendor/bitwarden-clients/libs/components/src/menu/default-positions.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> ./menu.component => vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> external:@angular/cdk/keycodes",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> external:@angular/cdk/overlay",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> external:@angular/cdk/portal",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts -> external:rxjs/operators",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts -> ./menu-item.component => vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts -> external:@angular/cdk/a11y",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.module.ts -> ./menu-divider.component => vendor/bitwarden-clients/libs/components/src/menu/menu-divider.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.module.ts -> ./menu-item.component => vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.module.ts -> ./menu-trigger-for.directive => vendor/bitwarden-clients/libs/components/src/menu/menu-trigger-for.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.module.ts -> ./menu.component => vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/models/select-item-view.ts -> ../../shared/icon => vendor/bitwarden-clients/libs/components/src/shared/icon.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> ../chips => vendor/bitwarden-clients/libs/components/src/chips/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> ../form-field/form-field-control.directive => vendor/bitwarden-clients/libs/components/src/form-field/form-field-control.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> ../icon => vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> ../spinner => vendor/bitwarden-clients/libs/components/src/spinner/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> ./models/select-item-view => vendor/bitwarden-clients/libs/components/src/multi-select/models/select-item-view.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> @bitwarden/ui-common => apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> external:@angular/cdk/keycodes",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts -> external:@ng-select/ng-select",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.module.ts -> ./multi-select.component => vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/multi-select/multi-select.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts -> ../typography => vendor/bitwarden-clients/libs/components/src/typography/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/section/section-header.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/select/option.component.ts -> ./option => vendor/bitwarden-clients/libs/components/src/select/option.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/option.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/select/option.ts -> ../shared/data-to-signal-type => vendor/bitwarden-clients/libs/components/src/shared/data-to-signal-type.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> ../form-field => vendor/bitwarden-clients/libs/components/src/form-field/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> ../icon => vendor/bitwarden-clients/libs/components/src/icon/index.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> ../typography/typography.directive => vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> ./option => vendor/bitwarden-clients/libs/components/src/select/option.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> ./option.component => vendor/bitwarden-clients/libs/components/src/select/option.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> external:@angular/cdk/keycodes",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> external:@angular/forms",
+      "vendor/bitwarden-clients/libs/components/src/select/select.component.ts -> external:@ng-select/ng-select",
+      "vendor/bitwarden-clients/libs/components/src/select/select.module.ts -> ./option.component => vendor/bitwarden-clients/libs/components/src/select/option.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.module.ts -> ./select.component => vendor/bitwarden-clients/libs/components/src/select/select.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/select/select.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts -> ./button-like.abstraction => vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts",
+      "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/shared/button-like.abstraction.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/shared/data-to-signal-type.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/shared/index.ts -> ./base-button.directive => vendor/bitwarden-clients/libs/components/src/shared/base-button.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/shared/index.ts -> ./root-font-size => vendor/bitwarden-clients/libs/components/src/shared/root-font-size.ts",
+      "vendor/bitwarden-clients/libs/components/src/spinner/index.ts -> ./spinner.component => vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/spinner/spinner.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/index.ts -> ./tooltip.directive => vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip-positions.ts -> external:@angular/cdk/overlay",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts -> ./tooltip-positions => vendor/bitwarden-clients/libs/components/src/tooltip/tooltip-positions.ts",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts -> external:@angular/common",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts -> ./tooltip-positions => vendor/bitwarden-clients/libs/components/src/tooltip/tooltip-positions.ts",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts -> ./tooltip.component => vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts -> external:@angular/cdk/overlay",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts -> external:@angular/cdk/portal",
+      "vendor/bitwarden-clients/libs/components/src/tooltip/tooltip.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/typography/index.ts -> ./typography.module => vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts",
+      "vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts -> ./typography.directive => vendor/bitwarden-clients/libs/components/src/typography/typography.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/utils/aria-disable-element.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/utils/aria-disable-element.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/utils/dom-observables.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts -> @bitwarden/common/platform/misc/utils => apps/menubar-tauri/src/app/official-ui/official-common-utils.adapter.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts -> ./dom-observables => vendor/bitwarden-clients/libs/components/src/utils/dom-observables.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts -> external:rxjs/operators",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts -> external:@angular/cdk/scrolling",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts -> external:@angular/core/rxjs-interop",
+      "vendor/bitwarden-clients/libs/components/src/utils/has-scrolled-from.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/components/src/utils/i18n-mock.service.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/index.ts -> ./aria-disable-element => vendor/bitwarden-clients/libs/components/src/utils/aria-disable-element.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/index.ts -> ./function-to-observable => vendor/bitwarden-clients/libs/components/src/utils/function-to-observable.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/index.ts -> ./has-scrollable-content => vendor/bitwarden-clients/libs/components/src/utils/has-scrollable-content.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/index.ts -> ./i18n-mock.service => vendor/bitwarden-clients/libs/components/src/utils/i18n-mock.service.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/index.ts -> ./state-mock => vendor/bitwarden-clients/libs/components/src/utils/state-mock.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/state-mock.ts -> @bitwarden/state => apps/menubar-tauri/src/app/official-ui/official-state-types.adapter.ts",
+      "vendor/bitwarden-clients/libs/components/src/utils/state-mock.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/storage-core/src/client-locations.ts -> ./storage-location => vendor/bitwarden-clients/libs/storage-core/src/storage-location.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./client-locations => vendor/bitwarden-clients/libs/storage-core/src/client-locations.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./html-storage-location.enum => vendor/bitwarden-clients/libs/storage-core/src/html-storage-location.enum.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./memory-storage.service => vendor/bitwarden-clients/libs/storage-core/src/memory-storage.service.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./serialized-memory-storage.service => vendor/bitwarden-clients/libs/storage-core/src/serialized-memory-storage.service.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./storage-location => vendor/bitwarden-clients/libs/storage-core/src/storage-location.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./storage-location.enum => vendor/bitwarden-clients/libs/storage-core/src/storage-location.enum.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./storage-options => vendor/bitwarden-clients/libs/storage-core/src/storage-options.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./storage-service.provider => vendor/bitwarden-clients/libs/storage-core/src/storage-service.provider.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/index.ts -> ./storage.service => vendor/bitwarden-clients/libs/storage-core/src/storage.service.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/memory-storage.service.ts -> ./storage.service => vendor/bitwarden-clients/libs/storage-core/src/storage.service.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/memory-storage.service.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/storage-core/src/serialized-memory-storage.service.ts -> ./storage.service => vendor/bitwarden-clients/libs/storage-core/src/storage.service.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/serialized-memory-storage.service.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/storage-core/src/storage-options.ts -> ./html-storage-location.enum => vendor/bitwarden-clients/libs/storage-core/src/html-storage-location.enum.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/storage-options.ts -> ./storage-location.enum => vendor/bitwarden-clients/libs/storage-core/src/storage-location.enum.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/storage-service.provider.ts -> ./client-locations => vendor/bitwarden-clients/libs/storage-core/src/client-locations.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/storage-service.provider.ts -> ./storage-location => vendor/bitwarden-clients/libs/storage-core/src/storage-location.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/storage-service.provider.ts -> ./storage.service => vendor/bitwarden-clients/libs/storage-core/src/storage.service.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/storage.service.ts -> ./storage-options => vendor/bitwarden-clients/libs/storage-core/src/storage-options.ts",
+      "vendor/bitwarden-clients/libs/storage-core/src/storage.service.ts -> external:rxjs",
+      "vendor/bitwarden-clients/libs/ui/common/src/i18n.pipe.ts -> @bitwarden/common/platform/abstractions/i18n.service => vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
+      "vendor/bitwarden-clients/libs/ui/common/src/i18n.pipe.ts -> external:@angular/core",
+      "vendor/bitwarden-clients/libs/user-core/src/index.ts -> external:type-fest"
+    ],
+    "sha256": "2770c8e1cfc1ad83bc77bae49255ff6d53445ed9e7e3cd945b4369a4b1886843"
+  },
+  "excludedTokens": [
+    "BrowserApi",
+    "chrome.",
+    "VaultPopupAutofillService",
+    "BrowserPopupUtils",
+    "AttachmentsV2ViewComponent",
+    "CipherAttachmentsComponent",
+    "Fido2CredentialView",
+    "SshKeyView",
+    "BankAccountView",
+    "DriversLicenseViewComponent",
+    "PassportView",
+    "PremiumUpgradePromptService",
+    "BillingAccountProfileStateService",
+    "EventCollectionService",
+    "CollectionService",
+    "PolicyService",
+    "nativeMessaging"
+  ]
+}

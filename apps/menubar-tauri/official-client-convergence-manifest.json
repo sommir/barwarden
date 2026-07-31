@@ -1,0 +1,110 @@
+{
+  "schema": "m14-official-client-convergence-v1",
+  "vendorRevision": "f47b6946e01aed474875789081966d311d5b8289",
+  "rows": [
+    {
+      "id": "environment",
+      "localAuthorities": ["apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts", "apps/menubar-tauri/src/app/auth/official-environment.adapter.ts"],
+      "officialAuthorities": [{"path": "libs/common/src/abstractions/api.service.ts", "sha256": "21063366a56163ebadd1a57e8ab87b6646e04e1198cf51b2af33522fb973a6e8"}],
+      "decision": "adapter",
+      "reasonCode": "tauri-environment-storage-boundary",
+      "proofTests": ["apps/menubar-tauri/src/bitwarden-api/bitwarden-api.spec.ts", "apps/menubar-tauri/src/app/auth/official-environment.adapter.spec.ts"]
+    },
+    {
+      "id": "http-transport",
+      "localAuthorities": ["apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts", "apps/menubar-tauri/src/host/tauri-host.service.ts"],
+      "officialAuthorities": [
+        {"path": "libs/common/src/abstractions/api.service.ts", "sha256": "21063366a56163ebadd1a57e8ab87b6646e04e1198cf51b2af33522fb973a6e8"},
+        {"path": "libs/common/src/services/api.service.ts", "sha256": "6a9591ed637fc189537de5b53d368f5701b808e757d8f642f6138ae796e57c4a"}
+      ],
+      "decision": "adapter",
+      "reasonCode": "tauri-http-transport-boundary",
+      "proofTests": ["apps/menubar-tauri/src/bitwarden-api/bitwarden-api.spec.ts", "apps/menubar-tauri/src/host/tauri-host.service.spec.ts"]
+    },
+    {
+      "id": "password-login",
+      "localAuthorities": ["apps/menubar-tauri/src/auth/password-login.service.ts", "apps/menubar-tauri/src/auth/master-password-crypto.ts"],
+      "officialAuthorities": [{"path": "libs/auth/src/common/login-strategies/password-login.strategy.ts", "sha256": "f8f41a92ea8b55f52c242ea3c1c51956a64e754d9d74003c8ddf2cdb4773b2a0"}],
+      "decision": "adapter",
+      "reasonCode": "retained-password-login-orchestration",
+      "proofTests": ["apps/menubar-tauri/src/auth/password-login.service.spec.ts", "apps/menubar-tauri/e2e/live/live-auth-contract.spec.ts"]
+    },
+    {
+      "id": "token-refresh",
+      "localAuthorities": ["apps/menubar-tauri/src/auth/auth-token-refresh.service.ts", "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts"],
+      "officialAuthorities": [{"path": "libs/common/src/services/api.service.ts", "sha256": "6a9591ed637fc189537de5b53d368f5701b808e757d8f642f6138ae796e57c4a"}],
+      "decision": "adapter",
+      "reasonCode": "retained-token-refresh-session-boundary",
+      "proofTests": ["apps/menubar-tauri/src/auth/auth-token-refresh.service.spec.ts", "apps/menubar-tauri/e2e/live/live-auth-contract.spec.ts"]
+    },
+    {
+      "id": "sync-projection",
+      "localAuthorities": ["apps/menubar-tauri/src/vault/vault-sync.service.ts", "apps/menubar-tauri/src/app/vault/vault-session.service.ts"],
+      "officialAuthorities": [
+        {"path": "libs/common/src/platform/sync/sync.response.ts", "sha256": "11852b14237bd1397ac85f754522fa700f0acf604022bcbd94ebb465d10491c0"},
+        {"path": "libs/common/src/platform/sync/default-sync.service.ts", "sha256": "5bdb9a85550c9978acb876c11973246e77e93e327c45cbadc164498b67da86d1"}
+      ],
+      "decision": "adapter",
+      "reasonCode": "retained-narrow-sync-projection",
+      "proofTests": ["apps/menubar-tauri/src/vault/vault-sync.service.spec.ts", "apps/menubar-tauri/src/app/vault/vault-session.service.spec.ts"]
+    },
+    {
+      "id": "folder-write",
+      "localAuthorities": ["apps/menubar-tauri/src/app/vault/vault-folder.service.ts", "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts"],
+      "officialAuthorities": [
+        {"path": "libs/common/src/vault/services/folder/folder-api.service.ts", "sha256": "a5cc4177b6b44794f5473fa774c743ce21bd78670fbef883e295941f471b5b54"},
+        {"path": "libs/common/src/vault/models/request/folder.request.ts", "sha256": "c026c6ebd99ab7452eac513df9f86d163db5de4314bdb2e6451d1b0efb14784c"}
+      ],
+      "decision": "adapter",
+      "reasonCode": "retained-folder-write-ownership",
+      "proofTests": ["apps/menubar-tauri/src/app/vault/vault-folder.service.spec.ts", "apps/menubar-tauri/e2e/live/live-vault-scenarios.spec.ts"]
+    },
+    {
+      "id": "cipher-write",
+      "localAuthorities": ["apps/menubar-tauri/src/app/vault/vault-cipher-request.service.ts", "apps/menubar-tauri/src/app/vault/vault-cipher-write.service.ts"],
+      "officialAuthorities": [{"path": "libs/common/src/vault/models/request/cipher.request.ts", "sha256": "e252c1ca119e2194545b1670898f2f7a2725f5dfb23493849e83b29996269807"}],
+      "decision": "adapter",
+      "reasonCode": "retained-lossless-cipher-write",
+      "proofTests": ["apps/menubar-tauri/src/app/vault/vault-cipher-request.service.spec.ts", "apps/menubar-tauri/src/app/vault/vault-cipher-write.service.spec.ts"]
+    },
+    {
+      "id": "cipher-recovery",
+      "localAuthorities": ["apps/menubar-tauri/src/app/vault/vault-actions.service.ts", "apps/menubar-tauri/src/app/vault/recovery-page-actions.adapter.ts"],
+      "officialAuthorities": [
+        {"path": "libs/common/src/platform/sync/default-sync.service.ts", "sha256": "5bdb9a85550c9978acb876c11973246e77e93e327c45cbadc164498b67da86d1"},
+        {"path": "libs/common/src/vault/models/request/cipher.request.ts", "sha256": "e252c1ca119e2194545b1670898f2f7a2725f5dfb23493849e83b29996269807"}
+      ],
+      "decision": "adapter",
+      "reasonCode": "retained-recovery-state-ownership",
+      "proofTests": ["apps/menubar-tauri/e2e/live/live-vault-scenarios.spec.ts", "apps/menubar-tauri/src/app/vault/vault-actions.service.spec.ts"]
+    },
+    {
+      "id": "text-send-request",
+      "localAuthorities": ["apps/menubar-tauri/src/app/send/send-request.service.ts", "apps/menubar-tauri/src/app/send/send-actions.service.ts"],
+      "officialAuthorities": [
+        {"path": "libs/common/src/tools/send/models/request/send.request.ts", "sha256": "65cb03bc2e057a8d6477b48c66aa26548f83f236634f8f82768da3cded988580"},
+        {"path": "libs/common/src/tools/send/services/send-api.service.ts", "sha256": "7560565a632b91e7be17b920cc0ab639636620efdfc5d11f614caaa15bb04a7d"},
+        {"path": "libs/common/src/key-management/sends/services/default-send-password.service.ts", "sha256": "badf16fd47efdcaa53d86db31be5a0aeee2df36f19688a129678cc9c996d9609"}
+      ],
+      "decision": "adapter",
+      "reasonCode": "tauri-text-only-request-boundary",
+      "proofTests": ["apps/menubar-tauri/src/app/send/send-request.service.spec.ts", "apps/menubar-tauri/src/app/send/send-actions.service.spec.ts"]
+    },
+    {
+      "id": "text-send-password-kdf",
+      "localAuthorities": ["apps/menubar-tauri/src/app/send/send-request.service.ts"],
+      "officialAuthorities": [{"path": "libs/common/src/tools/send/send-kdf.ts", "sha256": "eea1d151ba2ed2567625ad8b4f70d1b5cad9cfd8c3a8a752b9b8b42bb0011ff3"}],
+      "decision": "replace",
+      "reasonCode": "official-send-kdf-constant",
+      "proofTests": ["apps/menubar-tauri/src/app/send/send-request.service.spec.ts", "scripts/check-official-client-convergence.spec.mjs"]
+    },
+    {
+      "id": "official-sdk-crypto",
+      "localAuthorities": ["apps/menubar-tauri/src/sdk/bitwarden-sdk-core.service.ts", "apps/menubar-tauri/src/auth/master-password-crypto.ts"],
+      "officialAuthorities": [{"path": "libs/common/src/platform/services/sdk/default-sdk-load.service.ts", "sha256": "e435afac70d7510ed1279cda9ad324517f94fdbe617b11c265fde5caf77d5a2b"}],
+      "decision": "direct",
+      "reasonCode": "official-sdk-kdf-encryption-path",
+      "proofTests": ["apps/menubar-tauri/src/sdk/bitwarden-sdk-core.service.spec.ts", "apps/menubar-tauri/src/auth/master-password-crypto.spec.ts", "apps/menubar-tauri/src/app/upstream-import-guard.spec.ts"]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+--- a/apps/browser/src/tools/popup/settings/settings-v2.component.html
++++ b/apps/browser/src/tools/popup/settings/settings-v2.component.html
+@@ -1 +1,0 @@
+-<!-- Official Settings overlay source; generated. -->
+@@ -3 +2 @@
+-  <popup-header slot="header" pageTitle="{{ 'settings' | i18n }}">
++  <popup-header slot="header" [pageTitle]="'settings' | i18n">
+@@ -5,2 +4 @@
+-      <app-pop-out></app-pop-out>
+-      <app-current-account></app-current-account>
++      <ng-content select="[slot=end]" />
+@@ -10,30 +8,62 @@
+-  <bit-item-group>
+-    <bit-item>
+-      <a bit-item-content routerLink="/account-security" [truncate]="false">
+-        <i slot="start" class="bwi bwi-lock" aria-hidden="true"></i>
+-        {{ "accountSecurity" | i18n }}
+-        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+-      </a>
+-    </bit-item>
+-    <bit-item>
+-      <a bit-item-content routerLink="/vault-settings" [truncate]="false">
+-        <i slot="start" class="bwi bwi-vault" aria-hidden="true"></i>
+-        {{ "settingsVaultOptions" | i18n }}
+-        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+-      </a>
+-    </bit-item>
+-    <bit-item>
+-      <a bit-item-content routerLink="/appearance" [truncate]="false">
+-        <i slot="start" class="bwi bwi-brush" aria-hidden="true"></i>
+-        {{ "appearance" | i18n }}
+-        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+-      </a>
+-    </bit-item>
+-    <bit-item>
+-      <a bit-item-content routerLink="/about" [truncate]="false">
+-        <i slot="start" class="bwi bwi-info-circle" aria-hidden="true"></i>
+-        {{ "about" | i18n }}
+-        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+-      </a>
+-    </bit-item>
+-  </bit-item-group>
++  <div class="tw-px-4 tw-pt-4">
++    <h2 bitTypography="h6" class="tw-mb-2">{{ "i18nGeneral" | i18n }}</h2>
++
++    <bit-item-group>
++      <bit-item>
++        <label
++          bit-item-content
++          class="settings-row official-settings-row"
++          data-testid="launch-at-login-row"
++        >
++          <input
++            slot="start"
++            bitCheckbox
++            id="launch-at-login"
++            type="checkbox"
++            [attr.aria-label]="'i18nLaunchAtLogin' | i18n"
++            [checked]="launchAtLoginEnabled"
++            [disabled]="launchAtLoginBusy"
++            (change)="requestLaunchAtLoginChange($event)"
++          />
++          <span
++            class="launch-at-login-row__copy tw-inline-flex tw-max-w-full tw-items-baseline tw-gap-2 tw-whitespace-nowrap"
++          >
++            <span class="launch-at-login-row__title tw-font-medium">
++              {{ "i18nLaunchAtLogin" | i18n }}
++            </span>
++            <span class="launch-at-login-row__hint tw-truncate tw-text-sm tw-text-muted">
++              {{ "i18nLaunchAtLoginHint" | i18n }}
++            </span>
++          </span>
++        </label>
++      </bit-item>
++
++      @for (item of items; track item.route) {
++        <bit-item>
++          <button
++            type="button"
++            bit-item-content
++            class="settings-row official-settings-row"
++            [truncate]="false"
++            (click)="navigate.emit(item.route)"
++          >
++            <i slot="start" class="bwi" [class]="item.icon" aria-hidden="true"></i>
++            {{ item.label }}
++            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
++          </button>
++        </bit-item>
++      }
++    </bit-item-group>
++
++    @if (launchAtLoginError) {
++      <bw-macos-alert-strip
++        class="tw-mt-3"
++        kind="danger"
++        testId="launch-at-login-error"
++        [title]="'i18nUnableToUpdateLaunchAtLoginTitle' | i18n"
++        [message]="launchAtLoginError"
++        [dismissible]="true"
++        (dismiss)="dismissLaunchAtLoginError.emit()"
++      />
++    }
++  </div>

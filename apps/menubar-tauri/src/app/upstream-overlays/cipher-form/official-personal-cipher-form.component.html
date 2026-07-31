@@ -1,0 +1,27 @@
+<form [id]="formId" [formGroup]="cipherForm" [bitSubmit]="submit">
+  @if (!loading) {
+    <!-- TODO: Should we show a loading spinner here? Or emit a ready event for the container to handle loading state -->
+    <vault-item-details-section
+      [config]="config"
+      [originalCipherView]="originalCipherView"
+    ></vault-item-details-section>
+
+    @if (config.cipherType === CipherType.Identity) {
+      <vault-identity-section
+        [disabled]="false"
+        [originalCipherView]="originalCipherView"
+      ></vault-identity-section>
+    }
+
+    @if (config.cipherType === CipherType.Card) {
+      <vault-card-details-section
+        [originalCipherView]="originalCipherView"
+        [disabled]="false"
+      ></vault-card-details-section>
+    }
+
+    <vault-additional-options-section
+      [disableSectionMargin]="config.mode !== 'edit'"
+    ></vault-additional-options-section>
+  }
+</form>

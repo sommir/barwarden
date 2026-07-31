@@ -1,0 +1,87 @@
+{
+  "revision": "f47b6946e01aed474875789081966d311d5b8289",
+  "authorities": [
+    {
+      "path": "libs/auth/src/angular/new-device-verification/new-device-verification.component.ts",
+      "sha256": "dfbfecc6cb79f9c494e3ae9a3f81729f3240831c1efc47de854660566477cb85"
+    },
+    {
+      "path": "libs/auth/src/angular/new-device-verification/new-device-verification.component.html",
+      "sha256": "c29e71d10a58fc052f44b3ce71add4f1a4188d423ce37fd34ec7d077f6d38a6b"
+    }
+  ],
+  "localRuntimes": [
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/new-device/official-new-device-verification.component.ts",
+      "sha256": "19bfafec8249f33543a272305ca02dd007b8a167e9cc9ae841e1d35a003bce14"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/new-device/official-new-device-verification.component.html",
+      "sha256": "d070a26b9b5e0f9b7ffd2d5d43592e8dacdc9fd9917b121cab572a7082104268"
+    }
+  ],
+  "substitutions": [
+    "official ApiService resend request -> PasswordLoginService KDF and BitwardenApiClient through OfficialNewDeviceAdapter",
+    "official LoginStrategyService submit and retained session state -> AuthFacade pending challenge pipeline",
+    "official Location back navigation -> retained Location statement plus AuthFacade cancellation and local login route confirmation",
+    "official LogService error handling -> fixed PopupStateStore messages without secret-bearing error details",
+    "successful verification keeps the submitted code stable until route takeover; failure and destruction clear it"
+  ],
+  "removed": [
+    "official ApiService and LoginStrategyService",
+    "official AccountService and MasterPasswordService",
+    "official LogService and error logging",
+    "browser timeout routing and force-set-password routes"
+  ],
+  "exactPartitions": [
+    {
+      "authority": "libs/auth/src/angular/new-device-verification/new-device-verification.component.ts",
+      "runtime": "official-new-device-verification.component.ts",
+      "retainedMembers": [
+        "formGroup",
+        "formGroupDirective",
+        "destroy$",
+        "showBackButton",
+        "disableRequestOTP",
+        "resendOTP",
+        "submit",
+        "onPaste",
+        "goBack"
+      ],
+      "adaptedMembers": [
+        "ngOnInit",
+        "ngOnDestroy"
+      ],
+      "removedMembers": [
+        "authenticationSessionTimeoutRoute"
+      ],
+      "removedImports": [
+        "@bitwarden/auth/common",
+        "@bitwarden/common/abstractions/api.service",
+        "@bitwarden/common/auth/abstractions/account.service",
+        "@bitwarden/common/key-management/master-password/abstractions/master-password.service.abstraction",
+        "@bitwarden/common/platform/abstractions/log.service",
+        "../../common/abstractions/login-strategy.service"
+      ]
+    },
+    {
+      "authority": "libs/auth/src/angular/new-device-verification/new-device-verification.component.html",
+      "runtime": "official-new-device-verification.component.html",
+      "retainedTemplate": [
+        "formGroup",
+        "verificationCode",
+        "code",
+        "resendOTP",
+        "continueLoggingIn",
+        "goBack"
+      ],
+      "adaptedTemplate": [
+        "server error callout",
+        "official disabled control inputs",
+        "retained test identifiers",
+        "native popup route cancellation",
+        "macOS auth card, semantic field, primary action, and reserved validation hooks"
+      ]
+    }
+  ]
+}

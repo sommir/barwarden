@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "experimentalDecorators": true,
+    "isolatedModules": false,
+    "noEmit": true,
+    "noImplicitReturns": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "skipLibCheck": true,
+    "strict": false,
+    "types": ["node", "vitest/globals"]
+  },
+  "files": [
+    "official-send-aliases.ts",
+    "src/app/send/retained-text-send-form.service.ts",
+    "src/app/upstream-overlays/send/official-send-add-edit.component.ts",
+    "src/app/upstream-overlays/send/official-send-created.component.ts",
+    "src/app/upstream-overlays/send/official-send-details.component.ts",
+    "src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+    "src/app/upstream-overlays/send/official-send-list.component.ts",
+    "src/app/upstream-overlays/send/official-send-options.component.ts",
+    "src/app/upstream-overlays/send/official-send-raw-template.d.ts",
+    "src/app/upstream-overlays/send/official-send-text-details.component.ts",
+    "src/app/upstream-overlays/send/official-send-member-transforms.ts"
+  ],
+  "include": []
+}

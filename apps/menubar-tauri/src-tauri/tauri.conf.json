@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Barwarden",
+  "version": "0.1.0",
+  "identifier": "com.sommir.barwarden",
+  "build": {
+    "beforeDevCommand": "npm run dev:web",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build:web",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Barwarden",
+        "width": 480,
+        "height": 600,
+        "minWidth": 480,
+        "maxWidth": 480,
+        "minHeight": 600,
+        "visible": false,
+        "resizable": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": true,
+        "windowEffects": {
+          "effects": ["popover"],
+          "state": "active",
+          "radius": 14
+        },
+        "fullscreen": false,
+        "center": true,
+        "skipTaskbar": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "icon": ["icons/icon.icns"],
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "hardenedRuntime": true,
+      "entitlements": "Entitlements.plist",
+      "infoPlist": "Info.plist",
+      "files": {
+        "Resources/LICENSE": "../../../LICENSE",
+        "Resources/NOTICE.md": "../../../NOTICE.md",
+        "Resources/PRIVACY.md": "../../../PRIVACY.md",
+        "Resources/THIRD_PARTY_LICENSES.txt": "../../../THIRD_PARTY_LICENSES.txt",
+        "Resources/THIRD_PARTY_NOTICES.md": "../../../THIRD_PARTY_NOTICES.md"
+      }
+    }
+  }
+}

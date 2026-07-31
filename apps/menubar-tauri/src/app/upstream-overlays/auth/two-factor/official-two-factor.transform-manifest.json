@@ -1,0 +1,638 @@
+{
+  "revision": "f47b6946e01aed474875789081966d311d5b8289",
+  "authorities": [
+    {
+      "path": "libs/auth/src/angular/two-factor-auth/two-factor-auth.component.ts",
+      "sha256": "5d268f8cc43697784ef1ffdfe37e3edd4943d3cbd749079f7dcf75695a8c6883"
+    },
+    {
+      "path": "libs/auth/src/angular/two-factor-auth/two-factor-auth.component.html",
+      "sha256": "17938282088b86d472e277763429b560173fc2183c29d66b637ce32c7675b21f"
+    },
+    {
+      "path": "libs/auth/src/angular/two-factor-auth/two-factor-options.component.ts",
+      "sha256": "374d24c31f01e67aa46579c3a949a5849daf55c749094a251915ac6ebcb58196"
+    },
+    {
+      "path": "libs/auth/src/angular/two-factor-auth/two-factor-options.component.html",
+      "sha256": "bf55e0f0b4c2da6ebb407a471fe7b297bc8444da54534d116a8f100aa8db5c96"
+    },
+    {
+      "path": "libs/auth/src/angular/two-factor-auth/child-components/two-factor-auth-email/two-factor-auth-email.component.ts",
+      "sha256": "2306f4e74bc9d23169f304e18cc7519276a2566f59141d6dc3e6dd13898dc65b"
+    },
+    {
+      "path": "libs/auth/src/angular/two-factor-auth/child-components/two-factor-auth-email/two-factor-auth-email.component.html",
+      "sha256": "d1fa1d2acc4049ed7251c13419b6f144b4ffb19610e2170449435502faa39d68"
+    },
+    {
+      "path": "libs/auth/src/angular/two-factor-auth/child-components/two-factor-auth-authenticator/two-factor-auth-authenticator.component.ts",
+      "sha256": "be8e5b354a3ce86c8da843fad05af3e29c39792a6c9e56ba0cbe17b2c1d0477e"
+    },
+    {
+      "path": "libs/auth/src/angular/two-factor-auth/child-components/two-factor-auth-authenticator/two-factor-auth-authenticator.component.html",
+      "sha256": "00b787d4e49fe9752e68c34f50909a8baf5d28f811563dafa46ea83d04e305cb"
+    },
+    {
+      "path": "libs/angular/src/directives/input-verbatim.directive.ts",
+      "sha256": "430c2250fa3c775295c182a0d366c2f4a8530224254e9538ac97f2e357efccb0"
+    },
+    {
+      "path": "libs/angular/src/directives/stop-click.directive.ts",
+      "sha256": "0eb851b9e52a97f68b2a8e0cc19df8dd579ace4a0a9440559f73d77c3cce8606"
+    },
+    {
+      "path": "libs/components/src/input/autofocus.directive.ts",
+      "sha256": "e3f2e7ae56f57e174d03a5fe650e578419ad2c4e6dda183afe3e37ff04941b9e"
+    }
+  ],
+  "localRuntimes": [
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor.component.ts",
+      "sha256": "338ac9c65d97bbaa7b9a6969573034f794296952babfe20f3d03154a3476487a"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor.component.html",
+      "sha256": "5a1e5ab7d5e77c0e01906461349fef856549c211ff377221e1aca47015c2996c"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-options.component.ts",
+      "sha256": "05121dfdbc117052a3b4b4783d2e4f918973024ce8c614148b32087b61188685"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-options.component.html",
+      "sha256": "5dc5af754e7cf3876740b0b277f8e6f60d4af92bee7cb48e94f5b1f021416ba5"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-email.component.ts",
+      "sha256": "9c2551714519b3b6997df0ec42b515a61df71428bb2e9bb079b8b842b329a5e2"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-email.component.html",
+      "sha256": "d817b4c5c636c40a0a06a8d4d61dee57b0fe4f0a0a1579ee5684478a44e92e4e"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-authenticator.component.ts",
+      "sha256": "5ad30f057d40061afab4db7a0a0d3a8e4663c4810dec18d13016fa7ab0a27002"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-authenticator.component.html",
+      "sha256": "00b787d4e49fe9752e68c34f50909a8baf5d28f811563dafa46ea83d04e305cb"
+    },
+    {
+      "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",
+      "sha256": "799dfb3c25da9f311d34fa1a7a840f044619fe7de15050609cef29312093dab5"
+    }
+  ],
+  "retainedProviders": [
+    0,
+    1
+  ],
+  "substitutions": [
+    "official login strategy and two-factor services -> OfficialChallengeAdapter",
+    "official browser dialog service -> shared AppBottomSheetComponent",
+    "anonymous layout data service -> retained anonymous-shell title inputs",
+    "pinned InputVerbatim OnInit attribute application -> the same application in OnInit and AfterViewInit so current bitInput host bindings cannot overwrite it",
+    "pinned AutofocusDirective -> direct retained JslibModule export for source-direct Vault search",
+    "unsupported-only provider state -> fixed unsupported message and back action without unavailable provider inputs or authentication controls",
+    "successful verification keeps the submitted token stable until route takeover; failure and destruction clear it"
+  ],
+  "removed": [
+    "Duo and Organization Duo",
+    "WebAuthn and YubiKey",
+    "recovery-code handoff, SSO/TDE, and Key Connector",
+    "browser popup resizing, pop-out, cache, and extension messaging"
+  ],
+  "exactPartitions": [
+    {
+      "authority": "libs/auth/src/angular/two-factor-auth/two-factor-auth.component.ts",
+      "runtime": "official-two-factor.component.ts",
+      "upstreamMembers": {
+        "retained": [
+          "loading",
+          "providerType",
+          "selectedProviderType",
+          "form",
+          "tokenFormControl",
+          "rememberFormControl",
+          "ngOnInit",
+          "saveFormDataWithPartialData",
+          "onRememberChange",
+          "submit",
+          "selectOtherTwoFactorMethod",
+          "showContinueButton",
+          "hideRememberMe",
+          "handleEnterKeyPress",
+          "ngOnDestroy"
+        ],
+        "adapted": [
+          "continueButton",
+          "twoFactorProviders",
+          "formPromise",
+          "initializeSelected2faProviderType",
+          "set2faProvidersAndData",
+          "setAnonLayoutDataByTwoFactorProviderType",
+          "handleAuthResult",
+          "determineDefaultSuccessRoute"
+        ],
+        "removed": [
+          "orgSsoIdentifier",
+          "selectedProviderData",
+          "duoComponent",
+          "duoLaunchAction",
+          "DuoLaunchAction",
+          "webAuthInNewTab",
+          "authenticationSessionTimeoutRoute",
+          "listenForAuthnSessionTimeout",
+          "launchDuo",
+          "handleMigrateEncryptionKey",
+          "isTrustedDeviceEncEnabled",
+          "handleTrustedDeviceEncryptionEnabled",
+          "handleChangePasswordRequired",
+          "use2faRecoveryCode"
+        ]
+      },
+      "upstreamImports": {
+        "retained": [
+          "@angular/common",
+          "@angular/core",
+          "@angular/core/rxjs-interop",
+          "@angular/forms",
+          "@angular/router",
+          "@bitwarden/components",
+          "./child-components/two-factor-auth-authenticator/two-factor-auth-authenticator.component",
+          "./child-components/two-factor-auth-email/two-factor-auth-email.component",
+          "./two-factor-options.component"
+        ],
+        "adapted": [
+          "rxjs",
+          "@bitwarden/angular/jslib.module",
+          "@bitwarden/auth/common",
+          "@bitwarden/common/auth/enums/two-factor-provider-type",
+          "@bitwarden/common/auth/two-factor",
+          "@bitwarden/common/platform/abstractions/i18n.service"
+        ],
+        "removed": [
+          "@bitwarden/angular/services/injection-tokens",
+          "@bitwarden/assets/svg",
+          "@bitwarden/common/auth/abstractions/account.service",
+          "@bitwarden/common/auth/abstractions/auth.service",
+          "@bitwarden/common/auth/abstractions/sso-login.service.abstraction",
+          "@bitwarden/common/auth/enums/authentication-status",
+          "@bitwarden/common/auth/models/domain/auth-result",
+          "@bitwarden/common/auth/models/domain/force-set-password-reason",
+          "@bitwarden/common/auth/models/request/identity-token/token-two-factor.request",
+          "@bitwarden/common/key-management/key-connector/abstractions/key-connector.service",
+          "@bitwarden/common/key-management/master-password/abstractions/master-password.service.abstraction",
+          "@bitwarden/common/platform/abstractions/environment.service",
+          "@bitwarden/common/platform/abstractions/log.service",
+          "@bitwarden/common/platform/abstractions/platform-utils.service",
+          "@bitwarden/common/types/guid",
+          "./child-components/two-factor-auth-duo/two-factor-auth-duo.component",
+          "./child-components/two-factor-auth-webauthn/two-factor-auth-webauthn.component",
+          "./child-components/two-factor-auth-yubikey/two-factor-auth-yubikey.component",
+          "./two-factor-auth-component-cache.service",
+          "./two-factor-auth-component.service"
+        ]
+      },
+      "localMembers": [
+        "options",
+        "providerType",
+        "form",
+        "loading",
+        "providers",
+        "selectedProviderType",
+        "alive",
+        "ownsChallenge",
+        "operationEpoch",
+        "submitting",
+        "submitPending",
+        "initialEmailSent",
+        "providersInitialized",
+        "expiryTimer",
+        "expirySubscription",
+        "ngOnInit",
+        "tokenFormControl",
+        "rememberFormControl",
+        "loginError",
+        "deliveryStatus",
+        "saveFormDataWithPartialData",
+        "onRememberChange",
+        "selectOtherTwoFactorMethod",
+        "selectProvider",
+        "submit",
+        "back",
+        "showContinueButton",
+        "hideRememberMe",
+        "handleEnterKeyPress",
+        "ngOnDestroy",
+        "sendInitialEmail",
+        "invalidate",
+        "isCurrent",
+        "scheduleExpiry",
+        "clearExpiryTimer",
+        "transferRoute",
+        "navigate",
+        "navigateToLogin"
+      ],
+      "localImports": [
+        {
+          "module": "@angular/common",
+          "bindings": [
+            "value:named:CommonModule:CommonModule"
+          ]
+        },
+        {
+          "module": "@angular/core",
+          "bindings": [
+            "value:named:Component:Component",
+            "value:named:DestroyRef:DestroyRef",
+            "value:named:OnDestroy:OnDestroy",
+            "value:named:OnInit:OnInit",
+            "value:named:ViewChild:ViewChild"
+          ]
+        },
+        {
+          "module": "@angular/core/rxjs-interop",
+          "bindings": [
+            "value:named:takeUntilDestroyed:takeUntilDestroyed"
+          ]
+        },
+        {
+          "module": "@angular/forms",
+          "bindings": [
+            "value:named:FormBuilder:FormBuilder",
+            "value:named:ReactiveFormsModule:ReactiveFormsModule",
+            "value:named:Validators:Validators"
+          ]
+        },
+        {
+          "module": "@angular/router",
+          "bindings": [
+            "value:named:Router:Router"
+          ]
+        },
+        {
+          "module": "rxjs",
+          "bindings": [
+            "value:named:Subscription:Subscription"
+          ]
+        },
+        {
+          "module": "@bitwarden/components",
+          "bindings": [
+            "value:named:AsyncActionsModule:AsyncActionsModule"
+          ]
+        },
+        {
+          "module": "@bitwarden/common/platform/abstractions/i18n.service",
+          "bindings": [
+            "value:named:I18nService:I18nService"
+          ]
+        },
+        {
+          "module": "@bitwarden/ui-common",
+          "bindings": [
+            "value:named:I18nPipe:I18nPipe"
+          ]
+        },
+        {
+          "module": "../../../auth/official-challenge.adapter",
+          "bindings": [
+            "type:named:RetainedTwoFactorProvider:RetainedTwoFactorProvider",
+            "value:named:OfficialChallengeAdapter:OfficialChallengeAdapter"
+          ]
+        },
+        {
+          "module": "../../../auth/auth-challenge-route",
+          "bindings": [
+            "type:named:AuthChallengeOutcome:AuthChallengeOutcome",
+            "value:named:authChallengeRoute:authChallengeRoute"
+          ]
+        },
+        {
+          "module": "../../../official-ui/official-components",
+          "bindings": [
+            "value:named:BitLabelComponent:BitLabelComponent",
+            "value:named:ButtonComponent:ButtonComponent",
+            "value:named:CalloutComponent:CalloutComponent",
+            "value:named:CheckboxComponent:CheckboxComponent",
+            "value:named:FormControlComponent:FormControlComponent",
+            "value:named:IconComponent:IconComponent",
+            "value:named:TypographyDirective:TypographyDirective"
+          ]
+        },
+        {
+          "module": "../../../official-ui/official-i18n.service",
+          "bindings": [
+            "value:named:OfficialI18nService:OfficialI18nService",
+            "value:named:translateOfficialMessage:translateOfficialMessage"
+          ]
+        },
+        {
+          "module": "../../../popup-state",
+          "bindings": [
+            "value:named:PopupStateStore:PopupStateStore"
+          ]
+        },
+        {
+          "module": "./official-two-factor-authenticator.component",
+          "bindings": [
+            "value:named:OfficialTwoFactorAuthenticatorComponent:OfficialTwoFactorAuthenticatorComponent"
+          ]
+        },
+        {
+          "module": "./official-two-factor-email.component",
+          "bindings": [
+            "value:named:OfficialTwoFactorEmailComponent:OfficialTwoFactorEmailComponent"
+          ]
+        },
+        {
+          "module": "./official-two-factor-options.component",
+          "bindings": [
+            "value:named:OfficialTwoFactorOptionsComponent:OfficialTwoFactorOptionsComponent"
+          ]
+        }
+      ]
+    },
+    {
+      "authority": "libs/auth/src/angular/two-factor-auth/two-factor-options.component.ts",
+      "runtime": "official-two-factor-options.component.ts",
+      "upstreamMembers": {
+        "retained": [
+          "providers",
+          "Icons",
+          "ngOnInit",
+          "choose",
+          "cancel"
+        ],
+        "adapted": [
+          "TwoFactorProviderType",
+          "open"
+        ],
+        "removed": []
+      },
+      "upstreamImports": {
+        "retained": [
+          "@angular/common",
+          "@angular/core",
+          "@bitwarden/assets/svg",
+          "@bitwarden/components"
+        ],
+        "adapted": [
+          "@bitwarden/angular/jslib.module",
+          "@bitwarden/common/auth/enums/two-factor-provider-type",
+          "@bitwarden/common/auth/two-factor"
+        ],
+        "removed": []
+      },
+      "localMembers": [
+        "chosen",
+        "dialog",
+        "firstOption",
+        "icons",
+        "providers",
+        "isOpen",
+        "open",
+        "choose",
+        "cancel",
+        "onDismissed",
+        "onClose",
+        "close"
+      ],
+      "localImports": [
+        {
+          "module": "@angular/common",
+          "bindings": [
+            "value:named:CommonModule:CommonModule"
+          ]
+        },
+        {
+          "module": "@angular/core",
+          "bindings": [
+            "value:named:ChangeDetectorRef:ChangeDetectorRef",
+            "value:named:Component:Component",
+            "value:named:ElementRef:ElementRef",
+            "value:named:EventEmitter:EventEmitter",
+            "value:named:Output:Output",
+            "value:named:ViewChild:ViewChild"
+          ]
+        },
+        {
+          "module": "@bitwarden/assets/svg",
+          "bindings": [
+            "value:named:TwoFactorAuthAuthenticatorIcon:TwoFactorAuthAuthenticatorIcon",
+            "value:named:TwoFactorAuthEmailIcon:TwoFactorAuthEmailIcon"
+          ]
+        },
+        {
+          "module": "@bitwarden/components",
+          "bindings": [
+            "value:named:SvgModule:SvgModule"
+          ]
+        },
+        {
+          "module": "@bitwarden/ui-common",
+          "bindings": [
+            "value:named:I18nPipe:I18nPipe"
+          ]
+        },
+        {
+          "module": "../../../auth/official-challenge.adapter",
+          "bindings": [
+            "type:named:RetainedTwoFactorProvider:RetainedTwoFactorProvider"
+          ]
+        },
+        {
+          "module": "../../../official-ui/app-bottom-sheet.component",
+          "bindings": [
+            "value:named:AppBottomSheetComponent:AppBottomSheetComponent"
+          ]
+        },
+        {
+          "module": "../../../official-ui/official-components",
+          "bindings": [
+            "value:named:ButtonComponent:ButtonComponent",
+            "value:named:DialogComponent:DialogComponent",
+            "value:named:DialogFooterDirective:DialogFooterDirective",
+            "value:named:ItemComponent:ItemComponent",
+            "value:named:ItemContentComponent:ItemContentComponent",
+            "value:named:ItemGroupComponent:ItemGroupComponent",
+            "value:named:TypographyDirective:TypographyDirective"
+          ]
+        },
+        {
+          "module": "../../../official-ui/official-i18n.service",
+          "bindings": [
+            "value:named:translateOfficialMessage:translateOfficialMessage"
+          ]
+        }
+      ]
+    },
+    {
+      "authority": "libs/auth/src/angular/two-factor-auth/child-components/two-factor-auth-email/two-factor-auth-email.component.ts",
+      "runtime": "official-two-factor-email.component.ts",
+      "upstreamMembers": {
+        "retained": [
+          "tokenFormControl",
+          "tokenChange",
+          "submitOnPaste",
+          "onTokenChange",
+          "onPaste",
+          "sendEmail"
+        ],
+        "adapted": [
+          "twoFactorEmail",
+          "emailPromise",
+          "emailSent",
+          "ngOnInit"
+        ],
+        "removed": []
+      },
+      "upstreamImports": {
+        "retained": [
+          "@angular/core",
+          "@angular/forms",
+          "@bitwarden/components"
+        ],
+        "adapted": [
+          "@bitwarden/angular/jslib.module",
+          "@bitwarden/auth/common",
+          "@bitwarden/common/auth/enums/two-factor-provider-type",
+          "@bitwarden/common/auth/models/request/two-factor-email.request",
+          "@bitwarden/common/auth/two-factor",
+          "@bitwarden/common/platform/abstractions/app-id.service",
+          "@bitwarden/common/platform/abstractions/i18n.service",
+          "@bitwarden/common/platform/abstractions/platform-utils.service",
+          "./two-factor-auth-email-component-cache.service"
+        ],
+        "removed": [
+          "@angular/common",
+          "@bitwarden/common/platform/abstractions/log.service"
+        ]
+      },
+      "localMembers": [
+        "tokenFormControl",
+        "tokenChange",
+        "submitOnPaste",
+        "onTokenChange",
+        "onPaste",
+        "sendEmail"
+      ],
+      "localImports": [
+        {
+          "module": "@angular/core",
+          "bindings": [
+            "value:named:Component:Component",
+            "value:named:EventEmitter:EventEmitter",
+            "value:named:Input:Input",
+            "value:named:Output:Output"
+          ]
+        },
+        {
+          "module": "@angular/forms",
+          "bindings": [
+            "value:named:FormControl:FormControl",
+            "value:named:ReactiveFormsModule:ReactiveFormsModule"
+          ]
+        },
+        {
+          "module": "@bitwarden/components",
+          "bindings": [
+            "value:named:LinkModule:LinkModule"
+          ]
+        },
+        {
+          "module": "@bitwarden/angular/jslib.module",
+          "bindings": [
+            "value:named:JslibModule:JslibModule"
+          ]
+        },
+        {
+          "module": "../../../auth/official-challenge.adapter",
+          "bindings": [
+            "value:named:OfficialChallengeAdapter:OfficialChallengeAdapter"
+          ]
+        },
+        {
+          "module": "../../../official-ui/official-components",
+          "bindings": [
+            "value:named:AutofocusDirective:AutofocusDirective",
+            "value:named:BitFormFieldComponent:BitFormFieldComponent",
+            "value:named:BitInputDirective:BitInputDirective",
+            "value:named:BitLabelComponent:BitLabelComponent",
+            "value:named:TypographyDirective:TypographyDirective"
+          ]
+        }
+      ]
+    },
+    {
+      "authority": "libs/auth/src/angular/two-factor-auth/child-components/two-factor-auth-authenticator/two-factor-auth-authenticator.component.ts",
+      "runtime": "official-two-factor-authenticator.component.ts",
+      "upstreamMembers": {
+        "retained": [
+          "tokenFormControl",
+          "tokenChange",
+          "submitOnPaste",
+          "onTokenChange",
+          "onPaste"
+        ],
+        "adapted": [],
+        "removed": []
+      },
+      "upstreamImports": {
+        "retained": [
+          "@angular/core",
+          "@angular/forms",
+          "@bitwarden/components"
+        ],
+        "adapted": [
+          "@bitwarden/angular/jslib.module"
+        ],
+        "removed": [
+          "@angular/common"
+        ]
+      },
+      "localMembers": [
+        "tokenFormControl",
+        "tokenChange",
+        "submitOnPaste",
+        "onTokenChange",
+        "onPaste"
+      ],
+      "localImports": [
+        {
+          "module": "@angular/core",
+          "bindings": [
+            "value:named:Component:Component",
+            "value:named:EventEmitter:EventEmitter",
+            "value:named:Input:Input",
+            "value:named:Output:Output"
+          ]
+        },
+        {
+          "module": "@angular/forms",
+          "bindings": [
+            "value:named:FormControl:FormControl",
+            "value:named:ReactiveFormsModule:ReactiveFormsModule"
+          ]
+        },
+        {
+          "module": "@bitwarden/angular/jslib.module",
+          "bindings": [
+            "value:named:JslibModule:JslibModule"
+          ]
+        },
+        {
+          "module": "../../../official-ui/official-components",
+          "bindings": [
+            "value:named:AutofocusDirective:AutofocusDirective",
+            "value:named:BitFormFieldComponent:BitFormFieldComponent",
+            "value:named:BitInputDirective:BitInputDirective",
+            "value:named:BitLabelComponent:BitLabelComponent"
+          ]
+        }
+      ]
+    }
+  ]
+}

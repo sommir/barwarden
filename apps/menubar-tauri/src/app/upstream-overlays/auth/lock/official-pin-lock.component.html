@@ -1,0 +1,90 @@
+<form
+  [formGroup]="formGroup"
+  [bitSubmit]="submit"
+  data-testid="lock-pin-form"
+  class="macos-auth-card"
+>
+  <bit-form-field class="macos-field">
+    <bit-label>PIN</bit-label>
+    <input
+      [type]="showPin ? 'text' : 'password'"
+      formControlName="pin"
+      bitInput
+      appAutofocus
+      name="pin"
+      class="tw-font-mono"
+      required
+      inputmode="numeric"
+      autocomplete="off"
+      maxlength="8"
+      pattern="[0-9]{6,8}"
+      data-testid="lock-pin-input"
+    />
+    <button
+      type="button"
+      [bitIconButton]="showPin ? 'bwi-eye-slash' : 'bwi-eye'"
+      bitSuffix
+      (click)="togglePinVisibility()"
+      [attr.aria-label]="pinVisibilityLabel"
+      [attr.title]="pinVisibilityLabel"
+      data-testid="lock-pin-visibility"
+    ></button>
+  </bit-form-field>
+
+  <div class="tw-flex tw-flex-col tw-space-y-3">
+    <button
+      type="submit"
+      bitButton
+      bitFormButton
+      buttonType="primary"
+      class="macos-primary-action"
+      block
+      [disabled]="submitting"
+      data-testid="lock-pin-button"
+    >
+      {{ "unlock" | i18n }}
+    </button>
+
+    <p class="tw-text-center tw-mb-0">{{ "or" | i18n }}</p>
+
+    @if (showBiometric) {
+      <button
+        type="button"
+        bitButton
+        bitFormButton
+        buttonType="secondary"
+        block
+        [disabled]="submitting"
+        (click)="selectMethod('biometric')"
+        data-testid="lock-switch-biometric"
+      >
+        {{ "i18nUseTouchId" | i18n }}
+      </button>
+    }
+
+    <button
+      type="button"
+      bitButton
+      bitFormButton
+      buttonType="secondary"
+      block
+      [disabled]="submitting"
+      (click)="selectMethod('masterPassword')"
+      data-testid="lock-switch-master-password"
+    >
+      {{ "i18nUseMasterPassword" | i18n }}
+    </button>
+
+    <button
+      type="button"
+      bitButton
+      bitFormButton
+      block
+      [disabled]="submitting"
+      (click)="logout()"
+      data-testid="lock-logout-button"
+    >
+      {{ "logOut" | i18n }}
+    </button>
+  </div>
+</form>

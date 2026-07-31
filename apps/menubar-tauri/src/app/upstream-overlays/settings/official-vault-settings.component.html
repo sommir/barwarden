@@ -1,0 +1,49 @@
+<popup-page>
+  <popup-header slot="header" [pageTitle]="'i18nVaultOptions' | i18n" showBackButton [backAction]="backAction" />
+
+  <bit-item-group>
+    <bit-item>
+      <button type="button" bit-item-content (click)="navigate.emit('/folders')">
+        {{ "folders" | i18n }}
+        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+      </button>
+    </bit-item>
+    <bit-item>
+      <button type="button" bit-item-content data-test-id="archive-link" (click)="navigate.emit('/archive')">
+        {{ "archive" | i18n }}
+        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+      </button>
+    </bit-item>
+    <bit-item>
+      <button type="button" bit-item-content (click)="navigate.emit('/trash')">
+        {{ "trash" | i18n }}
+        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+      </button>
+    </bit-item>
+    <bit-item>
+      <button type="button" bit-item-content [disabled]="isSyncing" (click)="sync.emit()">
+        {{ "syncNow" | i18n }}
+        <span slot="secondary">{{ syncLabel }}</span>
+        <span slot="end">
+          <i
+            class="bwi"
+            [class.bwi-spinner]="isSyncing"
+            [class.bwi-spin]="isSyncing"
+            [class.bwi-refresh]="!isSyncing"
+            aria-hidden="true"
+          ></i>
+        </span>
+      </button>
+    </bit-item>
+  </bit-item-group>
+
+  @if (syncError) {
+    <bw-macos-alert-strip
+      kind="danger"
+      [title]="'i18nSyncVaultFailed' | i18n"
+      [message]="syncError"
+      [actionLabel]="'i18nRetry' | i18n"
+      (action)="sync.emit()"
+    />
+  }
+</popup-page>

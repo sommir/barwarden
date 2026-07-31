@@ -1,0 +1,1 @@
+../../../../vendor/bitwarden-clients/libs/components/src/a11y/set-a11y-title-and-aria-label.ts

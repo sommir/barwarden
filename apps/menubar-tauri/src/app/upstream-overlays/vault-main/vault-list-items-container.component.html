@@ -1,0 +1,104 @@
+@if (embedded) {
+  @if (ciphers.length > 0) {
+    <bit-item-group class="vault-list-items-container__embedded-list">
+      <cdk-virtual-scroll-viewport
+        [itemSize]="itemHeight$ | async"
+        [minBufferPx]="236"
+        [maxBufferPx]="472"
+        bitScrollLayout
+      >
+        <app-retained-vault-list-item
+          *cdkVirtualFor="let cipher of ciphers; trackBy: trackByCipher"
+          [cipher]="cipher"
+          [sectionId]="section.id"
+          [openMenuRowId]="openMenuRowId"
+          [showQuickCopyActions]="showQuickCopyActions"
+          (view)="view.emit($event)"
+          (fill)="fill.emit($event)"
+          (edit)="edit.emit($event)"
+          (clone)="clone.emit($event)"
+          (launch)="launch.emit($event)"
+          (toggleFavorite)="toggleFavorite.emit($event)"
+          (archive)="archive.emit($event)"
+          (delete)="delete.emit($event)"
+          (menuOpenChange)="emitMenuOpen($event)"
+        />
+      </cdk-virtual-scroll-viewport>
+    </bit-item-group>
+  }
+} @else if (ciphers.length > 0 || section.description) {
+  <bit-section>
+    @if (section.collapsible && !section.forcedOpen) {
+      <button
+        class="tw-group/vault-section-header hover:tw-bg-primary-100 tw-rounded-md tw-pl-1 tw-mb-0.5 tw-w-full tw-border-x-0 tw-border-t-0 tw-border-b tw-border-solid focus-visible:tw-outline-none focus-visible:tw-ring-inset focus-visible:tw-ring-2 focus-visible:tw-ring-primary-600"
+        [ngClass]="{
+          'tw-border-b-secondary-300 tw-rounded-b-none [&:is(:hover,:focus-visible)]:tw-border-b-transparent [&:is(:hover,:focus-visible)]:tw-rounded-b-md': !sectionOpenState(),
+          'tw-border-b-transparent': sectionOpenState(),
+        }"
+        type="button"
+        [bitDisclosureTriggerFor]="disclosureRef"
+        (click)="toggleSectionOpen()"
+      >
+        <ng-container *ngTemplateOutlet="sectionHeader" />
+      </button>
+    } @else {
+      <div class="tw-pl-1 tw-mb-0.5">
+        <ng-container *ngTemplateOutlet="sectionHeader" />
+      </div>
+    }
+
+    @if (section.description) {
+      <div class="tw-text-muted tw-px-1 tw-mb-2" bitTypography="body2">
+        {{ section.description }}
+      </div>
+    }
+
+    <bit-disclosure #disclosureRef [open]="sectionOpenState()" (openChange)="rerenderViewport()">
+      <bit-item-group>
+        <cdk-virtual-scroll-viewport [itemSize]="itemHeight$ | async" bitScrollLayout>
+          <app-retained-vault-list-item
+            *cdkVirtualFor="let cipher of ciphers; trackBy: trackByCipher"
+            [cipher]="cipher"
+            [sectionId]="section.id"
+            [openMenuRowId]="openMenuRowId"
+            [showQuickCopyActions]="showQuickCopyActions"
+            (view)="view.emit($event)"
+            (fill)="fill.emit($event)"
+            (edit)="edit.emit($event)"
+            (clone)="clone.emit($event)"
+            (launch)="launch.emit($event)"
+            (toggleFavorite)="toggleFavorite.emit($event)"
+            (archive)="archive.emit($event)"
+            (delete)="delete.emit($event)"
+            (menuOpenChange)="emitMenuOpen($event)"
+          />
+        </cdk-virtual-scroll-viewport>
+      </bit-item-group>
+    </bit-disclosure>
+  </bit-section>
+}
+
+<ng-template #sectionHeader>
+  <bit-section-header class="tw-p-0.5 -tw-mx-0.5">
+    <h2 bitTypography="h6">{{ section.title }}</h2>
+    <span bitTypography="body2" slot="end">
+      <span
+        [ngClass]="{
+          'group-hover/vault-section-header:tw-hidden group-focus-visible/vault-section-header:tw-hidden': section.collapsible && sectionOpenState(),
+          'tw-hidden': section.collapsible && !sectionOpenState(),
+        }"
+      >
+        {{ ciphers.length }}
+      </span>
+      @if (section.collapsible) {
+        <span class="tw-pr-1">
+          <bit-icon
+            [name]="sectionOpenState() ? 'bwi-angle-up' : 'bwi-angle-down'"
+            class="tw-text-main"
+            aria-hidden="true"
+          />
+        </span>
+      }
+    </span>
+  </bit-section-header>
+</ng-template>

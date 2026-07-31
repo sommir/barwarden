@@ -1,0 +1,265 @@
+@if (hasPersonalDetails) {
+  <section class="tw-mb-5 bit-compact:tw-mb-4">
+    <bit-section-header>
+      <h2 bitTypography="h6">{{ "personalDetails" | i18n }}</h2>
+    </bit-section-header>
+
+    <read-only-cipher-card>
+      @if (cipher.identity.fullName) {
+        <bit-form-field>
+          <bit-label>{{ "name" | i18n }}</bit-label>
+          <input bitInput id="fullName" [value]="cipher.identity.fullName" readonly data-testid="name" />
+          @if (actionField("full-name"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copyName' | i18n"
+              data-testid="copy-name"
+              (click)="copyField.emit(field)"
+            ></button>
+          }
+        </bit-form-field>
+      }
+      @if (cipher.identity.username) {
+        <bit-form-field>
+          <bit-label>{{ "username" | i18n }}</bit-label>
+          <input bitInput id="username" [value]="cipher.identity.username" readonly data-testid="username" />
+          @if (actionField("username"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copyUsername' | i18n"
+              (click)="copyField.emit(field)"
+            ></button>
+            @if (canFill) {
+              <button
+                type="button"
+                bitIconButton="bwi-sign-in"
+                bitSuffix
+                [label]="'i18nFillField' | i18n: ('username' | i18n)"
+                data-testid="fill-username"
+                (click)="fillField.emit(field)"
+              ></button>
+            }
+          }
+        </bit-form-field>
+      }
+      @if (cipher.identity.company) {
+        <bit-form-field>
+          <bit-label>{{ "company" | i18n }}</bit-label>
+          <input bitInput id="company" [value]="cipher.identity.company" readonly data-testid="company" />
+          @if (actionField("company"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copyCompany' | i18n"
+              data-testid="copy-company"
+              (click)="copyField.emit(field)"
+            ></button>
+          }
+        </bit-form-field>
+      }
+    </read-only-cipher-card>
+  </section>
+}
+
+@if (hasIdentificationDetails) {
+  <section class="tw-mb-5 bit-compact:tw-mb-4">
+    <bit-section-header>
+      <h2 bitTypography="h6">{{ "identification" | i18n }}</h2>
+    </bit-section-header>
+
+    <read-only-cipher-card>
+      @if (cipher.identity.ssn) {
+        <bit-form-field>
+          <bit-label>{{ "ssn" | i18n }}</bit-label>
+          <input
+            bitInput
+            id="ssn"
+            [type]="isRevealed('ssn') ? 'text' : 'password'"
+            [value]="cipher.identity.ssn"
+            readonly
+            data-testid="ssn"
+          />
+          <button
+            type="button"
+            bitSuffix
+            [bitIconButton]="isRevealed('ssn') ? 'bwi-eye-slash' : 'bwi-eye'"
+            [label]="isRevealed('ssn') ? ('i18nHideField' | i18n: ('i18nSsn' | i18n)) : ('i18nShowField' | i18n: ('i18nSsn' | i18n))"
+            [attr.aria-pressed]="isRevealed('ssn')"
+            data-testid="ssn-toggle"
+            (click)="toggle('ssn')"
+          ></button>
+          @if (actionField("ssn"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copySSN' | i18n"
+              data-testid="copy-ssn"
+              (click)="copyField.emit(field)"
+            ></button>
+            @if (canFill) {
+              <button
+                type="button"
+                bitIconButton="bwi-sign-in"
+                bitSuffix
+                [label]="'i18nFillField' | i18n: ('i18nSsn' | i18n)"
+                data-testid="fill-ssn"
+                (click)="fillField.emit(field)"
+              ></button>
+            }
+          }
+        </bit-form-field>
+      }
+      @if (cipher.identity.passportNumber) {
+        <bit-form-field>
+          <bit-label>{{ "passportNumber" | i18n }}</bit-label>
+          <input
+            id="passportNumber"
+            bitInput
+            [type]="isRevealed('passport-number') ? 'text' : 'password'"
+            [value]="cipher.identity.passportNumber"
+            readonly
+            data-testid="passport"
+          />
+          <button
+            type="button"
+            bitSuffix
+            [bitIconButton]="isRevealed('passport-number') ? 'bwi-eye-slash' : 'bwi-eye'"
+            [label]="isRevealed('passport-number') ? ('i18nHideField' | i18n: ('i18nPassportNumber' | i18n)) : ('i18nShowField' | i18n: ('i18nPassportNumber' | i18n))"
+            [attr.aria-pressed]="isRevealed('passport-number')"
+            data-testid="passport-toggle"
+            (click)="toggle('passport-number')"
+          ></button>
+          @if (actionField("passport-number"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copyPassportNumber' | i18n"
+              data-testid="copy-passport"
+              (click)="copyField.emit(field)"
+            ></button>
+            @if (canFill) {
+              <button
+                type="button"
+                bitIconButton="bwi-sign-in"
+                bitSuffix
+                [label]="'i18nFillField' | i18n: ('i18nPassportNumber' | i18n)"
+                data-testid="fill-passport"
+                (click)="fillField.emit(field)"
+              ></button>
+            }
+          }
+        </bit-form-field>
+      }
+      @if (cipher.identity.licenseNumber) {
+        <bit-form-field>
+          <bit-label>{{ "licenseNumber" | i18n }}</bit-label>
+          <input bitInput id="licenseNumber" [value]="cipher.identity.licenseNumber" readonly data-testid="license" />
+          @if (actionField("license-number"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copyLicenseNumber' | i18n"
+              data-testid="copy-license"
+              (click)="copyField.emit(field)"
+            ></button>
+          }
+        </bit-form-field>
+      }
+    </read-only-cipher-card>
+  </section>
+}
+
+@if (hasContactDetails) {
+  <section class="tw-mb-5 bit-compact:tw-mb-4">
+    <bit-section-header>
+      <h2 bitTypography="h6">{{ "contactInfo" | i18n }}</h2>
+    </bit-section-header>
+
+    <read-only-cipher-card>
+      @if (cipher.identity.email) {
+        <bit-form-field>
+          <bit-label>{{ "email" | i18n }}</bit-label>
+          <input bitInput id="email" [value]="cipher.identity.email" readonly data-testid="email" />
+          @if (actionField("email"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copyEmail' | i18n"
+              data-testid="copy-email"
+              (click)="copyField.emit(field)"
+            ></button>
+            @if (canFill) {
+              <button
+                type="button"
+                bitIconButton="bwi-sign-in"
+                bitSuffix
+                [label]="'i18nFillField' | i18n: ('email' | i18n)"
+                data-testid="fill-email"
+                (click)="fillField.emit(field)"
+              ></button>
+            }
+          }
+        </bit-form-field>
+      }
+      @if (cipher.identity.phone) {
+        <bit-form-field>
+          <bit-label>{{ "phone" | i18n }}</bit-label>
+          <input bitInput id="phone" [value]="cipher.identity.phone" readonly data-testid="phone" />
+          @if (actionField("phone"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copyPhone' | i18n"
+              data-testid="copy-phone"
+              (click)="copyField.emit(field)"
+            ></button>
+            @if (canFill) {
+              <button
+                type="button"
+                bitIconButton="bwi-sign-in"
+                bitSuffix
+                [label]="'i18nFillField' | i18n: ('phone' | i18n)"
+                data-testid="fill-phone"
+                (click)="fillField.emit(field)"
+              ></button>
+            }
+          }
+        </bit-form-field>
+      }
+      @if (addressFields) {
+        <bit-form-field>
+          <bit-label>{{ "address" | i18n }}</bit-label>
+          <textarea
+            bitInput
+            id="address"
+            class="tw-resize-none"
+            [value]="addressFields"
+            [rows]="addressRows"
+            readonly
+            data-testid="address"
+          ></textarea>
+          @if (actionField("address"); as field) {
+            <button
+              type="button"
+              bitIconButton="bwi-clone"
+              bitSuffix
+              [label]="'copyAddress' | i18n"
+              data-testid="copy-address"
+              (click)="copyField.emit(field)"
+            ></button>
+          }
+        </bit-form-field>
+      }
+    </read-only-cipher-card>
+  </section>
+}

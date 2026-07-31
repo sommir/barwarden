@@ -1,0 +1,61 @@
+--- a/apps/browser/src/vault/popup/settings/vault-settings.component.html
++++ b/apps/browser/src/vault/popup/settings/vault-settings.component.html
+@@ -1 +1,0 @@
+-<!-- Official Settings overlay source; generated. -->
+@@ -3,5 +2 @@
+-  <popup-header slot="header" [pageTitle]="'settingsVaultOptions' | i18n" showBackButton>
+-    <ng-container slot="end">
+-      <app-pop-out></app-pop-out>
+-    </ng-container>
+-  </popup-header>
++  <popup-header slot="header" [pageTitle]="'i18nVaultOptions' | i18n" showBackButton [backAction]="backAction" />
+@@ -11 +6 @@
+-      <a bit-item-content routerLink="/folders">
++      <button type="button" bit-item-content (click)="navigate.emit('/folders')">
+@@ -14 +9 @@
+-      </a>
++      </button>
+@@ -17,2 +12,2 @@
+-      <a data-test-id="archive-link" bit-item-content routerLink="/archive">
+-        {{ "archiveNoun" | i18n }}
++      <button type="button" bit-item-content data-test-id="archive-link" (click)="navigate.emit('/archive')">
++        {{ "archive" | i18n }}
+@@ -20 +15 @@
+-      </a>
++      </button>
+@@ -23 +18 @@
+-      <a bit-item-content routerLink="/trash">
++      <button type="button" bit-item-content (click)="navigate.emit('/trash')">
+@@ -26 +21 @@
+-      </a>
++      </button>
+@@ -29 +24 @@
+-      <button type="button" bit-item-content [disabled]="syncLoading" (click)="sync()">
++      <button type="button" bit-item-content [disabled]="isSyncing" (click)="sync.emit()">
+@@ -31 +26 @@
+-        <span slot="secondary">{{ lastSync }}</span>
++        <span slot="secondary">{{ syncLabel }}</span>
+@@ -33,5 +28,7 @@
+-          @if (syncLoading) {
+-            <bit-spinner size="sm"></bit-spinner>
+-          } @else {
+-            <i class="bwi bwi-refresh" aria-hidden="true"></i>
+-          }
++          <i
++            class="bwi"
++            [class.bwi-spinner]="isSyncing"
++            [class.bwi-spin]="isSyncing"
++            [class.bwi-refresh]="!isSyncing"
++            aria-hidden="true"
++          ></i>
+@@ -41,0 +39,10 @@
++
++  @if (syncError) {
++    <bw-macos-alert-strip
++      kind="danger"
++      [title]="'i18nSyncVaultFailed' | i18n"
++      [message]="syncError"
++      [actionLabel]="'i18nRetry' | i18n"
++      (action)="sync.emit()"
++    />
++  }

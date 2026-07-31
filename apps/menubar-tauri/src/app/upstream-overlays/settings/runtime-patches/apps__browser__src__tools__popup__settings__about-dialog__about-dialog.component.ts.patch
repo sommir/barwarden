@@ -1,0 +1,135 @@
+--- a/apps/browser/src/tools/popup/settings/about-dialog/about-dialog.component.ts
++++ b/apps/browser/src/tools/popup/settings/about-dialog/about-dialog.component.ts
+@@ -1,4 +1,2 @@
+-// Official Settings overlay source; generated.
+-import { CommonModule } from "@angular/common";
+-import { Component, ElementRef, ViewChild } from "@angular/core";
+-import { Observable, combineLatest, defer, map } from "rxjs";
++import { Component, EventEmitter, Input, Output, ViewChild } from "@angular/core";
++import { DialogModule as CdkDialogModule } from "@angular/cdk/dialog";
+@@ -6,6 +3,0 @@
+-import { JslibModule } from "@bitwarden/angular/jslib.module";
+-import { ConfigService } from "@bitwarden/common/platform/abstractions/config/config.service";
+-import { EnvironmentService } from "@bitwarden/common/platform/abstractions/environment.service";
+-import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+-import { PlatformUtilsService } from "@bitwarden/common/platform/abstractions/platform-utils.service";
+-import { SdkService } from "@bitwarden/common/platform/abstractions/sdk/sdk.service";
+@@ -13,6 +5,7 @@
+-  DialogRef,
+-  ButtonModule,
+-  DialogModule,
+-  ToastService,
+-  TypographyModule,
+-} from "@bitwarden/components";
++  ButtonComponent,
++  DialogComponent,
++  DialogFooterDirective,
++} from "../../official-ui/official-components";
++import { AppBottomSheetComponent } from "../../official-ui/app-bottom-sheet.component";
++import { MacosAlertStripComponent } from "../../official-ui/macos-alert-strip.component";
++import { I18nPipe } from "../../official-ui/official-ui-common";
+@@ -20,2 +13,11 @@
+-// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
+-// eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
++export type OfficialAboutDialogView = "about" | "troubleshooting";
++export type OfficialAboutRevisionCopyStatus = "idle" | "copying" | "copied" | "error";
++
++export interface OfficialAboutDialogMetadata {
++  readonly appVersion: string;
++  readonly currentWebVaultUrl: string;
++  readonly license: string;
++  readonly productName: string;
++  readonly upstreamRevision: string;
++}
++
+@@ -23,2 +25,12 @@
+-  templateUrl: "about-dialog.component.html",
+-  imports: [CommonModule, JslibModule, DialogModule, ButtonModule, TypographyModule],
++  selector: "bw-official-about-dialog",
++  standalone: true,
++  imports: [
++    AppBottomSheetComponent,
++    ButtonComponent,
++    CdkDialogModule,
++    DialogComponent,
++    DialogFooterDirective,
++    I18nPipe,
++    MacosAlertStripComponent,
++  ],
++  templateUrl: "./official-about-dialog.component.html",
+@@ -26,4 +38,6 @@
+-export class AboutDialogComponent {
+-  // FIXME(https://bitwarden.atlassian.net/browse/CL-903): Migrate to Signals
+-  // eslint-disable-next-line @angular-eslint/prefer-signals
+-  @ViewChild("version") protected version!: ElementRef;
++export class OfficialAboutDialogComponent {
++  @ViewChild("metadataDialog") private metadataDialog?: AppBottomSheetComponent;
++  @Input({ required: true }) metadata!: Readonly<OfficialAboutDialogMetadata>;
++  @Input() revisionCopyStatus: OfficialAboutRevisionCopyStatus = "idle";
++  @Output() readonly close = new EventEmitter<void>();
++  @Output() readonly copyRevision = new EventEmitter<void>();
+@@ -31,2 +45 @@
+-  protected year = new Date().getFullYear();
+-  protected version$: Observable<string>;
++  private currentView: OfficialAboutDialogView | null = null;
+@@ -34,4 +47,5 @@
+-  protected data$ = combineLatest([
+-    this.configService.serverConfig$,
+-    this.environmentService.environment$.pipe(map((env) => env.isCloud())),
+-  ]).pipe(map(([serverConfig, isCloud]) => ({ serverConfig, isCloud })));
++  @Input({ required: true })
++  set view(value: OfficialAboutDialogView | null) {
++    this.currentView = value;
++    this.syncDialogState();
++  }
+@@ -39 +53,3 @@
+-  protected sdkVersion$ = this.sdkService.version$;
++  get view(): OfficialAboutDialogView | null {
++    return this.currentView;
++  }
+@@ -41,10 +57,4 @@
+-  constructor(
+-    private dialogRef: DialogRef,
+-    private configService: ConfigService,
+-    private environmentService: EnvironmentService,
+-    private platformUtilsService: PlatformUtilsService,
+-    private toastService: ToastService,
+-    private i18nService: I18nService,
+-    private sdkService: SdkService,
+-  ) {
+-    this.version$ = defer(() => this.platformUtilsService.getApplicationVersion());
++  requestClose(event?: Event): void {
++    event?.preventDefault();
++    this.closeDialog();
++    this.close.emit();
+@@ -53,7 +63,4 @@
+-  protected copyVersion() {
+-    this.platformUtilsService.copyToClipboard(this.version.nativeElement.innerText);
+-    this.toastService.showToast({
+-      message: this.i18nService.t("copySuccessful"),
+-      variant: "success",
+-    });
+-    void this.dialogRef.close();
++  onDialogClick(event: Event): void {
++    if (event.target instanceof Element && event.target.closest("button")?.querySelector(".bwi-close")) {
++      this.requestClose();
++    }
+@@ -60,0 +68,18 @@
++
++  private syncDialogState(): void {
++    const sheet = this.metadataDialog;
++    if (!sheet) {
++      return;
++    }
++    if (this.currentView) {
++      if (!sheet.nativeElement.open) {
++        sheet.open();
++      }
++      return;
++    }
++    this.closeDialog();
++  }
++
++  private closeDialog(): void {
++    this.metadataDialog?.close();
++  }

@@ -1,0 +1,109 @@
+--- a/apps/browser/src/vault/popup/settings/vault-settings.component.ts
++++ b/apps/browser/src/vault/popup/settings/vault-settings.component.ts
+@@ -1,4 +1,2 @@
+-// Official Settings overlay source; generated.
+-import { CommonModule } from "@angular/common";
+-import { Component, OnInit } from "@angular/core";
+-import { RouterModule } from "@angular/router";
++import { Component, EventEmitter, Input, Output } from "@angular/core";
++import { I18nPipe } from "@bitwarden/ui-common";
+@@ -6,4 +4,8 @@
+-import { JslibModule } from "@bitwarden/angular/jslib.module";
+-import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+-import { SyncService } from "@bitwarden/common/vault/abstractions/sync/sync.service.abstraction";
+-import { ItemModule, SpinnerComponent, ToastOptions, ToastService } from "@bitwarden/components";
++import { PopupHeaderComponent } from "../../layout/popup-header.component";
++import { PopupPageComponent } from "../../layout/popup-page.component";
++import {
++  ItemComponent,
++  ItemContentComponent,
++  ItemGroupComponent,
++} from "../../official-ui/official-components";
++import { MacosAlertStripComponent } from "../../official-ui/macos-alert-strip.component";
+@@ -11,3 +13 @@
+-import { PopOutComponent } from "../../../platform/popup/components/pop-out.component";
+-import { PopupHeaderComponent } from "../../../platform/popup/layout/popup-header.component";
+-import { PopupPageComponent } from "../../../platform/popup/layout/popup-page.component";
++export type RetainedVaultSettingsRoute = "/folders" | "/archive" | "/trash";
+@@ -15,2 +14,0 @@
+-// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
+-// eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
+@@ -18 +16,2 @@
+-  templateUrl: "vault-settings.component.html",
++  selector: "bw-official-vault-settings",
++  standalone: true,
+@@ -20,4 +19,5 @@
+-    CommonModule,
+-    JslibModule,
+-    RouterModule,
+-    PopupPageComponent,
++    ItemComponent,
++    ItemContentComponent,
++    ItemGroupComponent,
++    I18nPipe,
++    MacosAlertStripComponent,
+@@ -25,3 +25 @@
+-    PopOutComponent,
+-    ItemModule,
+-    SpinnerComponent,
++    PopupPageComponent,
+@@ -28,0 +27 @@
++  templateUrl: "./official-vault-settings.component.html",
+@@ -30,3 +29,7 @@
+-export class VaultSettingsComponent implements OnInit {
+-  lastSync = "--";
+-  syncLoading = false;
++export class OfficialVaultSettingsComponent {
++  @Input({ required: true }) isSyncing = false;
++  @Input({ required: true }) syncLabel = "";
++  @Input() syncError = "";
++  @Output() readonly back = new EventEmitter<void>();
++  @Output() readonly navigate = new EventEmitter<RetainedVaultSettingsRoute>();
++  @Output() readonly sync = new EventEmitter<void>();
+@@ -34,44 +37,2 @@
+-  constructor(
+-    private syncService: SyncService,
+-    private toastService: ToastService,
+-    private i18nService: I18nService,
+-  ) {}
+-
+-  async ngOnInit() {
+-    await this.setLastSync();
+-  }
+-
+-  async sync() {
+-    this.syncLoading = true;
+-    let toastConfig: ToastOptions;
+-
+-    try {
+-      const success = await this.syncService.fullSync(true);
+-      if (success) {
+-        await this.setLastSync();
+-        toastConfig = {
+-          variant: "success",
+-          title: "",
+-          message: this.i18nService.t("syncingComplete"),
+-        };
+-      } else {
+-        toastConfig = {
+-          variant: "error",
+-          title: "",
+-          message: this.i18nService.t("syncingFailed"),
+-        };
+-      }
+-      this.toastService.showToast(toastConfig);
+-    } finally {
+-      this.syncLoading = false;
+-    }
+-  }
+-
+-  private async setLastSync() {
+-    const last = await this.syncService.getLastSync();
+-    if (last != null) {
+-      this.lastSync = last.toLocaleDateString() + " " + last.toLocaleTimeString();
+-    } else {
+-      this.lastSync = this.i18nService.t("never");
+-    }
+-  }
++  readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
++    this.back.emit();
