@@ -904,7 +904,14 @@ describe("upstream reuse guard", () => {
     );
   });
 
-  it("keeps Plan A comparison documents free of deferred-feature backlog claims", () => {
+  it.skipIf(
+    !existsSync(
+      join(
+        process.cwd(),
+        "docs/superpowers/specs/2026-07-10-bitwarden-popup-function-comparison.md",
+      ),
+    ),
+  )("keeps local Plan A comparison documents free of deferred-feature backlog claims", () => {
     const comparison = readProjectFile(
       "docs/superpowers/specs/2026-07-10-bitwarden-popup-function-comparison.md",
     );

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -8,6 +8,9 @@ import { validateM16Replay } from "../../../../scripts/m16-live-native-replay-va
 const machineReportPath = "docs/superpowers/specs/2026-07-22-m16-machine-verification.json";
 const replayPath = "docs/superpowers/specs/2026-07-22-m16-live-native-replay.json";
 const resultPath = "docs/superpowers/specs/2026-07-22-m16-live-native-result.md";
+const hasLocalReplayEvidence = [machineReportPath, replayPath, resultPath].every((path) =>
+  existsSync(resolve(path)),
+);
 
 const services = ["cloud-us", "cloud-eu", "self-hosted"] as const;
 const liveRequirements = [
@@ -55,7 +58,7 @@ const nativeRowIds = [
 ] as const;
 const expectedRowIds = [...liveRowIds, ...nativeRowIds];
 
-describe("M16 exact-candidate live/native replay contract", () => {
+describe.skipIf(!hasLocalReplayEvidence)("M16 exact-candidate live/native replay contract", () => {
   it("publishes the strict sanitized v1 record with the complete fixed inventory", () => {
     const { machine, replay } = loadReports();
 
