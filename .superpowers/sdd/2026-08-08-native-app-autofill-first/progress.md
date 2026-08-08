@@ -3,7 +3,7 @@
 - Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
-- Status: Task 6 implemented; review pending
+- Status: Task 6 review fixes implemented; final review pending
 - Baseline contract tests: 7 passed, 1 browser-release skip.
 - Baseline full regression: 3462 passed, 22 skipped (from prior Task 1 gate; only design/plan docs changed afterward).
 
@@ -80,10 +80,11 @@
 
 ## Task 6
 
-- Implementation pending commit: macOS 13+ AuthenticationServices Provider, metadata-only identity lifecycle, explicit grouped/all-Login picker, and atomic Agent secret release.
+- Implementation: `82afd68e feat: add macOS credential provider autofill`; review hardening is the current change set.
 - Identity publication uses only active Login service/username metadata plus an opaque account/generation-scoped record identifier. Full replace covers sync/account switch, logout publishes an empty replacement, lock retains safe metadata, disabled store and replace errors fail closed.
 - Password/TOTP-code release reads the requested field only inside the existing `ProjectionStore` authorization transaction after current lease/account/generation/revision/context/policy/candidate/mismatch/reprompt validation. Candidate queries remain secret-free; application-controlled response buffers are cleared after use.
-- macOS 13/14 return stable `unsupported-system-totp`; macOS 15 one-time-code APIs are availability guarded. Reprompt-protected system Provider completion remains fail closed with accurate in-app AutoFill guidance; the successful reprompt Provider path is deferred.
-- Final verification: Swift/Xcode 107 passed; native project/wrapper/IPC contracts 17 passed; full TypeScript 3,487 passed/22 skipped; Rust 202 passed/4 ignored; production web build passed.
+- macOS 13/14 return stable `unsupported-system-totp`; macOS 15 one-time-code APIs are availability guarded. Reprompt-protected system Provider completion remains fail closed with accurate unlock-and-retry guidance; a successful Provider reprompt path is deferred and no Task 7 flow is promised.
+- Review hardening adds per-service opaque record IDs and exact current published-service release validation; serialized monotonic latest-wins identity publication; atomic one-shot terminal callbacks; explicit framing/projection-key buffer clearing; requested-field candidate filtering; password plus OTP plist capabilities; fixed reason-specific copy; and mismatch-cancel retry state.
+- Final verification: Swift/Xcode 123 passed; native project/wrapper/Info contracts 13 passed; full TypeScript 3,487 passed/22 skipped; Rust 202 passed/4 ignored; production web build passed.
 - Signed build/live system smoke is blocked by the missing `com.sommir.barwarden.credential-provider` provisioning profile and missing Team `K7LY92JY96` Mac Development certificate/private key. No extension installation or live success is claimed; Task 9 owns that gate.
 - Production Tauri configuration/native entitlements and Task 7 Accessibility/browser/focused-field behavior remain unchanged.

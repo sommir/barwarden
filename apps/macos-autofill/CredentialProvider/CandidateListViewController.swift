@@ -21,9 +21,9 @@ struct CredentialCandidateSection {
 final class CredentialCandidateListModel {
     private(set) var sections: [CredentialCandidateSection]
     private var selectedCandidateID: String?
-    private let onSubmit: (RankedCandidate) -> Void
+    private let onSubmit: (RankedCandidate) -> Bool
 
-    init(candidates: [RankedCandidate], onSubmit: @escaping (RankedCandidate) -> Void = { _ in }) {
+    init(candidates: [RankedCandidate], onSubmit: @escaping (RankedCandidate) -> Bool = { _ in false }) {
         self.onSubmit = onSubmit
         let groups: [CandidateGroup] = [.exact, .relevant, .other]
         sections = groups.compactMap { group in
@@ -44,20 +44,31 @@ final class CredentialCandidateListModel {
               let candidate = sections.lazy.flatMap(\.rows).first(where: {
                   $0.candidate.cipherID == selectedCandidateID
               })?.candidate else { return false }
-        onSubmit(candidate)
-        return true
+        return onSubmit(candidate)
     }
 
     private static func readableReason(for candidate: RankedCandidate) -> String {
-        switch candidate.group {
-        case .exact:
-            return "Matches the requesting service"
-        case .relevant:
-            return "Relevant to this app or website"
-        case .other where candidate.requiresMismatchConfirmation:
+        switch candidate.reason {
+        case "user_binding": return "Previously linked to this app"
+        case "service_identifier": return "Matches the requesting service"
+        case "app_preset": return "Matches this known app"
+        case "vault_uri_rule": return "Matches this Login's saved URI rule"
+        case "host_or_domain": return "Shares the requesting host or domain"
+        case "fuzzy_name": return "Login name may relate to this app"
+        case "selection_history": return "Previously filled for this context"
+        case "favorite": return "Saved as a favorite Login"
+        case "recent": return "Recently used Login"
+        case "other" where candidate.requiresMismatchConfirmation:
             return "Does not match this service; confirmation required"
-        case .other:
-            return "Available from all Logins"
+        case "other": return "Available from all Logins"
+        default:
+            switch candidate.group {
+            case .exact: return "Matches this request"
+            case .relevant: return "May be relevant to this request"
+            case .other where candidate.requiresMismatchConfirmation:
+                return "Does not match this service; confirmation required"
+            case .other: return "Available from all Logins"
+            }
         }
     }
 }
@@ -69,7 +80,7 @@ final class CandidateListViewController: NSViewController {
     }
 
     var onSearch: (String) -> Void = { _ in }
-    var onFill: (RankedCandidate) -> Void = { _ in }
+    var onFill: (RankedCandidate) -> Bool = { _ in false }
     var onCancel: () -> Void = {}
 
     private var model = CredentialCandidateListModel(candidates: [])

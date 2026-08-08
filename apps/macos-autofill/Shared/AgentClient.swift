@@ -110,7 +110,9 @@ struct AgentClient {
         defer { close(socket) }
         try AgentSocketIO.applyDeadline(timeout, to: socket)
 
-        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: socket)
+        var requestFrame = try AgentFrame.encodeJSON(request)
+        defer { requestFrame.resetBytes(in: requestFrame.indices) }
+        try AgentSocketIO.writeFrame(requestFrame, to: socket)
         guard shutdown(socket, SHUT_WR) == 0 else {
             throw AgentProtocolError.transport
         }

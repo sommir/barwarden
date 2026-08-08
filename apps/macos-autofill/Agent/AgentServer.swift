@@ -117,6 +117,12 @@ final class AgentConnectionHandler {
         var frame = try AgentSocketIO.readFrame(from: socket, deadline: deadline)
         defer { frame.resetBytes(in: frame.indices) }
         let request = try AgentFrame.decode(frame, as: AgentRequest.self)
+        defer {
+            if let projection = request.projection {
+                projection.clearKey()
+                onProjectionKeyCleared?(projection.key)
+            }
+        }
         try requestGate.accept(request)
         var candidateResponse: CandidateResponsePayload?
         var sessionResponse: AgentSessionPayload?
@@ -153,10 +159,6 @@ final class AgentConnectionHandler {
                   request.lease == nil, request.candidateQuery == nil, request.secretRelease == nil,
                   let projectionStore else {
                 throw AgentProtocolError.malformedMessage
-            }
-            defer {
-                payload.clearKey()
-                onProjectionKeyCleared?(payload.key)
             }
             try projectionStore.provision(
                 ProjectionProvision(
@@ -199,6 +201,7 @@ final class AgentConnectionHandler {
             candidateResponse = try projectionStore.queryCandidates(
                 accountID: payload.accountID,
                 generation: payload.generation,
+                field: payload.field,
                 context: payload.context,
                 matchingEngine: matchingEngine
             )
@@ -250,10 +253,9 @@ final class AgentConnectionHandler {
     }
 
     private func sendFailure(_ error: AgentProtocolError, to socket: Int32) throws {
-        try AgentSocketIO.writeFrame(
-            try AgentFrame.encodeJSON(AgentResponse.failure(error)),
-            to: socket
-        )
+        var frame = try AgentFrame.encodeJSON(AgentResponse.failure(error))
+        defer { frame.resetBytes(in: frame.indices) }
+        try AgentSocketIO.writeFrame(frame, to: socket)
     }
 
     private func finishRejectedConnection(_ socket: Int32) {

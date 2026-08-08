@@ -30,6 +30,8 @@
       <dict>
         <key>ProvidesOneTimeCodes</key>
         <true/>
+        <key>ProvidesPasswords</key>
+        <true/>
       </dict>
       <key>ASCredentialProviderExtensionShowsConfigurationUI</key>
       <false/>

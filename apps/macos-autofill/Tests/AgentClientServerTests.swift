@@ -340,6 +340,7 @@ final class AgentClientServerTests: XCTestCase {
             candidateQuery: CandidateQueryPayload(
                 generation: fixture.generation,
                 accountID: "account-a",
+                field: .password,
                 context: NativeAutoFillContext(
                     bundleID: "com.example.App",
                     appName: "Example",
@@ -384,6 +385,7 @@ final class AgentClientServerTests: XCTestCase {
             candidateQuery: CandidateQueryPayload(
                 generation: fixture.generation,
                 accountID: "account-a",
+                field: .password,
                 context: NativeAutoFillContext(
                     bundleID: "com.example.App",
                     appName: "Example",
@@ -473,6 +475,7 @@ final class AgentClientServerTests: XCTestCase {
             candidateQuery: CandidateQueryPayload(
                 generation: fixture.generation,
                 accountID: "account-a",
+                field: .totp,
                 context: NativeAutoFillContext(
                     bundleID: "com.example.App",
                     appName: "Example",
@@ -520,6 +523,7 @@ final class AgentClientServerTests: XCTestCase {
         let response = try client.queryCandidates(CandidateQueryPayload(
             generation: fixture.generation,
             accountID: "account-a",
+            field: .password,
             context: NativeAutoFillContext(
                 bundleID: "com.example.App",
                 appName: "Example",
@@ -584,6 +588,30 @@ final class AgentClientServerTests: XCTestCase {
         ).handleAcceptedSocket(sockets.takeServer())
         _ = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
 
+        XCTAssertEqual(cleared, Data(repeating: 0, count: ZeroizingKey.byteCount))
+    }
+
+    func testDecodedProjectionKeyClearsWhenOperationShapeIsRejected() throws {
+        let fixture = try ProjectionHandlerFixture()
+        let sockets = try SocketPair()
+        var cleared: Data?
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .probe,
+            nonce: Data([18]),
+            projection: fixture.provisionPayload
+        )
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: sockets.client)
+
+        AgentConnectionHandler(
+            authorize: { _ in .mainApplication },
+            projectionStore: fixture.store,
+            onProjectionKeyCleared: { cleared = $0 }
+        ).handleAcceptedSocket(sockets.takeServer())
+
+        let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
+        XCTAssertEqual(response.error, .malformedMessage)
         XCTAssertEqual(cleared, Data(repeating: 0, count: ZeroizingKey.byteCount))
     }
 

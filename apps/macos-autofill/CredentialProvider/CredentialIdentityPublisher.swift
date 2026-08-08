@@ -31,6 +31,7 @@ struct CredentialIdentityStoreState: Equatable {
 
 enum CredentialIdentityPublisherError: Error, Equatable {
     case storeDisabled
+    case superseded
 }
 
 protocol CredentialIdentityStoreWriting {
@@ -75,12 +76,19 @@ struct SystemCredentialIdentityStore: CredentialIdentityStoreWriting {
 enum CredentialIdentityRecordIdentifier {
     private static let domain = Data("barwarden-credential-identity-v1".utf8)
 
-    static func make(accountID: String, generation: UUID, opaqueCipherID: String) -> String {
+    static func make(
+        accountID: String,
+        generation: UUID,
+        opaqueCipherID: String,
+        service: PublishedCredentialService
+    ) -> String {
         var digest = SHA256()
         append(domain, to: &digest)
         append(Data(accountID.utf8), to: &digest)
         append(Data(generation.uuidString.lowercased().utf8), to: &digest)
         append(Data(opaqueCipherID.utf8), to: &digest)
+        append(Data(service.kind.rawValue.utf8), to: &digest)
+        append(Data(service.identifier.utf8), to: &digest)
         let encoded = digest.finalize().map { String(format: "%02x", $0) }.joined()
         return "bwaf-id-v1.\(encoded)"
     }
@@ -93,6 +101,12 @@ enum CredentialIdentityRecordIdentifier {
 }
 
 final class CredentialIdentityPublisher {
+    private struct Request {
+        let epoch: UInt64
+        let identities: [ASPasswordCredentialIdentity]
+        let completion: (Result<Void, Error>) -> Void
+    }
+
     private struct IdentityKey: Hashable {
         let recordIdentifier: String
         let username: String
@@ -101,9 +115,15 @@ final class CredentialIdentityPublisher {
     }
 
     private let store: CredentialIdentityStoreWriting
+    private let queue = DispatchQueue(label: "com.sommir.barwarden.credential-identities")
+    private let queueKey = DispatchSpecificKey<Void>()
+    private var nextEpoch: UInt64 = 0
+    private var active: Request?
+    private var pending: Request?
 
     init(store: CredentialIdentityStoreWriting = SystemCredentialIdentityStore()) {
         self.store = store
+        queue.setSpecific(key: queueKey, value: ())
     }
 
     func replaceAfterSync(
@@ -118,13 +138,19 @@ final class CredentialIdentityPublisher {
         var identities: [ASPasswordCredentialIdentity] = []
         for item in snapshot.items where item.kind == .login && !item.isArchived && !item.isDeleted {
             guard !item.opaqueCipherID.isEmpty else { continue }
-            let recordIdentifier = CredentialIdentityRecordIdentifier.make(
-                accountID: snapshot.accountID,
-                generation: snapshot.generation,
-                opaqueCipherID: item.opaqueCipherID
-            )
             for rawService in item.serviceIdentifiers {
-                guard let service = Self.canonicalService(rawService) else { continue }
+                guard let canonical = PublishedCredentialServiceCanonicalizer
+                    .canonicalVaultService(rawService) else { continue }
+                let service = ASCredentialServiceIdentifier(
+                    identifier: canonical.identifier,
+                    type: canonical.kind == .URL ? .URL : .domain
+                )
+                let recordIdentifier = CredentialIdentityRecordIdentifier.make(
+                    accountID: snapshot.accountID,
+                    generation: snapshot.generation,
+                    opaqueCipherID: item.opaqueCipherID,
+                    service: canonical
+                )
                 let key = IdentityKey(
                     recordIdentifier: recordIdentifier,
                     username: item.username,
@@ -154,36 +180,68 @@ final class CredentialIdentityPublisher {
         _ identities: [ASPasswordCredentialIdentity],
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
-        store.state { [store] result in
-            switch result {
-            case let .success(state) where state.isEnabled:
-                // Full replacement is intentional even when incremental updates are supported.
-                store.replace(identities, completion: completion)
-            case .success:
-                completion(.failure(CredentialIdentityPublisherError.storeDisabled))
-            case let .failure(error):
-                completion(.failure(error))
+        onQueue {
+            nextEpoch &+= 1
+            let request = Request(epoch: nextEpoch, identities: identities, completion: completion)
+            if let pending {
+                pending.completion(.failure(CredentialIdentityPublisherError.superseded))
             }
+            pending = request
+            startNextIfNeeded()
         }
     }
 
-    private static func canonicalService(_ rawValue: String) -> ASCredentialServiceIdentifier? {
-        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return nil }
-        if var components = URLComponents(string: value),
-           let scheme = components.scheme?.lowercased(),
-           (scheme == "http" || scheme == "https"),
-           let host = components.host?.lowercased(),
-           !host.isEmpty {
-            components.scheme = scheme
-            components.host = host
-            components.fragment = nil
-            guard let canonical = components.url?.absoluteString else { return nil }
-            return ASCredentialServiceIdentifier(identifier: canonical, type: .URL)
+    private func startNextIfNeeded() {
+        guard active == nil, let request = pending else { return }
+        pending = nil
+        active = request
+        store.state { [weak self] result in
+            self?.onQueue { self?.handleState(result, for: request) }
         }
-        let domain = value.precomposedStringWithCanonicalMapping
-            .lowercased(with: Locale(identifier: "en_US_POSIX"))
-        guard !domain.contains("/"), !domain.contains("?") else { return nil }
-        return ASCredentialServiceIdentifier(identifier: domain, type: .domain)
+    }
+
+    private func handleState(
+        _ result: Result<CredentialIdentityStoreState, Error>,
+        for request: Request
+    ) {
+        guard active?.epoch == request.epoch else { return }
+        guard request.epoch == nextEpoch else {
+            finish(request, with: .failure(CredentialIdentityPublisherError.superseded))
+            return
+        }
+        switch result {
+        case let .success(state) where state.isEnabled:
+            // Full replacement is intentional even when incremental updates are supported.
+            store.replace(request.identities) { [weak self] result in
+                self?.onQueue { self?.handleReplace(result, for: request) }
+            }
+        case .success:
+            finish(request, with: .failure(CredentialIdentityPublisherError.storeDisabled))
+        case let .failure(error):
+            finish(request, with: .failure(error))
+        }
+    }
+
+    private func handleReplace(_ result: Result<Void, Error>, for request: Request) {
+        guard active?.epoch == request.epoch else { return }
+        let finalResult: Result<Void, Error> = request.epoch == nextEpoch
+            ? result
+            : .failure(CredentialIdentityPublisherError.superseded)
+        finish(request, with: finalResult)
+    }
+
+    private func finish(_ request: Request, with result: Result<Void, Error>) {
+        guard active?.epoch == request.epoch else { return }
+        active = nil
+        request.completion(result)
+        startNextIfNeeded()
+    }
+
+    private func onQueue(_ operation: () -> Void) {
+        if DispatchQueue.getSpecific(key: queueKey) != nil {
+            operation()
+        } else {
+            queue.sync(execute: operation)
+        }
     }
 }

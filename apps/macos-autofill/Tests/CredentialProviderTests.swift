@@ -22,8 +22,12 @@ final class CredentialProviderTests: XCTestCase {
             mismatchConfirmed: false
         )) { XCTAssertEqual($0 as? SystemAutoFillError, .authorizationRequired) }
         XCTAssertEqual(agent.releaseRequests.count, 1)
+        XCTAssertEqual(
+            SystemAutoFillError.authorizationRequired.recoveryMessage,
+            "Open Barwarden to unlock this item, then try AutoFill again."
+        )
         XCTAssertFalse(SystemAutoFillError.authorizationRequired.recoveryMessage.localizedCaseInsensitiveContains("approve"))
-        XCTAssertTrue(SystemAutoFillError.authorizationRequired.recoveryMessage.contains("in-app AutoFill"))
+        XCTAssertFalse(SystemAutoFillError.authorizationRequired.recoveryMessage.localizedCaseInsensitiveContains("in-app"))
     }
 
     func testStaleGenerationFailsClosedAndDoesNotReuseSelection() throws {
@@ -45,15 +49,66 @@ final class CredentialProviderTests: XCTestCase {
         let recordIdentifier = CredentialIdentityRecordIdentifier.make(
             accountID: agent.session.accountID,
             generation: agent.session.generation,
-            opaqueCipherID: "cipher-a"
+            opaqueCipherID: "cipher-a",
+            service: PublishedCredentialService(identifier: "evil.example.test", kind: .domain)
         )
 
         XCTAssertThrowsError(try coordinator.completePasswordIdentity(
             recordIdentifier: recordIdentifier,
             serviceIdentifier: "evil.example.test",
+            serviceKind: .domain,
             username: "person@example.test"
         )) { XCTAssertEqual($0 as? SystemAutoFillError, .serviceMismatch) }
         XCTAssertTrue(agent.releaseRequests.isEmpty)
+    }
+
+    func testDirectIdentityRecordIsBoundToOneCanonicalPublishedService() {
+        let agent = StubCredentialProviderAgent()
+        let coordinator = CredentialProviderCoordinator(agent: agent)
+        let firstService = PublishedCredentialService(
+            identifier: "https://first.example.test/login",
+            kind: .URL
+        )
+        let firstRecord = CredentialIdentityRecordIdentifier.make(
+            accountID: agent.session.accountID,
+            generation: agent.session.generation,
+            opaqueCipherID: "cipher-a",
+            service: firstService
+        )
+
+        XCTAssertThrowsError(try coordinator.completePasswordIdentity(
+            recordIdentifier: firstRecord,
+            serviceIdentifier: "https://second.example.test/login",
+            serviceKind: .URL,
+            username: "person@example.test"
+        )) { XCTAssertEqual($0 as? SystemAutoFillError, .serviceMismatch) }
+        XCTAssertTrue(agent.releaseRequests.isEmpty)
+    }
+
+    func testDirectIdentityCarriesExactCanonicalServiceIntoAtomicRelease() throws {
+        let agent = StubCredentialProviderAgent()
+        let coordinator = CredentialProviderCoordinator(agent: agent)
+        let service = PublishedCredentialService(
+            identifier: "https://example.test/login",
+            kind: .URL
+        )
+        let record = CredentialIdentityRecordIdentifier.make(
+            accountID: agent.session.accountID,
+            generation: agent.session.generation,
+            opaqueCipherID: "cipher-a",
+            service: service
+        )
+
+        let completion = try coordinator.completePasswordIdentity(
+            recordIdentifier: record,
+            serviceIdentifier: "HTTPS://EXAMPLE.TEST/login#ignored",
+            serviceKind: .URL,
+            username: "person@example.test"
+        )
+        defer { completion.clear() }
+
+        XCTAssertEqual(agent.releaseRequests.only?.publishedService, service)
+        XCTAssertEqual(agent.queries.only?.field, .password)
     }
 
     func testExplicitAllLoginSelectionRequiresAndCarriesMismatchConfirmation() throws {
@@ -88,6 +143,40 @@ final class CredentialProviderTests: XCTestCase {
             mismatchConfirmed: false
         )) { XCTAssertEqual($0 as? SystemAutoFillError, .cancelled) }
         XCTAssertTrue(agent.releaseRequests.isEmpty)
+    }
+
+    func testTerminalGateAllowsExactlyOneSuccessErrorOrCancellationCallback() {
+        for first in [CredentialTerminalOutcome.success, .failure, .cancelled] {
+            let gate = CredentialRequestTerminalGate()
+            XCTAssertTrue(gate.claim(first))
+            XCTAssertFalse(gate.claim(.success))
+            XCTAssertFalse(gate.claim(.failure))
+            XCTAssertFalse(gate.claim(.cancelled))
+            XCTAssertEqual(gate.outcome, first)
+        }
+    }
+
+    func testCancelAfterAgentReleaseClearsSecretAndCannotComplete() throws {
+        let gate = CredentialRequestTerminalGate()
+        var releasedSecret: ReleasedSecret?
+        var coordinator: CredentialProviderCoordinator!
+        let agent = StubCredentialProviderAgent(onRelease: { secret in
+            releasedSecret = secret
+            XCTAssertTrue(coordinator.cancel())
+        })
+        coordinator = CredentialProviderCoordinator(agent: agent, terminalGate: gate)
+        let snapshot = try coordinator.load(serviceIdentifiers: ["example.test"], query: "")
+
+        XCTAssertThrowsError(try coordinator.complete(
+            candidateID: "cipher-a",
+            from: snapshot,
+            field: .password,
+            mismatchConfirmed: false
+        )) { XCTAssertEqual($0 as? SystemAutoFillError, .cancelled) }
+
+        XCTAssertTrue(releasedSecret?.isCleared == true)
+        XCTAssertEqual(gate.outcome, .cancelled)
+        XCTAssertFalse(gate.claim(.success), "main-thread finish must not complete after cancellation")
     }
 
     func testAgentUnavailableIsReportedWithoutFallbackRelease() {
@@ -140,7 +229,11 @@ final class CredentialProviderTests: XCTestCase {
     func testMacOS15TOTPRequestsOnlyCurrentCodeFromAgent() throws {
         let agent = StubCredentialProviderAgent(secret: "123456")
         let coordinator = CredentialProviderCoordinator(agent: agent)
-        let snapshot = try coordinator.load(serviceIdentifiers: ["example.test"], query: "")
+        let snapshot = try coordinator.load(
+            serviceIdentifiers: ["example.test"],
+            query: "",
+            field: .totp
+        )
         let completion = try coordinator.complete(
             candidateID: "cipher-a",
             from: snapshot,
@@ -151,8 +244,38 @@ final class CredentialProviderTests: XCTestCase {
         defer { completion.clear() }
 
         XCTAssertEqual(completion.type, .oneTimeCode)
+        XCTAssertEqual(agent.queries.only?.field, .totp)
         XCTAssertEqual(agent.releaseRequests.only?.field, .totp)
         XCTAssertEqual(try completion.secretString(), "123456")
+    }
+
+    func testCandidateReasonsUseSpecificFixedLocalCopyWithSafeUnknownFallback() {
+        let expected: [(String, CandidateGroup, String)] = [
+            ("user_binding", .exact, "Previously linked to this app"),
+            ("service_identifier", .exact, "Matches the requesting service"),
+            ("app_preset", .relevant, "Matches this known app"),
+            ("vault_uri_rule", .relevant, "Matches this Login's saved URI rule"),
+            ("host_or_domain", .relevant, "Shares the requesting host or domain"),
+            ("fuzzy_name", .relevant, "Login name may relate to this app"),
+            ("selection_history", .relevant, "Previously filled for this context"),
+            ("favorite", .relevant, "Saved as a favorite Login"),
+            ("recent", .relevant, "Recently used Login"),
+            ("other", .other, "Available from all Logins")
+        ]
+
+        for (reason, group, copy) in expected {
+            let model = CredentialCandidateListModel(candidates: [
+                Self.candidate(id: reason, group: group, reason: reason)
+            ])
+            XCTAssertEqual(model.sections.only?.rows.only?.reasonText, copy, reason)
+        }
+
+        let unknown = "unknown_secret://service.example/path"
+        let model = CredentialCandidateListModel(candidates: [
+            Self.candidate(id: "unknown", group: .relevant, reason: unknown)
+        ])
+        XCTAssertEqual(model.sections.only?.rows.only?.reasonText, "May be relevant to this request")
+        XCTAssertFalse(model.sections.only?.rows.only?.reasonText.contains(unknown) == true)
     }
 
     func testCandidateListGroupsExactRelevantOtherInOrderWithReadableReasons() {
@@ -175,13 +298,36 @@ final class CredentialProviderTests: XCTestCase {
         var submitted: [String] = []
         let model = CredentialCandidateListModel(
             candidates: [Self.candidate()],
-            onSubmit: { submitted.append($0.cipherID) }
+            onSubmit: {
+                submitted.append($0.cipherID)
+                return true
+            }
         )
 
         model.select(candidateID: "cipher-a")
         XCTAssertTrue(submitted.isEmpty)
         XCTAssertTrue(model.confirmSelection())
         XCTAssertEqual(submitted, ["cipher-a"])
+    }
+
+    func testRejectedFillAttemptKeepsSelectionAvailableForRetry() {
+        var accepted = false
+        var attempts = 0
+        let model = CredentialCandidateListModel(
+            candidates: [Self.candidate(group: .other, mismatch: true)],
+            onSubmit: { _ in
+                attempts += 1
+                return accepted
+            }
+        )
+
+        model.select(candidateID: "cipher-a")
+        XCTAssertFalse(model.confirmSelection())
+        XCTAssertEqual(attempts, 1)
+
+        accepted = true
+        XCTAssertTrue(model.confirmSelection())
+        XCTAssertEqual(attempts, 2)
     }
 
     fileprivate static func candidate(
@@ -211,6 +357,7 @@ private final class StubCredentialProviderAgent: CredentialProviderAgent {
     private let releaseError: AgentProtocolError?
     private let candidates: [RankedCandidate]
     private let secret: String
+    private let onRelease: ((ReleasedSecret) -> Void)?
     private(set) var queries: [CandidateQueryPayload] = []
     private(set) var releaseRequests: [SecretReleasePayload] = []
 
@@ -218,12 +365,14 @@ private final class StubCredentialProviderAgent: CredentialProviderAgent {
         error: AgentProtocolError? = nil,
         releaseError: AgentProtocolError? = nil,
         candidates: [RankedCandidate] = [CredentialProviderTests.candidate()],
-        secret: String = "agent-password"
+        secret: String = "agent-password",
+        onRelease: ((ReleasedSecret) -> Void)? = nil
     ) {
         self.error = error
         self.releaseError = releaseError
         self.candidates = candidates
         self.secret = secret
+        self.onRelease = onRelease
     }
 
     func currentSession() throws -> AgentSessionPayload {
@@ -240,7 +389,9 @@ private final class StubCredentialProviderAgent: CredentialProviderAgent {
     func releaseSecret(_ payload: SecretReleasePayload) throws -> ReleasedSecret {
         releaseRequests.append(payload)
         if let releaseError { throw releaseError }
-        return ReleasedSecret(field: payload.field, value: Data(secret.utf8))
+        let released = ReleasedSecret(field: payload.field, value: Data(secret.utf8))
+        onRelease?(released)
+        return released
     }
 }
 

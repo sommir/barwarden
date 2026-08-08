@@ -262,15 +262,23 @@ final class ProjectionStore {
     func queryCandidates(
         accountID: String,
         generation: UUID,
+        field: AutoFillSecretField,
         context: NativeAutoFillContext,
         matchingEngine: MatchingEngine
     ) throws -> CandidateResponsePayload {
         lockState.lock()
         defer { lockState.unlock() }
         let projection = try currentProjection(accountID: accountID, generation: generation)
+        let eligibleLogins = projection.logins.filter { login in
+            switch field {
+            case .username: !login.username.isEmpty
+            case .password: !login.password.isEmpty
+            case .totp: !login.totp.isEmpty
+            }
+        }
         let candidates = matchingEngine.rank(
             accountID: projection.accountID,
-            logins: projection.logins,
+            logins: eligibleLogins,
             context: context,
             bindings: projection.bindings.map {
                 UserAppBinding(
@@ -303,7 +311,7 @@ final class ProjectionStore {
             contextDigest: contextDigest,
             policyDigest: policyDigest,
             candidates: candidates,
-            logins: projection.logins
+            logins: eligibleLogins
         )
     }
 
@@ -335,6 +343,19 @@ final class ProjectionStore {
               snapshot.policyDigest == policyDigest,
               let login = projection.logins.first(where: { $0.cipherID == request.candidateID }) else {
             throw AgentProtocolError.unauthorized
+        }
+        if let publishedService = request.publishedService {
+            guard PublishedCredentialServiceCanonicalizer.canonical(
+                identifier: publishedService.identifier,
+                kind: publishedService.kind
+            ) == publishedService,
+            login.uris.contains(where: { uri in
+                guard uri.matchType != .never, uri.matchType != .regularExpression else { return false }
+                return PublishedCredentialServiceCanonicalizer.canonicalVaultService(uri.uri)
+                    == publishedService
+            }) else {
+                throw AgentProtocolError.unauthorized
+            }
         }
         onSecretReleaseSnapshot?()
         try candidateAuthorizations.validate(

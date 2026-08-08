@@ -16,7 +16,7 @@ enum SystemAutoFillError: String, Error, Equatable {
         case .unsupportedSystemTOTP:
             return "System one-time-code AutoFill requires macOS 15. Use Barwarden focused-field actions."
         case .locked, .authorizationRequired:
-            return "Open Barwarden to unlock, then try again. Reprompt-protected Logins require Barwarden in-app AutoFill."
+            return "Open Barwarden to unlock this item, then try AutoFill again."
         case .agentUnavailable:
             return "Barwarden AutoFill Agent is unavailable. Open Barwarden to repair AutoFill."
         case .staleRequest:
@@ -52,6 +52,33 @@ enum CredentialCompletionType: Equatable {
     case oneTimeCode
 }
 
+enum CredentialTerminalOutcome: Equatable {
+    case success
+    case failure
+    case cancelled
+}
+
+final class CredentialRequestTerminalGate {
+    private let lock = NSLock()
+    private var terminalOutcome: CredentialTerminalOutcome?
+
+    var outcome: CredentialTerminalOutcome? {
+        lock.lock()
+        defer { lock.unlock() }
+        return terminalOutcome
+    }
+
+    var isPending: Bool { outcome == nil }
+
+    func claim(_ outcome: CredentialTerminalOutcome) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard terminalOutcome == nil else { return false }
+        terminalOutcome = outcome
+        return true
+    }
+}
+
 final class CredentialCompletion {
     let type: CredentialCompletionType
     let username: String
@@ -74,14 +101,21 @@ final class CredentialCompletion {
 
 final class CredentialProviderCoordinator {
     private let agent: CredentialProviderAgent
-    private let cancellationLock = NSLock()
-    private var isCancelled = false
+    private let terminalGate: CredentialRequestTerminalGate
 
-    init(agent: CredentialProviderAgent = AgentClient()) {
+    init(
+        agent: CredentialProviderAgent = AgentClient(),
+        terminalGate: CredentialRequestTerminalGate = CredentialRequestTerminalGate()
+    ) {
         self.agent = agent
+        self.terminalGate = terminalGate
     }
 
-    func load(serviceIdentifiers: [String], query: String) throws -> CredentialCandidateSnapshot {
+    func load(
+        serviceIdentifiers: [String],
+        query: String,
+        field: AutoFillSecretField = .password
+    ) throws -> CredentialCandidateSnapshot {
         try requireActive()
         do {
             let session = try agent.currentSession()
@@ -89,6 +123,7 @@ final class CredentialProviderCoordinator {
             let payload = CandidateQueryPayload(
                 generation: session.generation,
                 accountID: session.accountID,
+                field: field,
                 context: NativeAutoFillContext(
                     bundleID: "",
                     appName: "",
@@ -111,11 +146,13 @@ final class CredentialProviderCoordinator {
     func completePasswordIdentity(
         recordIdentifier: String,
         serviceIdentifier: String,
+        serviceKind: PublishedCredentialServiceKind = .URL,
         username: String
     ) throws -> CredentialCompletion {
         try completeIdentity(
             recordIdentifier: recordIdentifier,
             serviceIdentifier: serviceIdentifier,
+            serviceKind: serviceKind,
             presentedName: username,
             field: .password
         )
@@ -124,15 +161,21 @@ final class CredentialProviderCoordinator {
     func completeIdentity(
         recordIdentifier: String,
         serviceIdentifier: String,
+        serviceKind: PublishedCredentialServiceKind,
         presentedName: String,
         field: AutoFillSecretField
     ) throws -> CredentialCompletion {
-        let snapshot = try load(serviceIdentifiers: [serviceIdentifier], query: "")
+        guard let publishedService = PublishedCredentialServiceCanonicalizer.canonical(
+            identifier: serviceIdentifier,
+            kind: serviceKind
+        ) else { throw SystemAutoFillError.serviceMismatch }
+        let snapshot = try load(serviceIdentifiers: [publishedService.identifier], query: "", field: field)
         guard let candidate = snapshot.candidates.first(where: {
             CredentialIdentityRecordIdentifier.make(
                 accountID: snapshot.session.accountID,
                 generation: snapshot.session.generation,
-                opaqueCipherID: $0.cipherID
+                opaqueCipherID: $0.cipherID,
+                service: publishedService
             ) == recordIdentifier
         }),
         (field == .totp ? candidate.displayName : candidate.username) == presentedName,
@@ -143,7 +186,8 @@ final class CredentialProviderCoordinator {
             candidateID: candidate.cipherID,
             from: snapshot,
             field: field,
-            mismatchConfirmed: false
+            mismatchConfirmed: false,
+            publishedService: publishedService
         )
     }
 
@@ -152,7 +196,8 @@ final class CredentialProviderCoordinator {
         from snapshot: CredentialCandidateSnapshot,
         field: AutoFillSecretField,
         mismatchConfirmed: Bool,
-        supportsSystemTOTP: Bool = true
+        supportsSystemTOTP: Bool = true,
+        publishedService: PublishedCredentialService? = nil
     ) throws -> CredentialCompletion {
         try requireActive()
         guard field != .totp || supportsSystemTOTP else {
@@ -170,7 +215,8 @@ final class CredentialProviderCoordinator {
                 field: field,
                 contextToken: snapshot.response.contextToken,
                 mismatchConfirmed: mismatchConfirmed,
-                reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
+                reprompt: RepromptResultPayload(result: .notRequired, grant: nil),
+                publishedService: publishedService
             ))
             do {
                 try requireActive()
@@ -188,17 +234,13 @@ final class CredentialProviderCoordinator {
         }
     }
 
-    func cancel() {
-        cancellationLock.lock()
-        isCancelled = true
-        cancellationLock.unlock()
+    @discardableResult
+    func cancel() -> Bool {
+        terminalGate.claim(.cancelled)
     }
 
     private func requireActive() throws {
-        cancellationLock.lock()
-        let cancelled = isCancelled
-        cancellationLock.unlock()
-        if cancelled { throw SystemAutoFillError.cancelled }
+        if !terminalGate.isPending { throw SystemAutoFillError.cancelled }
     }
 
     private static func map(_ error: Error) -> SystemAutoFillError {
@@ -220,7 +262,8 @@ final class CredentialProviderCoordinator {
 }
 
 final class CredentialProviderViewController: ASCredentialProviderViewController {
-    private let coordinator = CredentialProviderCoordinator()
+    private let terminalGate = CredentialRequestTerminalGate()
+    private lazy var coordinator = CredentialProviderCoordinator(terminalGate: terminalGate)
     private let worker = DispatchQueue(label: "com.sommir.barwarden.credential-provider", qos: .userInitiated)
     private let candidateList = CandidateListViewController()
     private var services: [String] = []
@@ -230,7 +273,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
 
     override func loadView() {
         candidateList.onSearch = { [weak self] query in self?.reloadCandidates(query: query) }
-        candidateList.onFill = { [weak self] candidate in self?.fill(candidate) }
+        candidateList.onFill = { [weak self] candidate in self?.fill(candidate) ?? false }
         candidateList.onCancel = { [weak self] in self?.cancelRequest() }
         view = candidateList.view
     }
@@ -289,7 +332,11 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
         worker.async { [weak self] in
             guard let self else { return }
             let result = Result {
-                try self.coordinator.load(serviceIdentifiers: serviceSnapshot, query: query)
+                try self.coordinator.load(
+                    serviceIdentifiers: serviceSnapshot,
+                    query: query,
+                    field: self.requestedField
+                )
             }
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.requestRevision == revision else { return }
@@ -308,8 +355,8 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
         candidateList.install(candidates: snapshot.candidates)
     }
 
-    private func fill(_ candidate: RankedCandidate) {
-        guard let snapshot else { return }
+    private func fill(_ candidate: RankedCandidate) -> Bool {
+        guard let snapshot else { return false }
         var mismatchConfirmed = false
         if candidate.requiresMismatchConfirmation {
             let alert = NSAlert()
@@ -317,7 +364,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
             alert.informativeText = "Only continue if you trust the current app or website."
             alert.addButton(withTitle: "Fill Anyway")
             alert.addButton(withTitle: "Cancel")
-            guard alert.runModal() == .alertFirstButtonReturn else { return }
+            guard alert.runModal() == .alertFirstButtonReturn else { return false }
             mismatchConfirmed = true
         }
         complete(
@@ -326,11 +373,13 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
             field: requestedField,
             mismatchConfirmed: mismatchConfirmed
         )
+        return true
     }
 
     private func cancelRequest() {
-        coordinator.cancel()
-        extensionContext.cancelRequest(withError: extensionError(SystemAutoFillError.cancelled))
+        if coordinator.cancel() {
+            extensionContext.cancelRequest(withError: extensionError(SystemAutoFillError.cancelled))
+        }
     }
 
     private func completePasswordIdentity(_ identity: ASPasswordCredentialIdentity) {
@@ -344,6 +393,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
                 try self.coordinator.completePasswordIdentity(
                     recordIdentifier: recordIdentifier,
                     serviceIdentifier: identity.serviceIdentifier.identifier,
+                    serviceKind: identity.serviceIdentifier.type == .URL ? .URL : .domain,
                     username: identity.user
                 )
             }
@@ -368,6 +418,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
                     try self.coordinator.completeIdentity(
                         recordIdentifier: recordIdentifier,
                         serviceIdentifier: identity.serviceIdentifier.identifier,
+                        serviceKind: identity.serviceIdentifier.type == .URL ? .URL : .domain,
                         presentedName: identity.label,
                         field: .totp
                     )
@@ -413,6 +464,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
                 let value = try completion.secretString()
                 switch completion.type {
                 case .password:
+                    guard terminalGate.claim(.success) else { return }
                     extensionContext.completeRequest(
                         withSelectedCredential: ASPasswordCredential(
                             user: completion.username,
@@ -424,18 +476,19 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
                     guard #available(macOS 15.0, *) else {
                         throw SystemAutoFillError.unsupportedSystemTOTP
                     }
+                    guard terminalGate.claim(.success) else { return }
                     extensionContext.completeOneTimeCodeRequest(
                         using: ASOneTimeCodeCredential(code: value),
                         completionHandler: nil
                     )
                 }
             } catch {
-                extensionContext.cancelRequest(withError: extensionError(error))
+                if terminalGate.claim(.failure) {
+                    extensionContext.cancelRequest(withError: extensionError(error))
+                }
             }
         case let .failure(error):
-            if isViewLoaded {
-                show(error)
-            } else {
+            if terminalGate.claim(.failure) {
                 extensionContext.cancelRequest(withError: extensionError(error))
             }
         }

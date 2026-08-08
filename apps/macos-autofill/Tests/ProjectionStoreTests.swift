@@ -351,6 +351,7 @@ final class ProjectionStoreTests: XCTestCase {
         let response = try store.queryCandidates(
             accountID: "account-a",
             generation: generation,
+            field: .password,
             context: candidateContext,
             matchingEngine: engine
         )
@@ -402,6 +403,7 @@ final class ProjectionStoreTests: XCTestCase {
         let response = try store.queryCandidates(
             accountID: "account-a",
             generation: generation,
+            field: .password,
             context: candidateContext,
             matchingEngine: engine
         )
@@ -450,6 +452,7 @@ final class ProjectionStoreTests: XCTestCase {
             let response = try store.queryCandidates(
                 accountID: "account-a",
                 generation: generation,
+                field: .password,
                 context: candidateContext,
                 matchingEngine: engine
             )
@@ -482,6 +485,172 @@ final class ProjectionStoreTests: XCTestCase {
             )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
             XCTAssertFalse(operationRan)
         }
+    }
+
+    func testCandidateQueryFiltersByRequestedFieldWithoutAvailabilityMetadata() throws {
+        let fixture = try Fixture()
+        let projection = AutoFillProjection(
+            version: 1,
+            accountID: "account-a",
+            vaultRevision: 1,
+            createdAt: "2026-08-08T08:00:00Z",
+            logins: [
+                AutoFillLogin(
+                    cipherID: "password-only",
+                    name: "Password",
+                    username: "password-user",
+                    password: "password-value",
+                    uris: [AutoFillURI(uri: "https://fixture.example.test", matchType: .exact)],
+                    totp: "",
+                    favorite: false,
+                    reprompt: false
+                ),
+                AutoFillLogin(
+                    cipherID: "code-only",
+                    name: "TOTP",
+                    username: "totp-user",
+                    password: "",
+                    uris: [AutoFillURI(uri: "https://fixture.example.test", matchType: .exact)],
+                    totp: "JBSWY3DPEHPK3PXP",
+                    favorite: false,
+                    reprompt: false
+                ),
+            ]
+        )
+        try fixture.writeProjection(projection, key: key)
+        let store = ProjectionStore(projectionURL: fixture.url, clock: fixture.clock)
+        try store.provision(material(accountID: "account-a", revision: 1), from: .mainApplication)
+        let engine = MatchingEngine(presets: [], domainRules: .empty)
+
+        let passwords = try store.queryCandidates(
+            accountID: "account-a",
+            generation: generation,
+            field: .password,
+            context: candidateContext,
+            matchingEngine: engine
+        )
+        let oneTimeCodes = try store.queryCandidates(
+            accountID: "account-a",
+            generation: generation,
+            field: .totp,
+            context: candidateContext,
+            matchingEngine: engine
+        )
+
+        XCTAssertEqual(passwords.candidates.map(\.cipherID), ["password-only"])
+        XCTAssertEqual(oneTimeCodes.candidates.map(\.cipherID), ["code-only"])
+        let encoded = String(decoding: try JSONEncoder().encode(oneTimeCodes), as: UTF8.self)
+        XCTAssertFalse(encoded.localizedCaseInsensitiveContains("has_totp"))
+        XCTAssertFalse(encoded.contains("JBSWY3DPEHPK3PXP"))
+    }
+
+    func testDirectIdentityReleaseRequiresExactCurrentPublishedService() throws {
+        let fixture = try Fixture()
+        try fixture.writeProjection(candidateProjection(revision: 1), key: key)
+        let store = ProjectionStore(projectionURL: fixture.url, clock: fixture.clock)
+        try store.provision(material(accountID: "account-a", revision: 1), from: .mainApplication)
+        let engine = MatchingEngine(presets: [], domainRules: .empty)
+        let invalidServices = [
+            PublishedCredentialService(identifier: "fixture.example.test", kind: .domain),
+            PublishedCredentialService(identifier: "https://sub.fixture.example.test", kind: .URL),
+            PublishedCredentialService(identifier: "https://fixture.example.test/other", kind: .URL),
+        ]
+
+        for service in invalidServices {
+            let response = try store.queryCandidates(
+                accountID: "account-a",
+                generation: generation,
+                field: .password,
+                context: candidateContext,
+                matchingEngine: engine
+            )
+            var operationRan = false
+            XCTAssertThrowsError(try store.withAuthorizedCandidate(
+                SecretReleasePayload(
+                    generation: generation,
+                    accountID: "account-a",
+                    candidateID: "login-1",
+                    field: .password,
+                    contextToken: response.contextToken,
+                    mismatchConfirmed: false,
+                    reprompt: RepromptResultPayload(result: .notRequired, grant: nil),
+                    publishedService: service
+                ),
+                matchingEngine: engine,
+                verifyRepromptGrant: { _, _, _, _, _ in false },
+                operation: { _ in operationRan = true }
+            )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
+            XCTAssertFalse(operationRan)
+        }
+
+        let response = try store.queryCandidates(
+            accountID: "account-a",
+            generation: generation,
+            field: .password,
+            context: candidateContext,
+            matchingEngine: engine
+        )
+        let released = try store.withAuthorizedCandidate(
+            SecretReleasePayload(
+                generation: generation,
+                accountID: "account-a",
+                candidateID: "login-1",
+                field: .password,
+                contextToken: response.contextToken,
+                mismatchConfirmed: false,
+                reprompt: RepromptResultPayload(result: .notRequired, grant: nil),
+                publishedService: PublishedCredentialService(
+                    identifier: "https://fixture.example.test",
+                    kind: .URL
+                )
+            ),
+            matchingEngine: engine,
+            verifyRepromptGrant: { _, _, _, _, _ in false },
+            operation: { $0.password }
+        )
+        XCTAssertEqual(released, "fixture-password-value")
+    }
+
+    func testDirectIdentityRejectsServiceRemovedByNewProjectionRevision() throws {
+        let fixture = try Fixture()
+        try fixture.writeProjection(candidateProjection(revision: 1), key: key)
+        let store = ProjectionStore(projectionURL: fixture.url, clock: fixture.clock)
+        try store.provision(material(accountID: "account-a", revision: 1), from: .mainApplication)
+
+        try fixture.writeProjection(
+            candidateProjection(revision: 2, uri: "https://replacement.example.test"),
+            key: key
+        )
+        try store.provision(material(accountID: "account-a", revision: 2), from: .mainApplication)
+        let engine = MatchingEngine(presets: [], domainRules: .empty)
+        let response = try store.queryCandidates(
+            accountID: "account-a",
+            generation: generation,
+            field: .password,
+            context: candidateContext,
+            matchingEngine: engine
+        )
+        var operationRan = false
+
+        XCTAssertThrowsError(try store.withAuthorizedCandidate(
+            SecretReleasePayload(
+                generation: generation,
+                accountID: "account-a",
+                candidateID: "login-1",
+                field: .password,
+                contextToken: response.contextToken,
+                mismatchConfirmed: true,
+                reprompt: RepromptResultPayload(result: .notRequired, grant: nil),
+                publishedService: PublishedCredentialService(
+                    identifier: "https://fixture.example.test",
+                    kind: .URL
+                )
+            ),
+            matchingEngine: engine,
+            verifyRepromptGrant: { _, _, _, _, _ in false },
+            operation: { _ in operationRan = true }
+        )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
+        XCTAssertFalse(operationRan)
     }
 
     func testZeroizingKeyOverwritesBytesWhenCleared() throws {

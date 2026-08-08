@@ -20,6 +20,55 @@ enum CandidateGroup: String, Codable, Equatable {
     case other
 }
 
+enum PublishedCredentialServiceKind: String, Codable, Equatable {
+    case URL
+    case domain
+}
+
+struct PublishedCredentialService: Codable, Equatable, Hashable {
+    let identifier: String
+    let kind: PublishedCredentialServiceKind
+}
+
+enum PublishedCredentialServiceCanonicalizer {
+    static func canonical(
+        identifier rawValue: String,
+        kind: PublishedCredentialServiceKind
+    ) -> PublishedCredentialService? {
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value.count <= 2_048 else { return nil }
+        switch kind {
+        case .URL:
+            guard var components = URLComponents(string: value),
+                  let scheme = components.scheme?.lowercased(),
+                  (scheme == "http" || scheme == "https"),
+                  let host = components.host?.lowercased(),
+                  !host.isEmpty else { return nil }
+            components.scheme = scheme
+            components.host = host
+            components.fragment = nil
+            guard let canonical = components.url?.absoluteString else { return nil }
+            return PublishedCredentialService(identifier: canonical, kind: .URL)
+        case .domain:
+            let domain = value.precomposedStringWithCanonicalMapping
+                .lowercased(with: Locale(identifier: "en_US_POSIX"))
+                .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            guard !domain.isEmpty,
+                  domain.count <= 255,
+                  !domain.contains("/"),
+                  !domain.contains("?"),
+                  !domain.contains(":"),
+                  domain.split(separator: ".").allSatisfy({ !$0.isEmpty }) else { return nil }
+            return PublishedCredentialService(identifier: domain, kind: .domain)
+        }
+    }
+
+    static func canonicalVaultService(_ rawValue: String) -> PublishedCredentialService? {
+        canonical(identifier: rawValue, kind: .URL)
+            ?? canonical(identifier: rawValue, kind: .domain)
+    }
+}
+
 struct NativeAutoFillContext: Codable, Equatable {
     let bundleID: String
     let appName: String
@@ -55,11 +104,13 @@ struct RankedCandidate: Codable, Equatable {
 struct CandidateQueryPayload: Codable, Equatable {
     let generation: UUID
     let accountID: String
+    let field: AutoFillSecretField
     let context: NativeAutoFillContext
 
     private enum CodingKeys: String, CodingKey {
         case generation
         case accountID = "account_id"
+        case field
         case context
     }
 }
@@ -110,6 +161,7 @@ struct SecretReleasePayload: Codable, Equatable {
     let contextToken: String
     let mismatchConfirmed: Bool
     let reprompt: RepromptResultPayload
+    let publishedService: PublishedCredentialService?
 
     private enum CodingKeys: String, CodingKey {
         case generation
@@ -119,6 +171,27 @@ struct SecretReleasePayload: Codable, Equatable {
         case contextToken = "context_token"
         case mismatchConfirmed = "mismatch_confirmed"
         case reprompt
+        case publishedService = "published_service"
+    }
+
+    init(
+        generation: UUID,
+        accountID: String,
+        candidateID: String,
+        field: AutoFillSecretField,
+        contextToken: String,
+        mismatchConfirmed: Bool,
+        reprompt: RepromptResultPayload,
+        publishedService: PublishedCredentialService? = nil
+    ) {
+        self.generation = generation
+        self.accountID = accountID
+        self.candidateID = candidateID
+        self.field = field
+        self.contextToken = contextToken
+        self.mismatchConfirmed = mismatchConfirmed
+        self.reprompt = reprompt
+        self.publishedService = publishedService
     }
 }
 

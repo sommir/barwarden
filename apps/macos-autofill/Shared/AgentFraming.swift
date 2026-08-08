@@ -41,8 +41,16 @@ enum AgentFrame {
         return frame
     }
 
-    static func encodeJSON<Value: Encodable>(_ value: Value) throws -> Data {
-        try encode(JSONEncoder().encode(value))
+    static func encodeJSON<Value: Encodable>(
+        _ value: Value,
+        onJSONCleared: ((Data) -> Void)? = nil
+    ) throws -> Data {
+        var payload = try JSONEncoder().encode(value)
+        defer {
+            payload.resetBytes(in: payload.indices)
+            onJSONCleared?(payload)
+        }
+        return try encode(payload)
     }
 
     static func payload(from frame: Data) throws -> Data {
@@ -63,10 +71,17 @@ enum AgentFrame {
         return Data(frame.dropFirst(headerBytes))
     }
 
-    static func decode<Value: Decodable>(_ frame: Data, as type: Value.Type) throws -> Value {
+    static func decode<Value: Decodable>(
+        _ frame: Data,
+        as type: Value.Type,
+        onPayloadCleared: ((Data) -> Void)? = nil
+    ) throws -> Value {
         do {
             var payload = try payload(from: frame)
-            defer { payload.resetBytes(in: payload.indices) }
+            defer {
+                payload.resetBytes(in: payload.indices)
+                onPayloadCleared?(payload)
+            }
             return try JSONDecoder().decode(type, from: payload)
         } catch let error as AgentProtocolError {
             throw error
@@ -127,28 +142,71 @@ enum AgentSocketIO {
     static func readJSON<Value: Decodable>(
         from socket: Int32,
         as type: Value.Type,
-        deadline: AgentDeadline? = nil
+        deadline: AgentDeadline? = nil,
+        onFrameCleared: ((Data) -> Void)? = nil,
+        onPayloadCleared: ((Data) -> Void)? = nil,
+        onReadTemporaryCleared: ((Data) -> Void)? = nil
     ) throws -> Value {
-        try AgentFrame.decode(readFrame(from: socket, deadline: deadline), as: type)
+        var frame = try readFrame(
+            from: socket,
+            deadline: deadline,
+            onTemporaryCleared: onReadTemporaryCleared
+        )
+        defer {
+            frame.resetBytes(in: frame.indices)
+            onFrameCleared?(frame)
+        }
+        return try AgentFrame.decode(frame, as: type, onPayloadCleared: onPayloadCleared)
     }
 
-    static func readFrame(from socket: Int32, deadline: AgentDeadline? = nil) throws -> Data {
-        let header = try readExactly(headerBytes, from: socket, deadline: deadline)
+    static func readFrame(
+        from socket: Int32,
+        deadline: AgentDeadline? = nil,
+        onTemporaryCleared: ((Data) -> Void)? = nil
+    ) throws -> Data {
+        var header = try readExactly(
+            headerBytes,
+            from: socket,
+            deadline: deadline,
+            onBufferCleared: onTemporaryCleared
+        )
+        defer {
+            header.resetBytes(in: header.indices)
+            onTemporaryCleared?(header)
+        }
         let payloadLength = header.reduce(UInt32.zero) { partial, byte in
             (partial << 8) | UInt32(byte)
         }
         guard payloadLength <= AgentFrame.maximumPayloadBytes else {
             throw AgentProtocolError.messageTooLarge
         }
-        return header + (try readExactly(Int(payloadLength), from: socket, deadline: deadline))
+        var payload = try readExactly(
+            Int(payloadLength),
+            from: socket,
+            deadline: deadline,
+            onBufferCleared: onTemporaryCleared
+        )
+        defer {
+            payload.resetBytes(in: payload.indices)
+            onTemporaryCleared?(payload)
+        }
+        var frame = Data(capacity: headerBytes + payload.count)
+        frame.append(header)
+        frame.append(payload)
+        return frame
     }
 
     private static func readExactly(
         _ byteCount: Int,
         from socket: Int32,
-        deadline: AgentDeadline?
+        deadline: AgentDeadline?,
+        onBufferCleared: ((Data) -> Void)?
     ) throws -> Data {
         var data = Data(count: byteCount)
+        defer {
+            data.resetBytes(in: data.indices)
+            onBufferCleared?(data)
+        }
         var received = 0
         while received < byteCount {
             if let deadline {

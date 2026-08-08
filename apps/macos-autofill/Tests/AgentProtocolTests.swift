@@ -52,6 +52,70 @@ final class AgentProtocolTests: XCTestCase {
         )
     }
 
+    func testJSONEncodingClearsIntermediatePayloadOnSuccess() throws {
+        let secret = ReleasedSecret(field: .password, value: Data("sensitive-value".utf8))
+        var cleared: Data?
+
+        _ = try AgentFrame.encodeJSON(
+            AgentResponse.secret(requestID: UUID(), nonce: Data([1]), payload: secret),
+            onJSONCleared: { cleared = $0 }
+        )
+
+        XCTAssertGreaterThan(cleared?.count ?? 0, 0)
+        XCTAssertTrue(cleared?.allSatisfy({ $0 == 0 }) == true)
+        secret.clear()
+    }
+
+    func testMalformedJSONDecodeClearsOwnedPayload() throws {
+        let frame = try AgentFrame.encode(Data("not-json-sensitive".utf8))
+        var cleared: Data?
+
+        XCTAssertThrowsError(try AgentFrame.decode(
+            frame,
+            as: AgentRequest.self,
+            onPayloadCleared: { cleared = $0 }
+        )) { XCTAssertEqual($0 as? AgentProtocolError, .malformedMessage) }
+
+        XCTAssertEqual(cleared?.count, "not-json-sensitive".utf8.count)
+        XCTAssertTrue(cleared?.allSatisfy({ $0 == 0 }) == true)
+    }
+
+    func testSocketReadJSONClearsRawFrameAndReadTemporaries() throws {
+        let sockets = try SocketPair()
+        let response = AgentResponse.success(requestID: UUID(), nonce: Data([4, 5, 6]))
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(response), to: sockets.client)
+        var clearedFrame: Data?
+        var clearedPayload: Data?
+        var clearedTemporaries: [Data] = []
+
+        _ = try AgentSocketIO.readJSON(
+            from: sockets.server,
+            as: AgentResponse.self,
+            onFrameCleared: { clearedFrame = $0 },
+            onPayloadCleared: { clearedPayload = $0 },
+            onReadTemporaryCleared: { clearedTemporaries.append($0) }
+        )
+
+        XCTAssertTrue(clearedFrame?.allSatisfy({ $0 == 0 }) == true)
+        XCTAssertTrue(clearedPayload?.allSatisfy({ $0 == 0 }) == true)
+        XCTAssertEqual(clearedTemporaries.count, 4)
+        XCTAssertTrue(clearedTemporaries.allSatisfy { !$0.isEmpty && $0.allSatisfy { $0 == 0 } })
+    }
+
+    func testOversizedSocketFrameClearsHeaderOnError() throws {
+        let sockets = try SocketPair()
+        try AgentSocketIO.writeAll(Data([0x00, 0x01, 0x00, 0x01]), to: sockets.client)
+        var cleared: [Data] = []
+
+        XCTAssertThrowsError(try AgentSocketIO.readFrame(
+            from: sockets.server,
+            onTemporaryCleared: { cleared.append($0) }
+        )) { XCTAssertEqual($0 as? AgentProtocolError, .messageTooLarge) }
+
+        XCTAssertEqual(cleared.count, 2)
+        XCTAssertTrue(cleared.allSatisfy { $0 == Data(repeating: 0, count: 4) })
+    }
+
     func testProvisionKeyUsesOneBase64DataValueInsteadOfAnUnzeroizedByteArray() throws {
         let key = Data((0..<32).map(UInt8.init))
         let request = AgentRequest(
