@@ -1,0 +1,96 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* AgentMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* AgentMain.swift */; };
+		A10000000000000000000002 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* CredentialProviderViewController.swift */; };
+		A10000000000000000000003 /* AgentProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* AgentProtocolTests.swift */; };
+		A10000000000000000000004 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* AuthenticationServices.framework */; };
+		A10000000000000000000005 /* AgentProtocol.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* AgentProtocol.swift */; };
+		A10000000000000000000006 /* AgentFraming.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AgentFraming.swift */; };
+		A10000000000000000000007 /* AgentProtocol.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* AgentProtocol.swift */; };
+		A10000000000000000000008 /* AgentFraming.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AgentFraming.swift */; };
+		A10000000000000000000009 /* AgentProtocol.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* AgentProtocol.swift */; };
+		A1000000000000000000000A /* AgentFraming.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AgentFraming.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* AgentMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentMain.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* AgentProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProtocolTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* Native.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Native.xcconfig; sourceTree = "<group>"; };
+		A20000000000000000000005 /* Agent Entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Entitlements.plist; sourceTree = "<group>"; };
+		A20000000000000000000006 /* Agent LaunchAgent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = com.sommir.barwarden.autofill-agent.plist; sourceTree = "<group>"; };
+		A20000000000000000000007 /* Credential Provider Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000008 /* Credential Provider Entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Entitlements.plist; sourceTree = "<group>"; };
+		A20000000000000000000009 /* BarwardenAutoFillAgent */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = BarwardenAutoFillAgent; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000A /* BarwardenCredentialProvider.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BarwardenCredentialProvider.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000B /* BarwardenAutoFillTests.xctest */ = {isa = PBXFileReference; explicitFileType = "wrapper.cfbundle"; includeInIndex = 0; path = BarwardenAutoFillTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000D /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
+		A2000000000000000000000E /* AgentProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProtocol.swift; sourceTree = "<group>"; };
+		A2000000000000000000000F /* AgentFraming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFraming.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AuthenticationServices.framework in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000003 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002 /* Config */, A40000000000000000000008 /* Shared */, A40000000000000000000003 /* Agent */, A40000000000000000000004 /* CredentialProvider */, A40000000000000000000005 /* Tests */, A40000000000000000000006 /* Frameworks */, A40000000000000000000007 /* Products */,); sourceTree = "<group>"; };
+		A40000000000000000000002 /* Config */ = {isa = PBXGroup; children = (A20000000000000000000004 /* Native.xcconfig */,); path = Config; sourceTree = "<group>"; };
+		A40000000000000000000003 /* Agent */ = {isa = PBXGroup; children = (A20000000000000000000001 /* AgentMain.swift */, A20000000000000000000005 /* Agent Entitlements.plist */, A20000000000000000000006 /* Agent LaunchAgent.plist */,); path = Agent; sourceTree = "<group>"; };
+		A40000000000000000000004 /* CredentialProvider */ = {isa = PBXGroup; children = (A20000000000000000000002 /* CredentialProviderViewController.swift */, A20000000000000000000007 /* Credential Provider Info.plist */, A20000000000000000000008 /* Credential Provider Entitlements.plist */,); path = CredentialProvider; sourceTree = "<group>"; };
+		A40000000000000000000005 /* Tests */ = {isa = PBXGroup; children = (A20000000000000000000003 /* AgentProtocolTests.swift */,); path = Tests; sourceTree = "<group>"; };
+		A40000000000000000000006 /* Frameworks */ = {isa = PBXGroup; children = (A2000000000000000000000D /* AuthenticationServices.framework */,); name = Frameworks; sourceTree = "<group>"; };
+		A40000000000000000000007 /* Products */ = {isa = PBXGroup; children = (A20000000000000000000009 /* BarwardenAutoFillAgent */, A2000000000000000000000A /* BarwardenCredentialProvider.appex */, A2000000000000000000000B /* BarwardenAutoFillTests.xctest */,); name = Products; sourceTree = "<group>"; };
+		A40000000000000000000008 /* Shared */ = {isa = PBXGroup; children = (A2000000000000000000000E /* AgentProtocol.swift */, A2000000000000000000000F /* AgentFraming.swift */,); path = Shared; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* BarwardenAutoFillAgent */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000002; buildPhases = (A60000000000000000000001 /* Sources */, A30000000000000000000001 /* Frameworks */, A70000000000000000000001 /* Resources */,); buildRules = (); dependencies = (); name = BarwardenAutoFillAgent; productName = BarwardenAutoFillAgent; productReference = A20000000000000000000009 /* BarwardenAutoFillAgent */; productType = "com.apple.product-type.tool"; };
+		A50000000000000000000002 /* BarwardenCredentialProvider */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000003; buildPhases = (A60000000000000000000002 /* Sources */, A30000000000000000000002 /* Frameworks */, A70000000000000000000002 /* Resources */,); buildRules = (); dependencies = (); name = BarwardenCredentialProvider; productName = BarwardenCredentialProvider; productReference = A2000000000000000000000A /* BarwardenCredentialProvider.appex */; productType = "com.apple.product-type.app-extension"; };
+		A50000000000000000000003 /* BarwardenAutoFillTests */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000004; buildPhases = (A60000000000000000000003 /* Sources */, A30000000000000000000003 /* Frameworks */, A70000000000000000000003 /* Resources */,); buildRules = (); dependencies = (); name = BarwardenAutoFillTests; productName = BarwardenAutoFillTests; productReference = A2000000000000000000000B /* BarwardenAutoFillTests.xctest */; productType = "com.apple.product-type.bundle.unit-test"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A80000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2660; LastUpgradeCheck = 2660; TargetAttributes = {A50000000000000000000001 = {CreatedOnToolsVersion = 26.0; }; A50000000000000000000002 = {CreatedOnToolsVersion = 26.0; }; A50000000000000000000003 = {CreatedOnToolsVersion = 26.0; };};}; buildConfigurationList = A90000000000000000000001; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = A40000000000000000000001; productRefGroup = A40000000000000000000007 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (A50000000000000000000001 /* BarwardenAutoFillAgent */, A50000000000000000000002 /* BarwardenCredentialProvider */, A50000000000000000000003 /* BarwardenAutoFillTests */,); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A70000000000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A70000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A70000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* AgentMain.swift in Sources */, A10000000000000000000005 /* AgentProtocol.swift in Agent Sources */, A10000000000000000000006 /* AgentFraming.swift in Agent Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000002 /* CredentialProviderViewController.swift in Sources */, A10000000000000000000007 /* AgentProtocol.swift in Provider Sources */, A10000000000000000000008 /* AgentFraming.swift in Provider Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* AgentProtocolTests.swift in Sources */, A10000000000000000000009 /* AgentProtocol.swift in Test Sources */, A1000000000000000000000A /* AgentFraming.swift in Test Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		B10000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {CLANG_ENABLE_MODULES = YES; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; GCC_OPTIMIZATION_LEVEL = 0; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;}; name = Debug; };
+		B10000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {CLANG_ENABLE_MODULES = YES; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule;}; name = Release; };
+		B10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {CODE_SIGN_ENTITLEMENTS = Agent/Entitlements.plist; CREATE_INFOPLIST_SECTION_IN_BINARY = YES; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = "$(AGENT_BUNDLE_IDENTIFIER)"; PRODUCT_NAME = BarwardenAutoFillAgent;}; name = Debug; };
+		B10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {CODE_SIGN_ENTITLEMENTS = Agent/Entitlements.plist; CREATE_INFOPLIST_SECTION_IN_BINARY = YES; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = "$(AGENT_BUNDLE_IDENTIFIER)"; PRODUCT_NAME = BarwardenAutoFillAgent;}; name = Release; };
+		B10000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = CredentialProvider/Entitlements.plist; ENABLE_APP_SANDBOX = YES; INFOPLIST_FILE = CredentialProvider/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = "$(CREDENTIAL_PROVIDER_BUNDLE_IDENTIFIER)"; PRODUCT_NAME = BarwardenCredentialProvider; SKIP_INSTALL = YES;}; name = Debug; };
+		B10000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = CredentialProvider/Entitlements.plist; ENABLE_APP_SANDBOX = YES; INFOPLIST_FILE = CredentialProvider/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = "$(CREDENTIAL_PROVIDER_BUNDLE_IDENTIFIER)"; PRODUCT_NAME = BarwardenCredentialProvider; SKIP_INSTALL = YES;}; name = Release; };
+		B10000000000000000000007 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {BUNDLE_LOADER = ""; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.sommir.barwarden.autofill-tests; PRODUCT_NAME = BarwardenAutoFillTests; TEST_HOST = "";}; name = Debug; };
+		B10000000000000000000008 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {BUNDLE_LOADER = ""; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.sommir.barwarden.autofill-tests; PRODUCT_NAME = BarwardenAutoFillTests; TEST_HOST = "";}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A90000000000000000000001 /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000001 /* Debug */, B10000000000000000000002 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000002 /* Build configuration list for BarwardenAutoFillAgent */ = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000003 /* Debug */, B10000000000000000000004 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000003 /* Build configuration list for BarwardenCredentialProvider */ = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000005 /* Debug */, B10000000000000000000006 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000004 /* Build configuration list for BarwardenAutoFillTests */ = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000007 /* Debug */, B10000000000000000000008 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A80000000000000000000001 /* Project object */;
+}
