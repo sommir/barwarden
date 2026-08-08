@@ -518,7 +518,7 @@ private final class ProjectionHandlerFixture {
                 name: "Example",
                 username: "fixture-user@example.test",
                 password: "fixture-password-value",
-                uris: [AutoFillURI(uri: "https://fixture.example.test", matchType: "exact")],
+                uris: [AutoFillURI(uri: "https://fixture.example.test", matchType: .exact)],
                 totp: "JBSWY3DPEHPK3PXP",
                 favorite: false,
                 reprompt: false

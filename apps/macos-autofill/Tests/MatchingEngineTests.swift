@@ -2,10 +2,32 @@ import Foundation
 import XCTest
 
 final class MatchingEngineTests: XCTestCase {
+    func testProjectionURIWireAcceptsOnlyNumericBitwardenMatchValues() throws {
+        for rawValue in UInt8(0)...UInt8(5) {
+            let uri = try JSONDecoder().decode(
+                AutoFillURI.self,
+                from: Data("{\"uri\":\"https://example.test\",\"matchType\":\(rawValue)}".utf8)
+            )
+            XCTAssertEqual(uri.matchType.rawValue, rawValue)
+        }
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            AutoFillURI.self,
+            from: Data("{\"uri\":\"https://example.test\",\"matchType\":6}".utf8)
+        ))
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            AutoFillURI.self,
+            from: Data("{\"uri\":\"https://example.test\",\"matchType\":\"default\"}".utf8)
+        ))
+    }
+
     func testRanksExactSignalsByDocumentedPriorityBeforeRelevantAndOther() throws {
-        let engine = MatchingEngine(presets: [
-            AppPreset(bundleID: "com.example.target", services: ["preset.example"]),
-        ])
+        let engine = MatchingEngine(
+            presets: [AppPreset(bundleID: "com.example.target", services: ["preset.example"])],
+            domainRules: DomainMatchRules(
+                allowedRegistrableDomains: ["service.example"],
+                privateSuffixes: []
+            )
+        )
         let context = NativeAutoFillContext(
             bundleID: "com.example.target",
             appName: "Target Desktop",
@@ -14,10 +36,10 @@ final class MatchingEngineTests: XCTestCase {
         )
         let logins = [
             login("favorite", name: "Unrelated", favorite: true),
-            login("host", name: "Host", uris: [("https://www.service.example", "host")]),
-            login("rule", name: "Rule", uris: [("https://login.service.example", "startsWith")]),
-            login("preset", name: "Preset", uris: [("https://preset.example", "default")]),
-            login("service", name: "Service", uris: [("https://login.service.example/account", "default")]),
+            login("host", name: "Host", uris: [("https://www.service.example", .domain)]),
+            login("rule", name: "Rule", uris: [("https://login.service.example", .startsWith)]),
+            login("preset", name: "Preset", uris: [("https://preset.example", .domain)]),
+            login("service", name: "Service", uris: [("https://login.service.example/account", .domain)]),
             login("binding", name: "Bound"),
         ]
 
@@ -61,7 +83,7 @@ final class MatchingEngineTests: XCTestCase {
             accountID: "account-a",
             logins: [
                 login("unrelated", name: "Cafe\u{301} Admin Portal"),
-                login("context", name: "Production SSH", uris: [("ssh://production.example", "exact")]),
+                login("context", name: "Production SSH", uris: [("ssh://production.example", .exact)]),
                 login("noise", name: "Personal Mail"),
             ],
             context: context,
@@ -77,7 +99,7 @@ final class MatchingEngineTests: XCTestCase {
     func testWhitespaceQueryUsesContextRankingInsteadOfAllLoginFiltering() {
         let ranked = MatchingEngine(presets: []).rank(
             accountID: "account-a",
-            logins: [login("service", name: "Service", uris: [("https://service.example", "exact")])],
+            logins: [login("service", name: "Service", uris: [("https://service.example/", .exact)])],
             context: NativeAutoFillContext(
                 bundleID: "com.example.App",
                 appName: "Example",
@@ -99,13 +121,19 @@ final class MatchingEngineTests: XCTestCase {
             serviceIdentifiers: ["https://login.example.co.uk/path"],
             query: ""
         )
-        let ranked = MatchingEngine(presets: []).rank(
+        let ranked = MatchingEngine(
+            presets: [],
+            domainRules: DomainMatchRules(
+                allowedRegistrableDomains: ["example.co.uk"],
+                privateSuffixes: []
+            )
+        ).rank(
             accountID: "account-a",
             logins: [
-                login("domain", name: "Domain", uris: [("https://www.example.co.uk", "default")]),
-                login("host-rule", name: "Host", uris: [("https://login.example.co.uk/other", "host")]),
-                login("never", name: "Never", uris: [("https://login.example.co.uk/path", "never")]),
-                login("public-suffix", name: "Unsafe", uris: [("https://attacker.co.uk", "default")]),
+                login("domain", name: "Domain", uris: [("https://www.example.co.uk", .domain)]),
+                login("host-rule", name: "Host", uris: [("https://login.example.co.uk/other", .host)]),
+                login("never", name: "Never", uris: [("https://login.example.co.uk/path", .never)]),
+                login("public-suffix", name: "Unsafe", uris: [("https://attacker.co.uk", .domain)]),
             ],
             context: context,
             bindings: [],
@@ -114,6 +142,131 @@ final class MatchingEngineTests: XCTestCase {
 
         XCTAssertEqual(ranked.map(\.cipherID), ["host-rule", "domain", "never", "public-suffix"])
         XCTAssertEqual(ranked.map(\.group), [.exact, .relevant, .other, .other])
+    }
+
+    func testPrivateSuffixTenantsAndUnknownDelegationsNeverCrossMatch() throws {
+        let rules = DomainMatchRules(
+            allowedRegistrableDomains: [],
+            privateSuffixes: ["github.io", "pages.dev", "vercel.app", "appspot.com"]
+        )
+        let engine = MatchingEngine(presets: [], domainRules: rules)
+        for suffix in ["github.io", "pages.dev", "vercel.app", "appspot.com"] {
+            let ranked = engine.rank(
+                accountID: "account-a",
+                logins: [
+                    login("same-host", name: "Same", uris: [("https://alice.\(suffix)/other", .domain)]),
+                    login("other-tenant", name: "Other", uris: [("https://bob.\(suffix)/login", .domain)]),
+                ],
+                context: NativeAutoFillContext(
+                    bundleID: "com.example.App",
+                    appName: "No Match",
+                    serviceIdentifiers: ["https://alice.\(suffix)/login"],
+                    query: ""
+                ),
+                bindings: [],
+                history: []
+            )
+            XCTAssertEqual(ranked.map(\.cipherID), ["same-host", "other-tenant"], suffix)
+            XCTAssertEqual(ranked.map(\.group), [.relevant, .other], suffix)
+        }
+
+        let unknown = engine.rank(
+            accountID: "account-a",
+            logins: [
+                login("exact", name: "Exact", uris: [("https://alice.new-delegated/path", .exact)]),
+                login("other", name: "Other", uris: [("https://bob.new-delegated/path", .domain)]),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.example.App",
+                appName: "No Match",
+                serviceIdentifiers: ["https://alice.new-delegated/path"],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+        XCTAssertEqual(unknown.map(\.group), [.exact, .other])
+    }
+
+    func testDomainRulesRequireTheReviewedPSLRevisionAndLicense() throws {
+        let reviewed = Data("""
+        {
+          "sourceRevision":"e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20",
+          "license":"MPL-2.0",
+          "allowedRegistrableDomains":["github.com"],
+          "privateSuffixes":["github.io"]
+        }
+        """.utf8)
+        XCTAssertNoThrow(try DomainMatchRules.decode(reviewed))
+
+        let unreviewedRevision = Data("""
+        {
+          "sourceRevision":"0000000000000000000000000000000000000000",
+          "license":"MPL-2.0",
+          "allowedRegistrableDomains":["github.com"],
+          "privateSuffixes":["github.io"]
+        }
+        """.utf8)
+        XCTAssertThrowsError(try DomainMatchRules.decode(unreviewedRevision))
+    }
+
+    func testSchemelessExactCanonicalizationPreservesPortPercentPathAndQueryButIgnoresFragment() {
+        let context = NativeAutoFillContext(
+            bundleID: "com.example.App",
+            appName: "No Match",
+            serviceIdentifiers: ["BÜCHER.de:8443/a%2Fb?q=%2F#request-fragment"],
+            query: ""
+        )
+        let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [
+                login("same", name: "Same", uris: [("xn--bcher-kva.de:8443/a%2Fb?q=%2F#stored-fragment", .exact)]),
+                login("port", name: "Port", uris: [("xn--bcher-kva.de/a%2Fb?q=%2F", .exact)]),
+                login("percent", name: "Percent", uris: [("xn--bcher-kva.de:8443/a%2fb?q=%2F", .exact)]),
+                login("query", name: "Query", uris: [("xn--bcher-kva.de:8443/a%2Fb?q=%2F&x=1", .exact)]),
+            ],
+            context: context,
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.map(\.cipherID), ["same", "percent", "port", "query"])
+        XCTAssertEqual(ranked.map(\.group), [.exact, .other, .other, .other])
+    }
+
+    func testRegexAndNeverURIsContributeNoContextFuzzyOrQuerySignal() {
+        let logins = [
+            login("pattern", name: "Unrelated", uris: [("^https://regex\\.example$", .regularExpression)]),
+            login("blocked", name: "Unrelated", uris: [("https://never.example/path", .never)]),
+        ]
+        let engine = MatchingEngine(presets: [], domainRules: .empty)
+        let contextual = engine.rank(
+            accountID: "account-a",
+            logins: logins,
+            context: NativeAutoFillContext(
+                bundleID: "com.example.App",
+                appName: "No Match",
+                serviceIdentifiers: ["https://never.example/path", "https://regex.example"],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+        XCTAssertTrue(contextual.allSatisfy { $0.group == .other })
+
+        let queried = engine.rank(
+            accountID: "account-a",
+            logins: logins,
+            context: NativeAutoFillContext(
+                bundleID: "com.example.App",
+                appName: "No Match",
+                serviceIdentifiers: [],
+                query: "never.example"
+            ),
+            bindings: [],
+            history: []
+        )
+        XCTAssertTrue(queried.isEmpty)
     }
 
     func testIDNAAndCanonicalCaseMatchWithoutTreatingConfusableHostAsEquivalent() {
@@ -126,8 +279,8 @@ final class MatchingEngineTests: XCTestCase {
         let ranked = MatchingEngine(presets: []).rank(
             accountID: "account-a",
             logins: [
-                login("idna", name: "Books", uris: [("https://xn--bcher-kva.de/login", "exact")]),
-                login("confusable", name: "Other", uris: [("https://b\u{443}cher.de/login", "exact")]),
+                login("idna", name: "Books", uris: [("https://xn--bcher-kva.de/login", .exact)]),
+                login("confusable", name: "Other", uris: [("https://b\u{443}cher.de/login", .exact)]),
             ],
             context: context,
             bindings: [],
@@ -139,6 +292,26 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertEqual(ranked.last?.requiresMismatchConfirmation, true)
     }
 
+    func testStartsWithRuleCannotCrossAHostBoundary() {
+        let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [login(
+                "rule", name: "Unrelated", uris: [("https://example.test", .startsWith)]
+            )],
+            context: NativeAutoFillContext(
+                bundleID: "com.example.app",
+                appName: "Unrelated App",
+                serviceIdentifiers: ["https://example.test.evil.invalid/login"],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.first?.group, .other)
+        XCTAssertTrue(ranked.first?.requiresMismatchConfirmation == true)
+    }
+
     func testHistoryIsAccountAndContextScopedAndThenFavoriteRecentAndStableTieBreak() {
         let context = NativeAutoFillContext(
             bundleID: "com.example.App",
@@ -148,7 +321,7 @@ final class MatchingEngineTests: XCTestCase {
         )
         let logins = [
             login("z", name: "Same"),
-            login("recent", name: "Recent", lastUsedAt: "2026-08-09T00:00:00Z"),
+            login("recent", name: "Recent", lastUsedAt: 1_786_233_600_000),
             login("favorite", name: "Favorite", favorite: true),
             login("history", name: "History"),
             login("a", name: "Same"),
@@ -159,14 +332,14 @@ final class MatchingEngineTests: XCTestCase {
                 contextKey: "app:com.example.app",
                 cipherID: "history",
                 successfulSelectionCount: 2,
-                lastSelectedAt: "2026-08-08T00:00:00Z"
+                lastSelectedAt: 1_786_147_200_000
             ),
             MatchingHistoryEntry(
                 accountID: "account-b",
                 contextKey: "app:com.example.app",
                 cipherID: "z",
                 successfulSelectionCount: 99,
-                lastSelectedAt: "2030-01-01T00:00:00Z"
+                lastSelectedAt: 1_893_456_000_000
             ),
         ]
 
@@ -202,7 +375,7 @@ final class MatchingEngineTests: XCTestCase {
                 name: "Display",
                 username: "person@example.test",
                 password: password,
-                uris: [AutoFillURI(uri: uri, matchType: "exact")],
+                uris: [AutoFillURI(uri: uri, matchType: .exact)],
                 totp: totp,
                 favorite: false,
                 reprompt: true
@@ -279,17 +452,17 @@ final class MatchingEngineTests: XCTestCase {
           "logins":[{
             "cipherId":"cipher-a","name":"Example","username":"person@example.test",
             "password":"secret","uris":[],"totp":"seed","favorite":false,"reprompt":false,
-            "lastUsedAt":"2026-08-09T00:00:00Z"
+            "lastUsedAt":1786233600000
           }],
           "bindings":[{"bundleId":"com.example.app","cipherId":"cipher-a"}],
           "history":[{
             "contextKey":"app:com.example.app","cipherId":"cipher-a",
-            "successfulSelectionCount":2,"lastSelectedAt":"2026-08-09T00:00:00Z"
+            "successfulSelectionCount":2,"lastSelectedAt":1786233600000
           }]
         }
         """.utf8))
 
-        XCTAssertEqual(projection.logins.first?.lastUsedAt, "2026-08-09T00:00:00Z")
+        XCTAssertEqual(projection.logins.first?.lastUsedAt, 1_786_233_600_000)
         XCTAssertEqual(projection.bindings.first?.bundleID, "com.example.app")
         XCTAssertEqual(projection.history.first?.successfulSelectionCount, 2)
     }
@@ -307,9 +480,21 @@ final class MatchingEngineTests: XCTestCase {
             requiresMismatchConfirmation: true
         )
         let login = login("cipher-a", name: "Example", reprompt: true)
+        let context = NativeAutoFillContext(
+            bundleID: "com.example.app",
+            appName: "Example",
+            serviceIdentifiers: ["https://example.test"],
+            query: ""
+        )
+        let contextDigest = Data(repeating: 0x11, count: 32)
+        let policyDigest = Data(repeating: 0x22, count: 32)
         let first = try store.issue(
             accountID: "account-a",
             generation: generation,
+            vaultRevision: 7,
+            context: context,
+            contextDigest: contextDigest,
+            policyDigest: policyDigest,
             candidates: [fuzzy],
             logins: [login]
         )
@@ -324,12 +509,19 @@ final class MatchingEngineTests: XCTestCase {
                 mismatchConfirmed: false,
                 reprompt: RepromptResultPayload(result: .grant, grant: "valid-grant")
             ),
+            currentVaultRevision: 7,
+            currentContextDigest: contextDigest,
+            currentPolicyDigest: policyDigest,
             verifyRepromptGrant: { _, _, _, _, _ in true }
         )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
 
         let second = try store.issue(
             accountID: "account-a",
             generation: generation,
+            vaultRevision: 7,
+            context: context,
+            contextDigest: contextDigest,
+            policyDigest: policyDigest,
             candidates: [fuzzy],
             logins: [login]
         )
@@ -344,16 +536,26 @@ final class MatchingEngineTests: XCTestCase {
         )
         XCTAssertNoThrow(try store.validate(
             authorized,
+            currentVaultRevision: 7,
+            currentContextDigest: contextDigest,
+            currentPolicyDigest: policyDigest,
             verifyRepromptGrant: { _, _, _, _, grant in grant == "valid-grant" }
         ))
         XCTAssertThrowsError(try store.validate(
             authorized,
+            currentVaultRevision: 7,
+            currentContextDigest: contextDigest,
+            currentPolicyDigest: policyDigest,
             verifyRepromptGrant: { _, _, _, _, _ in true }
         )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
 
         let expired = try store.issue(
             accountID: "account-a",
             generation: generation,
+            vaultRevision: 7,
+            context: context,
+            contextDigest: contextDigest,
+            policyDigest: policyDigest,
             candidates: [fuzzy],
             logins: [login]
         )
@@ -368,6 +570,9 @@ final class MatchingEngineTests: XCTestCase {
                 mismatchConfirmed: true,
                 reprompt: RepromptResultPayload(result: .grant, grant: "valid-grant")
             ),
+            currentVaultRevision: 7,
+            currentContextDigest: contextDigest,
+            currentPolicyDigest: policyDigest,
             verifyRepromptGrant: { _, _, _, _, _ in true }
         )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
     }
@@ -384,27 +589,106 @@ final class MatchingEngineTests: XCTestCase {
             requiresMismatchConfirmation: true
         )
         let projected = login("duplicate", name: "Example")
+        let context = NativeAutoFillContext(
+            bundleID: "com.example.app", appName: "Example", serviceIdentifiers: [], query: ""
+        )
+        let contextDigest = Data(repeating: 0x11, count: 32)
+        let policyDigest = Data(repeating: 0x22, count: 32)
 
         XCTAssertThrowsError(try store.issue(
             accountID: "account-a",
             generation: generation,
+            vaultRevision: 1,
+            context: context,
+            contextDigest: contextDigest,
+            policyDigest: policyDigest,
             candidates: [candidate, candidate],
             logins: [projected]
         )) { XCTAssertEqual($0 as? AgentProtocolError, .malformedMessage) }
         XCTAssertThrowsError(try store.issue(
             accountID: "account-a",
             generation: generation,
+            vaultRevision: 1,
+            context: context,
+            contextDigest: contextDigest,
+            policyDigest: policyDigest,
             candidates: [candidate],
             logins: [projected, projected]
         )) { XCTAssertEqual($0 as? AgentProtocolError, .malformedMessage) }
     }
 
+    func testContextAndPolicyDigestsBindRevisionRepromptURIAndCandidateDeletion() throws {
+        let engine = MatchingEngine(presets: [], domainRules: .empty)
+        let context = NativeAutoFillContext(
+            bundleID: "COM.EXAMPLE.App",
+            appName: "Example",
+            serviceIdentifiers: ["HTTPS://EXAMPLE.TEST/path#fragment"],
+            query: "  admin  "
+        )
+        let canonicalEquivalent = NativeAutoFillContext(
+            bundleID: "com.example.app",
+            appName: "example",
+            serviceIdentifiers: ["https://example.test/path#other"],
+            query: "admin"
+        )
+        XCTAssertEqual(
+            engine.authorizationContextDigest(context),
+            engine.authorizationContextDigest(canonicalEquivalent)
+        )
+
+        let baseLogin = login(
+            "cipher-a",
+            name: "Example",
+            uris: [("https://example.test/path", .exact)]
+        )
+        let projection = { (revision: UInt64, logins: [AutoFillLogin]) in
+            AutoFillProjection(
+                version: 1,
+                accountID: "account-a",
+                vaultRevision: revision,
+                createdAt: "2026-08-08T00:00:00Z",
+                logins: logins
+            )
+        }
+        let base = engine.authorizationPolicyDigest(
+            projection: projection(7, [baseLogin]),
+            context: context
+        )
+        XCTAssertNotEqual(base, engine.authorizationPolicyDigest(
+            projection: projection(8, [baseLogin]),
+            context: context
+        ))
+        XCTAssertNotEqual(base, engine.authorizationPolicyDigest(
+            projection: projection(7, [AutoFillLogin(
+                cipherID: baseLogin.cipherID,
+                name: baseLogin.name,
+                username: baseLogin.username,
+                password: baseLogin.password,
+                uris: baseLogin.uris,
+                totp: baseLogin.totp,
+                favorite: baseLogin.favorite,
+                reprompt: true
+            )]),
+            context: context
+        ))
+        XCTAssertNotEqual(base, engine.authorizationPolicyDigest(
+            projection: projection(7, [login(
+                "cipher-a", name: "Example", uris: [("https://changed.example/path", .exact)]
+            )]),
+            context: context
+        ))
+        XCTAssertNotEqual(base, engine.authorizationPolicyDigest(
+            projection: projection(7, []),
+            context: context
+        ))
+    }
+
     private func login(
         _ cipherID: String,
         name: String,
-        uris: [(String, String)] = [],
+        uris: [(String, AutoFillURIMatch)] = [],
         favorite: Bool = false,
-        lastUsedAt: String? = nil,
+        lastUsedAt: Int64? = nil,
         reprompt: Bool = false
     ) -> AutoFillLogin {
         AutoFillLogin(

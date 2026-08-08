@@ -1,6 +1,6 @@
 export interface AutoFillProjectionUri {
   readonly uri: string;
-  readonly matchType: string;
+  readonly matchType: 0 | 1 | 2 | 3 | 4 | 5;
 }
 
 export interface AutoFillProjectionLogin {
@@ -12,7 +12,7 @@ export interface AutoFillProjectionLogin {
   readonly totp: string;
   readonly favorite: boolean;
   readonly reprompt: boolean;
-  readonly lastUsedAt?: string;
+  readonly lastUsedAt?: number;
 }
 
 export interface AutoFillProjectionInput {
@@ -27,7 +27,7 @@ export interface AutoFillProjectionInput {
     readonly contextKey: string;
     readonly cipherId: string;
     readonly successfulSelectionCount: number;
-    readonly lastSelectedAt: string;
+    readonly lastSelectedAt: number;
   }[];
 }
 

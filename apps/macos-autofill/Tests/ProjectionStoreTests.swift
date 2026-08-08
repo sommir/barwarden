@@ -60,6 +60,62 @@ final class ProjectionStoreTests: XCTestCase {
         }
     }
 
+    func testAuthenticatedProjectionRejectsDuplicateAndDanglingMatchingMetadata() throws {
+        let login = AutoFillLogin(
+            cipherID: "login-1",
+            name: "Example",
+            username: "fixture-user@example.test",
+            password: "fixture-password-value",
+            uris: [AutoFillURI(uri: "https://fixture.example.test", matchType: .domain)],
+            totp: "seed",
+            favorite: false,
+            reprompt: false
+        )
+        let projection = { (logins: [AutoFillLogin], bindings: [AutoFillBinding], history: [AutoFillHistory]) in
+            AutoFillProjection(
+                version: 1,
+                accountID: "account-a",
+                vaultRevision: 1,
+                createdAt: "2026-08-08T08:00:00Z",
+                logins: logins,
+                bindings: bindings,
+                history: history
+            )
+        }
+        let history = AutoFillHistory(
+            contextKey: "app:com.example.app",
+            cipherID: "login-1",
+            successfulSelectionCount: 1,
+            lastSelectedAt: 1_786_233_600_000
+        )
+        let invalid = [
+            projection([login, login], [], []),
+            projection([login], [
+                AutoFillBinding(bundleID: "COM.Example.App", cipherID: "login-1"),
+                AutoFillBinding(bundleID: "com.example.app", cipherID: "login-1"),
+            ], []),
+            projection([login], [], [history, history]),
+            projection([login], [
+                AutoFillBinding(bundleID: "com.example.app", cipherID: "deleted"),
+            ], []),
+            projection([login], [], [AutoFillHistory(
+                contextKey: "app:com.example.app",
+                cipherID: "deleted",
+                successfulSelectionCount: 1,
+                lastSelectedAt: 1_786_233_600_000
+            )]),
+        ]
+
+        for malformed in invalid {
+            let fixture = try Fixture()
+            try fixture.writeProjection(malformed, key: key)
+            let store = ProjectionStore(projectionURL: fixture.url, clock: fixture.clock)
+            XCTAssertThrowsError(
+                try store.provision(material(accountID: "account-a", revision: 1), from: .mainApplication)
+            ) { XCTAssertEqual($0 as? AgentProtocolError, .corruptProjection) }
+        }
+    }
+
     func testStaleOnDiskRevisionIsRejected() throws {
         let fixture = try Fixture()
         try fixture.writeProjection(accountID: "account-a", revision: 8, key: key)
@@ -256,6 +312,166 @@ final class ProjectionStoreTests: XCTestCase {
         ))
     }
 
+    func testCandidateQueryIssueIsAtomicWithProvisionAndClearsTheStaleToken() throws {
+        let fixture = try Fixture()
+        try fixture.writeProjection(candidateProjection(revision: 1), key: key)
+        let provisionFinished = expectation(description: "new projection provisioned")
+        let stateLock = NSLock()
+        var provisionError: Error?
+        var fired = false
+        var store: ProjectionStore!
+        store = ProjectionStore(
+            projectionURL: fixture.url,
+            clock: fixture.clock,
+            onCandidateQuerySnapshot: {
+                guard !fired else { return }
+                fired = true
+                try! fixture.writeProjection(
+                    self.candidateProjection(revision: 2, uri: "https://changed.example.test"),
+                    key: self.key
+                )
+                DispatchQueue.global().async {
+                    do {
+                        try store.provision(
+                            self.material(accountID: "account-a", revision: 2),
+                            from: .mainApplication
+                        )
+                    } catch {
+                        stateLock.lock()
+                        provisionError = error
+                        stateLock.unlock()
+                    }
+                    provisionFinished.fulfill()
+                }
+            }
+        )
+        try store.provision(material(accountID: "account-a", revision: 1), from: .mainApplication)
+        let engine = MatchingEngine(presets: [], domainRules: .empty)
+
+        let response = try store.queryCandidates(
+            accountID: "account-a",
+            generation: generation,
+            context: candidateContext,
+            matchingEngine: engine
+        )
+        wait(for: [provisionFinished], timeout: 2)
+        stateLock.lock()
+        let capturedError = provisionError
+        stateLock.unlock()
+        XCTAssertNil(capturedError)
+
+        XCTAssertThrowsError(try store.withAuthorizedCandidate(
+            SecretReleasePayload(
+                generation: generation,
+                accountID: "account-a",
+                candidateID: "login-1",
+                field: .password,
+                contextToken: response.contextToken,
+                mismatchConfirmed: false,
+                reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
+            ),
+            matchingEngine: engine,
+            verifyRepromptGrant: { _, _, _, _, _ in false },
+            operation: { _ in XCTFail("stale candidate operation must not execute") }
+        )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
+    }
+
+    func testLockCannotInterleaveReleaseRevalidationConsumeAndOperation() throws {
+        let fixture = try Fixture()
+        try fixture.writeProjection(candidateProjection(revision: 1), key: key)
+        let lockStarted = DispatchSemaphore(value: 0)
+        let lockFinished = DispatchSemaphore(value: 0)
+        var fired = false
+        var store: ProjectionStore!
+        store = ProjectionStore(
+            projectionURL: fixture.url,
+            clock: fixture.clock,
+            onSecretReleaseSnapshot: {
+                guard !fired else { return }
+                fired = true
+                DispatchQueue.global().async {
+                    lockStarted.signal()
+                    store.lock()
+                    lockFinished.signal()
+                }
+                XCTAssertEqual(lockStarted.wait(timeout: .now() + 1), .success)
+            }
+        )
+        try store.provision(material(accountID: "account-a", revision: 1), from: .mainApplication)
+        let engine = MatchingEngine(presets: [], domainRules: .empty)
+        let response = try store.queryCandidates(
+            accountID: "account-a",
+            generation: generation,
+            context: candidateContext,
+            matchingEngine: engine
+        )
+        var operationRan = false
+
+        XCTAssertThrowsError(try store.withAuthorizedCandidate(
+            SecretReleasePayload(
+                generation: generation,
+                accountID: "account-a",
+                candidateID: "login-1",
+                field: .password,
+                contextToken: response.contextToken,
+                mismatchConfirmed: false,
+                reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
+            ),
+            matchingEngine: engine,
+            verifyRepromptGrant: { _, _, _, _, _ in false },
+            operation: { _ in
+                operationRan = true
+                XCTAssertEqual(lockFinished.wait(timeout: .now()), .timedOut)
+                throw AgentProtocolError.unavailable
+            }
+        )) { XCTAssertEqual($0 as? AgentProtocolError, .unavailable) }
+        XCTAssertTrue(operationRan)
+        XCTAssertEqual(lockFinished.wait(timeout: .now() + 1), .success)
+        XCTAssertThrowsError(try store.read(accountID: "account-a", generation: generation)) {
+            XCTAssertEqual($0 as? AgentProtocolError, .locked)
+        }
+    }
+
+    func testReleaseRejectsRepromptURISecretAndDeletionChangesAfterQuery() throws {
+        let policyChanges = [
+            candidateProjection(revision: 1, reprompt: true),
+            candidateProjection(revision: 1, uri: "https://changed.example.test"),
+            candidateProjection(revision: 1, password: "changed-secret"),
+            candidateProjection(revision: 1, includeLogin: false),
+        ]
+        for changedProjection in policyChanges {
+            let fixture = try Fixture()
+            try fixture.writeProjection(candidateProjection(revision: 1), key: key)
+            let store = ProjectionStore(projectionURL: fixture.url, clock: fixture.clock)
+            try store.provision(material(accountID: "account-a", revision: 1), from: .mainApplication)
+            let engine = MatchingEngine(presets: [], domainRules: .empty)
+            let response = try store.queryCandidates(
+                accountID: "account-a",
+                generation: generation,
+                context: candidateContext,
+                matchingEngine: engine
+            )
+
+            try fixture.writeProjection(changedProjection, key: key)
+            var operationRan = false
+            XCTAssertThrowsError(try store.withAuthorizedCandidate(
+                SecretReleasePayload(
+                    generation: generation,
+                    accountID: "account-a",
+                    candidateID: "login-1",
+                    field: .password,
+                    contextToken: response.contextToken,
+                    mismatchConfirmed: false,
+                    reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
+                ),
+                matchingEngine: engine,
+                verifyRepromptGrant: { _, _, _, _, _ in false },
+                operation: { _ in operationRan = true }
+            )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
+            XCTAssertFalse(operationRan)
+        }
+    }
+
     func testZeroizingKeyOverwritesBytesWhenCleared() throws {
         var observed: [UInt8] = []
         let key = try ZeroizingKey(Data(repeating: 0x5a, count: 32)) { bytes in
@@ -390,6 +606,40 @@ final class ProjectionStoreTests: XCTestCase {
             leaseDurationSeconds: 30
         )
     }
+
+    private var candidateContext: NativeAutoFillContext {
+        NativeAutoFillContext(
+            bundleID: "com.example.App",
+            appName: "Example",
+            serviceIdentifiers: ["https://fixture.example.test"],
+            query: ""
+        )
+    }
+
+    private func candidateProjection(
+        revision: UInt64,
+        uri: String = "https://fixture.example.test",
+        password: String = "fixture-password-value",
+        reprompt: Bool = false,
+        includeLogin: Bool = true
+    ) -> AutoFillProjection {
+        AutoFillProjection(
+            version: 1,
+            accountID: "account-a",
+            vaultRevision: revision,
+            createdAt: "2026-08-08T08:00:00Z",
+            logins: includeLogin ? [AutoFillLogin(
+                cipherID: "login-1",
+                name: "Example",
+                username: "fixture-user@example.test",
+                password: password,
+                uris: [AutoFillURI(uri: uri, matchType: .exact)],
+                totp: "seed",
+                favorite: false,
+                reprompt: reprompt
+            )] : []
+        )
+    }
 }
 
 private final class Fixture {
@@ -415,6 +665,11 @@ private final class Fixture {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 
+    func writeProjection(_ projection: AutoFillProjection, key: Data) throws {
+        try encryptedProjection(projection, key: key).write(to: url)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
     func encryptedProjection(accountID: String, revision: UInt64, key: Data) throws -> Data {
         let projection = AutoFillProjection(
             version: 1,
@@ -426,12 +681,16 @@ private final class Fixture {
                 name: "Example",
                 username: "fixture-user@example.test",
                 password: "fixture-password-value",
-                uris: [AutoFillURI(uri: "https://fixture.example.test", matchType: "default")],
+                uris: [AutoFillURI(uri: "https://fixture.example.test", matchType: .domain)],
                 totp: "JBSWY3DPEHPK3PXP",
                 favorite: true,
                 reprompt: false
             )]
         )
+        return try encryptedProjection(projection, key: key)
+    }
+
+    private func encryptedProjection(_ projection: AutoFillProjection, key: Data) throws -> Data {
         let plaintext = try JSONEncoder().encode(projection)
         let nonce = try ChaChaPoly.Nonce(data: Data(repeating: 7, count: 12))
         let header = AutoFillProjectionEnvelope.header(nonce: Data(nonce))

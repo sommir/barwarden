@@ -57,7 +57,6 @@ final class AgentConnectionHandler {
     private let timeout: TimeInterval
     private let projectionStore: ProjectionStore?
     private let matchingEngine: MatchingEngine
-    private let candidateAuthorizations: CandidateAuthorizationStore
     private let verifyRepromptGrant: CandidateAuthorizationStore.RepromptGrantVerifier
     private let onProjectionKeyCleared: ((Data) -> Void)?
 
@@ -69,7 +68,6 @@ final class AgentConnectionHandler {
         timeout: TimeInterval = AgentClient.defaultTimeout,
         projectionStore: ProjectionStore? = nil,
         matchingEngine: MatchingEngine = MatchingEngine(presets: AppPresetCatalog.bundled()),
-        candidateAuthorizations: CandidateAuthorizationStore = CandidateAuthorizationStore(),
         verifyRepromptGrant: @escaping CandidateAuthorizationStore.RepromptGrantVerifier = {
             _, _, _, _, _ in false
         },
@@ -80,7 +78,6 @@ final class AgentConnectionHandler {
         self.timeout = timeout
         self.projectionStore = projectionStore
         self.matchingEngine = matchingEngine
-        self.candidateAuthorizations = candidateAuthorizations
         self.verifyRepromptGrant = verifyRepromptGrant
         self.onProjectionKeyCleared = onProjectionKeyCleared
     }
@@ -130,7 +127,6 @@ final class AgentConnectionHandler {
                 throw AgentProtocolError.malformedMessage
             }
             projectionStore?.lock()
-            candidateAuthorizations.clear()
         case .provision:
             guard let payload = request.projection,
                   request.lease == nil, request.candidateQuery == nil, request.secretRelease == nil,
@@ -152,7 +148,6 @@ final class AgentConnectionHandler {
                 ),
                 from: peer
             )
-            candidateAuthorizations.clear()
         case .renewLease:
             guard request.projection == nil,
                   let payload = request.lease,
@@ -180,37 +175,11 @@ final class AgentConnectionHandler {
                   payload.context.query.count <= 512 else {
                 throw AgentProtocolError.malformedMessage
             }
-            let projection = try projectionStore.read(
+            candidateResponse = try projectionStore.queryCandidates(
                 accountID: payload.accountID,
-                generation: payload.generation
-            )
-            let bindings = projection.bindings.map {
-                UserAppBinding(
-                    accountID: projection.accountID,
-                    bundleID: $0.bundleID,
-                    cipherID: $0.cipherID
-                )
-            }
-            let history = projection.history.map {
-                MatchingHistoryEntry(
-                    accountID: projection.accountID,
-                    contextKey: $0.contextKey,
-                    cipherID: $0.cipherID,
-                    successfulSelectionCount: $0.successfulSelectionCount,
-                    lastSelectedAt: $0.lastSelectedAt
-                )
-            }
-            candidateResponse = try candidateAuthorizations.issue(
-                accountID: projection.accountID,
                 generation: payload.generation,
-                candidates: matchingEngine.rank(
-                    accountID: projection.accountID,
-                    logins: projection.logins,
-                    context: payload.context,
-                    bindings: bindings,
-                    history: history
-                ),
-                logins: projection.logins
+                context: payload.context,
+                matchingEngine: matchingEngine
             )
         case .releaseSecret:
             guard request.projection == nil, request.lease == nil,
@@ -219,19 +188,15 @@ final class AgentConnectionHandler {
                   let projectionStore else {
                 throw AgentProtocolError.malformedMessage
             }
-            let projection = try projectionStore.read(
-                accountID: payload.accountID,
-                generation: payload.generation
-            )
-            guard projection.logins.contains(where: { $0.cipherID == payload.candidateID }) else {
-                throw AgentProtocolError.unauthorized
-            }
-            try candidateAuthorizations.validate(
+            try projectionStore.withAuthorizedCandidate(
                 payload,
-                verifyRepromptGrant: verifyRepromptGrant
+                matchingEngine: matchingEngine,
+                verifyRepromptGrant: verifyRepromptGrant,
+                operation: { _ in
+                    // Task 5 validates this boundary only. Task 6 owns actual field release.
+                    throw AgentProtocolError.unavailable
+                }
             )
-            // Task 5 validates the release boundary only. Task 6 owns actual field release.
-            throw AgentProtocolError.unavailable
         }
         let response = candidateResponse.map {
             AgentResponse.candidates(requestID: request.requestID, nonce: request.nonce, payload: $0)

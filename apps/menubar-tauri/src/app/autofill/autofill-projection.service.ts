@@ -142,7 +142,10 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
       await this.replaceWithRetry(snapshot, {
         accountId: snapshot.accountId,
         createdAt: this.clock().toISOString(),
-        logins: snapshot.items.flatMap(projectLogin),
+        logins: snapshot.items.flatMap((item) => projectLogin(
+          item,
+          this.matchingState.lastUsedAtFor(snapshot.accountId, item.id),
+        )),
         ...this.matchingState.snapshot(snapshot.accountId),
       }, binding);
     });
@@ -241,7 +244,7 @@ class NativeAutoFillProjectionHost implements AutoFillProjectionHost {
   }
 }
 
-function projectLogin(item: VaultItem): AutoFillProjectionLogin[] {
+function projectLogin(item: VaultItem, lastUsedAt?: number): AutoFillProjectionLogin[] {
   if (item.type !== "login") return [];
   const value = (id: string) => item.fields.find((field) => field.id === id)?.value ?? "";
   return [{
@@ -249,10 +252,22 @@ function projectLogin(item: VaultItem): AutoFillProjectionLogin[] {
     name: item.name,
     username: value("username"),
     password: value("password"),
-    uris: item.uris.map(({ uri, matchType }) => ({ uri, matchType })),
+    uris: item.uris.map(({ uri, matchType }) => ({
+      uri,
+      matchType: canonicalProjectionUriMatch(matchType),
+    })),
     totp: value("otp"),
     favorite: item.favorite,
     reprompt: item.reprompt === true,
-    lastUsedAt: item.revisionDate || undefined,
+    ...(lastUsedAt == null ? {} : { lastUsedAt }),
   }];
+}
+
+function canonicalProjectionUriMatch(value: string): 0 | 1 | 2 | 3 | 4 | 5 {
+  const normalized = value.trim();
+  if (normalized === "" || normalized === "default") return 0;
+  const numeric = Number(normalized);
+  return Number.isInteger(numeric) && numeric >= 0 && numeric <= 5
+    ? numeric as 0 | 1 | 2 | 3 | 4 | 5
+    : 5;
 }

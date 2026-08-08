@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct AppPreset: Codable, Equatable {
@@ -37,6 +38,91 @@ enum AppPresetCatalog {
     }
 }
 
+struct DomainMatchRules: Equatable {
+    static let reviewedSourceRevision = "e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20"
+    static let sourceLicense = "MPL-2.0"
+
+    let allowedRegistrableDomains: Set<String>
+    let privateSuffixes: Set<String>
+
+    private struct Document: Codable {
+        let sourceRevision: String
+        let license: String
+        let allowedRegistrableDomains: [String]
+        let privateSuffixes: [String]
+    }
+
+    static let empty = DomainMatchRules(allowedRegistrableDomains: [], privateSuffixes: [])
+
+    init(allowedRegistrableDomains: [String], privateSuffixes: [String]) {
+        self.allowedRegistrableDomains = Set(allowedRegistrableDomains.map(Self.normalizeRule))
+        self.privateSuffixes = Set(privateSuffixes.map(Self.normalizeRule))
+    }
+
+    static func decode(_ data: Data) throws -> DomainMatchRules {
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              Set(object.keys) == [
+                "sourceRevision", "license", "allowedRegistrableDomains", "privateSuffixes",
+              ] else {
+            throw AgentProtocolError.malformedMessage
+        }
+        let document = try JSONDecoder().decode(Document.self, from: data)
+        guard document.sourceRevision == reviewedSourceRevision,
+              document.license == sourceLicense,
+              !document.allowedRegistrableDomains.isEmpty,
+              !document.privateSuffixes.isEmpty,
+              document.allowedRegistrableDomains.count <= 128,
+              document.privateSuffixes.count <= 128,
+              document.allowedRegistrableDomains.allSatisfy(Self.isValidRule),
+              document.privateSuffixes.allSatisfy(Self.isValidRule) else {
+            throw AgentProtocolError.malformedMessage
+        }
+        return DomainMatchRules(
+            allowedRegistrableDomains: document.allowedRegistrableDomains,
+            privateSuffixes: document.privateSuffixes
+        )
+    }
+
+    static func bundled(in bundle: Bundle = .main) -> DomainMatchRules {
+        guard let url = bundle.url(forResource: "DomainMatchRules", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let rules = try? decode(data) else { return .empty }
+        return rules
+    }
+
+    func registrableDomain(for host: String) -> String? {
+        let normalized = Self.normalizeRule(host)
+        let matchingPrivate = privateSuffixes
+            .filter { normalized == $0 || normalized.hasSuffix(".\($0)") }
+            .max { $0.count < $1.count }
+        if let suffix = matchingPrivate {
+            let labels = normalized.split(separator: ".")
+            let suffixLabels = suffix.split(separator: ".").count
+            guard labels.count > suffixLabels else { return nil }
+            return labels.suffix(suffixLabels + 1).joined(separator: ".")
+        }
+        return allowedRegistrableDomains
+            .filter { normalized == $0 || normalized.hasSuffix(".\($0)") }
+            .max { $0.count < $1.count }
+    }
+
+    private static func normalizeRule(_ value: String) -> String {
+        value.trimmingCharacters(in: CharacterSet(charactersIn: ". "))
+            .lowercased(with: Locale(identifier: "en_US_POSIX"))
+    }
+
+    private static func isValidRule(_ value: String) -> Bool {
+        let normalized = normalizeRule(value)
+        return !normalized.isEmpty
+            && normalized.count <= 255
+            && normalized.split(separator: ".").count >= 2
+            && normalized.unicodeScalars.allSatisfy {
+                CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-.")
+                    .contains($0)
+            }
+    }
+}
+
 struct UserAppBinding: Codable, Equatable {
     let accountID: String
     let bundleID: String
@@ -48,11 +134,20 @@ struct MatchingHistoryEntry: Codable, Equatable {
     let contextKey: String
     let cipherID: String
     let successfulSelectionCount: UInt
-    let lastSelectedAt: String
+    let lastSelectedAt: Int64
 }
 
 struct MatchingEngine {
     let presets: [AppPreset]
+    let domainRules: DomainMatchRules
+
+    init(
+        presets: [AppPreset],
+        domainRules: DomainMatchRules = .bundled()
+    ) {
+        self.presets = presets
+        self.domainRules = domainRules
+    }
 
     private enum Signal: Int {
         case binding = 0
@@ -94,7 +189,7 @@ struct MatchingEngine {
         let login: AutoFillLogin
         let signal: Signal
         let historyCount: UInt
-        let historyDate: String
+        let historyDate: Int64
     }
 
     func rank(
@@ -131,7 +226,7 @@ struct MatchingEngine {
                     hasHistory: matchingHistory != nil
                 ),
                 historyCount: matchingHistory?.successfulSelectionCount ?? 0,
-                historyDate: matchingHistory?.lastSelectedAt ?? ""
+                historyDate: matchingHistory?.lastSelectedAt ?? 0
             )
         }.sorted { lhs, rhs in
             if lhs.signal.rawValue != rhs.signal.rawValue {
@@ -179,17 +274,19 @@ struct MatchingEngine {
             return presetServices.contains { Self.hostOrServiceMatches($0, uri.uri) }
         }) { return .preset }
         if login.uris.contains(where: { uri in
-            guard Self.isContextMatchable(uri) else { return false }
-            return context.serviceIdentifiers.contains { Self.uriRuleMatches(uri, service: $0) }
+            guard uri.matchType == .host
+                    || uri.matchType == .startsWith
+                    || uri.matchType == .exact else { return false }
+            return context.serviceIdentifiers.contains { uriRuleMatches(uri, service: $0) }
         }) { return .uriRule }
         if login.uris.contains(where: { uri in
-            guard Self.isContextMatchable(uri) else { return false }
-            return context.serviceIdentifiers.contains { Self.hostOrDomainMatches($0, uri.uri) }
+            guard uri.matchType == .domain else { return false }
+            return context.serviceIdentifiers.contains { hostOrDomainMatches($0, uri.uri) }
         }) { return .domain }
         if Self.fuzzyMatches(login: login, context: context) { return .fuzzy }
         if hasHistory { return .history }
         if login.favorite { return .favorite }
-        if let lastUsedAt = login.lastUsedAt, !lastUsedAt.isEmpty { return .recent }
+        if let lastUsedAt = login.lastUsedAt, lastUsedAt > 0 { return .recent }
         return .other
     }
 
@@ -202,54 +299,136 @@ struct MatchingEngine {
         return "unknown"
     }
 
+    func authorizationContextDigest(_ context: NativeAutoFillContext) -> Data {
+        var digest = SHA256()
+        Self.append("context-v1", to: &digest)
+        Self.append(Self.normalizeText(context.bundleID), to: &digest)
+        Self.append(Self.normalizeText(context.appName), to: &digest)
+        Self.append(Self.normalizeText(
+            context.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        ), to: &digest)
+        let services = context.serviceIdentifiers.map {
+            Self.canonicalExactService($0) ?? Self.normalizeText(
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        }.sorted()
+        Self.append(UInt64(services.count), to: &digest)
+        services.forEach { Self.append($0, to: &digest) }
+        return Data(digest.finalize())
+    }
+
+    func authorizationPolicyDigest(
+        projection: AutoFillProjection,
+        context: NativeAutoFillContext
+    ) -> Data {
+        var digest = SHA256()
+        Self.append("policy-v1", to: &digest)
+        Self.append(projection.accountID, to: &digest)
+        Self.append(projection.vaultRevision, to: &digest)
+        digest.update(data: authorizationContextDigest(context))
+        Self.append(UInt64(presets.count), to: &digest)
+        for preset in presets.sorted(by: { $0.bundleID < $1.bundleID }) {
+            Self.append(Self.normalizeText(preset.bundleID), to: &digest)
+            let services = preset.services.map {
+                Self.canonicalExactService($0) ?? Self.normalizeText($0)
+            }.sorted()
+            Self.append(UInt64(services.count), to: &digest)
+            services.forEach { Self.append($0, to: &digest) }
+        }
+        Self.append(UInt64(domainRules.allowedRegistrableDomains.count), to: &digest)
+        domainRules.allowedRegistrableDomains.sorted().forEach { Self.append($0, to: &digest) }
+        Self.append(UInt64(domainRules.privateSuffixes.count), to: &digest)
+        domainRules.privateSuffixes.sorted().forEach { Self.append($0, to: &digest) }
+        Self.append(UInt64(projection.logins.count), to: &digest)
+        for login in projection.logins.sorted(by: { $0.cipherID < $1.cipherID }) {
+            Self.append(login.cipherID, to: &digest)
+            Self.append(login.name, to: &digest)
+            Self.append(login.username, to: &digest)
+            // These values never leave the Agent; hashing them makes an already-issued
+            // authorization stale if the encrypted projection changes a requested secret.
+            Self.append(login.password, to: &digest)
+            Self.append(login.totp, to: &digest)
+            Self.append(login.favorite ? UInt64(1) : UInt64(0), to: &digest)
+            Self.append(login.reprompt ? UInt64(1) : UInt64(0), to: &digest)
+            Self.append(UInt64(bitPattern: login.lastUsedAt ?? 0), to: &digest)
+            let uris = login.uris.sorted(by: {
+                ($0.matchType.rawValue, $0.uri) < ($1.matchType.rawValue, $1.uri)
+            })
+            Self.append(UInt64(uris.count), to: &digest)
+            for uri in uris {
+                Self.append(UInt64(uri.matchType.rawValue), to: &digest)
+                Self.append(Self.canonicalExactService(uri.uri) ?? Self.normalizeText(uri.uri), to: &digest)
+            }
+        }
+        Self.append(UInt64(projection.bindings.count), to: &digest)
+        for binding in projection.bindings.sorted(by: {
+            ($0.bundleID, $0.cipherID) < ($1.bundleID, $1.cipherID)
+        }) {
+            Self.append(Self.normalizeText(binding.bundleID), to: &digest)
+            Self.append(binding.cipherID, to: &digest)
+        }
+        Self.append(UInt64(projection.history.count), to: &digest)
+        for entry in projection.history.sorted(by: {
+            ($0.contextKey, $0.cipherID) < ($1.contextKey, $1.cipherID)
+        }) {
+            Self.append(Self.normalizeText(entry.contextKey), to: &digest)
+            Self.append(entry.cipherID, to: &digest)
+            Self.append(UInt64(entry.successfulSelectionCount), to: &digest)
+            Self.append(UInt64(bitPattern: entry.lastSelectedAt), to: &digest)
+        }
+        return Data(digest.finalize())
+    }
+
     private static func servicesAreExactlyEqual(_ lhs: String, _ rhs: String) -> Bool {
-        canonicalService(lhs) == canonicalService(rhs)
+        guard let left = canonicalExactService(lhs),
+              let right = canonicalExactService(rhs) else { return false }
+        return left == right
     }
 
     private static func hostOrServiceMatches(_ lhs: String, _ rhs: String) -> Bool {
         servicesAreExactlyEqual(lhs, rhs) || host(lhs) == host(rhs)
     }
 
-    private static func uriRuleMatches(_ rule: AutoFillURI, service: String) -> Bool {
-        let candidate = canonicalService(service)
-        let expected = canonicalService(rule.uri)
-        switch normalizeText(rule.matchType) {
-        case "exact": return candidate == expected
-        case "startswith", "starts_with": return candidate.hasPrefix(expected)
-        case "host": return host(rule.uri) == host(service)
-        case "basedomain", "base_domain":
-            guard let left = host(rule.uri).flatMap(registrableDomain),
-                  let right = host(service).flatMap(registrableDomain) else { return false }
-            return left == right
-        case "never": return false
-        default: return false
+    private func uriRuleMatches(_ rule: AutoFillURI, service: String) -> Bool {
+        switch rule.matchType {
+        case .exact: return Self.servicesAreExactlyEqual(service, rule.uri)
+        case .startsWith:
+            guard let candidate = Self.canonicalExactService(service),
+                  let expected = Self.canonicalExactService(rule.uri),
+                  Self.host(service) == Self.host(rule.uri) else { return false }
+            return candidate.hasPrefix(expected)
+        case .host: return Self.host(rule.uri) == Self.host(service)
+        case .domain:
+            return hostOrDomainMatches(rule.uri, service)
+        case .regularExpression, .never: return false
         }
     }
 
     private static func isContextMatchable(_ uri: AutoFillURI) -> Bool {
-        normalizeText(uri.matchType) != "never"
+        uri.matchType != .regularExpression && uri.matchType != .never
     }
 
     private static func queryMatches(_ query: String, login: AutoFillLogin) -> Bool {
         let searchable = normalizeText(
-            ([login.name, login.username] + login.uris.map(\.uri)).joined(separator: " ")
+            ([login.name, login.username] + login.uris.filter(isContextMatchable).map(\.uri))
+                .joined(separator: " ")
         )
         let queryTokens = tokens(query)
         return !queryTokens.isEmpty && queryTokens.allSatisfy(searchable.contains)
     }
 
-    private static func hostOrDomainMatches(_ lhs: String, _ rhs: String) -> Bool {
-        guard let leftHost = host(lhs), let rightHost = host(rhs) else { return false }
+    private func hostOrDomainMatches(_ lhs: String, _ rhs: String) -> Bool {
+        guard let leftHost = Self.host(lhs), let rightHost = Self.host(rhs) else { return false }
         if leftHost == rightHost { return true }
-        guard let leftDomain = registrableDomain(leftHost),
-              let rightDomain = registrableDomain(rightHost) else { return false }
+        guard let leftDomain = domainRules.registrableDomain(for: leftHost),
+              let rightDomain = domainRules.registrableDomain(for: rightHost) else { return false }
         return leftDomain == rightDomain
     }
 
     private static func fuzzyMatches(login: AutoFillLogin, context: NativeAutoFillContext) -> Bool {
         let hints = [context.appName, context.bundleID]
             + context.serviceIdentifiers.compactMap(host)
-        let loginValues = [login.name] + login.uris.map(\.uri)
+        let loginValues = [login.name] + login.uris.filter(isContextMatchable).map(\.uri)
         return hints.flatMap(tokens).contains { hint in
             hint.count >= 3 && loginValues.flatMap(tokens).contains(hint)
         }
@@ -259,26 +438,36 @@ struct MatchingEngine {
         normalizeText(value).split { !$0.isLetter && !$0.isNumber }.map(String.init)
     }
 
-    private static func canonicalService(_ value: String) -> String {
+    private static func canonicalExactService(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let components = URLComponents(string: trimmed), let host = components.host {
-            var result = normalizeText(components.scheme ?? "https") + "://" + normalizeHost(host)
-            if let port = components.port { result += ":\(port)" }
-            let path = components.percentEncodedPath == "/" ? "" : components.percentEncodedPath
-            result += path
-            if let query = components.percentEncodedQuery { result += "?\(query)" }
-            return result
-        }
-        return normalizeHost(trimmed.trimmingCharacters(in: CharacterSet(charactersIn: ".")))
+        guard !trimmed.isEmpty else { return nil }
+        let source = hasExplicitScheme(trimmed) ? trimmed : "https://\(trimmed)"
+        guard let components = URLComponents(string: source),
+              let scheme = components.scheme,
+              let host = components.host,
+              components.user == nil,
+              components.password == nil else { return nil }
+        var result = normalizeText(scheme) + "://" + normalizeHost(host)
+        if let port = components.port { result += ":\(port)" }
+        result += components.percentEncodedPath
+        if let query = components.percentEncodedQuery { result += "?\(query)" }
+        // URI fragments are client-side navigation state and never identify a service.
+        return result
     }
 
     private static func host(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let parsed = URL(string: trimmed), let host = parsed.host { return normalizeHost(host) }
-        if let parsed = URL(string: "https://\(trimmed)"), let host = parsed.host {
-            return normalizeHost(host)
-        }
-        return nil
+        guard !trimmed.isEmpty else { return nil }
+        let source = hasExplicitScheme(trimmed) ? trimmed : "https://\(trimmed)"
+        guard let parsed = URLComponents(string: source), let host = parsed.host else { return nil }
+        return normalizeHost(host)
+    }
+
+    private static func hasExplicitScheme(_ value: String) -> Bool {
+        value.range(
+            of: #"^[A-Za-z][A-Za-z0-9+.-]*://"#,
+            options: .regularExpression
+        ) != nil
     }
 
     private static func normalizeHost(_ value: String) -> String {
@@ -291,25 +480,17 @@ struct MatchingEngine {
             .folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
     }
 
-    private static func registrableDomain(_ host: String) -> String? {
-        let labels = host.split(separator: ".").map(String.init)
-        guard labels.count >= 2 else { return nil }
-        let suffix2 = labels.suffix(2).joined(separator: ".")
-        // Deliberately conservative, reviewable PSL subset. Unknown suffixes fail closed.
-        let knownSingleLabelSuffixes: Set<String> = [
-            "app", "au", "br", "ca", "cn", "com", "de", "dev", "edu", "example", "fr",
-            "gov", "io", "jp", "me", "mil", "net", "nz", "org", "uk", "us",
-        ]
-        let knownTwoLabelSuffixes: Set<String> = [
-            "co.uk", "org.uk", "ac.uk", "com.au", "net.au", "co.jp", "co.nz", "com.br", "com.cn",
-        ]
-        if knownTwoLabelSuffixes.contains(suffix2) {
-            guard labels.count >= 3 else { return nil }
-            return labels.suffix(3).joined(separator: ".")
-        }
-        guard let suffix = labels.last, knownSingleLabelSuffixes.contains(suffix) else { return nil }
-        return suffix2
+    private static func append(_ value: String, to digest: inout SHA256) {
+        let data = Data(value.utf8)
+        append(UInt64(data.count), to: &digest)
+        digest.update(data: data)
     }
+
+    private static func append(_ value: UInt64, to digest: inout SHA256) {
+        var bigEndian = value.bigEndian
+        withUnsafeBytes(of: &bigEndian) { digest.update(bufferPointer: $0) }
+    }
+
 }
 
 final class CandidateAuthorizationStore {
@@ -321,9 +502,17 @@ final class CandidateAuthorizationStore {
         _ grant: String
     ) -> Bool
 
+    struct Snapshot {
+        let vaultRevision: UInt64
+        let context: NativeAutoFillContext
+        let contextDigest: Data
+        let policyDigest: Data
+    }
+
     private struct Authorization {
         let accountID: String
         let generation: UUID
+        let snapshot: Snapshot
         let expiresAt: TimeInterval
         let candidates: [String: Candidate]
     }
@@ -354,10 +543,17 @@ final class CandidateAuthorizationStore {
     func issue(
         accountID: String,
         generation: UUID,
+        vaultRevision: UInt64,
+        context: NativeAutoFillContext,
+        contextDigest: Data,
+        policyDigest: Data,
         candidates: [RankedCandidate],
         logins: [AutoFillLogin]
     ) throws -> CandidateResponsePayload {
         guard !accountID.isEmpty,
+              vaultRevision > 0,
+              contextDigest.count == SHA256.byteCount,
+              policyDigest.count == SHA256.byteCount,
               candidates.count <= 500,
               Set(candidates.map(\.cipherID)).count == candidates.count,
               Set(logins.map(\.cipherID)).count == logins.count else {
@@ -383,14 +579,41 @@ final class CandidateAuthorizationStore {
         records[token] = Authorization(
             accountID: accountID,
             generation: generation,
+            snapshot: Snapshot(
+                vaultRevision: vaultRevision,
+                context: context,
+                contextDigest: contextDigest,
+                policyDigest: policyDigest
+            ),
             expiresAt: now + lifetimeSeconds,
             candidates: authorized
         )
         return CandidateResponsePayload(contextToken: token, candidates: candidates)
     }
 
+    func snapshot(for request: SecretReleasePayload) throws -> Snapshot {
+        guard !request.accountID.isEmpty,
+              !request.candidateID.isEmpty,
+              !request.contextToken.isEmpty else {
+            throw AgentProtocolError.malformedMessage
+        }
+        lock.lock()
+        defer { lock.unlock() }
+        guard let authorization = records[request.contextToken],
+              authorization.expiresAt > clock(),
+              authorization.accountID == request.accountID,
+              authorization.generation == request.generation,
+              authorization.candidates[request.candidateID] != nil else {
+            throw AgentProtocolError.unauthorized
+        }
+        return authorization.snapshot
+    }
+
     func validate(
         _ request: SecretReleasePayload,
+        currentVaultRevision: UInt64,
+        currentContextDigest: Data,
+        currentPolicyDigest: Data,
         verifyRepromptGrant: RepromptGrantVerifier
     ) throws {
         guard !request.accountID.isEmpty,
@@ -405,6 +628,9 @@ final class CandidateAuthorizationStore {
               authorization.expiresAt > clock(),
               authorization.accountID == request.accountID,
               authorization.generation == request.generation,
+              authorization.snapshot.vaultRevision == currentVaultRevision,
+              authorization.snapshot.contextDigest == currentContextDigest,
+              authorization.snapshot.policyDigest == currentPolicyDigest,
               let candidate = authorization.candidates[request.candidateID],
               !candidate.requiresMismatchConfirmation || request.mismatchConfirmed else {
             throw AgentProtocolError.unauthorized

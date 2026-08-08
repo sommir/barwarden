@@ -41,6 +41,8 @@
 		A10000000000000000000021 /* MatchingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* MatchingEngineTests.swift */; };
 		A10000000000000000000022 /* AppPresets.json in Agent Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* AppPresets.json */; };
 		A10000000000000000000023 /* AppPresets.json in Test Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* AppPresets.json */; };
+		A10000000000000000000024 /* DomainMatchRules.json in Agent Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* DomainMatchRules.json */; };
+		A10000000000000000000025 /* DomainMatchRules.json in Test Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* DomainMatchRules.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +73,7 @@
 		A2000000000000000000001A /* MatchingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchingEngine.swift; sourceTree = "<group>"; };
 		A2000000000000000000001B /* MatchingEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchingEngineTests.swift; sourceTree = "<group>"; };
 		A2000000000000000000001C /* AppPresets.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = AppPresets.json; sourceTree = "<group>"; };
+		A2000000000000000000001D /* DomainMatchRules.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = DomainMatchRules.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,7 +85,7 @@
 /* Begin PBXGroup section */
 		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002 /* Config */, A40000000000000000000008 /* Shared */, A40000000000000000000003 /* Agent */, A40000000000000000000004 /* CredentialProvider */, A40000000000000000000005 /* Tests */, A40000000000000000000006 /* Frameworks */, A40000000000000000000007 /* Products */,); sourceTree = "<group>"; };
 		A40000000000000000000002 /* Config */ = {isa = PBXGroup; children = (A20000000000000000000004 /* Native.xcconfig */,); path = Config; sourceTree = "<group>"; };
-		A40000000000000000000003 /* Agent */ = {isa = PBXGroup; children = (A20000000000000000000001 /* AgentMain.swift */, A20000000000000000000012 /* AgentServer.swift */, A20000000000000000000011 /* PeerIdentityVerifier.swift */, A20000000000000000000019 /* ProjectionStore.swift */, A2000000000000000000001A /* MatchingEngine.swift */, A2000000000000000000001C /* AppPresets.json */, A20000000000000000000005 /* Agent Entitlements.plist */, A20000000000000000000006 /* Agent LaunchAgent.plist */,); path = Agent; sourceTree = "<group>"; };
+		A40000000000000000000003 /* Agent */ = {isa = PBXGroup; children = (A20000000000000000000001 /* AgentMain.swift */, A20000000000000000000012 /* AgentServer.swift */, A20000000000000000000011 /* PeerIdentityVerifier.swift */, A20000000000000000000019 /* ProjectionStore.swift */, A2000000000000000000001A /* MatchingEngine.swift */, A2000000000000000000001C /* AppPresets.json */, A2000000000000000000001D /* DomainMatchRules.json */, A20000000000000000000005 /* Agent Entitlements.plist */, A20000000000000000000006 /* Agent LaunchAgent.plist */,); path = Agent; sourceTree = "<group>"; };
 		A40000000000000000000004 /* CredentialProvider */ = {isa = PBXGroup; children = (A20000000000000000000002 /* CredentialProviderViewController.swift */, A20000000000000000000007 /* Credential Provider Info.plist */, A20000000000000000000008 /* Credential Provider Entitlements.plist */,); path = CredentialProvider; sourceTree = "<group>"; };
 		A40000000000000000000005 /* Tests */ = {isa = PBXGroup; children = (A20000000000000000000003 /* AgentProtocolTests.swift */, A20000000000000000000014 /* AgentClientServerTests.swift */, A20000000000000000000010 /* PeerIdentityVerifierTests.swift */, A20000000000000000000017 /* ProjectionStoreTests.swift */, A2000000000000000000001B /* MatchingEngineTests.swift */,); path = Tests; sourceTree = "<group>"; };
 		A40000000000000000000006 /* Frameworks */ = {isa = PBXGroup; children = (A2000000000000000000000D /* AuthenticationServices.framework */, A20000000000000000000013 /* Security.framework */, A20000000000000000000016 /* libbsm.tbd */,); name = Frameworks; sourceTree = "<group>"; };
@@ -101,9 +104,9 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A70000000000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000022 /* AppPresets.json in Agent Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A70000000000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000022 /* AppPresets.json in Agent Resources */, A10000000000000000000024 /* DomainMatchRules.json in Agent Resources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A70000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		A70000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000023 /* AppPresets.json in Test Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A70000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000023 /* AppPresets.json in Test Resources */, A10000000000000000000025 /* DomainMatchRules.json in Test Resources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */

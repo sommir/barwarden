@@ -10,7 +10,7 @@ export interface AutoFillHistoryProjection {
   readonly contextKey: string;
   readonly cipherId: string;
   readonly successfulSelectionCount: number;
-  readonly lastSelectedAt: string;
+  readonly lastSelectedAt: number;
 }
 
 export interface AutoFillMatchingProjection {
@@ -34,6 +34,7 @@ export class AutoFillBindingsService {
   readonly changes$ = this.changesSubject.asObservable();
   private readonly bindings = new Map<string, Map<string, string>>();
   private readonly history = new Map<string, Map<string, AutoFillHistoryProjection>>();
+  private readonly lastUsedAt = new Map<string, Map<string, number>>();
 
   bind(accountId: string, bundleId: string, cipherId: string): void {
     const account = required(accountId);
@@ -59,8 +60,12 @@ export class AutoFillBindingsService {
     if (!selection.explicitUserAction || !selection.succeeded) return;
     const account = required(selection.accountId);
     const cipherId = required(selection.cipherId);
-    const selectedAt = required(selection.selectedAt);
-    if (Number.isNaN(Date.parse(selectedAt))) throw new Error("invalid selection timestamp");
+    const selectedAtText = required(selection.selectedAt);
+    if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(selectedAtText)) {
+      throw new Error("invalid selection timestamp");
+    }
+    const selectedAt = Date.parse(selectedAtText);
+    if (!Number.isFinite(selectedAt) || selectedAt <= 0) throw new Error("invalid selection timestamp");
     const contextKey = matchingContextKey(selection.bundleId, selection.serviceIdentifiers);
     const key = `${contextKey}\u0000${cipherId}`;
     const scoped = this.history.get(account) ?? new Map<string, AutoFillHistoryProjection>();
@@ -74,7 +79,14 @@ export class AutoFillBindingsService {
         : selectedAt,
     });
     this.history.set(account, scoped);
+    const recent = this.lastUsedAt.get(account) ?? new Map<string, number>();
+    recent.set(cipherId, Math.max(recent.get(cipherId) ?? 0, selectedAt));
+    this.lastUsedAt.set(account, recent);
     this.changesSubject.next();
+  }
+
+  lastUsedAtFor(accountId: string, cipherId: string): number | undefined {
+    return this.lastUsedAt.get(required(accountId))?.get(required(cipherId));
   }
 
   snapshot(accountId: string): AutoFillMatchingProjection {
@@ -91,6 +103,7 @@ export class AutoFillBindingsService {
     const account = required(accountId);
     this.bindings.delete(account);
     this.history.delete(account);
+    this.lastUsedAt.delete(account);
     this.changesSubject.next();
   }
 
@@ -98,6 +111,7 @@ export class AutoFillBindingsService {
     const account = required(accountId);
     this.bindings.delete(account);
     this.history.delete(account);
+    this.lastUsedAt.delete(account);
   }
 }
 

@@ -1,0 +1,14 @@
+{
+  "sourceRevision": "e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20",
+  "license": "MPL-2.0",
+  "allowedRegistrableDomains": [
+    "github.com",
+    "slack.com"
+  ],
+  "privateSuffixes": [
+    "github.io",
+    "pages.dev",
+    "vercel.app",
+    "appspot.com"
+  ]
+}

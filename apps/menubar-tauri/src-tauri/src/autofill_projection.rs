@@ -6,6 +6,7 @@ use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::fs::{self, File};
 use std::io::Write;
@@ -27,7 +28,7 @@ const HEADER_BYTES: usize = MAGIC.len() + 2 + NONCE_BYTES;
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AutoFillUri {
     pub uri: String,
-    pub match_type: String,
+    pub match_type: u8,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Zeroize)]
@@ -42,7 +43,7 @@ pub struct AutoFillLogin {
     pub favorite: bool,
     pub reprompt: bool,
     #[serde(default)]
-    pub last_used_at: Option<String>,
+    pub last_used_at: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Zeroize)]
@@ -58,7 +59,7 @@ pub struct AutoFillHistory {
     pub context_key: String,
     pub cipher_id: String,
     pub successful_selection_count: u32,
-    pub last_selected_at: String,
+    pub last_selected_at: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Zeroize)]
@@ -1276,18 +1277,55 @@ pub fn autofill_lock_projection(
 }
 
 fn validate_input(input: &AutoFillProjectionInput) -> Result<(), ProjectionError> {
+    let active_cipher_ids: HashSet<&str> = input
+        .logins
+        .iter()
+        .map(|login| login.cipher_id.as_str())
+        .collect();
+    let unique_logins = active_cipher_ids.len() == input.logins.len();
+    let unique_bindings = input
+        .bindings
+        .iter()
+        .map(|binding| binding.bundle_id.trim().to_ascii_lowercase())
+        .collect::<HashSet<_>>()
+        .len()
+        == input.bindings.len();
+    let unique_history = input
+        .history
+        .iter()
+        .map(|entry| {
+            (
+                entry.context_key.trim().to_ascii_lowercase(),
+                entry.cipher_id.as_str(),
+            )
+        })
+        .collect::<HashSet<_>>()
+        .len()
+        == input.history.len();
     if input.account_id.is_empty()
         || input.created_at.is_empty()
-        || input.logins.iter().any(|login| login.cipher_id.is_empty())
-        || input
-            .bindings
-            .iter()
-            .any(|binding| binding.bundle_id.is_empty() || binding.cipher_id.is_empty())
+        || !unique_logins
+        || !unique_bindings
+        || !unique_history
+        || input.logins.iter().any(|login| {
+            login.cipher_id.is_empty()
+                || login
+                    .uris
+                    .iter()
+                    .any(|uri| uri.uri.is_empty() || uri.match_type > 5)
+                || login.last_used_at == Some(0)
+        })
+        || input.bindings.iter().any(|binding| {
+            binding.bundle_id.trim().is_empty()
+                || binding.cipher_id.is_empty()
+                || !active_cipher_ids.contains(binding.cipher_id.as_str())
+        })
         || input.history.iter().any(|entry| {
             entry.context_key.is_empty()
                 || entry.cipher_id.is_empty()
                 || entry.successful_selection_count == 0
-                || entry.last_selected_at.is_empty()
+                || entry.last_selected_at == 0
+                || !active_cipher_ids.contains(entry.cipher_id.as_str())
         })
     {
         return Err(ProjectionError::InvalidInput);
@@ -1413,12 +1451,12 @@ mod tests {
                 password: "fixture-password-value".to_owned(),
                 uris: vec![AutoFillUri {
                     uri: "https://fixture.example.test/login".to_owned(),
-                    match_type: "default".to_owned(),
+                    match_type: 0,
                 }],
                 totp: "JBSWY3DPEHPK3PXP".to_owned(),
                 favorite: true,
                 reprompt: false,
-                last_used_at: Some("2026-08-08T00:00:00Z".to_owned()),
+                last_used_at: Some(1_786_147_200_000),
             }],
             bindings: vec![],
             history: vec![],
@@ -1447,18 +1485,106 @@ mod tests {
                 "totp": "seed",
                 "favorite": false,
                 "reprompt": false,
-                "lastUsedAt": "2026-08-09T00:00:00Z"
+                "lastUsedAt": 1786233600000_u64
             }],
             "bindings": [{ "bundleId": "com.example.app", "cipherId": "cipher-a" }],
             "history": [{
                 "contextKey": "app:com.example.app",
                 "cipherId": "cipher-a",
                 "successfulSelectionCount": 2,
-                "lastSelectedAt": "2026-08-09T00:00:00Z"
+                "lastSelectedAt": 1786233600000_u64
             }]
         });
 
-        assert!(serde_json::from_value::<AutoFillProjectionInput>(json).is_ok());
+        let decoded = serde_json::from_value::<AutoFillProjectionInput>(json).unwrap();
+        assert_eq!(decoded.logins[0].last_used_at, Some(1_786_233_600_000));
+        assert_eq!(decoded.history[0].last_selected_at, 1_786_233_600_000);
+        assert_eq!(validate_input(&decoded), Ok(()));
+    }
+
+    #[test]
+    fn uri_match_wire_accepts_only_the_six_numeric_bitwarden_values() {
+        let wire = |match_type: serde_json::Value| {
+            serde_json::json!({
+                "accountId": "account-a",
+                "createdAt": "2026-08-08T08:00:00Z",
+                "logins": [{
+                    "cipherId": "login-1", "name": "Example", "username": "person@example.test",
+                    "password": "secret", "uris": [{
+                        "uri": "https://example.test", "matchType": match_type
+                    }], "totp": "seed", "favorite": false, "reprompt": false
+                }],
+                "bindings": [], "history": []
+            })
+        };
+        for match_type in 0_u8..=5 {
+            let decoded = serde_json::from_value::<AutoFillProjectionInput>(wire(
+                serde_json::json!(match_type),
+            ))
+            .unwrap();
+            assert_eq!(validate_input(&decoded), Ok(()));
+        }
+
+        assert_eq!(
+            validate_input(&serde_json::from_value(wire(serde_json::json!(6))).unwrap()),
+            Err(ProjectionError::InvalidInput)
+        );
+
+        assert!(
+            serde_json::from_value::<AutoFillProjectionInput>(wire(serde_json::json!("default")))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_duplicate_or_dangling_matching_metadata_as_one_projection() {
+        let mut duplicate_login = input("account-a", 1);
+        duplicate_login
+            .logins
+            .push(duplicate_login.logins[0].clone());
+        assert_eq!(
+            validate_input(&duplicate_login),
+            Err(ProjectionError::InvalidInput)
+        );
+
+        let mut duplicate_bundle = input("account-a", 1);
+        duplicate_bundle.bindings = vec![
+            AutoFillBinding {
+                bundle_id: "COM.Example.App".into(),
+                cipher_id: "login-1".into(),
+            },
+            AutoFillBinding {
+                bundle_id: "com.example.app".into(),
+                cipher_id: "login-1".into(),
+            },
+        ];
+        assert_eq!(
+            validate_input(&duplicate_bundle),
+            Err(ProjectionError::InvalidInput)
+        );
+
+        let mut duplicate_history = input("account-a", 1);
+        let entry = AutoFillHistory {
+            context_key: "app:com.example.app".into(),
+            cipher_id: "login-1".into(),
+            successful_selection_count: 1,
+            last_selected_at: 1_786_233_600_000,
+        };
+        duplicate_history.history = vec![entry.clone(), entry];
+        assert_eq!(
+            validate_input(&duplicate_history),
+            Err(ProjectionError::InvalidInput)
+        );
+
+        let mut dangling = input("account-a", 1);
+        dangling.bindings = vec![AutoFillBinding {
+            bundle_id: "com.example.app".into(),
+            cipher_id: "deleted-cipher".into(),
+        }];
+        assert_eq!(
+            validate_input(&dangling),
+            Err(ProjectionError::InvalidInput)
+        );
     }
 
     #[test]

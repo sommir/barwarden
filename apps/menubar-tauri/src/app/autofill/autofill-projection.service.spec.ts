@@ -49,13 +49,12 @@ describe("AutoFillProjectionService", () => {
         username: "ops@example.com",
         password: "correct-horse-demo",
         uris: [
-          { uri: "https://github.com", matchType: "default" },
-          { uri: "https://gist.github.com", matchType: "default" },
+          { uri: "https://github.com", matchType: 0 },
+          { uri: "https://gist.github.com", matchType: 0 },
         ],
         totp: "123456",
         favorite: true,
         reprompt: false,
-        lastUsedAt: login.revisionDate,
       }],
       bindings: [],
       history: [],
@@ -72,6 +71,32 @@ describe("AutoFillProjectionService", () => {
     ]) {
       expect(wire).not.toContain(forbidden);
     }
+    fixture.service.destroy();
+  });
+
+  it("canonicalizes every Bitwarden URI match value to the numeric projection wire enum", async () => {
+    const fixture = createFixture();
+    const login = {
+      ...demoVaultItems[0],
+      uris: [
+        { id: "domain", uri: "https://domain.example", matchType: "0" },
+        { id: "host", uri: "https://host.example", matchType: "1" },
+        { id: "starts", uri: "https://starts.example/path", matchType: "2" },
+        { id: "exact", uri: "https://exact.example/path", matchType: "3" },
+        { id: "regex", uri: "^https://regex\\.example$", matchType: "4" },
+        { id: "never", uri: "https://never.example", matchType: "5" },
+        { id: "default", uri: "https://default.example", matchType: "default" },
+        { id: "future", uri: "https://future.example", matchType: "99" },
+      ],
+    };
+
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([login]);
+    await fixture.service.settled();
+
+    expect(fixture.host.replacements[0].logins[0].uris.map((uri) => uri.matchType))
+      .toEqual([0, 1, 2, 3, 4, 5, 0, 5]);
     fixture.service.destroy();
   });
 
@@ -106,6 +131,31 @@ describe("AutoFillProjectionService", () => {
     expect(fixture.host.replacements[1].bindings).toEqual([
       { bundleId: "com.example.app", cipherId: "github" },
     ]);
+    fixture.service.destroy();
+  });
+
+  it("projects recent usage from the explicit successful selection timestamp, never revisionDate", async () => {
+    const matching = new AutoFillBindingsService();
+    const fixture = createFixture(new RecordingProjectionHost(), matching);
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([{ ...demoVaultItems[0], revisionDate: "2099-01-01T00:00:00Z" }]);
+    await fixture.service.settled();
+
+    expect(fixture.host.replacements[0].logins[0].lastUsedAt).toBeUndefined();
+    matching.recordSuccessfulSelection({
+      accountId,
+      bundleId: "com.example.app",
+      serviceIdentifiers: [],
+      cipherId: "github",
+      selectedAt: "2026-08-09T00:00:00+00:00",
+      explicitUserAction: true,
+      succeeded: true,
+    });
+    await fixture.service.settled();
+
+    expect(fixture.host.replacements[1].logins[0].lastUsedAt).toBe(1_786_233_600_000);
+    expect(fixture.host.replacements[1].history[0].lastSelectedAt).toBe(1_786_233_600_000);
     fixture.service.destroy();
   });
 

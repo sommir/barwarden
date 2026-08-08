@@ -1,9 +1,18 @@
 import CryptoKit
 import Foundation
 
+enum AutoFillURIMatch: UInt8, Codable, Equatable {
+    case domain = 0
+    case host = 1
+    case startsWith = 2
+    case exact = 3
+    case regularExpression = 4
+    case never = 5
+}
+
 struct AutoFillURI: Codable, Equatable {
     let uri: String
-    let matchType: String
+    let matchType: AutoFillURIMatch
 
     private enum CodingKeys: String, CodingKey {
         case uri
@@ -20,7 +29,7 @@ struct AutoFillLogin: Codable, Equatable {
     let totp: String
     let favorite: Bool
     let reprompt: Bool
-    let lastUsedAt: String?
+    let lastUsedAt: Int64?
 
     private enum CodingKeys: String, CodingKey {
         case cipherID = "cipherId"
@@ -43,7 +52,7 @@ struct AutoFillLogin: Codable, Equatable {
         totp: String,
         favorite: Bool,
         reprompt: Bool,
-        lastUsedAt: String? = nil
+        lastUsedAt: Int64? = nil
     ) {
         self.cipherID = cipherID
         self.name = name
@@ -71,7 +80,7 @@ struct AutoFillHistory: Codable, Equatable {
     let contextKey: String
     let cipherID: String
     let successfulSelectionCount: UInt
-    let lastSelectedAt: String
+    let lastSelectedAt: Int64
 
     private enum CodingKeys: String, CodingKey {
         case contextKey
@@ -117,6 +126,45 @@ struct AutoFillProjection: Codable, Equatable {
         self.bindings = bindings
         self.history = history
     }
+
+    func validate() throws {
+        let activeCipherIDs = Set(logins.map(\.cipherID))
+        let normalizedBindings = bindings.map {
+            $0.bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+                .precomposedStringWithCanonicalMapping
+                .lowercased(with: Locale(identifier: "en_US_POSIX"))
+        }
+        let normalizedHistory = history.map {
+            let context = $0.contextKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                .precomposedStringWithCanonicalMapping
+                .lowercased(with: Locale(identifier: "en_US_POSIX"))
+            return "\(context)\u{0}\($0.cipherID)"
+        }
+        guard version == AutoFillProjectionEnvelope.formatVersion,
+              !accountID.isEmpty,
+              vaultRevision > 0,
+              !createdAt.isEmpty,
+              activeCipherIDs.count == logins.count,
+              normalizedBindings.count == Set(normalizedBindings).count,
+              normalizedHistory.count == Set(normalizedHistory).count,
+              logins.allSatisfy({ login in
+                  !login.cipherID.isEmpty
+                      && login.lastUsedAt.map { $0 > 0 } ?? true
+                      && login.uris.allSatisfy { !$0.uri.isEmpty }
+              }),
+              bindings.allSatisfy({ binding in
+                  !binding.bundleID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                      && activeCipherIDs.contains(binding.cipherID)
+              }),
+              history.allSatisfy({ entry in
+                  !entry.contextKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                      && entry.successfulSelectionCount > 0
+                      && activeCipherIDs.contains(entry.cipherID)
+                      && entry.lastSelectedAt > 0
+              }) else {
+            throw AgentProtocolError.corruptProjection
+        }
+    }
 }
 
 enum AutoFillProjectionEnvelope {
@@ -159,7 +207,9 @@ enum AutoFillProjectionEnvelope {
                     authenticating: header
                 )
                 defer { plaintext.resetBytes(in: plaintext.indices) }
-                return try JSONDecoder().decode(AutoFillProjection.self, from: plaintext)
+                let projection = try JSONDecoder().decode(AutoFillProjection.self, from: plaintext)
+                try projection.validate()
+                return projection
             }
         } catch {
             throw AgentProtocolError.corruptProjection

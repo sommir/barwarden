@@ -3,7 +3,7 @@
 - Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
-- Status: Task 5 implemented; awaiting review
+- Status: Task 5 security review fixes implemented; awaiting review
 - Baseline contract tests: 7 passed, 1 browser-release skip.
 - Baseline full regression: 3462 passed, 22 skipped (from prior Task 1 gate; only design/plan docs changed afterward).
 
@@ -65,11 +65,13 @@
 
 ## Task 5
 
-- Implementation: current change set, target commit `feat: rank native autofill candidates`.
+- Implementation: `cfd69762 feat: rank native autofill candidates`; security-review target commit `fix: harden native autofill candidate authorization`.
 - Candidate ordering: exact user binding/service/preset/URI-rule signals, relevant host/domain signals, then mismatch-confirmed fuzzy/history/favorite/recent/other candidates with stable tie-breaks.
 - All-Login search filters all active Login records by normalized query while current-context empty search remains contextual. Unicode/IDNA/confusable/public-suffix boundaries fail closed.
 - Candidate Agent responses contain display metadata and opaque cipher IDs only. The separate bounded, expiring, single-use release authorization contract validates account, generation, candidate, mismatch, and reprompt but does not release a Task 6 secret.
 - Account-scoped bindings and explicit-success history travel only inside the existing ChaCha20-Poly1305 projection and are cleared after account-projection deletion succeeds.
-- Focused verification: TypeScript 17 passed; Rust 28 passed; Swift 32 passed. Property coverage exercises 48 ordering permutations and secret-free serialization.
-- Full verification: TypeScript 3,484 passed/22 skipped; Rust 200 passed/4 ignored; Swift 72 passed; native project/wrapper 13 passed; production web build passed.
+- Security review fixes canonical numeric URI match values, schemeless exact URLs, host-safe startsWith, a pinned MPL-2.0 PSL/private-suffix fail-closed allowlist, malformed projection rejection, actual epoch usage time, and atomic ProjectionStore candidate authorization bound to revision/context/policy.
+- Deterministic race coverage proves provision cannot interleave query snapshot/issue and lock cannot interleave release revalidation/consume/operation; reprompt, URI, secret, and candidate deletion changes stale the token.
+- Focused verification: TypeScript 20 passed; Rust 30 passed; Swift 39 passed. Property coverage exercises 48 ordering permutations and secret-free serialization.
+- Full verification: TypeScript 3,487 passed/22 skipped; Rust 202 passed/4 ignored; Swift 83 passed; native project/wrapper 13 passed; production web build passed.
 - Production Tauri configuration and native entitlements remain unchanged.

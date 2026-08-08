@@ -104,7 +104,10 @@ final class ProjectionStore {
     private let clock: () -> TimeInterval
     private let onKeyZeroize: (() -> Void)?
     private let onVerifiedFileOpen: (() -> Void)?
+    private let onCandidateQuerySnapshot: (() -> Void)?
+    private let onSecretReleaseSnapshot: (() -> Void)?
     private let retiredGenerationCapacity: Int
+    private let candidateAuthorizations: CandidateAuthorizationStore
     private let lockState = NSLock()
     private let leaseTimerQueue = DispatchQueue(label: "com.bitwarden.menubar.autofill-projection-lease")
     private var lease: Lease?
@@ -116,6 +119,9 @@ final class ProjectionStore {
         clock: @escaping () -> TimeInterval = { Date().timeIntervalSince1970 },
         onKeyZeroize: (() -> Void)? = nil,
         onVerifiedFileOpen: (() -> Void)? = nil,
+        onCandidateQuerySnapshot: (() -> Void)? = nil,
+        onSecretReleaseSnapshot: (() -> Void)? = nil,
+        candidateAuthorizations: CandidateAuthorizationStore = CandidateAuthorizationStore(),
         retiredGenerationCapacity: Int = 4_096
     ) {
         precondition(retiredGenerationCapacity > 0)
@@ -125,6 +131,9 @@ final class ProjectionStore {
         self.clock = clock
         self.onKeyZeroize = onKeyZeroize
         self.onVerifiedFileOpen = onVerifiedFileOpen
+        self.onCandidateQuerySnapshot = onCandidateQuerySnapshot
+        self.onSecretReleaseSnapshot = onSecretReleaseSnapshot
+        self.candidateAuthorizations = candidateAuthorizations
         self.retiredGenerationCapacity = retiredGenerationCapacity
     }
 
@@ -133,6 +142,9 @@ final class ProjectionStore {
         clock: @escaping () -> TimeInterval = { Date().timeIntervalSince1970 },
         onKeyZeroize: (() -> Void)? = nil,
         onVerifiedFileOpen: (() -> Void)? = nil,
+        onCandidateQuerySnapshot: (() -> Void)? = nil,
+        onSecretReleaseSnapshot: (() -> Void)? = nil,
+        candidateAuthorizations: CandidateAuthorizationStore = CandidateAuthorizationStore(),
         retiredGenerationCapacity: Int = 4_096
     ) {
         precondition(retiredGenerationCapacity > 0)
@@ -142,6 +154,9 @@ final class ProjectionStore {
         self.clock = clock
         self.onKeyZeroize = onKeyZeroize
         self.onVerifiedFileOpen = onVerifiedFileOpen
+        self.onCandidateQuerySnapshot = onCandidateQuerySnapshot
+        self.onSecretReleaseSnapshot = onSecretReleaseSnapshot
+        self.candidateAuthorizations = candidateAuthorizations
         self.retiredGenerationCapacity = retiredGenerationCapacity
     }
 
@@ -202,6 +217,7 @@ final class ProjectionStore {
             inode: opened.inode,
             expiresAt: clock() + provision.leaseDurationSeconds
         )
+        candidateAuthorizations.clear()
         scheduleExpiration(
             generation: provision.generation,
             after: provision.leaseDurationSeconds
@@ -228,6 +244,96 @@ final class ProjectionStore {
     func read(accountID: String, generation: UUID) throws -> AutoFillProjection {
         lockState.lock()
         defer { lockState.unlock() }
+        return try currentProjection(accountID: accountID, generation: generation)
+    }
+
+    func queryCandidates(
+        accountID: String,
+        generation: UUID,
+        context: NativeAutoFillContext,
+        matchingEngine: MatchingEngine
+    ) throws -> CandidateResponsePayload {
+        lockState.lock()
+        defer { lockState.unlock() }
+        let projection = try currentProjection(accountID: accountID, generation: generation)
+        let candidates = matchingEngine.rank(
+            accountID: projection.accountID,
+            logins: projection.logins,
+            context: context,
+            bindings: projection.bindings.map {
+                UserAppBinding(
+                    accountID: projection.accountID,
+                    bundleID: $0.bundleID,
+                    cipherID: $0.cipherID
+                )
+            },
+            history: projection.history.map {
+                MatchingHistoryEntry(
+                    accountID: projection.accountID,
+                    contextKey: $0.contextKey,
+                    cipherID: $0.cipherID,
+                    successfulSelectionCount: $0.successfulSelectionCount,
+                    lastSelectedAt: $0.lastSelectedAt
+                )
+            }
+        )
+        let contextDigest = matchingEngine.authorizationContextDigest(context)
+        let policyDigest = matchingEngine.authorizationPolicyDigest(
+            projection: projection,
+            context: context
+        )
+        onCandidateQuerySnapshot?()
+        return try candidateAuthorizations.issue(
+            accountID: projection.accountID,
+            generation: generation,
+            vaultRevision: projection.vaultRevision,
+            context: context,
+            contextDigest: contextDigest,
+            policyDigest: policyDigest,
+            candidates: candidates,
+            logins: projection.logins
+        )
+    }
+
+    func withAuthorizedCandidate<T>(
+        _ request: SecretReleasePayload,
+        matchingEngine: MatchingEngine,
+        verifyRepromptGrant: CandidateAuthorizationStore.RepromptGrantVerifier,
+        operation: (AutoFillLogin) throws -> T
+    ) throws -> T {
+        lockState.lock()
+        defer { lockState.unlock() }
+        let projection = try currentProjection(
+            accountID: request.accountID,
+            generation: request.generation
+        )
+        let snapshot = try candidateAuthorizations.snapshot(for: request)
+        let contextDigest = matchingEngine.authorizationContextDigest(snapshot.context)
+        let policyDigest = matchingEngine.authorizationPolicyDigest(
+            projection: projection,
+            context: snapshot.context
+        )
+        guard snapshot.vaultRevision == projection.vaultRevision,
+              snapshot.contextDigest == contextDigest,
+              snapshot.policyDigest == policyDigest,
+              let login = projection.logins.first(where: { $0.cipherID == request.candidateID }) else {
+            throw AgentProtocolError.unauthorized
+        }
+        onSecretReleaseSnapshot?()
+        try candidateAuthorizations.validate(
+            request,
+            currentVaultRevision: projection.vaultRevision,
+            currentContextDigest: contextDigest,
+            currentPolicyDigest: policyDigest,
+            verifyRepromptGrant: verifyRepromptGrant
+        )
+        return try operation(login)
+    }
+
+    private func currentProjection(
+        accountID: String,
+        generation: UUID
+    ) throws -> AutoFillProjection {
         let current = try requireLease(generation: generation, accountID: accountID)
         let opened = try decrypt(
             name: current.projectionName,
@@ -290,6 +396,7 @@ final class ProjectionStore {
         }
         lease?.key.clear()
         lease = nil
+        candidateAuthorizations.clear()
     }
 
 

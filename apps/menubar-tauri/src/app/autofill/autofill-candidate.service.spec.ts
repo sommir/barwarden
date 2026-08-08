@@ -28,7 +28,7 @@ describe("AutoFillBindingsService", () => {
         contextKey: "app:com.example.app",
         cipherId: "cipher-a",
         successfulSelectionCount: 1,
-        lastSelectedAt: "2026-08-08T00:00:00Z",
+        lastSelectedAt: 1_786_147_200_000,
       }],
     });
     expect(bindings.bindingFor("account-b", "COM.EXAMPLE.APP")).toBe("cipher-b");
@@ -62,8 +62,21 @@ describe("AutoFillBindingsService", () => {
       contextKey: "app:com.example.app",
       cipherId: "cipher-a",
       successfulSelectionCount: 2,
-      lastSelectedAt: "2026-08-09T00:00:00Z",
+      lastSelectedAt: 1_786_233_600_000,
     }]);
+  });
+
+  it("rejects selection timestamps without an explicit UTC offset", () => {
+    const bindings = new AutoFillBindingsService();
+    expect(() => bindings.recordSuccessfulSelection({
+      accountId: "account-a",
+      bundleId: "com.example.app",
+      serviceIdentifiers: [],
+      cipherId: "cipher-a",
+      selectedAt: "2026-08-08T00:00:00",
+      explicitUserAction: true,
+      succeeded: true,
+    })).toThrow("invalid selection timestamp");
   });
 });
 
