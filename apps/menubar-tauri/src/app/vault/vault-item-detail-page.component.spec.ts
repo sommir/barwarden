@@ -514,7 +514,7 @@ describe("VaultItemDetailPageComponent", () => {
 
   it.each([
     ["card", "查看支付卡", "Visa 详细信息", ["Travel Ops", "04 / 2029"], "登录凭据"],
-    ["identity", "查看身份", "个人详细信息", ["Liu Jieren", "me@example.com", "+1 555 0100"], "登录凭据"],
+    ["identity", "查看身份", "个人详细信息", ["Example Person", "me@example.com", "+1 555 0100"], "登录凭据"],
     ["note", "查看笔记", "附加选项", ["plain"], "登录凭据"],
   ])(
     "renders typed detail sections for %s items",

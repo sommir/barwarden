@@ -330,7 +330,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault-demo.ts",
-      "sha256": "027d1c2aeaa043af9c1f4b9994436e77cc38553b88d301439b8fbf6410c2d43a"
+      "sha256": "3dffba1aa55b22058cbe9a193c866084e7561b81cc583cff3cb1364cbe51bf82"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/archive-page.component.ts",
