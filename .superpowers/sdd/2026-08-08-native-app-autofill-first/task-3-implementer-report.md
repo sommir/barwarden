@@ -44,6 +44,8 @@ The temporary Agent was stopped after each harness run and no socket or generate
 
 The review fix makes this evidence reproducible through repository entry `scripts/run-native-autofill-ipc-harness.sh` and its checked-in Swift client fixture. It skips by default. Explicit execution requires `RUN_SIGNED_AUTOFILL_IPC_HARNESS=1` plus `AUTOFILL_SIGNING_IDENTITY` naming a locally available Keychain identity. The script derives the repository location, uses only a private temporary directory, checks the public Team identifier, creates a fresh Agent/socket for each route, and deletes all temporary artifacts. It contains no identity name/hash, certificate path, key path, password, or other signing secret.
 
+The harness respects a caller-provided `DEVELOPER_DIR`. When it is absent, the script resolves it through the overridable `XCODE_SELECT` command, defaulting to `/usr/bin/xcode-select -p`. Opt-in execution validates both the macOS platform directory and that developer directory's executable `usr/bin/xcodebuild`, rejecting Command Line Tools or an incomplete selection with exit 78. The default non-opt-in path still skips before Xcode or signing-identity requirements.
+
 ## Review-fix TDD evidence
 
 - RED 1: focused Xcode compilation exited 65 because the new tests referenced absent audit-token credentials, bounded executor, replay capacity, and sanitized `request_capacity` APIs.
@@ -53,6 +55,8 @@ The review fix makes this evidence reproducible through repository entry `script
 - Focused behavior now covers header/payload drip-feed absolute timeout, unauthorized no-frame slowloris, backlog rejection without waiting, capacity recovery, a normal client completing beside an authorized slowloris, missing token, token/PID mismatch, PID-reuse seams, replay exhaustion, and preservation of old replay IDs.
 - Harness REDs were kept factual: the first repository-script run exited 141 because `pipefail` observed the signing-details producer's `SIGPIPE`; a later run showed the Swift fixture was not using the Debug socket override; and a third showed a Unix socket pathname exceeding `sockaddr_un`. Captured signing details, `-D DEBUG`, and short private socket names corrected the harness without weakening production behavior.
 - Final repository harness: Rust main success; Swift Credential Provider success; same-Team wrong-bundle fixed `unauthorized`; ad-hoc/no-Team fixed `unauthorized`; exit 0. Each route used a fresh Agent/socket.
+- Xcode-selection minor RED: the new behavioral script suite had one default pass and three expected failures because the harness overwrote explicit `DEVELOPER_DIR`, ignored `XCODE_SELECT`, and did not reject an incomplete developer directory before building.
+- Xcode-selection minor GREEN: 4/4 behavioral tests passed for default skip, explicit developer directory, overridable `xcode-select` fallback, and no-full-Xcode exit 78. Each opt-in test executed the real harness entry against a controlled external tool boundary and asserted which `xcodebuild` ran.
 
 ## Final verification
 
@@ -69,9 +73,10 @@ Review-fix final evidence supersedes the earlier counts where they differ:
 - Unauthorized close-race stress: the fixed-code client test and unauthorized no-frame slowloris test, 10 iterations — passed.
 - Rust: full `cargo test` — 170 passed, 0 failed, 4 ignored. The signed case remains explicitly ignored in default runs and is invoked by the opt-in harness.
 - Native project/wrapper: 13 passed, 0 failed.
-- Signed four-way repository harness: exit 0 with all four expected results.
+- Signed four-way repository harness: exit 0 with all four expected results, including the final rerun with caller-provided `DEVELOPER_DIR` after the Xcode-selection fix.
 - Full repository Vitest: 231 files passed, 2 skipped; 3,462 tests passed, 22 skipped.
 - `cargo fmt --check`, harness `bash -n`, default harness skip, `git diff --check`, and production Tauri config/entitlement no-diff checks passed.
+- Harness Xcode-selection suite: 4 passed, 0 failed; `bash -n` and default skip passed.
 
 ## Limitations and deferred work
 

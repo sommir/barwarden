@@ -13,8 +13,24 @@ fi
 
 SCRIPT_DIRECTORY="$(cd "$(dirname "$0")" && pwd)"
 REPOSITORY_ROOT="$(cd "$SCRIPT_DIRECTORY/.." && pwd)"
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+XCODE_SELECT="${XCODE_SELECT:-/usr/bin/xcode-select}"
+
+fail_with_code() {
+  local code="$1"
+  shift
+  echo "run-native-autofill-ipc-harness: $*" >&2
+  exit "$code"
+}
+
+if [[ -z "${DEVELOPER_DIR:-}" ]]; then
+  DEVELOPER_DIR="$($XCODE_SELECT -p 2>/dev/null)" ||
+    fail_with_code 78 "unable to select a full Xcode developer directory"
+fi
+if [[ ! -x "$DEVELOPER_DIR/usr/bin/xcodebuild" || ! -d "$DEVELOPER_DIR/Platforms/MacOSX.platform" ]]; then
+  fail_with_code 78 "DEVELOPER_DIR is not a full Xcode developer directory"
+fi
 export DEVELOPER_DIR
+XCODEBUILD="$DEVELOPER_DIR/usr/bin/xcodebuild"
 
 HARNESS_TEMP="$(mktemp -d "${TMPDIR:-/tmp}/barwarden-autofill-ipc.XXXXXX")"
 AGENT_PID=""
@@ -28,7 +44,7 @@ cleanup() {
 trap cleanup EXIT
 
 DERIVED_DATA="$HARNESS_TEMP/DerivedData"
-xcodebuild -quiet \
+"$XCODEBUILD" -quiet \
   -project "$REPOSITORY_ROOT/apps/macos-autofill/BarwardenAutoFill.xcodeproj" \
   -scheme BarwardenNativeAutoFill \
   -configuration Debug \
