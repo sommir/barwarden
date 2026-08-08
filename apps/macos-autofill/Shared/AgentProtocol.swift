@@ -50,9 +50,9 @@ final class ProjectionProvisionPayload: Codable, Equatable {
         generation = try container.decode(UUID.self, forKey: .generation)
         accountID = try container.decode(String.self, forKey: .accountID)
         vaultRevision = try container.decode(UInt64.self, forKey: .vaultRevision)
-        key = Data(try container.decode([UInt8].self, forKey: .key))
         leaseDurationSeconds = try container.decode(TimeInterval.self, forKey: .leaseDurationSeconds)
         projectionPath = try container.decodeIfPresent(String.self, forKey: .projectionPath)
+        key = try container.decode(Data.self, forKey: .key)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -60,7 +60,7 @@ final class ProjectionProvisionPayload: Codable, Equatable {
         try container.encode(generation, forKey: .generation)
         try container.encode(accountID, forKey: .accountID)
         try container.encode(vaultRevision, forKey: .vaultRevision)
-        try container.encode(Array(key), forKey: .key)
+        try container.encode(key, forKey: .key)
         try container.encode(leaseDurationSeconds, forKey: .leaseDurationSeconds)
         try container.encodeIfPresent(projectionPath, forKey: .projectionPath)
     }

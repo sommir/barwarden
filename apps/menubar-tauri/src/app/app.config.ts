@@ -45,6 +45,7 @@ import {
   POPUP_ROUTER_CACHE_ROUTE_GRAPH,
 } from "./platform/popup-router-cache.lifecycle";
 import { AutoFillProjectionService } from "./autofill/autofill-projection.service";
+import { AUTOFILL_PROJECTION_LIFECYCLE_PORT } from "./auth/autofill-projection-lifecycle.port";
 
 const evidenceSearch = globalThis.location?.search ?? "";
 const settingsEvidencePreview = createSettingsEvidencePreview(evidenceSearch);
@@ -60,6 +61,7 @@ export const appConfig: ApplicationConfig = {
     { provide: DialogService, useExisting: AppBottomSheetDialogService },
     OfficialI18nService,
     { provide: I18nService, useExisting: OfficialI18nService },
+    { provide: AUTOFILL_PROJECTION_LIFECYCLE_PORT, useExisting: AutoFillProjectionService },
     provideAppInitializer(() => {
       inject(SettingsService);
       inject(AutoFillProjectionService);

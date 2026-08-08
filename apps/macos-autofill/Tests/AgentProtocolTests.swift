@@ -52,6 +52,31 @@ final class AgentProtocolTests: XCTestCase {
         )
     }
 
+    func testProvisionKeyUsesOneBase64DataValueInsteadOfAnUnzeroizedByteArray() throws {
+        let key = Data((0..<32).map(UInt8.init))
+        let request = AgentRequest(
+            version: 1,
+            requestID: UUID(),
+            operation: .provision,
+            nonce: Data([1]),
+            projection: ProjectionProvisionPayload(
+                generation: UUID(),
+                accountID: "account-a",
+                vaultRevision: 1,
+                key: key,
+                leaseDurationSeconds: 30
+            )
+        )
+
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+        )
+        let projection = try XCTUnwrap(object["projection"] as? [String: Any])
+
+        XCTAssertEqual(projection["key"] as? String, key.base64EncodedString())
+        XCTAssertNil(projection["key"] as? [UInt8])
+    }
+
     func testCredentialProviderRuntimeClassKeepsModuleQualification() {
         XCTAssertEqual(
             NSStringFromClass(CredentialProviderViewController.self),

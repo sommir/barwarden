@@ -77,6 +77,42 @@ describe("AuthFacade", () => {
     ]);
   });
 
+  it("invalidates and locks projection state before persisting a selected account", async () => {
+    const events: string[] = [];
+    const current = storedAccount("current", "current@example.com", true);
+    const target = { ...storedAccount("target", "target@example.com", false), status: "locked" as const };
+    const accountStore = accountPort({
+      setActive: async () => {
+        events.push("set-active-target");
+        return { ...target, isActive: true };
+      },
+      list: async () => [{ ...target, isActive: true }, { ...current, isActive: false }],
+    });
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => { events.push("projection-locked"); }),
+    };
+    const facade = new AuthFacade(
+      new PopupStateStore(), null, syncPort(), null, undefined, accountStore,
+      undefined, null, undefined, null, null, null, null, projectionLifecycle,
+    );
+
+    await facade.switchAccount(target.id);
+
+    expect(events).toEqual(["projection-locked", "set-active-target"]);
+  });
+
+  it("does not persist a selected account when projection lock cannot be acknowledged", async () => {
+    const setActive = vi.fn(async () => storedAccount("target", "target@example.com", true));
+    const facade = new AuthFacade(
+      new PopupStateStore(), null, syncPort(), null, undefined, accountPort({ setActive }),
+      undefined, null, undefined, null, null, null, null,
+      { invalidateAndLock: async () => { throw new Error("agent unavailable"); } },
+    );
+
+    await expect(facade.switchAccount("target")).rejects.toThrow("Unable to switch account");
+    expect(setActive).not.toHaveBeenCalled();
+  });
+
   it("broadcasts explicit lock without putting session credentials in the process event", async () => {
     const store = new PopupStateStore();
     const active = storedAccount("active", "active@example.com", true);

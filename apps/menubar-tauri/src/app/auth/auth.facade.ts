@@ -65,6 +65,10 @@ import {
   type UnlockMethodsPort,
 } from "./unlock-methods.port";
 import {
+  AUTOFILL_PROJECTION_LIFECYCLE_PORT,
+  type AutoFillProjectionLifecyclePort,
+} from "./autofill-projection-lifecycle.port";
+import {
   PROCESS_SESSION_BROKER,
   type ProcessSessionBrokerPort,
 } from "./process-session-broker.service";
@@ -238,6 +242,8 @@ export class AuthFacade {
     private readonly unlockMethods: UnlockMethodsPort | null = null,
     @Optional() @Inject(PROCESS_SESSION_BROKER)
     private readonly processSessionBroker: ProcessSessionBrokerPort | null = null,
+    @Optional() @Inject(AUTOFILL_PROJECTION_LIFECYCLE_PORT)
+    private readonly projectionLifecycle: AutoFillProjectionLifecyclePort | null = null,
   ) {
     this.loginTimeoutMs = loginTimeoutMs ?? DEFAULT_LOGIN_TIMEOUT_MS;
     this.lifecycleTimeoutMs = lifecycleTimeoutMs ?? DEFAULT_ACCOUNT_LIFECYCLE_TIMEOUT_MS;
@@ -1010,6 +1016,16 @@ export class AuthFacade {
   ): Promise<StoredAccount> {
     const accountStore = this.requireAccountStore();
     let selectedAccount: StoredAccount;
+    try {
+      await this.projectionLifecycle?.invalidateAndLock();
+      this.assertCurrentOperation(epoch);
+    } catch (error) {
+      if (this.inFlightSwitchEpoch === epoch) this.inFlightSwitchEpoch = null;
+      if (!this.isCurrentOperation(epoch)) throw new AccountOperationCancelledError();
+      this.store.restore(previousState);
+      this.surfaceLifecycleError("Unable to switch account", error);
+      throw new Error("Unable to switch account");
+    }
     try {
       selectedAccount = await this.trackAccountMutation(() => accountStore.setActive(id));
     } catch (error) {

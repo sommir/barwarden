@@ -5,10 +5,14 @@ use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::fs::{self, File, OpenOptions};
+use std::ffi::CString;
+use std::fs::{self, File};
 use std::io::Write;
-use std::os::unix::fs::OpenOptionsExt;
+use std::os::fd::{AsRawFd, FromRawFd};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -38,13 +42,18 @@ pub struct AutoFillLogin {
     pub reprompt: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Zeroize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AutoFillProjectionInput {
     pub account_id: String,
-    pub vault_revision: u64,
     pub created_at: String,
     pub logins: Vec<AutoFillLogin>,
+}
+
+impl Drop for AutoFillProjectionInput {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Zeroize)]
@@ -57,14 +66,14 @@ pub struct AutoFillProjection {
     pub logins: Vec<AutoFillLogin>,
 }
 
-impl From<AutoFillProjectionInput> for AutoFillProjection {
-    fn from(input: AutoFillProjectionInput) -> Self {
+impl AutoFillProjection {
+    fn take_from_input(input: &mut AutoFillProjectionInput, vault_revision: u64) -> Self {
         Self {
             version: FORMAT_VERSION,
-            account_id: input.account_id,
-            vault_revision: input.vault_revision,
-            created_at: input.created_at,
-            logins: input.logins,
+            account_id: std::mem::take(&mut input.account_id),
+            vault_revision,
+            created_at: std::mem::take(&mut input.created_at),
+            logins: std::mem::take(&mut input.logins),
         }
     }
 }
@@ -121,6 +130,236 @@ struct ProjectionState {
     path: PathBuf,
 }
 
+struct SecureDirectory {
+    requested_root: PathBuf,
+    root: PathBuf,
+    directory: File,
+}
+
+impl SecureDirectory {
+    fn open(root: &Path) -> Result<Self, ProjectionError> {
+        let existed = root.exists();
+        if !existed {
+            fs::create_dir_all(root).map_err(|_| ProjectionError::Io)?;
+            fs::set_permissions(root, fs::Permissions::from_mode(0o700))
+                .map_err(|_| ProjectionError::Io)?;
+        }
+        let metadata = fs::symlink_metadata(root).map_err(|_| ProjectionError::Io)?;
+        if metadata.file_type().is_symlink()
+            || !metadata.is_dir()
+            || metadata.uid() != unsafe { libc::geteuid() }
+            || metadata.mode() & 0o777 != 0o700
+        {
+            return Err(ProjectionError::Io);
+        }
+        let path = CString::new(root.as_os_str().as_bytes()).map_err(|_| ProjectionError::Io)?;
+        let fd = unsafe {
+            libc::open(
+                path.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            return Err(ProjectionError::Io);
+        }
+        let directory = unsafe { File::from_raw_fd(fd) };
+        let opened_metadata = directory.metadata().map_err(|_| ProjectionError::Io)?;
+        if opened_metadata.dev() != metadata.dev() || opened_metadata.ino() != metadata.ino() {
+            return Err(ProjectionError::Io);
+        }
+        let canonical = root.canonicalize().map_err(|_| ProjectionError::Io)?;
+        let result = Self {
+            requested_root: root.to_path_buf(),
+            root: canonical,
+            directory,
+        };
+        result.validate_directory()?;
+        Ok(result)
+    }
+
+    fn validate_directory(&self) -> Result<(), ProjectionError> {
+        let metadata = self.directory.metadata().map_err(|_| ProjectionError::Io)?;
+        if !secure_directory_metadata(&metadata, unsafe { libc::geteuid() }) {
+            return Err(ProjectionError::Io);
+        }
+        Ok(())
+    }
+
+    fn validate_path_binding(&self) -> Result<(), ProjectionError> {
+        let fd_metadata = self.directory.metadata().map_err(|_| ProjectionError::Io)?;
+        for path in [&self.requested_root, &self.root] {
+            let path_metadata = fs::symlink_metadata(path).map_err(|_| ProjectionError::Io)?;
+            if path_metadata.file_type().is_symlink()
+                || !secure_directory_metadata(&path_metadata, unsafe { libc::geteuid() })
+                || path_metadata.dev() != fd_metadata.dev()
+                || path_metadata.ino() != fd_metadata.ino()
+            {
+                return Err(ProjectionError::Io);
+            }
+        }
+        Ok(())
+    }
+
+    fn name(name: &str) -> Result<CString, ProjectionError> {
+        if name.is_empty() || name.contains('/') || name == "." || name == ".." {
+            return Err(ProjectionError::Io);
+        }
+        CString::new(name).map_err(|_| ProjectionError::Io)
+    }
+
+    fn create_file(&self, name: &str) -> Result<File, ProjectionError> {
+        let name = Self::name(name)?;
+        let fd = unsafe {
+            libc::openat(
+                self.directory.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0o600,
+            )
+        };
+        if fd < 0 {
+            return Err(ProjectionError::Io);
+        }
+        let file = unsafe { File::from_raw_fd(fd) };
+        let metadata = match file.metadata() {
+            Ok(metadata) => metadata,
+            Err(_) => {
+                drop(file);
+                let _ = unsafe { libc::unlinkat(self.directory.as_raw_fd(), name.as_ptr(), 0) };
+                return Err(ProjectionError::Io);
+            }
+        };
+        if !Self::valid_file_metadata(&metadata) {
+            drop(file);
+            let _ = unsafe { libc::unlinkat(self.directory.as_raw_fd(), name.as_ptr(), 0) };
+            return Err(ProjectionError::Io);
+        }
+        Ok(file)
+    }
+
+    fn validate_existing_file(&self, name: &str) -> Result<bool, ProjectionError> {
+        let name = Self::name(name)?;
+        let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+        let result = unsafe {
+            libc::fstatat(
+                self.directory.as_raw_fd(),
+                name.as_ptr(),
+                stat.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        if result < 0 {
+            if std::io::Error::last_os_error().raw_os_error() == Some(libc::ENOENT) {
+                return Ok(false);
+            }
+            return Err(ProjectionError::Io);
+        }
+        let stat = unsafe { stat.assume_init() };
+        if !secure_file_stat(stat.st_mode, stat.st_uid, stat.st_nlink, unsafe {
+            libc::geteuid()
+        }) {
+            return Err(ProjectionError::Io);
+        }
+        Ok(true)
+    }
+
+    fn valid_file_metadata(metadata: &fs::Metadata) -> bool {
+        metadata.is_file()
+            && metadata.uid() == unsafe { libc::geteuid() }
+            && metadata.mode() & 0o777 == 0o600
+            && metadata.nlink() == 1
+    }
+
+    fn rename(&self, old: &str, new: &str) -> Result<(), ProjectionError> {
+        let old = Self::name(old)?;
+        let new = Self::name(new)?;
+        let result = unsafe {
+            libc::renameat(
+                self.directory.as_raw_fd(),
+                old.as_ptr(),
+                self.directory.as_raw_fd(),
+                new.as_ptr(),
+            )
+        };
+        if result < 0 {
+            return Err(ProjectionError::Io);
+        }
+        Ok(())
+    }
+
+    fn remove(&self, name: &str) -> Result<bool, ProjectionError> {
+        if !self.validate_existing_file(name)? {
+            return Ok(false);
+        }
+        let name = Self::name(name)?;
+        if unsafe { libc::unlinkat(self.directory.as_raw_fd(), name.as_ptr(), 0) } < 0 {
+            return Err(ProjectionError::Io);
+        }
+        Ok(true)
+    }
+
+    fn sync(&self) -> Result<(), ProjectionError> {
+        self.directory.sync_all().map_err(|_| ProjectionError::Io)
+    }
+
+    fn path(&self, name: &str) -> PathBuf {
+        self.root.join(name)
+    }
+}
+
+fn secure_directory_metadata(metadata: &fs::Metadata, effective_uid: u32) -> bool {
+    metadata.is_dir() && metadata.uid() == effective_uid && metadata.mode() & 0o777 == 0o700
+}
+
+fn secure_file_stat(
+    mode: libc::mode_t,
+    uid: libc::uid_t,
+    nlink: libc::nlink_t,
+    effective_uid: u32,
+) -> bool {
+    mode & libc::S_IFMT == libc::S_IFREG
+        && uid == effective_uid
+        && mode & 0o777 == 0o600
+        && nlink == 1
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ReplaceStage {
+    AfterTempSync,
+    AfterBackupRename,
+    AfterFinalRename,
+    BeforeCleanupRemove,
+    BeforeCleanupDirectorySync,
+    DuringRollback,
+}
+
+#[cfg(not(test))]
+#[derive(Clone, Copy)]
+enum ReplaceStage {
+    AfterTempSync,
+    AfterBackupRename,
+    AfterFinalRename,
+    BeforeCleanupRemove,
+    BeforeCleanupDirectorySync,
+    DuringRollback,
+}
+
+fn rollback_replacement(
+    directory: &SecureDirectory,
+    final_name: &str,
+    backup_name: &str,
+    had_final: bool,
+    stage_hook: &mut impl FnMut(ReplaceStage) -> Result<(), ProjectionError>,
+) -> Result<(), ProjectionError> {
+    stage_hook(ReplaceStage::DuringRollback)?;
+    directory.remove(final_name)?;
+    if had_final {
+        directory.rename(backup_name, final_name)?;
+    }
+    directory.sync()
+}
+
 impl Drop for ProjectionState {
     fn drop(&mut self) {
         self.key.zeroize();
@@ -131,6 +370,9 @@ pub struct ProjectionManager<A: ProjectionAgent> {
     root: PathBuf,
     agent: std::sync::Arc<A>,
     state: Mutex<Option<ProjectionState>>,
+    pending_lock: AtomicBool,
+    pending_cleanup: Mutex<Vec<PathBuf>>,
+    pending_directory_sync: AtomicBool,
 }
 
 impl<A: ProjectionAgent> ProjectionManager<A> {
@@ -139,6 +381,9 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             root,
             agent,
             state: Mutex::new(None),
+            pending_lock: AtomicBool::new(false),
+            pending_cleanup: Mutex::new(Vec::new()),
+            pending_directory_sync: AtomicBool::new(false),
         }
     }
 
@@ -146,23 +391,38 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         &self,
         input: AutoFillProjectionInput,
     ) -> Result<ProjectionReceipt, ProjectionError> {
-        self.replace_with_hook(input, || Ok(()))
+        self.replace_with_hook(input, |_| Ok(()))
     }
 
     fn replace_with_hook(
         &self,
-        input: AutoFillProjectionInput,
-        after_temp_sync: impl FnOnce() -> Result<(), ProjectionError>,
+        mut input: AutoFillProjectionInput,
+        mut stage_hook: impl FnMut(ReplaceStage) -> Result<(), ProjectionError>,
     ) -> Result<ProjectionReceipt, ProjectionError> {
         validate_input(&input)?;
-        fs::create_dir_all(&self.root).map_err(|_| ProjectionError::Io)?;
+        let directory = SecureDirectory::open(&self.root)?;
         let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
+        if self.pending_lock.load(Ordering::SeqCst) {
+            self.agent.lock()?;
+            if let Some(previous) = state.take() {
+                self.remember_cleanup(previous.path.clone());
+            }
+            self.pending_lock.store(false, Ordering::SeqCst);
+        }
+        self.retry_pending_cleanup(&directory, &mut stage_hook)?;
         let same_account = state
             .as_ref()
             .is_some_and(|current| current.account_id == input.account_id);
-        if same_account && input.vault_revision <= state.as_ref().unwrap().vault_revision {
-            return Err(ProjectionError::StaleRevision);
-        }
+        let vault_revision = if same_account {
+            state
+                .as_ref()
+                .unwrap()
+                .vault_revision
+                .checked_add(1)
+                .ok_or(ProjectionError::InvalidInput)?
+        } else {
+            1
+        };
 
         let (generation, key) = if same_account {
             let current = state.as_ref().unwrap();
@@ -173,8 +433,7 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             (uuid::Uuid::new_v4().to_string(), Zeroizing::new(key))
         };
         let account_id = input.account_id.clone();
-        let vault_revision = input.vault_revision;
-        let mut projection = AutoFillProjection::from(input);
+        let mut projection = AutoFillProjection::take_from_input(&mut input, vault_revision);
         let mut plaintext = match serde_json::to_vec(&projection) {
             Ok(plaintext) => plaintext,
             Err(_) => {
@@ -186,29 +445,114 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         plaintext.zeroize();
         projection.zeroize();
         let encrypted = encrypted?;
-        let final_path = projection_path(&self.root, &account_id);
-        let temp_path = self
-            .root
-            .join(format!(".projection-{}.tmp", uuid::Uuid::new_v4()));
+        let final_name = projection_file_name(&account_id);
+        let final_path = directory.path(&final_name);
+        let temp_name = format!(".projection-{}.tmp", uuid::Uuid::new_v4());
+        let backup_name = format!(".projection-{}.bak", uuid::Uuid::new_v4());
+        let had_final = directory.validate_existing_file(&final_name)?;
+        let mut rollback_failed = false;
 
         let write_result = (|| {
-            let mut temp = OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .mode(0o600)
-                .open(&temp_path)
-                .map_err(|_| ProjectionError::Io)?;
+            let mut temp = directory.create_file(&temp_name)?;
             temp.write_all(&encrypted)
                 .map_err(|_| ProjectionError::Io)?;
             temp.sync_all().map_err(|_| ProjectionError::Io)?;
-            after_temp_sync()?;
-            fs::rename(&temp_path, &final_path).map_err(|_| ProjectionError::Io)?;
-            sync_directory(&self.root)?;
+            stage_hook(ReplaceStage::AfterTempSync)?;
+            if had_final {
+                directory.rename(&final_name, &backup_name)?;
+                if let Err(error) = stage_hook(ReplaceStage::AfterBackupRename) {
+                    rollback_failed = rollback_replacement(
+                        &directory,
+                        &final_name,
+                        &backup_name,
+                        had_final,
+                        &mut stage_hook,
+                    )
+                    .is_err();
+                    return Err(error);
+                }
+                if let Err(error) = directory.sync() {
+                    rollback_failed = rollback_replacement(
+                        &directory,
+                        &final_name,
+                        &backup_name,
+                        had_final,
+                        &mut stage_hook,
+                    )
+                    .is_err();
+                    return Err(error);
+                }
+            }
+            if let Err(error) = directory.rename(&temp_name, &final_name) {
+                if had_final {
+                    rollback_failed = rollback_replacement(
+                        &directory,
+                        &final_name,
+                        &backup_name,
+                        had_final,
+                        &mut stage_hook,
+                    )
+                    .is_err();
+                }
+                return Err(error);
+            }
+            if let Err(error) = stage_hook(ReplaceStage::AfterFinalRename) {
+                rollback_failed = rollback_replacement(
+                    &directory,
+                    &final_name,
+                    &backup_name,
+                    had_final,
+                    &mut stage_hook,
+                )
+                .is_err();
+                return Err(error);
+            }
+            if let Err(error) = directory.sync() {
+                rollback_failed = rollback_replacement(
+                    &directory,
+                    &final_name,
+                    &backup_name,
+                    had_final,
+                    &mut stage_hook,
+                )
+                .is_err();
+                return Err(error);
+            }
             Ok(())
         })();
         if write_result.is_err() {
-            let _ = fs::remove_file(&temp_path);
+            let _ = directory.remove(&temp_name);
+            let _ = directory.sync();
+            if rollback_failed {
+                self.pending_lock.store(true, Ordering::SeqCst);
+                if self.agent.lock().is_ok() {
+                    if let Some(previous) = state.take() {
+                        self.remember_cleanup(previous.path.clone());
+                    }
+                    self.pending_lock.store(false, Ordering::SeqCst);
+                }
+            }
             return write_result.map(|_| unreachable!());
+        }
+        if let Err(error) = directory.validate_path_binding() {
+            if rollback_replacement(
+                &directory,
+                &final_name,
+                &backup_name,
+                had_final,
+                &mut stage_hook,
+            )
+            .is_err()
+            {
+                self.pending_lock.store(true, Ordering::SeqCst);
+                if self.agent.lock().is_ok() {
+                    if let Some(previous) = state.take() {
+                        self.remember_cleanup(previous.path.clone());
+                    }
+                    self.pending_lock.store(false, Ordering::SeqCst);
+                }
+            }
+            return Err(error);
         }
 
         let provision = ProjectionProvision {
@@ -220,19 +564,24 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             projection_path: final_path.clone(),
         };
         if let Err(error) = self.agent.provision(provision) {
-            let _ = fs::remove_file(&final_path);
-            let _ = sync_directory(&self.root);
-            *state = None;
-            let _ = self.agent.lock();
-            return Err(error);
+            let rollback = (|| {
+                directory.remove(&final_name)?;
+                if had_final {
+                    directory.rename(&backup_name, &final_name)?;
+                }
+                directory.sync()
+            })();
+            self.pending_lock.store(true, Ordering::SeqCst);
+            if self.agent.lock().is_ok() {
+                if let Some(previous) = state.take() {
+                    self.remember_cleanup(previous.path.clone());
+                }
+                self.pending_lock.store(false, Ordering::SeqCst);
+            }
+            return Err(rollback.err().unwrap_or(error));
         }
 
-        if let Some(previous) = state.as_ref() {
-            if previous.path != final_path {
-                fs::remove_file(&previous.path).map_err(|_| ProjectionError::Io)?;
-                sync_directory(&self.root)?;
-            }
-        }
+        let previous_path = state.as_ref().map(|previous| previous.path.clone());
         *state = Some(ProjectionState {
             account_id,
             generation: generation.clone(),
@@ -240,6 +589,17 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             key: *key,
             path: final_path.clone(),
         });
+        if had_final {
+            self.remember_cleanup(directory.path(&backup_name));
+        }
+        if let Some(previous_path) = previous_path {
+            if previous_path != final_path {
+                self.remember_cleanup(previous_path);
+            }
+        }
+        if stage_hook(ReplaceStage::BeforeCleanupRemove).is_ok() {
+            let _ = self.retry_pending_cleanup(&directory, &mut stage_hook);
+        }
         Ok(ProjectionReceipt {
             path: final_path,
             generation,
@@ -247,33 +607,130 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         })
     }
 
+    fn remember_cleanup(&self, path: PathBuf) {
+        if let Ok(mut pending) = self.pending_cleanup.lock() {
+            if !pending.contains(&path) {
+                pending.push(path);
+            }
+        }
+    }
+
+    fn retry_pending_cleanup(
+        &self,
+        directory: &SecureDirectory,
+        stage_hook: &mut impl FnMut(ReplaceStage) -> Result<(), ProjectionError>,
+    ) -> Result<(), ProjectionError> {
+        if self.pending_directory_sync.load(Ordering::SeqCst) {
+            stage_hook(ReplaceStage::BeforeCleanupDirectorySync)?;
+            directory.sync()?;
+            self.pending_directory_sync.store(false, Ordering::SeqCst);
+        }
+        let mut pending = self
+            .pending_cleanup
+            .lock()
+            .map_err(|_| ProjectionError::Io)?;
+        let mut retained = Vec::new();
+        let mut removed_any = false;
+        for path in pending.drain(..) {
+            let contained = path.parent() == Some(directory.root.as_path());
+            let name = path.file_name().and_then(|name| name.to_str());
+            if !contained || name.is_none() {
+                retained.push(path);
+                continue;
+            }
+            match directory.remove(name.unwrap()) {
+                Ok(removed) => removed_any |= removed,
+                Err(_) => retained.push(path),
+            }
+        }
+        *pending = retained;
+        if removed_any {
+            if let Err(error) =
+                stage_hook(ReplaceStage::BeforeCleanupDirectorySync).and_then(|_| directory.sync())
+            {
+                self.pending_directory_sync.store(true, Ordering::SeqCst);
+                return Err(error);
+            }
+        }
+        if pending.is_empty() {
+            Ok(())
+        } else {
+            Err(ProjectionError::Io)
+        }
+    }
+
     pub fn clear(&self, account_id: &str) -> Result<(), ProjectionError> {
         if account_id.is_empty() {
             return Err(ProjectionError::InvalidInput);
         }
         let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
-        let path = projection_path(&self.root, account_id);
-        if path.exists() {
-            fs::remove_file(&path).map_err(|_| ProjectionError::Io)?;
-            sync_directory(&self.root)?;
-        }
-        if state
+        let directory = SecureDirectory::open(&self.root)?;
+        let name = projection_file_name(account_id);
+        let is_active = state
             .as_ref()
-            .is_some_and(|current| current.account_id == account_id)
-        {
-            *state = None;
-            self.agent.lock()?;
+            .is_some_and(|current| current.account_id == account_id);
+        if is_active {
+            self.pending_lock.store(true, Ordering::SeqCst);
         }
-        Ok(())
+        let disk_result = (|| {
+            if directory.remove(&name)? {
+                directory.sync()?;
+            }
+            Ok(())
+        })();
+        if is_active {
+            let lock_result = self.agent.lock();
+            if lock_result.is_err() {
+                return lock_result;
+            }
+            if let Some(previous) = state.take() {
+                if previous.path != directory.path(&name) {
+                    self.remember_cleanup(previous.path.clone());
+                }
+            }
+            self.pending_lock.store(false, Ordering::SeqCst);
+        }
+        disk_result
     }
 
     pub fn lock(&self) -> Result<(), ProjectionError> {
-        *self.state.lock().map_err(|_| ProjectionError::Io)? = None;
-        self.agent.lock()
+        let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
+        self.pending_lock.store(true, Ordering::SeqCst);
+        let disk_result = if let Some(current) = state.as_ref() {
+            (|| {
+                let directory = SecureDirectory::open(&self.root)?;
+                let name = current
+                    .path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .ok_or(ProjectionError::Io)?;
+                if directory.remove(name)? {
+                    directory.sync()?;
+                }
+                Ok(())
+            })()
+        } else {
+            Ok(())
+        };
+        self.agent.lock()?;
+        if let Some(previous) = state.take() {
+            self.remember_cleanup(previous.path.clone());
+        }
+        self.pending_lock.store(false, Ordering::SeqCst);
+        disk_result
     }
 
     pub fn renew_lease(&self) -> Result<(), ProjectionError> {
-        let state = self.state.lock().map_err(|_| ProjectionError::Io)?;
+        let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
+        if self.pending_lock.load(Ordering::SeqCst) {
+            self.agent.lock()?;
+            if let Some(previous) = state.take() {
+                self.remember_cleanup(previous.path.clone());
+            }
+            self.pending_lock.store(false, Ordering::SeqCst);
+        }
+        let directory = SecureDirectory::open(&self.root)?;
+        self.retry_pending_cleanup(&directory, &mut |_| Ok(()))?;
         if let Some(current) = state.as_ref() {
             self.agent
                 .renew(&current.generation, &current.account_id, 30)?;
@@ -286,7 +743,13 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         &self,
         input: AutoFillProjectionInput,
     ) -> Result<ProjectionReceipt, ProjectionError> {
-        self.replace_with_hook(input, || Err(ProjectionError::Interrupted))
+        self.replace_with_hook(input, |stage| {
+            if stage == ReplaceStage::AfterTempSync {
+                Err(ProjectionError::Interrupted)
+            } else {
+                Ok(())
+            }
+        })
     }
 }
 
@@ -381,8 +844,11 @@ fn command_error(error: ProjectionError) -> &'static str {
 pub fn autofill_replace_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
     input: AutoFillProjectionInput,
-) -> Result<(), &'static str> {
-    manager.replace(input).map(|_| ()).map_err(command_error)
+) -> Result<u64, &'static str> {
+    manager
+        .replace(input)
+        .map(|receipt| receipt.vault_revision)
+        .map_err(command_error)
 }
 
 #[tauri::command]
@@ -402,7 +868,6 @@ pub fn autofill_lock_projection(
 
 fn validate_input(input: &AutoFillProjectionInput) -> Result<(), ProjectionError> {
     if input.account_id.is_empty()
-        || input.vault_revision == 0
         || input.created_at.is_empty()
         || input.logins.iter().any(|login| login.cipher_id.is_empty())
     {
@@ -412,8 +877,12 @@ fn validate_input(input: &AutoFillProjectionInput) -> Result<(), ProjectionError
 }
 
 fn projection_path(root: &Path, account_id: &str) -> PathBuf {
+    root.join(projection_file_name(account_id))
+}
+
+fn projection_file_name(account_id: &str) -> String {
     let digest = Sha256::digest(account_id.as_bytes());
-    root.join(format!("projection-{digest:x}.bwaf"))
+    format!("projection-{digest:x}.bwaf")
 }
 
 fn encrypt_projection(plaintext: &[u8], key: &[u8; KEY_BYTES]) -> Result<Vec<u8>, ProjectionError> {
@@ -469,12 +938,6 @@ pub fn decrypt_projection(
     projection
 }
 
-fn sync_directory(path: &Path) -> Result<(), ProjectionError> {
-    File::open(path)
-        .and_then(|directory| directory.sync_all())
-        .map_err(|_| ProjectionError::Io)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -487,7 +950,9 @@ mod tests {
     struct RecordingAgent {
         provisions: Mutex<Vec<ProjectionProvision>>,
         fail: AtomicBool,
+        fail_lock: AtomicBool,
         locks: AtomicUsize,
+        renewals: AtomicUsize,
     }
 
     impl ProjectionAgent for RecordingAgent {
@@ -501,6 +966,9 @@ mod tests {
 
         fn lock(&self) -> Result<(), ProjectionError> {
             self.locks.fetch_add(1, Ordering::SeqCst);
+            if self.fail_lock.load(Ordering::SeqCst) {
+                return Err(ProjectionError::AgentUnavailable);
+            }
             Ok(())
         }
 
@@ -510,14 +978,14 @@ mod tests {
             _account_id: &str,
             _lease_seconds: u64,
         ) -> Result<(), ProjectionError> {
+            self.renewals.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
     }
 
-    fn input(account_id: &str, revision: u64) -> AutoFillProjectionInput {
+    fn input(account_id: &str, _revision: u64) -> AutoFillProjectionInput {
         AutoFillProjectionInput {
             account_id: account_id.to_owned(),
-            vault_revision: revision,
             created_at: "2026-08-08T08:00:00.000Z".to_owned(),
             logins: vec![AutoFillLogin {
                 cipher_id: "login-1".to_owned(),
@@ -539,6 +1007,7 @@ mod tests {
         let path =
             std::env::temp_dir().join(format!("barwarden-projection-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&path).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
         path
     }
 
@@ -554,7 +1023,7 @@ mod tests {
         let decoded = decrypt_projection(&bytes, &provisions[0].key).unwrap();
 
         assert_eq!(decoded.account_id, "account-a");
-        assert_eq!(decoded.vault_revision, 7);
+        assert_eq!(decoded.vault_revision, 1);
         assert_eq!(decoded.logins.len(), 1);
         assert_eq!(
             fs::metadata(&receipt.path).unwrap().permissions().mode() & 0o777,
@@ -590,18 +1059,84 @@ mod tests {
     }
 
     #[test]
-    fn stale_revision_never_replaces_current_projection() {
+    fn callers_cannot_force_or_replay_a_revision() {
         let root = temporary_directory();
         let agent = Arc::new(RecordingAgent::default());
         let manager = ProjectionManager::new(root.clone(), agent);
         let current = manager.replace(input("account-a", 9)).unwrap();
-        let before = fs::read(&current.path).unwrap();
+        let next = manager.replace(input("account-a", 1)).unwrap();
 
-        assert_eq!(
-            manager.replace(input("account-a", 8)),
-            Err(ProjectionError::StaleRevision)
+        assert_eq!(current.vault_revision, 1);
+        assert_eq!(next.vault_revision, 2);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn native_writer_allocates_revision_in_one_shared_mutex() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent);
+
+        let first = manager.replace(input("account-a", 99)).unwrap();
+        let second = manager.replace(input("account-a", 100)).unwrap();
+
+        assert_eq!(first.vault_revision, 1);
+        assert_eq!(second.vault_revision, 2);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn multiple_windows_share_one_monotonic_native_revision_allocator() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = Arc::new(ProjectionManager::new(root.clone(), agent));
+        let start = Arc::new(std::sync::Barrier::new(8));
+        let mut workers = Vec::new();
+        for _ in 0..8 {
+            let manager = manager.clone();
+            let start = start.clone();
+            workers.push(std::thread::spawn(move || {
+                start.wait();
+                manager
+                    .replace(input("account-a", 1))
+                    .unwrap()
+                    .vault_revision
+            }));
+        }
+        let mut revisions: Vec<_> = workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap())
+            .collect();
+        revisions.sort_unstable();
+
+        assert_eq!(revisions, (1..=8).collect::<Vec<_>>());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_lock_retains_pending_state_stops_renewal_and_retries_to_acknowledgement() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        let receipt = manager.replace(input("account-a", 1)).unwrap();
+        agent.fail_lock.store(true, Ordering::SeqCst);
+
+        assert_eq!(manager.lock(), Err(ProjectionError::AgentUnavailable));
+        assert!(manager.state.lock().unwrap().is_some());
+        assert!(
+            !receipt.path.exists(),
+            "deleting the ciphertext revokes reads even before IPC recovers"
         );
-        assert_eq!(fs::read(current.path).unwrap(), before);
+        assert_eq!(
+            manager.renew_lease(),
+            Err(ProjectionError::AgentUnavailable)
+        );
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 0);
+
+        agent.fail_lock.store(false, Ordering::SeqCst);
+        manager.renew_lease().unwrap();
+        assert!(manager.state.lock().unwrap().is_none());
+        assert_eq!(agent.locks.load(Ordering::SeqCst), 3);
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -665,10 +1200,266 @@ mod tests {
             manager.replace(input("account-a", 2)),
             Err(ProjectionError::AgentUnavailable),
         );
-        assert!(!current.path.exists());
+        assert!(current.path.exists());
+        let provisions = agent.provisions.lock().unwrap();
+        let restored =
+            decrypt_projection(&fs::read(&current.path).unwrap(), &provisions[0].key).unwrap();
+        assert_eq!(restored.vault_revision, 1);
+        drop(provisions);
         assert!(manager.state.lock().unwrap().is_none());
         assert_eq!(agent.locks.load(Ordering::SeqCst), 1);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_a_symlink_root_instead_of_following_it() {
+        let container = temporary_directory();
+        let actual = container.join("actual");
+        fs::create_dir(&actual).unwrap();
+        fs::set_permissions(&actual, fs::Permissions::from_mode(0o700)).unwrap();
+        let link = container.join("root-link");
+        std::os::unix::fs::symlink(&actual, &link).unwrap();
+        let manager = ProjectionManager::new(link, Arc::new(RecordingAgent::default()));
+
+        assert_eq!(
+            manager.replace(input("account-a", 1)),
+            Err(ProjectionError::Io)
+        );
+        assert_eq!(fs::read_dir(actual).unwrap().count(), 0);
+        fs::remove_dir_all(container).unwrap();
+    }
+
+    #[test]
+    fn rejects_an_existing_projection_symlink_or_hardlink() {
+        for hardlink in [false, true] {
+            let root = temporary_directory();
+            let outside = root
+                .parent()
+                .unwrap()
+                .join(format!("outside-{}", uuid::Uuid::new_v4()));
+            fs::write(&outside, b"outside").unwrap();
+            fs::set_permissions(&outside, fs::Permissions::from_mode(0o600)).unwrap();
+            let final_path = projection_path(&root, "account-a");
+            if hardlink {
+                fs::hard_link(&outside, &final_path).unwrap();
+            } else {
+                std::os::unix::fs::symlink(&outside, &final_path).unwrap();
+            }
+            let manager = ProjectionManager::new(root.clone(), Arc::new(RecordingAgent::default()));
+
+            assert_eq!(
+                manager.replace(input("account-a", 1)),
+                Err(ProjectionError::Io)
+            );
+            assert_eq!(fs::read(&outside).unwrap(), b"outside");
+            fs::remove_dir_all(root).unwrap();
+            fs::remove_file(outside).unwrap();
+        }
+    }
+
+    #[test]
+    fn rejects_an_insecure_root_or_existing_file_mode() {
+        let root = temporary_directory();
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o755)).unwrap();
+        let manager = ProjectionManager::new(root.clone(), Arc::new(RecordingAgent::default()));
+        assert_eq!(
+            manager.replace(input("account-a", 1)),
+            Err(ProjectionError::Io)
+        );
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+
+        let final_path = projection_path(&root, "account-a");
+        fs::write(&final_path, b"old").unwrap();
+        fs::set_permissions(&final_path, fs::Permissions::from_mode(0o644)).unwrap();
+        let manager = ProjectionManager::new(root.clone(), Arc::new(RecordingAgent::default()));
+        assert_eq!(
+            manager.replace(input("account-a", 1)),
+            Err(ProjectionError::Io)
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rename_and_directory_commit_faults_restore_the_previous_projection() {
+        for fault in [
+            ReplaceStage::AfterBackupRename,
+            ReplaceStage::AfterFinalRename,
+        ] {
+            let root = temporary_directory();
+            let agent = Arc::new(RecordingAgent::default());
+            let manager = ProjectionManager::new(root.clone(), agent.clone());
+            let current = manager.replace(input("account-a", 1)).unwrap();
+            let before = fs::read(&current.path).unwrap();
+
+            assert_eq!(
+                manager.replace_with_hook(input("account-a", 2), |stage| {
+                    if stage == fault {
+                        Err(ProjectionError::Io)
+                    } else {
+                        Ok(())
+                    }
+                }),
+                Err(ProjectionError::Io)
+            );
+            assert_eq!(fs::read(&current.path).unwrap(), before);
+            assert_eq!(agent.provisions.lock().unwrap().len(), 1);
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
+    fn rollback_failure_revokes_the_agent_and_never_renews_uncertain_state() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        manager.replace(input("account-a", 1)).unwrap();
+        agent.fail_lock.store(true, Ordering::SeqCst);
+
+        assert_eq!(
+            manager.replace_with_hook(input("account-a", 2), |stage| {
+                if matches!(
+                    stage,
+                    ReplaceStage::AfterFinalRename | ReplaceStage::DuringRollback
+                ) {
+                    Err(ProjectionError::Io)
+                } else {
+                    Ok(())
+                }
+            }),
+            Err(ProjectionError::Io)
+        );
+        assert!(manager.pending_lock.load(Ordering::SeqCst));
+        assert_eq!(
+            manager.renew_lease(),
+            Err(ProjectionError::AgentUnavailable)
+        );
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 0);
+
+        agent.fail_lock.store(false, Ordering::SeqCst);
+        manager.renew_lease().unwrap();
+        assert!(manager.state.lock().unwrap().is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn committed_account_switch_cleanup_fault_is_recoverable_without_split_brain() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        let previous = manager.replace(input("account-a", 1)).unwrap();
+
+        let current = manager
+            .replace_with_hook(input("account-b", 1), |stage| {
+                if stage == ReplaceStage::BeforeCleanupRemove {
+                    Err(ProjectionError::Io)
+                } else {
+                    Ok(())
+                }
+            })
+            .unwrap();
+
+        assert!(previous.path.exists());
+        assert!(current.path.exists());
+        assert_eq!(
+            manager.state.lock().unwrap().as_ref().unwrap().account_id,
+            "account-b"
+        );
+        assert_eq!(
+            agent.provisions.lock().unwrap().last().unwrap().account_id,
+            "account-b"
+        );
+        manager.renew_lease().unwrap();
+        assert!(!previous.path.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cleanup_directory_sync_fault_is_recorded_and_retried() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent);
+        manager.replace(input("account-a", 1)).unwrap();
+
+        let receipt = manager
+            .replace_with_hook(input("account-b", 1), |stage| {
+                if stage == ReplaceStage::BeforeCleanupDirectorySync {
+                    Err(ProjectionError::Io)
+                } else {
+                    Ok(())
+                }
+            })
+            .unwrap();
+
+        assert!(receipt.path.exists());
+        assert!(manager.pending_directory_sync.load(Ordering::SeqCst));
+        manager.renew_lease().unwrap();
+        assert!(!manager.pending_directory_sync.load(Ordering::SeqCst));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn root_path_swap_before_commit_is_detected_and_never_provisions() {
+        let container = temporary_directory();
+        let root = container.join("root");
+        let moved = container.join("moved-root");
+        let outside = container.join("outside");
+        fs::create_dir(&root).unwrap();
+        fs::create_dir(&outside).unwrap();
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+        fs::set_permissions(&outside, fs::Permissions::from_mode(0o700)).unwrap();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+
+        assert_eq!(
+            manager.replace_with_hook(input("account-a", 1), |stage| {
+                if stage == ReplaceStage::AfterTempSync {
+                    fs::rename(&root, &moved).unwrap();
+                    std::os::unix::fs::symlink(&outside, &root).unwrap();
+                }
+                Ok(())
+            }),
+            Err(ProjectionError::Io)
+        );
+        assert_eq!(agent.provisions.lock().unwrap().len(), 0);
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+        fs::remove_file(&root).unwrap();
+        fs::rename(&moved, &root).unwrap();
+        fs::remove_dir_all(container).unwrap();
+    }
+
+    #[test]
+    fn temp_creation_is_0600_and_rejects_symlink_hardlink_or_directory() {
+        let root = temporary_directory();
+        let directory = SecureDirectory::open(&root).unwrap();
+        let outside = root
+            .parent()
+            .unwrap()
+            .join(format!("outside-{}", uuid::Uuid::new_v4()));
+        fs::write(&outside, b"outside").unwrap();
+        fs::set_permissions(&outside, fs::Permissions::from_mode(0o600)).unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("symlink.tmp")).unwrap();
+        fs::hard_link(&outside, root.join("hardlink.tmp")).unwrap();
+        fs::create_dir(root.join("directory.tmp")).unwrap();
+
+        assert!(matches!(
+            directory.create_file("symlink.tmp"),
+            Err(ProjectionError::Io)
+        ));
+        assert!(matches!(
+            directory.create_file("hardlink.tmp"),
+            Err(ProjectionError::Io)
+        ));
+        assert!(matches!(
+            directory.create_file("directory.tmp"),
+            Err(ProjectionError::Io)
+        ));
+        let secure = directory.create_file("secure.tmp").unwrap();
+        assert_eq!(secure.metadata().unwrap().mode() & 0o777, 0o600);
+        drop(secure);
+        assert!(!secure_file_stat(libc::S_IFREG | 0o600, 99, 1, 100));
+        assert!(!secure_file_stat(libc::S_IFDIR | 0o600, 100, 1, 100));
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_file(outside).unwrap();
     }
 
     #[test]

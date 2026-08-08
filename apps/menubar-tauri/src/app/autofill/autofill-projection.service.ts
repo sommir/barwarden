@@ -12,11 +12,13 @@ import {
   replaceNativeAutoFillProjection,
 } from "../../host/autofill-projection.host";
 import { PopupStateStore, type PopupState } from "../popup-state";
+import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import type { VaultItem } from "../vault/vault-item.model";
 import type {
   AutoFillProjectionInput,
   AutoFillProjectionLogin,
 } from "./autofill-projection.model";
+import type { AutoFillProjectionLifecyclePort } from "../auth/autofill-projection-lifecycle.port";
 
 export interface AutoFillProjectionHost {
   replaceProjection(input: AutoFillProjectionInput): Promise<void>;
@@ -41,14 +43,13 @@ const noopHost: AutoFillProjectionHost = {
 };
 
 @Injectable({ providedIn: "root" })
-export class AutoFillProjectionService {
+export class AutoFillProjectionService implements AutoFillProjectionLifecyclePort {
   private readonly host: AutoFillProjectionHost;
   private readonly subscription: Subscription;
   private operationTail: Promise<void> = Promise.resolve();
   private lastItems: readonly VaultItem[] | null = null;
   private wasUnlocked = false;
   private lifecycleEpoch = 0;
-  private readonly revisionByAccount = new Map<string, number>();
 
   constructor(
     private readonly store: PopupStateStore,
@@ -65,8 +66,12 @@ export class AutoFillProjectionService {
 
   async clearAccount(accountId: string): Promise<void> {
     if (!accountId) return;
-    await this.enqueue(() => this.host.clearProjection(accountId));
-    this.revisionByAccount.delete(accountId);
+    await this.enqueue(() => this.clearWithRetry(accountId));
+  }
+
+  async invalidateAndLock(): Promise<void> {
+    this.invalidateLifecycle();
+    await this.enqueue(() => this.lockWithRetry());
   }
 
   settled(): Promise<void> {
@@ -79,9 +84,10 @@ export class AutoFillProjectionService {
 
   private observe(state: PopupState): void {
     if (this.wasUnlocked && !state.isUnlocked) {
-      this.lifecycleEpoch += 1;
-      this.lastItems = null;
-      void this.enqueue(() => this.host.lockProjection());
+      this.invalidateLifecycle();
+      void this.enqueue(() => this.lockWithRetry()).catch(() => {
+        this.store.setSyncError(translateOfficialMessage("i18nUnableToLockAutoFill"));
+      });
     }
     this.wasUnlocked = state.isUnlocked;
     if (
@@ -94,29 +100,91 @@ export class AutoFillProjectionService {
     }
 
     this.lastItems = state.items;
-    const items = state.items;
-    const epoch = this.lifecycleEpoch;
+    const snapshot = {
+      epoch: this.lifecycleEpoch,
+      session: state.activeSession,
+      items: state.items,
+    } as const;
     void this.enqueue(async () => {
       const accountId = await this.activeAccountId();
-      const current = this.store.snapshot();
-      if (
-        !accountId ||
-        epoch !== this.lifecycleEpoch ||
-        !current.isUnlocked ||
-        !current.activeSession ||
-        current.items !== items
-      ) {
+      if (!accountId || !this.isCurrentSnapshot(snapshot)) {
         return;
       }
-      const vaultRevision = (this.revisionByAccount.get(accountId) ?? 0) + 1;
-      await this.host.replaceProjection({
+      const identity = { ...snapshot, accountId } as const;
+      const confirmedAccountId = await this.activeAccountId();
+      if (confirmedAccountId !== identity.accountId || !this.isCurrentSnapshot(identity)) {
+        return;
+      }
+      await this.replaceWithRetry(identity, {
         accountId,
-        vaultRevision,
         createdAt: this.clock().toISOString(),
-        logins: items.flatMap(projectLogin),
+        logins: identity.items.flatMap(projectLogin),
       });
-      this.revisionByAccount.set(accountId, vaultRevision);
+      if (!this.isCurrentSnapshot(identity)) return;
+      const finalAccountId = await this.activeAccountId();
+      if (finalAccountId !== identity.accountId || !this.isCurrentSnapshot(identity)) return;
     });
+  }
+
+  private invalidateLifecycle(): void {
+    this.lifecycleEpoch += 1;
+    this.lastItems = null;
+  }
+
+  private isCurrentSnapshot(snapshot: {
+    readonly epoch: number;
+    readonly session: PopupState["activeSession"];
+    readonly items: readonly VaultItem[];
+  }): boolean {
+    const current = this.store.snapshot();
+    return snapshot.epoch === this.lifecycleEpoch &&
+      current.isUnlocked &&
+      current.activeSession === snapshot.session &&
+      current.items === snapshot.items;
+  }
+
+  private async replaceWithRetry(
+    identity: { readonly epoch: number; readonly session: PopupState["activeSession"]; readonly items: readonly VaultItem[] },
+    input: AutoFillProjectionInput,
+  ): Promise<void> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (!this.isCurrentSnapshot(identity)) return;
+      try {
+        await this.host.replaceProjection(input);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (!this.isCurrentSnapshot(identity)) return;
+      }
+    }
+    throw lastError;
+  }
+
+  private async lockWithRetry(): Promise<void> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await this.host.lockProjection();
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+
+  private async clearWithRetry(accountId: string): Promise<void> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await this.host.clearProjection(accountId);
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
   }
 
   private async activeAccountId(): Promise<string | null> {

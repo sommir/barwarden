@@ -42,7 +42,6 @@ describe("AutoFillProjectionService", () => {
     expect(fixture.host.replacements).toHaveLength(1);
     expect(fixture.host.replacements[0]).toEqual({
       accountId,
-      vaultRevision: 1,
       createdAt: "2026-08-08T08:00:00.000Z",
       logins: [{
         cipherId: "github",
@@ -73,7 +72,7 @@ describe("AutoFillProjectionService", () => {
     fixture.service.destroy();
   });
 
-  it("replaces after a committed unlocked mutation with a higher revision", async () => {
+  it("leaves revision allocation to the one native writer shared by all windows", async () => {
     const fixture = createFixture();
     fixture.store.setActiveSession(session);
     fixture.store.setUnlocked("person@example.test");
@@ -83,7 +82,8 @@ describe("AutoFillProjectionService", () => {
     fixture.store.updateVaultItem("github", (item) => ({ ...item, favorite: false }));
     await fixture.service.settled();
 
-    expect(fixture.host.replacements.map(({ vaultRevision }) => vaultRevision)).toEqual([1, 2]);
+    expect(fixture.host.replacements).toHaveLength(2);
+    expect(fixture.host.replacements.every((input) => !("vaultRevision" in input))).toBe(true);
     expect(fixture.host.replacements[1].logins[0].favorite).toBe(false);
     fixture.service.destroy();
   });
@@ -98,7 +98,7 @@ describe("AutoFillProjectionService", () => {
     fixture.store.setLocked();
     await fixture.service.settled();
 
-    expect(fixture.host.locks).toBe(1);
+    expect(fixture.host.lockAttempts).toBe(1);
     fixture.service.destroy();
   });
 
@@ -108,6 +108,16 @@ describe("AutoFillProjectionService", () => {
     await fixture.service.clearAccount(accountId);
 
     expect(fixture.host.clears).toEqual([accountId]);
+    fixture.service.destroy();
+  });
+
+  it("retries a transient native clear transaction", async () => {
+    const fixture = createFixture();
+    fixture.host.clearFailures = 1;
+
+    await expect(fixture.service.clearAccount(accountId)).resolves.toBeUndefined();
+
+    expect(fixture.host.clearAttempts).toBe(2);
     fixture.service.destroy();
   });
 
@@ -134,12 +144,70 @@ describe("AutoFillProjectionService", () => {
     expect(host.maximumConcurrentReplacements).toBe(1);
     fixture.service.destroy();
   });
+
+  it("invalidates an A snapshot before an account lookup can resolve as B", async () => {
+    const lookup = deferred<readonly ReturnType<typeof activeAccount>[]>() ;
+    const accounts = {
+      list: vi.fn(() => lookup.promise),
+    } as unknown as AccountSessionPort;
+    const fixture = createFixture(new RecordingProjectionHost(), accounts);
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person-a@example.test");
+    fixture.store.setItems([{ ...demoVaultItems[0], fields: [
+      { id: "username", label: "Username", value: "A-ONLY-USERNAME" },
+      { id: "password", label: "Password", value: "A-ONLY-PASSWORD" },
+    ] }]);
+    await vi.waitFor(() => expect(accounts.list).toHaveBeenCalledTimes(1));
+
+    const locked = fixture.service.invalidateAndLock();
+    lookup.resolve([activeAccount("b".repeat(64))]);
+    await locked;
+    await fixture.service.settled();
+
+    expect(fixture.host.replacements).toEqual([]);
+    expect(JSON.stringify(fixture.host.replacements)).not.toContain("A-ONLY");
+    fixture.service.destroy();
+  });
+
+  it("retries a transient Agent lock failure before acknowledging invalidation", async () => {
+    const host = new RecordingProjectionHost();
+    host.lockFailures = 1;
+    const fixture = createFixture(host);
+
+    await expect(fixture.service.invalidateAndLock()).resolves.toBeUndefined();
+
+    expect(host.lockAttempts).toBe(2);
+    fixture.service.destroy();
+  });
+
+  it("surfaces a bounded background lock failure without exposing native details", async () => {
+    const fixture = createFixture();
+    fixture.host.lockFailures = 3;
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([demoVaultItems[0]]);
+    await fixture.service.settled();
+
+    fixture.store.setLocked();
+    await fixture.service.settled();
+
+    expect(fixture.host.lockAttempts).toBe(3);
+    expect([
+      "Unable to lock AutoFill. Try again.",
+      "无法锁定自动填充。请重试。",
+    ]).toContain(fixture.store.snapshot().syncError);
+    expect(fixture.store.snapshot().syncError).not.toContain("transient");
+    fixture.service.destroy();
+  });
 });
 
 class RecordingProjectionHost implements AutoFillProjectionHost {
   readonly replacements: Parameters<AutoFillProjectionHost["replaceProjection"]>[0][] = [];
   readonly clears: string[] = [];
-  locks = 0;
+  clearAttempts = 0;
+  clearFailures = 0;
+  lockAttempts = 0;
+  lockFailures = 0;
   maximumConcurrentReplacements = 0;
   private concurrentReplacements = 0;
 
@@ -160,25 +228,31 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
   }
 
   async clearProjection(id: string): Promise<void> {
+    this.clearAttempts += 1;
+    if (this.clearFailures > 0) {
+      this.clearFailures -= 1;
+      throw new Error("transient clear failure");
+    }
     this.clears.push(id);
   }
 
   async lockProjection(): Promise<void> {
-    this.locks += 1;
+    this.lockAttempts += 1;
+    if (this.lockFailures > 0) {
+      this.lockFailures -= 1;
+      throw new Error("transient lock failure");
+    }
   }
 }
 
-function createFixture(host = new RecordingProjectionHost()) {
+function createFixture(
+  host = new RecordingProjectionHost(),
+  accountStore: AccountSessionPort | null = null,
+) {
   const store = new PopupStateStore();
-  const accounts = {
-    list: vi.fn(async () => [{
-      id: accountId,
-      email: "person@example.test",
-      serverUrl: "https://vault.example.test",
-      status: "unlocked" as const,
-      isActive: true,
-    }]),
-  } as unknown as AccountSessionPort;
+  const accounts = accountStore ?? ({
+    list: vi.fn(async () => [activeAccount(accountId)]),
+  } as unknown as AccountSessionPort);
   const service = new AutoFillProjectionService(
     store,
     host,
@@ -186,4 +260,20 @@ function createFixture(host = new RecordingProjectionHost()) {
     () => new Date("2026-08-08T08:00:00.000Z"),
   );
   return { store, host, service };
+}
+
+function activeAccount(id: string) {
+  return {
+    id,
+    email: "person@example.test",
+    serverUrl: "https://vault.example.test",
+    status: "unlocked" as const,
+    isActive: true,
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise; });
+  return { promise, resolve };
 }

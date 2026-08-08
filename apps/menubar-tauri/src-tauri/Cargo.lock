@@ -279,10 +279,12 @@ name = "barwarden"
 version = "0.1.2"
 dependencies = [
  "arboard",
+ "base64 0.22.1",
  "block2",
  "chacha20poly1305",
  "core-graphics",
  "keyring",
+ "libc",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",

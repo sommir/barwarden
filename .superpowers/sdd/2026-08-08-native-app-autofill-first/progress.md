@@ -50,8 +50,10 @@
 
 ## Task 4
 
-- Implementation: pending final commit `feat: add encrypted native autofill projection`.
+- Implementation: `08e40684 feat: add encrypted native autofill projection`; security-review fix included in the current change set.
 - Focused projection/lifecycle tests: TypeScript 8 passed; Rust 17 passed and 1 signed harness ignored; Swift Agent/ProjectionStore 23 passed.
 - Full verification: TypeScript 3,467 passed and 22 skipped; Rust 179 passed and 4 ignored; Swift/Xcode 46 passed; native project/identity checks 32 passed; production web build passed.
 - Security coverage: active-Login allowlist and forbidden-field leakage, encrypted disk-byte leakage, corrupt tag, stale revision, interruption cleanup, `0600` temporary file creation, atomic replacement/directory sync, provision failure cleanup, fresh generation/key on unlock/account switch, authenticated Agent provisioning, account/generation-bound renewal, proactive timeout zeroization, lock/logout/account removal, and process-restart denial.
 - Production Tauri configuration and native entitlements remain unchanged. Matching, credential UI, Accessibility, browser extension, and secret release remain deferred.
+- Security-review fix closes account-switch identity/epoch binding, main-app-only Agent lock, transactional rollback/pending cleanup, lock-ack retry, Agent monotonic concurrency, native authoritative revision allocation, dirfd/verified-FD filesystem hardening, and application-controlled key-buffer clearing.
+- Security-review final verification: TypeScript 3,473 passed/22 skipped; Rust 191 passed/4 ignored; Swift 56 passed; native project/identity tests 36 passed; production web build passed.

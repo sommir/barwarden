@@ -16,7 +16,6 @@ export interface AutoFillProjectionLogin {
 
 export interface AutoFillProjectionInput {
   readonly accountId: string;
-  readonly vaultRevision: number;
   readonly createdAt: string;
   readonly logins: readonly AutoFillProjectionLogin[];
 }

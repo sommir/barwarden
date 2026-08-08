@@ -18,9 +18,38 @@ pub struct ProjectionProvisionPayload {
     pub generation: String,
     pub account_id: String,
     pub vault_revision: u64,
+    #[serde(with = "base64_key")]
     pub key: Vec<u8>,
     pub lease_duration_seconds: u64,
     pub projection_path: String,
+}
+
+mod base64_key {
+    use base64::Engine;
+    use serde::{Deserialize, Deserializer, Serializer};
+    use zeroize::Zeroize;
+
+    pub fn serialize<S>(key: &[u8], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut encoded = base64::engine::general_purpose::STANDARD.encode(key);
+        let result = serializer.serialize_str(&encoded);
+        encoded.zeroize();
+        result
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut encoded = String::deserialize(deserializer)?;
+        let result = base64::engine::general_purpose::STANDARD
+            .decode(encoded.as_bytes())
+            .map_err(serde::de::Error::custom);
+        encoded.zeroize();
+        result
+    }
 }
 
 impl Drop for ProjectionProvisionPayload {
@@ -227,7 +256,10 @@ mod tests {
         );
         assert_eq!(value["projection"]["account_id"], "account-a");
         assert_eq!(value["projection"]["vault_revision"], 7);
-        assert_eq!(value["projection"]["key"].as_array().unwrap().len(), 32);
+        assert_eq!(
+            value["projection"]["key"],
+            "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk="
+        );
         assert!(value.get("access_token").is_none());
         assert!(value.get("master_password").is_none());
     }

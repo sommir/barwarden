@@ -56,6 +56,7 @@ final class AgentConnectionHandler {
     private let requestGate: AgentRequestGate
     private let timeout: TimeInterval
     private let projectionStore: ProjectionStore?
+    private let onProjectionKeyCleared: ((Data) -> Void)?
 
     init(
         authorize: @escaping (Int32) throws -> AuthorizedPeer = {
@@ -63,12 +64,14 @@ final class AgentConnectionHandler {
         },
         requestGate: AgentRequestGate = AgentRequestGate(),
         timeout: TimeInterval = AgentClient.defaultTimeout,
-        projectionStore: ProjectionStore? = nil
+        projectionStore: ProjectionStore? = nil,
+        onProjectionKeyCleared: ((Data) -> Void)? = nil
     ) {
         self.authorize = authorize
         self.requestGate = requestGate
         self.timeout = timeout
         self.projectionStore = projectionStore
+        self.onProjectionKeyCleared = onProjectionKeyCleared
     }
 
     func handleAcceptedSocket(_ socket: Int32) {
@@ -107,7 +110,9 @@ final class AgentConnectionHandler {
                 throw AgentProtocolError.malformedMessage
             }
         case .lock:
-            guard request.projection == nil, request.lease == nil else {
+            guard peer == .mainApplication,
+                  request.projection == nil, request.lease == nil else {
+                if peer != .mainApplication { throw AgentProtocolError.unauthorized }
                 throw AgentProtocolError.malformedMessage
             }
             projectionStore?.lock()
@@ -117,7 +122,10 @@ final class AgentConnectionHandler {
                   let projectionStore else {
                 throw AgentProtocolError.malformedMessage
             }
-            defer { payload.clearKey() }
+            defer {
+                payload.clearKey()
+                onProjectionKeyCleared?(payload.key)
+            }
             try projectionStore.provision(
                 ProjectionProvision(
                     generation: payload.generation,
@@ -206,6 +214,18 @@ final class AgentServer {
             at: socketURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
+        let rootDescriptor = open(
+            socketURL.deletingLastPathComponent().path,
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        guard rootDescriptor >= 0 else { throw AgentProtocolError.unavailable }
+        defer { close(rootDescriptor) }
+        var rootMetadata = stat()
+        guard fstat(rootDescriptor, &rootMetadata) == 0,
+              rootMetadata.st_uid == geteuid(),
+              fchmod(rootDescriptor, S_IRWXU) == 0 else {
+            throw AgentProtocolError.unavailable
+        }
 
         let listener = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
         guard listener >= 0 else { throw AgentProtocolError.unavailable }

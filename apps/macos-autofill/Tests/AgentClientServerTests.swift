@@ -248,6 +248,34 @@ final class AgentClientServerTests: XCTestCase {
         XCTAssertEqual(response.error, .unauthorized)
     }
 
+    func testCredentialProviderCannotLockMainApplicationProjectionLease() throws {
+        let fixture = try ProjectionHandlerFixture()
+        try performProjectionRequest(
+            .provision,
+            projection: fixture.provisionPayload,
+            store: fixture.store
+        )
+        let sockets = try SocketPair()
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .lock,
+            nonce: Data([5])
+        )
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: sockets.client)
+
+        AgentConnectionHandler(
+            authorize: { _ in .credentialProvider },
+            projectionStore: fixture.store
+        ).handleAcceptedSocket(sockets.takeServer())
+
+        let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
+        XCTAssertEqual(response.error, .unauthorized)
+        XCTAssertNoThrow(
+            try fixture.store.read(accountID: "account-a", generation: fixture.generation)
+        )
+    }
+
     func testAuthenticatedMainApplicationProvisionRenewAndLockMutateLease() throws {
         let fixture = try ProjectionHandlerFixture()
         try performProjectionRequest(
@@ -296,6 +324,29 @@ final class AgentClientServerTests: XCTestCase {
         XCTAssertEqual(response.status, .ok)
     }
 
+    func testDecodedProvisionKeyBufferIsClearedAfterDispatch() throws {
+        let fixture = try ProjectionHandlerFixture()
+        let sockets = try SocketPair()
+        var cleared: Data?
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .provision,
+            nonce: Data([8]),
+            projection: fixture.provisionPayload
+        )
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: sockets.client)
+
+        AgentConnectionHandler(
+            authorize: { _ in .mainApplication },
+            projectionStore: fixture.store,
+            onProjectionKeyCleared: { cleared = $0 }
+        ).handleAcceptedSocket(sockets.takeServer())
+        _ = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
+
+        XCTAssertEqual(cleared, Data(repeating: 0, count: ZeroizingKey.byteCount))
+    }
+
     private func performLoopbackClientRequest() throws -> AgentResponse {
         let sockets = try SocketPair()
         let client = AgentClient(connect: { sockets.takeClient() }, timeout: 1)
@@ -329,6 +380,7 @@ private final class ProjectionHandlerFixture {
             .appendingPathComponent("barwarden-handler-\(UUID().uuidString)", isDirectory: true)
         url = directory.appendingPathComponent("projection.bwaf")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         let projection = AutoFillProjection(
             version: 1,
             accountID: "account-a",
@@ -346,6 +398,7 @@ private final class ProjectionHandlerFixture {
             authenticating: header
         )
         try (header + sealed.ciphertext + sealed.tag).write(to: url)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 
     deinit { try? FileManager.default.removeItem(at: directory) }
