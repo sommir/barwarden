@@ -25,6 +25,7 @@ pub enum AutoFillSecretField {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct NativeAutoFillContext {
     pub bundle_id: String,
     pub app_name: String,
@@ -33,6 +34,7 @@ pub struct NativeAutoFillContext {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CandidateQueryPayload {
     pub generation: String,
     pub account_id: String,
@@ -49,6 +51,7 @@ pub enum CandidateGroup {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RankedCandidate {
     pub cipher_id: String,
     pub display_name: String,
@@ -59,12 +62,14 @@ pub struct RankedCandidate {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CandidateResponsePayload {
     pub context_token: String,
     pub candidates: Vec<RankedCandidate>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct AgentSessionPayload {
     pub generation: String,
     pub account_id: String,
@@ -79,6 +84,7 @@ pub enum RepromptResult {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RepromptResultPayload {
     pub result: RepromptResult,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -102,6 +108,7 @@ impl RepromptResultPayload {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct PublishedCredentialService {
     pub identifier: String,
     pub kind: PublishedCredentialServiceKind,
@@ -116,6 +123,7 @@ pub enum PublishedCredentialServiceKind {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SecretReleasePayload {
     pub generation: String,
     pub account_id: String,
@@ -129,6 +137,7 @@ pub struct SecretReleasePayload {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RepromptGrantIssuePayload {
     pub generation: String,
     pub account_id: String,
@@ -138,11 +147,13 @@ pub struct RepromptGrantIssuePayload {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RepromptGrantPayload {
     pub grant: String,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReleasedSecret {
     pub field: AutoFillSecretField,
     #[serde(with = "base64_key")]
@@ -156,6 +167,7 @@ impl Drop for ReleasedSecret {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProjectionProvisionPayload {
     pub generation: String,
     pub account_id: String,
@@ -201,6 +213,7 @@ impl Drop for ProjectionProvisionPayload {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProjectionLeasePayload {
     pub generation: String,
     pub account_id: String,
@@ -208,6 +221,7 @@ pub struct ProjectionLeasePayload {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct AgentRequest {
     pub version: u16,
     pub request_id: String,
@@ -304,6 +318,7 @@ pub enum AgentResponseStatus {
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct AgentResponse {
     pub version: u16,
     pub request_id: Option<String>,
@@ -523,5 +538,31 @@ mod tests {
             "cipher-a"
         );
         assert_eq!(response.secret_response.unwrap().value, b"secret");
+    }
+
+    #[test]
+    fn request_and_response_reject_unknown_root_and_nested_fields() {
+        let request = serde_json::json!({
+            "version": 1,
+            "request_id": "00000000-0000-4000-8000-000000000001",
+            "operation": "query_candidates",
+            "nonce": [1],
+            "candidate_query": {
+                "generation": "00000000-0000-4000-8000-000000000004",
+                "account_id": "account-a",
+                "field": "password",
+                "context": { "bundle_id": "com.example.App", "app_name": "Example", "service_identifiers": [], "query": "", "extra": true }
+            }
+        });
+        assert!(serde_json::from_value::<AgentRequest>(request).is_err());
+
+        let response = serde_json::json!({
+            "version": 1,
+            "request_id": "00000000-0000-4000-8000-000000000001",
+            "nonce": [1],
+            "status": "ok",
+            "unexpected": "smuggled"
+        });
+        assert!(serde_json::from_value::<AgentResponse>(response).is_err());
     }
 }

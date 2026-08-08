@@ -31,6 +31,7 @@ export interface AutoFillNativeHost {
   entryContext(): Promise<AutoFillEntryContextOutcome>;
   agentSession(): Promise<AutoFillAgentSessionOutcome>;
   beginReprompt(scope: AutoFillRepromptScope): Promise<AutoFillBeginRepromptOutcome>;
+  cancelReprompt(scope: AutoFillRepromptScope, receipt: string): Promise<void>;
   biometricReprompt(accountId: string, receipt: string): Promise<BiometricOperationStatus>;
   releaseSecret(request: AutoFillSecretCommandRequest): Promise<AutoFillSecretCommandOutcome>;
   pasteText(value: string, clearAfterSeconds?: number): Promise<void>;

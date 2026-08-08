@@ -1,5 +1,6 @@
 use crate::autofill_contract::{AgentErrorCode, AgentOperation, AgentRequest};
 use crate::autofill_ipc::AgentClient;
+use crate::autofill_reprompt::AutoFillRepromptReceiptStore;
 use crate::session_broker::{AuthorizationState, ProjectionSessionContext, SessionBroker};
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
@@ -1215,6 +1216,14 @@ fn command_error(error: ProjectionError) -> &'static str {
     }
 }
 
+fn run_projection_lifecycle_with_receipt_clear<T, E>(
+    receipts: &AutoFillRepromptReceiptStore,
+    operation: impl FnOnce() -> Result<T, E>,
+) -> Result<T, E> {
+    receipts.clear();
+    operation()
+}
+
 #[tauri::command]
 pub fn autofill_capture_projection_binding(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
@@ -1232,48 +1241,57 @@ pub fn autofill_capture_projection_binding(
 pub fn autofill_replace_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
     broker: tauri::State<'_, SessionBroker>,
+    receipts: tauri::State<'_, std::sync::Arc<AutoFillRepromptReceiptStore>>,
     input: AutoFillProjectionInput,
     binding_token: String,
 ) -> Result<u64, &'static str> {
-    let context = broker.projection_context().map_err(|_| "stale_binding")?;
-    let owner = ProjectionOwner::from_context(&context).map_err(command_error)?;
-    manager
-        .replace_bound(input, &binding_token, &owner)
-        .map(|receipt| receipt.vault_revision)
-        .map_err(command_error)
+    run_projection_lifecycle_with_receipt_clear(&receipts, || {
+        let context = broker.projection_context().map_err(|_| "stale_binding")?;
+        let owner = ProjectionOwner::from_context(&context).map_err(command_error)?;
+        manager
+            .replace_bound(input, &binding_token, &owner)
+            .map(|receipt| receipt.vault_revision)
+            .map_err(command_error)
+    })
 }
 
 #[tauri::command]
 pub fn autofill_clear_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
     broker: tauri::State<'_, SessionBroker>,
+    receipts: tauri::State<'_, std::sync::Arc<AutoFillRepromptReceiptStore>>,
     account_id: String,
 ) -> Result<(), &'static str> {
-    let context = broker.projection_context().map_err(|_| "stale_binding")?;
-    if context.active_account_id.as_deref() == Some(account_id.as_str()) {
-        let owner = ProjectionOwner {
-            process_generation: context.process_generation,
-            ownership_epoch: context.ownership_epoch,
-            account_id,
-        };
-        manager.invalidate_and_lock(&owner).map_err(command_error)
-    } else {
-        manager.clear(&account_id).map_err(command_error)
-    }
+    run_projection_lifecycle_with_receipt_clear(&receipts, || {
+        let context = broker.projection_context().map_err(|_| "stale_binding")?;
+        if context.active_account_id.as_deref() == Some(account_id.as_str()) {
+            let owner = ProjectionOwner {
+                process_generation: context.process_generation,
+                ownership_epoch: context.ownership_epoch,
+                account_id,
+            };
+            manager.invalidate_and_lock(&owner).map_err(command_error)
+        } else {
+            manager.clear(&account_id).map_err(command_error)
+        }
+    })
 }
 
 #[tauri::command]
 pub fn autofill_lock_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
     broker: tauri::State<'_, SessionBroker>,
+    receipts: tauri::State<'_, std::sync::Arc<AutoFillRepromptReceiptStore>>,
 ) -> Result<(), &'static str> {
-    let context = broker.projection_context().map_err(|_| "stale_binding")?;
-    let owner = ProjectionOwner {
-        process_generation: context.process_generation,
-        ownership_epoch: context.ownership_epoch,
-        account_id: context.active_account_id.unwrap_or_default(),
-    };
-    manager.invalidate_and_lock(&owner).map_err(command_error)
+    run_projection_lifecycle_with_receipt_clear(&receipts, || {
+        let context = broker.projection_context().map_err(|_| "stale_binding")?;
+        let owner = ProjectionOwner {
+            process_generation: context.process_generation,
+            ownership_epoch: context.ownership_epoch,
+            account_id: context.active_account_id.unwrap_or_default(),
+        };
+        manager.invalidate_and_lock(&owner).map_err(command_error)
+    })
 }
 
 fn validate_input(input: &AutoFillProjectionInput) -> Result<(), ProjectionError> {
@@ -1402,6 +1420,35 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn real_projection_lifecycle_wrapper_clears_reprompt_receipts_even_when_lock_fails() {
+        use crate::autofill_contract::AutoFillSecretField;
+        use crate::autofill_reprompt::{AutoFillRepromptReceiptStore, AutoFillRepromptScope};
+
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let scope = AutoFillRepromptScope {
+            account_id: "account-a".to_owned(),
+            candidate_id: "cipher-a".to_owned(),
+            field: AutoFillSecretField::Password,
+            generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            context_token: "context-a".to_owned(),
+        };
+        let receipt = receipts
+            .begin(
+                scope.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+
+        let result: Result<(), ProjectionError> =
+            run_projection_lifecycle_with_receipt_clear(&receipts, || {
+                Err(ProjectionError::AgentUnavailable)
+            });
+
+        assert_eq!(result, Err(ProjectionError::AgentUnavailable));
+        assert!(!receipts.cancel(&receipt, &scope));
+    }
 
     #[derive(Default)]
     struct RecordingAgent {

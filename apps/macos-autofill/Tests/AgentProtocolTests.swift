@@ -52,6 +52,117 @@ final class AgentProtocolTests: XCTestCase {
         )
     }
 
+    func testRequestAndResponseRejectUnknownRootFields() throws {
+        let request = Data("""
+        {"version":1,"request_id":"00000000-0000-0000-0000-000000000001","operation":"probe","nonce":[],"unexpected":true}
+        """.utf8)
+        let response = Data("""
+        {"version":1,"request_id":"00000000-0000-0000-0000-000000000001","nonce":[],"status":"ok","unexpected":true}
+        """.utf8)
+
+        XCTAssertThrowsError(try JSONDecoder().decode(AgentRequest.self, from: request))
+        XCTAssertThrowsError(try JSONDecoder().decode(AgentResponse.self, from: response))
+    }
+
+    func testRequestRejectsUnknownNestedFieldsAndOversizedContextIdentifiers() throws {
+        let base: [String: Any] = [
+            "version": 1,
+            "request_id": "00000000-0000-4000-8000-000000000001",
+            "operation": "query_candidates",
+            "nonce": [1],
+            "candidate_query": [
+                "generation": "00000000-0000-4000-8000-000000000004",
+                "account_id": "account-a",
+                "field": "password",
+                "context": [
+                    "bundle_id": "com.example.App",
+                    "app_name": "Example",
+                    "service_identifiers": [],
+                    "query": "",
+                    "unexpected": true,
+                ],
+            ],
+        ]
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            AgentRequest.self,
+            from: JSONSerialization.data(withJSONObject: base)
+        ))
+
+        var oversized = base
+        var query = try XCTUnwrap(oversized["candidate_query"] as? [String: Any])
+        var context = try XCTUnwrap(query["context"] as? [String: Any])
+        context.removeValue(forKey: "unexpected")
+        context["bundle_id"] = String(repeating: "b", count: 256)
+        query["context"] = context
+        oversized["candidate_query"] = query
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            AgentRequest.self,
+            from: JSONSerialization.data(withJSONObject: oversized)
+        ))
+    }
+
+    func testResponseRejectsUnknownNestedCandidateFieldsAndOversizedTokens() throws {
+        let response: [String: Any] = [
+            "version": 1,
+            "request_id": "00000000-0000-4000-8000-000000000001",
+            "nonce": [1],
+            "status": "ok",
+            "candidate_response": [
+                "context_token": "context-a",
+                "candidates": [[
+                    "cipher_id": "cipher-a",
+                    "display_name": "Example",
+                    "username": "person@example.test",
+                    "group": "exact",
+                    "reason": "service_identifier",
+                    "requires_mismatch_confirmation": false,
+                    "unexpected": true,
+                ]],
+            ],
+        ]
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            AgentResponse.self,
+            from: JSONSerialization.data(withJSONObject: response)
+        ))
+
+        var oversized = response
+        var candidateResponse = try XCTUnwrap(oversized["candidate_response"] as? [String: Any])
+        candidateResponse["context_token"] = String(repeating: "x", count: 513)
+        var candidates = try XCTUnwrap(candidateResponse["candidates"] as? [[String: Any]])
+        candidates[0].removeValue(forKey: "unexpected")
+        candidateResponse["candidates"] = candidates
+        oversized["candidate_response"] = candidateResponse
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            AgentResponse.self,
+            from: JSONSerialization.data(withJSONObject: oversized)
+        ))
+    }
+
+    func testCredentialProviderServiceQueryAllowsEmptyApplicationContextWithinBounds() throws {
+        let request = AgentRequest(
+            version: 1,
+            requestID: UUID(),
+            operation: .queryCandidates,
+            nonce: Data([1]),
+            candidateQuery: CandidateQueryPayload(
+                generation: UUID(),
+                accountID: "account-a",
+                field: .password,
+                context: NativeAutoFillContext(
+                    bundleID: "",
+                    appName: "",
+                    serviceIdentifiers: ["https://example.test"],
+                    query: ""
+                )
+            )
+        )
+
+        XCTAssertEqual(
+            try JSONDecoder().decode(AgentRequest.self, from: JSONEncoder().encode(request)),
+            request
+        )
+    }
+
     func testJSONEncodingClearsIntermediatePayloadOnSuccess() throws {
         let secret = ReleasedSecret(field: .password, value: Data("sensitive-value".utf8))
         var cleared: Data?

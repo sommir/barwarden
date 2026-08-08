@@ -16,6 +16,16 @@ The existing master-password verifier carries the receipt only on its exact auth
 
 The Agent accepts the grant-issue operation only from the authenticated main-application peer, verifies the current projection account and generation, and returns a separate short-lived, single-use grant bound to the same full scope, including the requested field. The Rust main app consumes the verified receipt, requests the scoped Agent grant, and immediately performs the one-field release. No public Tauri command exposes direct grant issuance. Lock and reprovision clear outstanding Agent grants; main-app lock clears native receipts.
 
+## Review hardening
+
+The review-fix round adds an operation epoch to the picker and revalidates the selected candidate, unlocked account, projection generation, and captured application context before every secret release and again before paste or copy. Search, selection, account override, a newer operation, and component destruction supersede pending work. Delayed metadata, master-password, Touch ID, or release results therefore cannot mutate the destroyed or superseded picker. All asynchronous UI commits are guarded and explicitly mark the OnPush view for checking.
+
+Reprompt receipts are now explicitly cancellable by their complete scope. Selection changes, search, cancellation, component destruction, lock, projection clear/replacement, and failed or stale protected operations burn outstanding receipts. Touch ID receipt verification is restricted to the main picker webview and marks a receipt verified only after native biometric success. A consumed receipt is still best-effort cancelled without turning a successful one-field release into an error.
+
+Both sides of the Agent wire now reject unknown root and nested fields and bound every identity, context, path, key, candidate list, and secret field. Rust owns raw inbound JSON in a zeroizing frame buffer on successful and truncated reads; Swift explicitly clears decoded oversized secret and key buffers before rejection. Credential Provider service queries retain their required empty bundle/application context while still enforcing upper bounds.
+
+The listbox exposes its active option through `aria-activedescendant`, keeps keyboard focus on the list, and gives the active option a visible highlight and outline. Arrow keys only move the active option; Enter selects it and still reveals actions without releasing a secret.
+
 ## TDD evidence
 
 RED was observed before each implementation slice:
@@ -30,12 +40,11 @@ RED was observed before each implementation slice:
 
 ## Verification
 
-- Picker focused suite: 4 passed, including metadata-only selection, keyboard navigation, one-field guarded paste, locked/repair/empty, and explicit account override.
-- App entry routing focused suite: 53 passed.
-- Full Vitest regression: 3,493 passed, 22 skipped across 236 files.
-- Rust: 215 passed, 4 ignored. The ignored tests require the signed Agent harness, live Touch ID, or live Keychain. The three Unix-socket tests denied by the filesystem sandbox passed in the unrestricted Rust rerun.
-- Full Swift/Xcode: 126 passed, 0 failed. Result bundle: `/private/tmp/task7-xcode/Logs/Test/Test-BarwardenNativeAutoFill-2026.08.09_06-13-49-+0800.xcresult`.
-- Native project, build-wrapper, identity, and IPC/contract scripts: 28 passed.
+- Picker, host, and recovery focused suites: 81 passed, including operation supersession/destruction, receipt cancellation, OnPush commits, visible/ARIA active option, main-window command routing, metadata-only selection, one-field guarded paste, locked/repair/empty, and explicit account override.
+- Full Vitest regression: 3,504 passed, 22 skipped across 236 files.
+- Rust: 222 passed, 4 ignored. The ignored tests require the signed Agent harness, live Touch ID, or live Keychain. The Unix-socket tests passed in the unrestricted Rust rerun.
+- Full Swift/Xcode: 130 passed, 0 failed. Result bundle: `/private/tmp/task7-review-fix-xcode/Logs/Test/Test-BarwardenNativeAutoFill-2026.08.09_07-11-29-+0800.xcresult`.
+- Native project, build-wrapper, identity, and IPC/contract scripts: 36 passed.
 - Production web build: passed with the existing externalization, Tailwind, and chunk-size warnings only.
 - `cargo fmt --check`, `git diff --check`, retained route/i18n/runtime guards, and the production configuration/entitlement diff: passed.
 

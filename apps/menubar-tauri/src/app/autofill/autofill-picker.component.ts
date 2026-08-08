@@ -38,6 +38,15 @@ interface PendingProtectedAction {
   readonly receipt: string;
 }
 
+interface PickerOperation {
+  readonly epoch: number;
+  readonly candidateId: string;
+  readonly accountId: string;
+  readonly generation: string;
+  readonly bundleId: string;
+  readonly appName: string;
+}
+
 const FIELD_ORDER: readonly AutoFillSecretField[] = ["username", "password", "totp"];
 const GROUP_ORDER: readonly AutoFillCandidateGroup[] = ["exact", "relevant", "other"];
 const GROUP_LABELS: Record<AutoFillCandidateGroup, string> = {
@@ -64,6 +73,13 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
   imports: [CommonModule, PopupHeaderComponent, PopupPageComponent],
   host: { class: "macos-page macos-page--secondary macos-page--autofill-picker" },
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: [`
+    [role="option"].autofill-picker__option--highlighted {
+      background-color: rgba(0, 122, 255, 0.12);
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
+  `],
   template: `
     <popup-page>
       <popup-header slot="header" [pageTitle]="'AutoFill'" showBackButton [backAction]="backAction" />
@@ -100,7 +116,12 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
         @if (mode === "empty") {
           <section data-testid="autofill-empty"><h2>No matching logins</h2><p>Try another search.</p></section>
         } @else {
-          <div role="listbox" aria-labelledby="autofill-target-app">
+          <div
+            role="listbox"
+            tabindex="0"
+            aria-labelledby="autofill-target-app"
+            [attr.aria-activedescendant]="highlightedCandidate ? optionId(highlightedCandidate) : null"
+          >
             @for (group of groupOrder; track group) {
               @if (candidatesFor(group).length) {
                 <section [attr.data-testid]="'autofill-group-' + group">
@@ -109,6 +130,8 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                     <button
                       type="button"
                       role="option"
+                      [id]="optionId(candidate)"
+                      [class.autofill-picker__option--highlighted]="highlightedCandidate?.cipherId === candidate.cipherId"
                       [attr.aria-selected]="selected?.cipherId === candidate.cipherId"
                       (click)="selectCandidate(candidate)"
                     >
@@ -138,7 +161,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
             <section role="alertdialog" aria-labelledby="autofill-mismatch-title">
               <p id="autofill-mismatch-title">This login does not match the target app. Fill it anyway?</p>
               <button type="button" (click)="confirmMismatch()">Fill anyway</button>
-              <button type="button" (click)="pendingMismatch = null">Cancel</button>
+              <button type="button" (click)="cancelMismatch()">Cancel</button>
             </section>
           }
 
@@ -153,7 +176,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                   <button type="submit">Verify</button>
                 </form>
               }
-              <button type="button" (click)="pendingProtected = null">Cancel</button>
+              <button type="button" (click)="cancelProtectedAction()">Cancel</button>
             </section>
           }
         }
@@ -165,8 +188,10 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
   `,
 })
 export class AutoFillPickerComponent implements OnInit, OnDestroy {
-  readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.router.navigateByUrl("/tabs/vault");
+  readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () => {
+    this.cancelPicker();
+    return this.router.navigateByUrl("/tabs/vault");
+  };
   mode: PickerMode = "loading";
   appName = "";
   query = "";
@@ -183,6 +208,8 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   private agentSession: Extract<AutoFillAgentSessionOutcome, { status: "success" }> | null = null;
   private operationEpoch = 0;
   private initializeTimer: number | undefined;
+  private componentAlive = true;
+  private activeReceipt: { readonly scope: AutoFillRepromptScope; readonly receipt: string } | null = null;
 
   constructor(
     private readonly store: PopupStateStore,
@@ -210,58 +237,64 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       window.clearTimeout(this.initializeTimer);
       this.initializeTimer = undefined;
     }
+    this.componentAlive = false;
     this.operationEpoch += 1;
+    this.cancelActiveReceipt();
     this.store.cancelProtectedOperations();
     this.masterPassword = "";
   }
 
   async initialize(): Promise<void> {
-    const epoch = ++this.operationEpoch;
+    const epoch = this.startOperation();
     this.clearPickerState();
     const state = this.store.snapshot();
     if (!state.isUnlocked) {
       this.mode = "locked";
+      this.markIfAlive();
       return;
     }
     this.mode = "loading";
     try {
       const context = await this.native.entryContext();
-      if (epoch !== this.operationEpoch) return;
+      if (!this.commit(epoch, () => {})) return;
       if (context.status !== "available") {
-        this.mode = "context-unavailable";
+        this.commit(epoch, () => { this.mode = "context-unavailable"; });
         return;
       }
-      this.bundleId = context.bundleId;
-      this.appName = context.appName;
+      if (!this.commit(epoch, () => {
+        this.bundleId = context.bundleId;
+        this.appName = context.appName;
+      })) return;
       const session = await this.native.agentSession();
-      if (epoch !== this.operationEpoch) return;
+      if (!this.commit(epoch, () => {})) return;
       if (session.status !== "success") {
-        this.mode = "repair";
+        this.commit(epoch, () => { this.mode = "repair"; });
         return;
       }
-      this.agentSession = session;
+      if (!this.commit(epoch, () => { this.agentSession = session; })) return;
       const owner = this.store.snapshot().vaultOwnerAccountId;
       if (!owner) {
-        this.mode = "repair";
+        this.commit(epoch, () => { this.mode = "repair"; });
         return;
       }
       if (owner !== session.accountId) {
-        this.mode = "account-override";
+        this.commit(epoch, () => { this.mode = "account-override"; });
         return;
       }
       await this.refreshCandidates(epoch);
     } catch {
-      if (epoch === this.operationEpoch) this.mode = "repair";
+      this.commit(epoch, () => { this.mode = "repair"; });
     }
   }
 
   async search(value: string): Promise<void> {
+    const epoch = this.startOperation();
     this.query = value;
-    const epoch = ++this.operationEpoch;
     this.selected = null;
     this.mode = "loading";
+    this.markIfAlive();
     await this.refreshCandidates(epoch).catch(() => {
-      if (epoch === this.operationEpoch) this.mode = "repair";
+      this.commit(epoch, () => { this.mode = "repair"; });
     });
   }
 
@@ -284,11 +317,20 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   }
 
   selectCandidate(candidate: RankedAutoFillCandidate): void {
+    this.startOperation();
     this.selected = candidate;
     this.pendingMismatch = null;
     this.pendingProtected = null;
     this.statusMessage = "";
-    this.changeDetector.markForCheck();
+    this.markIfAlive();
+  }
+
+  get highlightedCandidate(): RankedAutoFillCandidate | null {
+    return this.candidates[this.highlightedIndex] ?? null;
+  }
+
+  optionId(candidate: RankedAutoFillCandidate): string {
+    return `autofill-option-${candidate.cipherId.replace(/[^A-Za-z0-9_-]/g, "-")}`;
   }
 
   onListKeydown(event: KeyboardEvent): void {
@@ -296,9 +338,11 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     if (event.key === "ArrowDown") {
       event.preventDefault();
       this.highlightedIndex = (this.highlightedIndex + 1) % this.candidates.length;
+      this.markIfAlive();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       this.highlightedIndex = (this.highlightedIndex - 1 + this.candidates.length) % this.candidates.length;
+      this.markIfAlive();
     } else if (event.key === "Enter") {
       event.preventDefault();
       this.selectIndex(this.highlightedIndex);
@@ -309,17 +353,23 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const selected = this.selected;
     const session = this.agentSession;
     if (!selected || !session || this.mode === "repair") return;
+    const epoch = this.startOperation();
+    const operation = this.operation(epoch, selected, session);
     if (selected.requiresMismatchConfirmation && !mismatchConfirmed) {
       this.pendingMismatch = { action, field };
+      this.markIfAlive();
       return;
     }
     this.pendingMismatch = null;
     this.statusMessage = "";
     try {
       const response = await this.candidatesService.query(this.queryRequest(field));
+      if (!await this.targetIsCurrent(operation)) return;
       const current = response.candidates.find((candidate) => candidate.cipherId === selected.cipherId);
       if (!current) {
-        this.statusMessage = "This field is not available for the selected login.";
+        this.commitOperation(operation, () => {
+          this.statusMessage = "This field is not available for the selected login.";
+        });
         return;
       }
       const state = this.store.snapshot();
@@ -327,7 +377,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
         ? state.items.find((item) => item.type === "login" && item.id === current.cipherId)
         : undefined;
       if (!localLogin) {
-        this.mode = "repair";
+        this.commitOperation(operation, () => { this.mode = "repair"; });
         return;
       }
       const scope: AutoFillRepromptScope = {
@@ -339,16 +389,27 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       };
       if (localLogin.reprompt) {
         const receipt = await this.native.beginReprompt(scope);
-        if (receipt.status !== "pending") {
-          this.mode = "repair";
+        if (!await this.targetIsCurrent(operation)) {
+          if (receipt.status === "pending") {
+            void this.native.cancelReprompt(scope, receipt.receipt).catch(() => undefined);
+          }
           return;
         }
-        this.pendingProtected = { action, scope, mismatchConfirmed, receipt: receipt.receipt };
+        if (receipt.status !== "pending") {
+          this.commitOperation(operation, () => { this.mode = "repair"; });
+          return;
+        }
+        this.activeReceipt = { scope, receipt: receipt.receipt };
+        this.commitOperation(operation, () => {
+          this.pendingProtected = { action, scope, mismatchConfirmed, receipt: receipt.receipt };
+        });
         return;
       }
-      await this.releaseAndDeliver(action, scope, mismatchConfirmed);
+      await this.releaseAndDeliver(operation, action, scope, mismatchConfirmed);
     } catch {
-      this.statusMessage = "AutoFill could not complete this field action.";
+      this.commitOperation(operation, () => {
+        this.statusMessage = "AutoFill could not complete this field action.";
+      });
     }
   }
 
@@ -359,19 +420,47 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     await this.perform(pending.action, pending.field, true);
   }
 
+  cancelMismatch(): void {
+    this.startOperation();
+    this.pendingMismatch = null;
+    this.markIfAlive();
+  }
+
+  cancelProtectedAction(): void {
+    this.startOperation();
+    this.pendingProtected = null;
+    this.masterPasswordMode = false;
+    this.masterPassword = "";
+    this.markIfAlive();
+  }
+
   async verifyWithTouchId(): Promise<void> {
     const pending = this.pendingProtected;
     if (!pending) return;
+    const selected = this.selected;
+    const session = this.agentSession;
+    if (!selected || !session) return;
+    const epoch = this.startOperation(false);
+    const operation = this.operation(epoch, selected, session);
     this.pendingProtected = null;
+    this.markIfAlive();
     const outcome = await this.native.biometricReprompt(pending.scope.accountId, pending.receipt)
       .catch(() => "failed" as const);
+    if (!await this.targetIsCurrent(operation)) {
+      this.abandonReceipt(pending.receipt);
+      return;
+    }
     if (outcome !== "success") {
-      this.statusMessage = outcome === "cancelled"
-        ? "Touch ID verification was cancelled."
-        : "Touch ID verification failed.";
+      this.abandonReceipt(pending.receipt);
+      this.commitOperation(operation, () => {
+        this.statusMessage = outcome === "cancelled"
+          ? "Touch ID verification was cancelled."
+          : "Touch ID verification failed.";
+      });
       return;
     }
     await this.releaseAndDeliver(
+      operation,
       pending.action,
       pending.scope,
       pending.mismatchConfirmed,
@@ -383,26 +472,46 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     if (!this.pendingProtected) return;
     this.masterPassword = "";
     this.masterPasswordMode = true;
+    this.markIfAlive();
   }
 
   async verifyWithMasterPassword(event: Event): Promise<void> {
     event.preventDefault();
     const pending = this.pendingProtected;
-    if (!pending || !this.masterPasswordMode || !this.masterPassword) return;
+    const selected = this.selected;
+    const session = this.agentSession;
+    if (!pending || !selected || !session || !this.masterPasswordMode || !this.masterPassword) return;
+    const pickerEpoch = this.startOperation(false);
+    const operation = this.operation(pickerEpoch, selected, session);
     const password = this.masterPassword;
+    this.masterPassword = "";
+    this.markIfAlive();
     const epoch = this.store.beginProtectedOperation();
     let verified = false;
     try {
       verified = await this.reprompt.verify(password, epoch, pending.receipt);
     } catch {
-      this.statusMessage = "Master password verification failed.";
-    } finally {
-      this.masterPassword = "";
+      this.commitOperation(operation, () => {
+        this.statusMessage = "Master password verification failed.";
+      });
     }
-    if (!verified || !this.store.isCurrentProtectedOperation(epoch)) return;
-    this.pendingProtected = null;
-    this.masterPasswordMode = false;
+    if (!verified || !this.store.isCurrentProtectedOperation(epoch)) {
+      this.abandonReceipt(pending.receipt);
+      return;
+    }
+    if (!await this.targetIsCurrent(operation)) {
+      this.abandonReceipt(pending.receipt);
+      return;
+    }
+    if (!this.commitOperation(operation, () => {
+      this.pendingProtected = null;
+      this.masterPasswordMode = false;
+    })) {
+      this.abandonReceipt(pending.receipt);
+      return;
+    }
     await this.releaseAndDeliver(
+        operation,
         pending.action,
         pending.scope,
         pending.mismatchConfirmed,
@@ -413,13 +522,18 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   async useProjectedAccount(): Promise<void> {
     const session = this.agentSession;
     if (!session) return;
+    const epoch = this.startOperation();
     this.mode = "loading";
+    this.markIfAlive();
     try {
       await this.auth.switchAccount(session.accountId);
+      if (!this.commit(epoch, () => {})) return;
       await this.initialize();
     } catch {
-      this.mode = "account-override";
-      this.statusMessage = "Unable to switch accounts.";
+      this.commit(epoch, () => {
+        this.mode = "account-override";
+        this.statusMessage = "Unable to switch accounts.";
+      });
     }
   }
 
@@ -428,6 +542,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   }
 
   backToVault(): void {
+    this.cancelPicker();
     void this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
   }
 
@@ -436,11 +551,19 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   }
 
   private async refreshCandidates(epoch: number): Promise<void> {
-    if (!this.agentSession) throw new Error("Agent unavailable");
+    const session = this.agentSession;
+    if (!session || !this.sessionIsCurrent(epoch, session)) throw new Error("Agent unavailable");
+    const bundleId = this.bundleId;
+    const appName = this.appName;
     const results = await Promise.all(FIELD_ORDER.map((field) =>
       this.candidatesService.query(this.queryRequest(field)),
     ));
-    if (epoch !== this.operationEpoch) return;
+    if (!this.sessionIsCurrent(epoch, session)) return;
+    const context = await this.native.entryContext().catch(() => ({ status: "unavailable" as const }));
+    if (!this.sessionIsCurrent(epoch, session)
+      || context.status !== "available"
+      || context.bundleId !== bundleId
+      || context.appName !== appName) return;
     const candidates = new Map<string, RankedAutoFillCandidate>();
     for (const result of results) {
       for (const candidate of result.candidates) {
@@ -450,12 +573,13 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
         }
       }
     }
-    this.candidates = [...candidates.values()].sort((left, right) =>
-      GROUP_ORDER.indexOf(left.group) - GROUP_ORDER.indexOf(right.group),
-    );
-    this.highlightedIndex = 0;
-    this.mode = this.candidates.length ? "ready" : "empty";
-    this.changeDetector.markForCheck();
+    this.commit(epoch, () => {
+      this.candidates = [...candidates.values()].sort((left, right) =>
+        GROUP_ORDER.indexOf(left.group) - GROUP_ORDER.indexOf(right.group),
+      );
+      this.highlightedIndex = 0;
+      this.mode = this.candidates.length ? "ready" : "empty";
+    });
   }
 
   private queryRequest(field: AutoFillSecretField) {
@@ -475,6 +599,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   }
 
   private async releaseAndDeliver(
+    operation: PickerOperation,
     action: SecretAction,
     scope: AutoFillRepromptScope,
     mismatchConfirmed: boolean,
@@ -482,31 +607,41 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   ): Promise<void> {
     let value = "";
     try {
+      if (!await this.targetIsCurrent(operation)) return;
       const released = await this.native.releaseSecret({
         scope,
         mismatchConfirmed,
         ...(repromptReceipt ? { repromptReceipt } : {}),
       });
+      if (!this.operationIsCurrent(operation)) return;
       if (released.status !== "success" || released.field !== scope.field) {
-        this.statusMessage = "AutoFill could not release this field.";
+        this.commitOperation(operation, () => {
+          this.statusMessage = "AutoFill could not release this field.";
+        });
         return;
       }
       value = released.value;
+      if (!await this.targetIsCurrent(operation)) return;
       if (action === "copy") {
         await this.native.copyText(value, 30);
-        this.statusMessage = "Copied.";
+        this.commitOperation(operation, () => { this.statusMessage = "Copied."; });
       } else {
         try {
           await this.native.pasteText(value, 30);
-          this.statusMessage = "Filled.";
+          this.commitOperation(operation, () => { this.statusMessage = "Filled."; });
         } catch (error) {
-          this.statusMessage = error instanceof PasteError && error.valueCopied
-            ? "Copied. Paste into the target app manually."
-            : "AutoFill could not paste this field.";
+          this.commitOperation(operation, () => {
+            this.statusMessage = error instanceof PasteError && error.valueCopied
+              ? "Copied. Paste into the target app manually."
+              : "AutoFill could not paste this field.";
+          });
         }
       }
     } finally {
       value = "";
+      if (repromptReceipt && this.activeReceipt?.receipt === repromptReceipt) {
+        this.cancelActiveReceipt();
+      }
     }
   }
 
@@ -519,5 +654,105 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.masterPassword = "";
     this.statusMessage = "";
     this.agentSession = null;
+  }
+
+  private startOperation(cancelReceipt = true): number {
+    const epoch = ++this.operationEpoch;
+    if (cancelReceipt) {
+      this.cancelActiveReceipt();
+      this.pendingMismatch = null;
+      this.pendingProtected = null;
+      this.masterPasswordMode = false;
+      this.masterPassword = "";
+    }
+    return epoch;
+  }
+
+  private operation(
+    epoch: number,
+    selected: RankedAutoFillCandidate,
+    session: Extract<AutoFillAgentSessionOutcome, { status: "success" }>,
+  ): PickerOperation {
+    return {
+      epoch,
+      candidateId: selected.cipherId,
+      accountId: session.accountId,
+      generation: session.generation,
+      bundleId: this.bundleId,
+      appName: this.appName,
+    };
+  }
+
+  private operationIsCurrent(operation: PickerOperation): boolean {
+    const state = this.store.snapshot();
+    return this.componentAlive
+      && operation.epoch === this.operationEpoch
+      && this.selected?.cipherId === operation.candidateId
+      && this.agentSession?.accountId === operation.accountId
+      && this.agentSession?.generation === operation.generation
+      && state.isUnlocked
+      && state.vaultOwnerAccountId === operation.accountId
+      && this.bundleId === operation.bundleId
+      && this.appName === operation.appName;
+  }
+
+  private sessionIsCurrent(
+    epoch: number,
+    session: Extract<AutoFillAgentSessionOutcome, { status: "success" }>,
+  ): boolean {
+    const state = this.store.snapshot();
+    return this.componentAlive
+      && epoch === this.operationEpoch
+      && this.agentSession?.accountId === session.accountId
+      && this.agentSession?.generation === session.generation
+      && state.isUnlocked
+      && state.vaultOwnerAccountId === session.accountId;
+  }
+
+  private async targetIsCurrent(operation: PickerOperation): Promise<boolean> {
+    if (!this.operationIsCurrent(operation)) return false;
+    const context = await this.native.entryContext().catch(() => ({ status: "unavailable" as const }));
+    return this.operationIsCurrent(operation)
+      && context.status === "available"
+      && context.bundleId === operation.bundleId
+      && context.appName === operation.appName;
+  }
+
+  private commit(epoch: number, update: () => void): boolean {
+    if (!this.componentAlive || epoch !== this.operationEpoch) return false;
+    update();
+    this.markIfAlive();
+    return true;
+  }
+
+  private commitOperation(operation: PickerOperation, update: () => void): boolean {
+    if (!this.operationIsCurrent(operation)) return false;
+    update();
+    this.markIfAlive();
+    return true;
+  }
+
+  private markIfAlive(): void {
+    if (this.componentAlive) this.changeDetector.markForCheck();
+  }
+
+  private cancelActiveReceipt(): void {
+    const active = this.activeReceipt;
+    this.activeReceipt = null;
+    if (active) void this.native.cancelReprompt(active.scope, active.receipt).catch(() => undefined);
+  }
+
+  private abandonReceipt(receipt: string): void {
+    if (this.activeReceipt?.receipt === receipt) this.cancelActiveReceipt();
+  }
+
+  private cancelPicker(): void {
+    this.startOperation();
+    this.pendingMismatch = null;
+    this.pendingProtected = null;
+    this.masterPasswordMode = false;
+    this.masterPassword = "";
+    this.statusMessage = "";
+    this.markIfAlive();
   }
 }

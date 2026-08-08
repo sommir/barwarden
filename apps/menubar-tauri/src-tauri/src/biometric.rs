@@ -1,4 +1,4 @@
-use crate::autofill_reprompt::AutoFillRepromptReceiptStore;
+use crate::autofill_reprompt::{is_main_picker_window, AutoFillRepromptReceiptStore};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 #[cfg(target_os = "macos")]
@@ -105,6 +105,24 @@ fn verify_autofill_biometric<B: BiometricBackend>(
     outcome
 }
 
+fn verify_autofill_biometric_for_window<B: BiometricBackend>(
+    window_label: &str,
+    state: &BiometricState<B>,
+    receipts: &AutoFillRepromptReceiptStore,
+    account_id: &str,
+    receipt: &str,
+) -> BiometricOperationOutcome {
+    if !is_main_picker_window(window_label)
+        || validate_account_id(account_id).is_err()
+        || receipt.is_empty()
+        || receipt.len() > 512
+    {
+        receipts.burn(receipt);
+        return BiometricOperationOutcome::InvalidAccount;
+    }
+    verify_autofill_biometric(state, receipts, account_id, receipt)
+}
+
 fn validated_account_name(account_id: &str) -> Result<String, BiometricError> {
     validate_account_id(account_id)?;
     Ok(biometric_account_name(account_id))
@@ -182,6 +200,7 @@ pub async fn biometric_unlock(
 #[tauri::command]
 pub async fn autofill_biometric_reprompt(
     app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
     account_id: String,
     receipt: String,
 ) -> BiometricOperationOutcome {
@@ -192,8 +211,17 @@ pub async fn autofill_biometric_reprompt(
         .state::<Arc<AutoFillRepromptReceiptStore>>()
         .inner()
         .clone();
+    let window_label = window.label().to_owned();
     let outcome = run_blocking(
-        move || verify_autofill_biometric(&state, &receipts, &account_id, &receipt),
+        move || {
+            verify_autofill_biometric_for_window(
+                &window_label,
+                &state,
+                &receipts,
+                &account_id,
+                &receipt,
+            )
+        },
         BiometricOperationOutcome::StorageUnavailable,
     )
     .await;
@@ -491,6 +519,58 @@ mod tests {
             BiometricOperationOutcome::Success
         );
         assert!(receipts.consume_verified(&receipt, &scope));
+    }
+
+    #[test]
+    fn autofill_touch_id_rejects_other_webviews_and_burns_the_receipt() {
+        use crate::autofill_contract::AutoFillSecretField;
+        use crate::autofill_reprompt::{AutoFillRepromptReceiptStore, AutoFillRepromptScope};
+
+        let account = "a".repeat(64);
+        let scope = AutoFillRepromptScope {
+            account_id: account.clone(),
+            candidate_id: "cipher-a".to_owned(),
+            field: AutoFillSecretField::Password,
+            generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            context_token: "context-a".to_owned(),
+        };
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let receipt = receipts
+            .begin(
+                scope.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+
+        assert_eq!(
+            verify_autofill_biometric_for_window(
+                "popout",
+                &BiometricState::new(RecordingBiometricBackend::default()),
+                &receipts,
+                &account,
+                &receipt,
+            ),
+            BiometricOperationOutcome::InvalidAccount
+        );
+        assert!(!receipts.cancel(&receipt, &scope));
+
+        let malformed_receipt = receipts
+            .begin(
+                scope.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+        assert_eq!(
+            verify_autofill_biometric_for_window(
+                "main",
+                &BiometricState::new(RecordingBiometricBackend::default()),
+                &receipts,
+                "not-a-native-account-id",
+                &malformed_receipt,
+            ),
+            BiometricOperationOutcome::InvalidAccount
+        );
+        assert!(!receipts.cancel(&malformed_receipt, &scope));
     }
 
     #[derive(Clone, Default)]

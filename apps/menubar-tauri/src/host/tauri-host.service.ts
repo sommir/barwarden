@@ -300,6 +300,10 @@ export class TauriHostService
     return decodeBeginReprompt(await this.invoke<unknown>("autofill_begin_reprompt", { scope }));
   }
 
+  async cancelReprompt(scope: AutoFillRepromptScope, receipt: string): Promise<void> {
+    await this.invoke("autofill_cancel_reprompt", { scope, receipt });
+  }
+
   biometricReprompt(accountId: string, receipt: string): Promise<BiometricOperationStatus> {
     return this.decodeBiometric(
       this.invoke<unknown>("autofill_biometric_reprompt", { accountId, receipt }),

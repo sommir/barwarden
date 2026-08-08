@@ -116,6 +116,7 @@ fn main() {
             autofill_ipc::autofill_query_candidates,
             autofill_ipc::autofill_release_secret,
             autofill_reprompt::autofill_begin_reprompt,
+            autofill_reprompt::autofill_cancel_reprompt,
             autofill_projection::autofill_capture_projection_binding,
             autofill_projection::autofill_replace_projection,
             autofill_projection::autofill_clear_projection,

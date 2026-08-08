@@ -782,6 +782,25 @@ describe("TauriHostService", () => {
     ]);
   });
 
+  it("cancels a picker receipt with its complete release scope", async () => {
+    const calls: Array<[string, Record<string, unknown> | undefined]> = [];
+    const host = new TauriHostService(async (command, args) => {
+      calls.push([command, args]);
+      return undefined as never;
+    });
+    const scope = {
+      accountId: "account-a",
+      candidateId: "cipher-a",
+      field: "password" as const,
+      generation: "00000000-0000-4000-8000-000000000004",
+      contextToken: "context-a",
+    };
+
+    await host.cancelReprompt(scope, "receipt-a");
+
+    expect(calls).toEqual([["autofill_cancel_reprompt", { scope, receipt: "receipt-a" }]]);
+  });
+
   it.each([
     () => Promise.reject(new Error("private native error")),
     () => Promise.resolve({ status: "success", secret: "private token" }),

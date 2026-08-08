@@ -9,7 +9,7 @@ const MAXIMUM_RECEIPTS: usize = 512;
 const MAIN_PICKER_WINDOW_LABEL: &str = "main";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AutoFillRepromptScope {
     pub account_id: String,
     pub candidate_id: String,
@@ -167,6 +167,22 @@ impl AutoFillRepromptReceiptStore {
             && record.scope == *scope
     }
 
+    pub fn cancel(&self, receipt: &str, scope: &AutoFillRepromptScope) -> bool {
+        let Ok(mut records) = self.records.lock() else {
+            return false;
+        };
+        records
+            .remove(receipt)
+            .is_some_and(|record| record.scope == *scope)
+    }
+
+    pub fn burn(&self, receipt: &str) -> bool {
+        self.records
+            .lock()
+            .map(|mut records| records.remove(receipt).is_some())
+            .unwrap_or(false)
+    }
+
     pub fn clear(&self) {
         if let Ok(mut records) = self.records.lock() {
             records.clear();
@@ -250,6 +266,36 @@ pub fn autofill_begin_reprompt(
         Ok(receipt) => BeginRepromptOutcome::Pending { receipt },
         Err(()) => BeginRepromptOutcome::Unavailable,
     }
+}
+
+#[tauri::command]
+pub fn autofill_cancel_reprompt(
+    window: tauri::WebviewWindow,
+    receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
+    scope: AutoFillRepromptScope,
+    receipt: String,
+) -> Result<(), &'static str> {
+    cancel_reprompt_for_window(window.label(), &receipts, scope, receipt)
+}
+
+fn cancel_reprompt_for_window(
+    window_label: &str,
+    receipts: &AutoFillRepromptReceiptStore,
+    scope: AutoFillRepromptScope,
+    receipt: String,
+) -> Result<(), &'static str> {
+    if !is_main_picker_window(window_label)
+        || receipt.trim().is_empty()
+        || receipt.len() > 512
+        || validate_scope(&scope).is_err()
+    {
+        receipts.burn(&receipt);
+        return Err("unavailable");
+    }
+    if !receipts.cancel(&receipt, &scope) {
+        return Err("unavailable");
+    }
+    Ok(())
 }
 
 pub(crate) fn is_main_picker_window(label: &str) -> bool {
@@ -356,6 +402,42 @@ mod tests {
             .is_err());
         assert!(!store.complete_verification(&receipt, true));
         assert!(!store.consume_verified(&receipt, &scope(AutoFillSecretField::Password)));
+    }
+
+    #[test]
+    fn cancellation_burns_the_receipt_and_requires_the_exact_full_scope() {
+        let store = AutoFillRepromptReceiptStore::default();
+        let exact = scope(AutoFillSecretField::Password);
+        let receipt = store
+            .begin(
+                exact.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+        let wrong = AutoFillRepromptScope {
+            candidate_id: "cipher-b".to_owned(),
+            ..exact.clone()
+        };
+
+        assert!(!store.cancel(&receipt, &wrong));
+        assert!(!store.cancel(&receipt, &exact));
+        assert!(!store.consume_verified(&receipt, &exact));
+
+        let malformed_receipt = store
+            .begin(
+                exact.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+        let malformed = AutoFillRepromptScope {
+            account_id: String::new(),
+            ..exact.clone()
+        };
+        assert!(
+            cancel_reprompt_for_window("main", &store, malformed, malformed_receipt.clone())
+                .is_err()
+        );
+        assert!(!store.cancel(&malformed_receipt, &exact));
     }
 
     #[test]

@@ -75,7 +75,11 @@ final class PeerIdentityVerifierTests: XCTestCase {
         )
         let requestWithForgedClaims = Data(#"{"version":1,"request_id":"00000000-0000-4000-8000-000000000001","operation":"probe","nonce":[1,2,3],"pid":1,"team_id":"ATTACKER01","bundle_id":"evil.example"}"#.utf8)
 
-        _ = try AgentFrame.decode(try AgentFrame.encode(requestWithForgedClaims), as: AgentRequest.self)
+        XCTAssertThrowsError(
+            try AgentFrame.decode(try AgentFrame.encode(requestWithForgedClaims), as: AgentRequest.self)
+        ) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .malformedMessage)
+        }
         XCTAssertEqual(try verifier.verifyAcceptedSocket(7), .mainApplication)
         XCTAssertEqual(inspectedAuditToken, auditToken)
     }

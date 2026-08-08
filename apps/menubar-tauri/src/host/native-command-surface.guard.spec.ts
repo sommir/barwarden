@@ -10,6 +10,7 @@ const allowedCommands = [
   "autofill_agent_status",
   "autofill_begin_reprompt",
   "autofill_biometric_reprompt",
+  "autofill_cancel_reprompt",
   "autofill_capture_projection_binding",
   "autofill_clear_projection",
   "autofill_entry_context",

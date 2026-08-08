@@ -26,7 +26,7 @@ pub struct AgentClient {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CandidateCommandRequest {
     account_id: String,
     lock_generation: String,
@@ -35,7 +35,7 @@ pub struct CandidateCommandRequest {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CandidateCommandContext {
     bundle_id: String,
     app_name: String,
@@ -91,7 +91,7 @@ pub enum AgentSessionCommandOutcome {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecretCommandRequest {
     scope: AutoFillRepromptScope,
     mismatch_confirmed: bool,
@@ -203,16 +203,62 @@ pub fn decode_frame(frame: &[u8]) -> Result<Vec<u8>, AgentErrorCode> {
     Ok(frame[4..].to_vec())
 }
 
-fn read_frame(stream: &mut UnixStream) -> Result<Vec<u8>, AgentErrorCode> {
-    let mut header = [0_u8; 4];
-    stream.read_exact(&mut header).map_err(map_io_error)?;
-    let payload_length = u32::from_be_bytes(header) as usize;
+struct InboundFrame {
+    bytes: Vec<u8>,
+    #[cfg(test)]
+    observer: Option<Box<dyn Fn(&[u8]) + Send>>,
+}
+
+impl std::ops::Deref for InboundFrame {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.bytes
+    }
+}
+
+impl Drop for InboundFrame {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.bytes);
+        #[cfg(test)]
+        if let Some(observer) = self.observer.as_ref() {
+            observer(&self.bytes);
+        }
+    }
+}
+
+fn read_frame(stream: &mut UnixStream) -> Result<InboundFrame, AgentErrorCode> {
+    read_frame_inner(stream, None)
+}
+
+fn read_frame_inner(
+    stream: &mut UnixStream,
+    #[cfg(test)] observer: Option<Box<dyn Fn(&[u8]) + Send>>,
+    #[cfg(not(test))] _observer: Option<()>,
+) -> Result<InboundFrame, AgentErrorCode> {
+    let mut header = Zeroizing::new([0_u8; 4]);
+    stream.read_exact(&mut *header).map_err(map_io_error)?;
+    let payload_length = u32::from_be_bytes(*header) as usize;
     if payload_length > MAXIMUM_PAYLOAD_BYTES {
         return Err(AgentErrorCode::MessageTooLarge);
     }
-    let mut payload = vec![0; payload_length];
-    stream.read_exact(&mut payload).map_err(map_io_error)?;
+    let mut payload = InboundFrame {
+        bytes: vec![0; payload_length],
+        #[cfg(test)]
+        observer,
+    };
+    stream
+        .read_exact(&mut payload.bytes)
+        .map_err(map_io_error)?;
     Ok(payload)
+}
+
+#[cfg(test)]
+fn read_frame_with_observer(
+    stream: &mut UnixStream,
+    observer: impl Fn(&[u8]) + Send + 'static,
+) -> Result<InboundFrame, AgentErrorCode> {
+    read_frame_inner(stream, Some(Box::new(observer)))
 }
 
 fn map_io_error(error: std::io::Error) -> AgentErrorCode {
@@ -305,10 +351,17 @@ fn decode_session_response(
     {
         return Err(AgentErrorCode::MalformedRequest);
     }
-    response
+    let session = response
         .session
         .take()
-        .ok_or(AgentErrorCode::MalformedRequest)
+        .ok_or(AgentErrorCode::MalformedRequest)?;
+    if uuid::Uuid::parse_str(&session.generation).is_err()
+        || session.account_id.trim().is_empty()
+        || session.account_id.len() > 512
+    {
+        return Err(AgentErrorCode::MalformedRequest);
+    }
+    Ok(session)
 }
 
 fn validate_candidate_request(
@@ -343,6 +396,25 @@ fn validate_candidate_request(
     })
 }
 
+fn validate_secret_request(request: &SecretCommandRequest) -> Result<(), AgentErrorCode> {
+    let scope = &request.scope;
+    if scope.account_id.trim().is_empty()
+        || scope.account_id.len() > 512
+        || scope.candidate_id.trim().is_empty()
+        || scope.candidate_id.len() > 512
+        || scope.context_token.trim().is_empty()
+        || scope.context_token.len() > 512
+        || uuid::Uuid::parse_str(&scope.generation).is_err()
+        || request
+            .reprompt_receipt
+            .as_ref()
+            .is_some_and(|receipt| receipt.is_empty() || receipt.len() > 512)
+    {
+        return Err(AgentErrorCode::MalformedRequest);
+    }
+    Ok(())
+}
+
 fn perform_candidates(
     client: &AgentClient,
     request: CandidateCommandRequest,
@@ -360,15 +432,13 @@ fn perform_secret(
     receipts: &AutoFillRepromptReceiptStore,
     request: SecretCommandRequest,
 ) -> Result<(AutoFillSecretField, String), AgentErrorCode> {
-    let scope = request.scope;
-    if scope.account_id.trim().is_empty()
-        || scope.candidate_id.trim().is_empty()
-        || scope.context_token.trim().is_empty()
-        || uuid::Uuid::parse_str(&scope.generation).is_err()
-    {
-        return Err(AgentErrorCode::MalformedRequest);
-    }
-    let reprompt = if let Some(receipt) = request.reprompt_receipt {
+    validate_secret_request(&request)?;
+    let SecretCommandRequest {
+        scope,
+        mismatch_confirmed,
+        reprompt_receipt,
+    } = request;
+    let reprompt = if let Some(receipt) = reprompt_receipt {
         if !receipts.consume_verified(&receipt, &scope) {
             return Err(AgentErrorCode::Unauthorized);
         }
@@ -403,7 +473,7 @@ fn perform_secret(
             candidate_id: scope.candidate_id,
             field: scope.field,
             context_token: scope.context_token,
-            mismatch_confirmed: request.mismatch_confirmed,
+            mismatch_confirmed,
             reprompt,
             published_service: None,
         }))?;
@@ -643,6 +713,40 @@ mod tests {
     }
 
     #[test]
+    fn session_decoder_rejects_unbounded_or_malformed_identity_fields() {
+        for session in [
+            serde_json::json!({
+                "generation": "not-a-uuid",
+                "account_id": "account-a",
+                "vault_revision": 1
+            }),
+            serde_json::json!({
+                "generation": "00000000-0000-4000-8000-000000000004",
+                "account_id": "",
+                "vault_revision": 1
+            }),
+            serde_json::json!({
+                "generation": "00000000-0000-4000-8000-000000000004",
+                "account_id": "a".repeat(513),
+                "vault_revision": 1
+            }),
+        ] {
+            let response: AgentResponse = serde_json::from_value(serde_json::json!({
+                "version": 1,
+                "request_id": "00000000-0000-4000-8000-000000000001",
+                "nonce": [1],
+                "status": "ok",
+                "session": session
+            }))
+            .unwrap();
+            assert_eq!(
+                decode_session_response(response),
+                Err(AgentErrorCode::MalformedRequest)
+            );
+        }
+    }
+
+    #[test]
     fn candidate_decoder_emits_the_exact_camel_case_picker_contract() {
         let response: AgentResponse = serde_json::from_value(serde_json::json!({
             "version": 1,
@@ -669,6 +773,145 @@ mod tests {
                 }]
             })
         );
+    }
+
+    #[test]
+    fn tauri_requests_reject_unknown_fields_and_every_unbounded_identifier() {
+        let unknown = serde_json::json!({
+            "accountId": "account-a",
+            "lockGeneration": "00000000-0000-4000-8000-000000000004",
+            "field": "password",
+            "context": { "bundleId": "com.example.App", "appName": "Example", "serviceIdentifiers": [], "query": "" },
+            "unknown": true
+        });
+        assert!(serde_json::from_value::<CandidateCommandRequest>(unknown).is_err());
+
+        let candidate = CandidateCommandRequest {
+            account_id: "account-a".to_owned(),
+            lock_generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            field: AutoFillSecretField::Password,
+            context: CandidateCommandContext {
+                bundle_id: "com.example.App".to_owned(),
+                app_name: "Example".to_owned(),
+                service_identifiers: Vec::new(),
+                query: String::new(),
+            },
+        };
+        let mut invalid_candidates = Vec::new();
+        let mut invalid = candidate.clone();
+        invalid.account_id = String::new();
+        invalid_candidates.push(invalid);
+        let mut invalid = candidate.clone();
+        invalid.account_id = "a".repeat(513);
+        invalid_candidates.push(invalid);
+        let mut invalid = candidate.clone();
+        invalid.lock_generation = "not-a-uuid".to_owned();
+        invalid_candidates.push(invalid);
+        let mut invalid = candidate.clone();
+        invalid.context.bundle_id = String::new();
+        invalid_candidates.push(invalid);
+        let mut invalid = candidate.clone();
+        invalid.context.bundle_id = "b".repeat(256);
+        invalid_candidates.push(invalid);
+        let mut invalid = candidate.clone();
+        invalid.context.app_name = "n".repeat(256);
+        invalid_candidates.push(invalid);
+        let mut invalid = candidate.clone();
+        invalid.context.service_identifiers = vec!["service".to_owned(); 33];
+        invalid_candidates.push(invalid);
+        let mut invalid = candidate.clone();
+        invalid.context.service_identifiers = vec!["s".repeat(2_049)];
+        invalid_candidates.push(invalid);
+        let mut invalid = candidate;
+        invalid.context.query = "q".repeat(513);
+        invalid_candidates.push(invalid);
+        for invalid in invalid_candidates {
+            assert_eq!(
+                validate_candidate_request(invalid),
+                Err(AgentErrorCode::MalformedRequest)
+            );
+        }
+
+        let secret = SecretCommandRequest {
+            scope: AutoFillRepromptScope {
+                account_id: "account-a".to_owned(),
+                candidate_id: "cipher-a".to_owned(),
+                field: AutoFillSecretField::Password,
+                generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+                context_token: "context-a".to_owned(),
+            },
+            mismatch_confirmed: false,
+            reprompt_receipt: Some("receipt-a".to_owned()),
+        };
+        let mut invalid_secrets = Vec::new();
+        let mut invalid = secret.clone();
+        invalid.scope.account_id = String::new();
+        invalid_secrets.push(invalid);
+        let mut invalid = secret.clone();
+        invalid.scope.account_id = "a".repeat(513);
+        invalid_secrets.push(invalid);
+        let mut invalid = secret.clone();
+        invalid.scope.candidate_id = String::new();
+        invalid_secrets.push(invalid);
+        let mut invalid = secret.clone();
+        invalid.scope.candidate_id = "c".repeat(513);
+        invalid_secrets.push(invalid);
+        let mut invalid = secret.clone();
+        invalid.scope.context_token = String::new();
+        invalid_secrets.push(invalid);
+        let mut invalid = secret.clone();
+        invalid.scope.context_token = "x".repeat(513);
+        invalid_secrets.push(invalid);
+        let mut invalid = secret.clone();
+        invalid.scope.generation = "not-a-uuid".to_owned();
+        invalid_secrets.push(invalid);
+        let mut invalid = secret.clone();
+        invalid.reprompt_receipt = Some(String::new());
+        invalid_secrets.push(invalid);
+        let mut invalid = secret;
+        invalid.reprompt_receipt = Some("r".repeat(513));
+        invalid_secrets.push(invalid);
+        for invalid in invalid_secrets {
+            assert_eq!(
+                validate_secret_request(&invalid),
+                Err(AgentErrorCode::MalformedRequest)
+            );
+        }
+    }
+
+    #[test]
+    fn inbound_frame_payload_is_zeroized_on_success_and_truncation() {
+        use std::sync::{Arc, Mutex};
+
+        let observed = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
+        let observer = {
+            let observed = Arc::clone(&observed);
+            move |bytes: &[u8]| observed.lock().unwrap().push(bytes.to_vec())
+        };
+        let (mut reader, mut writer) = UnixStream::pair().unwrap();
+        writer
+            .write_all(&encode_frame(b"secret-frame").unwrap())
+            .unwrap();
+        drop(writer);
+        drop(read_frame_with_observer(&mut reader, observer).unwrap());
+        assert!(observed.lock().unwrap()[0].iter().all(|byte| *byte == 0));
+
+        let observed_error = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
+        let observer = {
+            let observed_error = Arc::clone(&observed_error);
+            move |bytes: &[u8]| observed_error.lock().unwrap().push(bytes.to_vec())
+        };
+        let (mut reader, mut writer) = UnixStream::pair().unwrap();
+        writer.write_all(&8_u32.to_be_bytes()).unwrap();
+        writer.write_all(b"short").unwrap();
+        drop(writer);
+        assert!(matches!(
+            read_frame_with_observer(&mut reader, observer),
+            Err(AgentErrorCode::MalformedRequest)
+        ));
+        assert!(observed_error.lock().unwrap()[0]
+            .iter()
+            .all(|byte| *byte == 0));
     }
 
     #[test]
