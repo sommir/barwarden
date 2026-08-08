@@ -4562,7 +4562,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/popup-state.ts",
-        "sha256": "76812973a090ca21464ca3d184446abb92b8bed48d0ae2b1946078a84ca4bada"
+        "sha256": "5526f3d5e5b1b673ae687b43551176be60d5a3b97c0ca57dc128340f0618251c"
       },
       {
         "path": "apps/menubar-tauri/src/app/settings/clipboard-policy.service.ts",

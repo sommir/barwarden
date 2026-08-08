@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AccountSessionPort } from "../../auth/account-session-port";
 import type { AuthSession } from "../../auth/auth-session-store";
 import { PopupStateStore } from "../popup-state";
 import { demoVaultItems } from "../vault-demo";
@@ -145,28 +144,33 @@ describe("AutoFillProjectionService", () => {
     fixture.service.destroy();
   });
 
-  it("invalidates an A snapshot before an account lookup can resolve as B", async () => {
-    const lookup = deferred<readonly ReturnType<typeof activeAccount>[]>() ;
-    const accounts = {
-      list: vi.fn(() => lookup.promise),
-    } as unknown as AccountSessionPort;
-    const fixture = createFixture(new RecordingProjectionHost(), accounts);
-    fixture.store.setActiveSession(session);
-    fixture.store.setUnlocked("person-a@example.test");
-    fixture.store.setItems([{ ...demoVaultItems[0], fields: [
+  it("rejects a suspended A write after another window globally invalidates and activates B", async () => {
+    const sharedHost = new SharedAuthoritativeProjectionHost(accountId);
+    const windowA = createFixture(sharedHost);
+    const windowB = createFixture(sharedHost);
+    windowA.store.setActiveSession(session);
+    windowA.store.setUnlocked("person-a@example.test");
+    windowA.store.setItems([{ ...demoVaultItems[0], fields: [
       { id: "username", label: "Username", value: "A-ONLY-USERNAME" },
       { id: "password", label: "Password", value: "A-ONLY-PASSWORD" },
-    ] }]);
-    await vi.waitFor(() => expect(accounts.list).toHaveBeenCalledTimes(1));
+    ] }], undefined, undefined, accountId);
+    await sharedHost.replaceStarted.promise;
 
-    const locked = fixture.service.invalidateAndLock();
-    lookup.resolve([activeAccount("b".repeat(64))]);
-    await locked;
-    await fixture.service.settled();
+    const accountB = "b".repeat(64);
+    await windowB.service.invalidateAndLock();
+    sharedHost.activate(accountB);
+    windowB.store.setActiveSession({ ...session });
+    windowB.store.setUnlocked("person-b@example.test");
+    windowB.store.setItems([demoVaultItems[0]], undefined, undefined, accountB);
+    sharedHost.resumeReplace();
+    await windowA.service.settled();
+    await windowB.service.settled();
 
-    expect(fixture.host.replacements).toEqual([]);
-    expect(JSON.stringify(fixture.host.replacements)).not.toContain("A-ONLY");
-    fixture.service.destroy();
+    expect(sharedHost.committedWrites).toHaveLength(1);
+    expect(sharedHost.committedWrites[0].accountId).toBe(accountB);
+    expect(JSON.stringify(sharedHost.committedWrites)).not.toContain("A-ONLY");
+    windowA.service.destroy();
+    windowB.service.destroy();
   });
 
   it("retries a transient Agent lock failure before acknowledging invalidation", async () => {
@@ -213,6 +217,10 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
 
   constructor(private readonly onReplace: (call: number) => Promise<void> = async () => undefined) {}
 
+  async captureBinding(accountId: string) {
+    return { token: `binding:${accountId}`, accountId };
+  }
+
   async replaceProjection(input: Parameters<AutoFillProjectionHost["replaceProjection"]>[0]): Promise<void> {
     this.concurrentReplacements += 1;
     this.maximumConcurrentReplacements = Math.max(
@@ -247,33 +255,65 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
 
 function createFixture(
   host = new RecordingProjectionHost(),
-  accountStore: AccountSessionPort | null = null,
 ) {
   const store = new PopupStateStore();
-  const accounts = accountStore ?? ({
-    list: vi.fn(async () => [activeAccount(accountId)]),
-  } as unknown as AccountSessionPort);
   const service = new AutoFillProjectionService(
     store,
     host,
-    accounts,
     () => new Date("2026-08-08T08:00:00.000Z"),
   );
+  store.setItems([], undefined, undefined, accountId);
   return { store, host, service };
-}
-
-function activeAccount(id: string) {
-  return {
-    id,
-    email: "person@example.test",
-    serverUrl: "https://vault.example.test",
-    status: "unlocked" as const,
-    isActive: true,
-  };
 }
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise; });
   return { promise, resolve };
+}
+
+class SharedAuthoritativeProjectionHost implements AutoFillProjectionHost {
+  readonly replaceStarted = deferred<void>();
+  readonly committedWrites: Parameters<AutoFillProjectionHost["replaceProjection"]>[0][] = [];
+  private epoch = 0;
+  private activeAccountId: string | null;
+  private replaceRelease = deferred<void>();
+  private suspended = true;
+
+  constructor(accountId: string) {
+    this.activeAccountId = accountId;
+  }
+
+  activate(accountId: string): void {
+    this.activeAccountId = accountId;
+  }
+
+  resumeReplace(): void {
+    this.suspended = false;
+    this.replaceRelease.resolve();
+  }
+
+  async captureBinding(accountId: string) {
+    if (accountId !== this.activeAccountId) throw new Error("stale binding owner");
+    return { token: `${this.epoch}:${accountId}`, accountId };
+  }
+
+  async replaceProjection(
+    input: Parameters<AutoFillProjectionHost["replaceProjection"]>[0],
+    binding: Awaited<ReturnType<AutoFillProjectionHost["captureBinding"]>>,
+  ): Promise<void> {
+    this.replaceStarted.resolve();
+    if (this.suspended) await this.replaceRelease.promise;
+    if (binding.token !== `${this.epoch}:${this.activeAccountId}` || input.accountId !== this.activeAccountId) {
+      throw new Error("stale binding");
+    }
+    this.committedWrites.push(input);
+  }
+
+  async clearProjection(): Promise<void> {}
+
+  async lockProjection(): Promise<void> {
+    this.epoch += 1;
+    this.activeAccountId = null;
+  }
 }

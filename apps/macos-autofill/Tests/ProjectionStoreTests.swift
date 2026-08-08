@@ -158,6 +158,35 @@ final class ProjectionStoreTests: XCTestCase {
         }
     }
 
+    func testRetiredGenerationCapacityFailsClosedWithoutEvictingOldGenerations() throws {
+        let fixture = try Fixture()
+        let first = generation
+        let second = UUID()
+        let third = UUID()
+        try fixture.writeProjection(accountID: "account-a", revision: 1, key: key)
+        let store = ProjectionStore(
+            projectionURL: fixture.url,
+            clock: fixture.clock,
+            retiredGenerationCapacity: 2
+        )
+
+        try store.provision(material(accountID: "account-a", revision: 1, generation: first), from: .mainApplication)
+        store.lock()
+        try store.provision(material(accountID: "account-a", revision: 1, generation: second), from: .mainApplication)
+        store.lock()
+
+        XCTAssertThrowsError(
+            try store.provision(material(accountID: "account-a", revision: 1, generation: third), from: .mainApplication)
+        ) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .requestCapacity)
+        }
+        XCTAssertThrowsError(
+            try store.provision(material(accountID: "account-a", revision: 1, generation: first), from: .mainApplication)
+        ) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .staleRevision)
+        }
+    }
+
     func testLockAccountSwitchTimeoutAndProcessRestartClearKeyAccess() throws {
         let fixture = try Fixture()
         try fixture.writeProjection(accountID: "account-a", revision: 1, key: key)

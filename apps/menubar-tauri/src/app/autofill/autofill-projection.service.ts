@@ -1,12 +1,9 @@
 import { Inject, Injectable, InjectionToken, Optional } from "@angular/core";
 import type { Subscription } from "rxjs";
 
-import {
-  ACCOUNT_SESSION_PORT,
-  type AccountSessionPort,
-} from "../../auth/account-session-port";
 import { isTauriRuntime } from "../../host/default-host.service";
 import {
+  captureNativeAutoFillProjectionBinding,
   clearNativeAutoFillProjection,
   lockNativeAutoFillProjection,
   replaceNativeAutoFillProjection,
@@ -16,12 +13,14 @@ import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import type { VaultItem } from "../vault/vault-item.model";
 import type {
   AutoFillProjectionInput,
+  AutoFillProjectionBinding,
   AutoFillProjectionLogin,
 } from "./autofill-projection.model";
 import type { AutoFillProjectionLifecyclePort } from "../auth/autofill-projection-lifecycle.port";
 
 export interface AutoFillProjectionHost {
-  replaceProjection(input: AutoFillProjectionInput): Promise<void>;
+  captureBinding(accountId: string): Promise<AutoFillProjectionBinding>;
+  replaceProjection(input: AutoFillProjectionInput, binding: AutoFillProjectionBinding): Promise<void>;
   clearProjection(accountId: string): Promise<void>;
   lockProjection(): Promise<void>;
 }
@@ -37,6 +36,7 @@ export const AUTOFILL_PROJECTION_CLOCK = new InjectionToken<() => Date>(
 );
 
 const noopHost: AutoFillProjectionHost = {
+  captureBinding: async (accountId) => ({ token: `browser:${accountId}`, accountId }),
   replaceProjection: async () => undefined,
   clearProjection: async () => undefined,
   lockProjection: async () => undefined,
@@ -54,7 +54,6 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
   constructor(
     private readonly store: PopupStateStore,
     @Optional() @Inject(AUTOFILL_PROJECTION_HOST) host: AutoFillProjectionHost | null = null,
-    @Optional() @Inject(ACCOUNT_SESSION_PORT) private readonly accounts: AccountSessionPort | null = null,
     @Inject(AUTOFILL_PROJECTION_CLOCK) private readonly clock: () => Date = () => new Date(),
   ) {
     this.host = host ?? (isTauriRuntime()
@@ -93,6 +92,7 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     if (
       !state.isUnlocked ||
       !state.activeSession ||
+      !state.vaultOwnerAccountId ||
       state.vaultSyncStatus !== "fresh" ||
       state.items === this.lastItems
     ) {
@@ -104,25 +104,17 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
       epoch: this.lifecycleEpoch,
       session: state.activeSession,
       items: state.items,
+      accountId: state.vaultOwnerAccountId,
     } as const;
     void this.enqueue(async () => {
-      const accountId = await this.activeAccountId();
-      if (!accountId || !this.isCurrentSnapshot(snapshot)) {
-        return;
-      }
-      const identity = { ...snapshot, accountId } as const;
-      const confirmedAccountId = await this.activeAccountId();
-      if (confirmedAccountId !== identity.accountId || !this.isCurrentSnapshot(identity)) {
-        return;
-      }
-      await this.replaceWithRetry(identity, {
-        accountId,
+      if (!this.isCurrentSnapshot(snapshot)) return;
+      const binding = await this.host.captureBinding(snapshot.accountId);
+      if (binding.accountId !== snapshot.accountId || !this.isCurrentSnapshot(snapshot)) return;
+      await this.replaceWithRetry(snapshot, {
+        accountId: snapshot.accountId,
         createdAt: this.clock().toISOString(),
-        logins: identity.items.flatMap(projectLogin),
-      });
-      if (!this.isCurrentSnapshot(identity)) return;
-      const finalAccountId = await this.activeAccountId();
-      if (finalAccountId !== identity.accountId || !this.isCurrentSnapshot(identity)) return;
+        logins: snapshot.items.flatMap(projectLogin),
+      }, binding);
     });
   }
 
@@ -135,23 +127,26 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     readonly epoch: number;
     readonly session: PopupState["activeSession"];
     readonly items: readonly VaultItem[];
+    readonly accountId: string;
   }): boolean {
     const current = this.store.snapshot();
     return snapshot.epoch === this.lifecycleEpoch &&
       current.isUnlocked &&
       current.activeSession === snapshot.session &&
-      current.items === snapshot.items;
+      current.items === snapshot.items &&
+      current.vaultOwnerAccountId === snapshot.accountId;
   }
 
   private async replaceWithRetry(
-    identity: { readonly epoch: number; readonly session: PopupState["activeSession"]; readonly items: readonly VaultItem[] },
+    identity: { readonly epoch: number; readonly session: PopupState["activeSession"]; readonly items: readonly VaultItem[]; readonly accountId: string },
     input: AutoFillProjectionInput,
+    binding: AutoFillProjectionBinding,
   ): Promise<void> {
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       if (!this.isCurrentSnapshot(identity)) return;
       try {
-        await this.host.replaceProjection(input);
+        await this.host.replaceProjection(input, binding);
         return;
       } catch (error) {
         lastError = error;
@@ -187,11 +182,6 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     throw lastError;
   }
 
-  private async activeAccountId(): Promise<string | null> {
-    const accounts = await this.accounts?.list();
-    return accounts?.find((account) => account.isActive)?.id ?? null;
-  }
-
   private enqueue(operation: () => Promise<void>): Promise<void> {
     const pending = this.operationTail.then(operation);
     this.operationTail = pending.catch(() => undefined);
@@ -200,8 +190,16 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
 }
 
 class NativeAutoFillProjectionHost implements AutoFillProjectionHost {
-  replaceProjection(input: AutoFillProjectionInput): Promise<void> {
-    return replaceNativeAutoFillProjection(input);
+  async captureBinding(accountId: string): Promise<AutoFillProjectionBinding> {
+    const binding = await captureNativeAutoFillProjectionBinding(accountId) as AutoFillProjectionBinding;
+    if (!binding || binding.accountId !== accountId || typeof binding.token !== "string") {
+      throw new Error("projection binding unavailable");
+    }
+    return binding;
+  }
+
+  replaceProjection(input: AutoFillProjectionInput, binding: AutoFillProjectionBinding): Promise<void> {
+    return replaceNativeAutoFillProjection(input, binding.token);
   }
 
   clearProjection(accountId: string): Promise<void> {

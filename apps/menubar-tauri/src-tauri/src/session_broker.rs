@@ -86,6 +86,15 @@ pub struct SessionBrokerEvent {
     pub origin_window_label: Option<String>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProjectionSessionContext {
+    pub process_generation: String,
+    pub version: u64,
+    pub ownership_epoch: u64,
+    pub authorization: AuthorizationState,
+    pub active_account_id: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(
     tag = "type",
@@ -127,6 +136,7 @@ struct BrokerState {
     startup_modes: BTreeMap<String, StartupMode>,
     sync_owner_window_label: Option<String>,
     session_handoff: Option<Value>,
+    projection_ownership_epoch: u64,
 }
 
 #[derive(Debug)]
@@ -152,6 +162,7 @@ impl SessionBroker {
                 startup_modes: BTreeMap::new(),
                 sync_owner_window_label: None,
                 session_handoff: None,
+                projection_ownership_epoch: 0,
             }),
         }
     }
@@ -207,6 +218,20 @@ impl SessionBroker {
         Ok(state.snapshot.clone())
     }
 
+    pub fn projection_context(&self) -> Result<ProjectionSessionContext, BrokerFailure> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| failure(BrokerFailureCode::Unavailable))?;
+        Ok(ProjectionSessionContext {
+            process_generation: state.snapshot.process_generation.clone(),
+            version: state.snapshot.version,
+            ownership_epoch: state.projection_ownership_epoch,
+            authorization: state.snapshot.authorization,
+            active_account_id: state.snapshot.active_account_id.clone(),
+        })
+    }
+
     pub fn mutate(
         &self,
         window_label: &str,
@@ -235,6 +260,8 @@ impl SessionBroker {
                 snapshot.failure_code = None;
                 snapshot.shared_snapshot = shared_snapshot;
                 state.sync_owner_window_label = None;
+                state.projection_ownership_epoch =
+                    state.projection_ownership_epoch.saturating_add(1);
             }
             SessionBrokerMutation::Locked => {
                 state.session_handoff = None;
@@ -243,6 +270,8 @@ impl SessionBroker {
                 snapshot.failure_code = None;
                 snapshot.shared_snapshot = None;
                 state.sync_owner_window_label = None;
+                state.projection_ownership_epoch =
+                    state.projection_ownership_epoch.saturating_add(1);
             }
             SessionBrokerMutation::LoggedOut => {
                 state.session_handoff = None;
@@ -252,6 +281,8 @@ impl SessionBroker {
                 snapshot.failure_code = None;
                 snapshot.shared_snapshot = None;
                 state.sync_owner_window_label = None;
+                state.projection_ownership_epoch =
+                    state.projection_ownership_epoch.saturating_add(1);
             }
             SessionBrokerMutation::AccountSelected { active_account_id } => {
                 state.session_handoff = None;
@@ -262,6 +293,8 @@ impl SessionBroker {
                 snapshot.failure_code = None;
                 snapshot.shared_snapshot = None;
                 state.sync_owner_window_label = None;
+                state.projection_ownership_epoch =
+                    state.projection_ownership_epoch.saturating_add(1);
             }
             SessionBrokerMutation::SyncStarted => {
                 require_unlocked(&snapshot)?;
@@ -322,6 +355,8 @@ impl SessionBroker {
                 snapshot.failure_code = Some(code);
                 snapshot.shared_snapshot = None;
                 state.sync_owner_window_label = None;
+                state.projection_ownership_epoch =
+                    state.projection_ownership_epoch.saturating_add(1);
             }
         }
         snapshot.version = snapshot.version.saturating_add(1);
@@ -609,6 +644,61 @@ mod tests {
                 .map(Vec::len),
             Some(1),
         );
+    }
+
+    #[test]
+    fn projection_ownership_epoch_advances_only_for_session_or_account_transitions() {
+        let broker = SessionBroker::new("process-generation");
+        broker.attach("main").expect("attach popup");
+        assert_eq!(broker.projection_context().unwrap().ownership_epoch, 0);
+
+        broker
+            .mutate(
+                "main",
+                SessionBrokerMutation::Unlocked {
+                    active_account_id: "account-a".to_owned(),
+                    shared_snapshot: Some(json!({ "isUnlocked": true, "activeTab": "vault" })),
+                },
+            )
+            .unwrap();
+        let unlocked = broker.projection_context().unwrap();
+        assert_eq!(unlocked.ownership_epoch, 1);
+
+        broker
+            .mutate(
+                "main",
+                SessionBrokerMutation::SnapshotUpdated {
+                    shared_snapshot: json!({ "isUnlocked": true, "activeTab": "vault" }),
+                },
+            )
+            .unwrap();
+        assert_eq!(broker.projection_context().unwrap().ownership_epoch, 1);
+
+        broker
+            .mutate("main", SessionBrokerMutation::Locked)
+            .unwrap();
+        assert_eq!(broker.projection_context().unwrap().ownership_epoch, 2);
+        broker
+            .mutate(
+                "main",
+                SessionBrokerMutation::AccountSelected {
+                    active_account_id: "account-b".to_owned(),
+                },
+            )
+            .unwrap();
+        assert_eq!(broker.projection_context().unwrap().ownership_epoch, 3);
+        broker
+            .mutate(
+                "main",
+                SessionBrokerMutation::Unlocked {
+                    active_account_id: "account-b".to_owned(),
+                    shared_snapshot: Some(json!({ "isUnlocked": true, "activeTab": "vault" })),
+                },
+            )
+            .unwrap();
+        let switched = broker.projection_context().unwrap();
+        assert_eq!(switched.ownership_epoch, 4);
+        assert_eq!(switched.active_account_id.as_deref(), Some("account-b"));
     }
 
     #[test]

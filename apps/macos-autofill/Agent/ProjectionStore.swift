@@ -104,6 +104,7 @@ final class ProjectionStore {
     private let clock: () -> TimeInterval
     private let onKeyZeroize: (() -> Void)?
     private let onVerifiedFileOpen: (() -> Void)?
+    private let retiredGenerationCapacity: Int
     private let lockState = NSLock()
     private let leaseTimerQueue = DispatchQueue(label: "com.bitwarden.menubar.autofill-projection-lease")
     private var lease: Lease?
@@ -114,28 +115,34 @@ final class ProjectionStore {
         projectionURL: URL,
         clock: @escaping () -> TimeInterval = { Date().timeIntervalSince1970 },
         onKeyZeroize: (() -> Void)? = nil,
-        onVerifiedFileOpen: (() -> Void)? = nil
+        onVerifiedFileOpen: (() -> Void)? = nil,
+        retiredGenerationCapacity: Int = 4_096
     ) {
+        precondition(retiredGenerationCapacity > 0)
         defaultProjectionURL = projectionURL
         requestedRootURL = projectionURL.deletingLastPathComponent()
         canonicalRootURL = requestedRootURL.resolvingSymlinksInPath()
         self.clock = clock
         self.onKeyZeroize = onKeyZeroize
         self.onVerifiedFileOpen = onVerifiedFileOpen
+        self.retiredGenerationCapacity = retiredGenerationCapacity
     }
 
     init(
         allowedRootURL: URL,
         clock: @escaping () -> TimeInterval = { Date().timeIntervalSince1970 },
         onKeyZeroize: (() -> Void)? = nil,
-        onVerifiedFileOpen: (() -> Void)? = nil
+        onVerifiedFileOpen: (() -> Void)? = nil,
+        retiredGenerationCapacity: Int = 4_096
     ) {
+        precondition(retiredGenerationCapacity > 0)
         defaultProjectionURL = nil
         requestedRootURL = allowedRootURL
         canonicalRootURL = allowedRootURL.resolvingSymlinksInPath()
         self.clock = clock
         self.onKeyZeroize = onKeyZeroize
         self.onVerifiedFileOpen = onVerifiedFileOpen
+        self.retiredGenerationCapacity = retiredGenerationCapacity
     }
 
     deinit {
@@ -158,6 +165,9 @@ final class ProjectionStore {
         defer { lockState.unlock() }
         guard !retiredGenerations.contains(provision.generation) else {
             throw AgentProtocolError.staleRevision
+        }
+        guard retiredGenerations.count < retiredGenerationCapacity else {
+            throw AgentProtocolError.requestCapacity
         }
         if let current = lease {
             guard current.generation == provision.generation,

@@ -1,11 +1,12 @@
 use crate::autofill_contract::{AgentErrorCode, AgentOperation, AgentRequest};
 use crate::autofill_ipc::AgentClient;
+use crate::session_broker::{AuthorizationState, ProjectionSessionContext, SessionBroker};
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::fs::{self, File};
 use std::io::Write;
 use std::os::fd::{AsRawFd, FromRawFd};
@@ -113,6 +114,7 @@ pub enum ProjectionError {
     AgentUnavailable,
     Interrupted,
     Io,
+    StaleBinding,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -122,12 +124,81 @@ pub struct ProjectionReceipt {
     pub vault_revision: u64,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProjectionOwner {
+    process_generation: String,
+    ownership_epoch: u64,
+    account_id: String,
+}
+
+impl ProjectionOwner {
+    fn from_context(context: &ProjectionSessionContext) -> Result<Self, ProjectionError> {
+        if context.authorization != AuthorizationState::Unlocked {
+            return Err(ProjectionError::StaleBinding);
+        }
+        let account_id = context
+            .active_account_id
+            .clone()
+            .ok_or(ProjectionError::StaleBinding)?;
+        Ok(Self {
+            process_generation: context.process_generation.clone(),
+            ownership_epoch: context.ownership_epoch,
+            account_id,
+        })
+    }
+
+    #[cfg(test)]
+    fn unlocked(process_generation: &str, ownership_epoch: u64, account_id: &str) -> Self {
+        Self {
+            process_generation: process_generation.to_owned(),
+            ownership_epoch,
+            account_id: account_id.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionBindingReceipt {
+    pub token: String,
+    pub account_id: String,
+}
+
+struct ProjectionBinding {
+    token: String,
+    process_generation: String,
+    account_id: String,
+    captured_ownership_epoch: u64,
+}
+
+#[derive(Default)]
+struct ProjectionAuthority {
+    binding: Option<ProjectionBinding>,
+    invalidated_at: Option<(String, u64)>,
+}
+
 struct ProjectionState {
     account_id: String,
     generation: String,
     vault_revision: u64,
     key: [u8; KEY_BYTES],
     path: PathBuf,
+}
+
+#[derive(Default)]
+struct RecoveryLedger {
+    artifacts: Vec<String>,
+    agent_lock_required: bool,
+    directory_sync_required: bool,
+}
+
+impl RecoveryLedger {
+    fn remember(&mut self, name: impl Into<String>) {
+        let name = name.into();
+        if is_projection_artifact(&name) && !self.artifacts.contains(&name) {
+            self.artifacts.push(name);
+        }
+    }
 }
 
 struct SecureDirectory {
@@ -305,6 +376,67 @@ impl SecureDirectory {
     fn path(&self, name: &str) -> PathBuf {
         self.root.join(name)
     }
+
+    fn artifact_names(&self) -> Result<Vec<String>, ProjectionError> {
+        let current_directory = c".";
+        let scan_fd = unsafe {
+            libc::openat(
+                self.directory.as_raw_fd(),
+                current_directory.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if scan_fd < 0 {
+            return Err(ProjectionError::Io);
+        }
+        let stream = unsafe { libc::fdopendir(scan_fd) };
+        if stream.is_null() {
+            unsafe { libc::close(scan_fd) };
+            return Err(ProjectionError::Io);
+        }
+        let mut names = Vec::new();
+        loop {
+            unsafe { *libc::__error() = 0 };
+            let entry = unsafe { libc::readdir(stream) };
+            if entry.is_null() {
+                let failed = std::io::Error::last_os_error().raw_os_error().unwrap_or(0) != 0;
+                unsafe { libc::closedir(stream) };
+                return if failed {
+                    Err(ProjectionError::Io)
+                } else {
+                    Ok(names)
+                };
+            }
+            let bytes = unsafe { CStr::from_ptr((*entry).d_name.as_ptr()) }.to_bytes();
+            let Ok(name) = std::str::from_utf8(bytes) else {
+                continue;
+            };
+            if is_projection_artifact(name) {
+                names.push(name.to_owned());
+            }
+        }
+    }
+}
+
+fn is_projection_artifact(name: &str) -> bool {
+    if let Some(digest) = name
+        .strip_prefix("projection-")
+        .and_then(|value| value.strip_suffix(".bwaf"))
+    {
+        return digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit());
+    }
+    for suffix in [".tmp", ".bak"] {
+        if let Some(identifier) = name
+            .strip_prefix(".projection-")
+            .and_then(|value| value.strip_suffix(suffix))
+        {
+            return identifier.len() == 36
+                && identifier
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() || byte == b'-');
+        }
+    }
+    false
 }
 
 fn secure_directory_metadata(metadata: &fs::Metadata, effective_uid: u32) -> bool {
@@ -332,6 +464,13 @@ enum ReplaceStage {
     BeforeCleanupRemove,
     BeforeCleanupDirectorySync,
     DuringRollback,
+    BeforeTempCleanupRemove,
+    BeforeTempCleanupDirectorySync,
+    BeforeProvisionRollback,
+    BeforeClearRemove,
+    BeforeClearDirectorySync,
+    BeforeLockRemove,
+    BeforeLockDirectorySync,
 }
 
 #[cfg(not(test))]
@@ -343,6 +482,13 @@ enum ReplaceStage {
     BeforeCleanupRemove,
     BeforeCleanupDirectorySync,
     DuringRollback,
+    BeforeTempCleanupRemove,
+    BeforeTempCleanupDirectorySync,
+    BeforeProvisionRollback,
+    BeforeClearRemove,
+    BeforeClearDirectorySync,
+    BeforeLockRemove,
+    BeforeLockDirectorySync,
 }
 
 fn rollback_replacement(
@@ -373,6 +519,8 @@ pub struct ProjectionManager<A: ProjectionAgent> {
     pending_lock: AtomicBool,
     pending_cleanup: Mutex<Vec<PathBuf>>,
     pending_directory_sync: AtomicBool,
+    authority: Mutex<ProjectionAuthority>,
+    recovery: Mutex<Option<RecoveryLedger>>,
 }
 
 impl<A: ProjectionAgent> ProjectionManager<A> {
@@ -384,7 +532,173 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             pending_lock: AtomicBool::new(false),
             pending_cleanup: Mutex::new(Vec::new()),
             pending_directory_sync: AtomicBool::new(false),
+            authority: Mutex::new(ProjectionAuthority::default()),
+            recovery: Mutex::new(None),
         }
+    }
+
+    pub fn capture_binding(
+        &self,
+        account_id: &str,
+        owner: &ProjectionOwner,
+    ) -> Result<ProjectionBindingReceipt, ProjectionError> {
+        if account_id.is_empty() || owner.account_id != account_id {
+            return Err(ProjectionError::StaleBinding);
+        }
+        let mut authority = self.authority.lock().map_err(|_| ProjectionError::Io)?;
+        if authority
+            .invalidated_at
+            .as_ref()
+            .is_some_and(|(generation, version)| {
+                generation == &owner.process_generation && owner.ownership_epoch <= *version
+            })
+        {
+            return Err(ProjectionError::StaleBinding);
+        }
+        if let Some(binding) = authority.binding.as_ref() {
+            if binding.process_generation != owner.process_generation
+                || binding.account_id != owner.account_id
+                || binding.captured_ownership_epoch != owner.ownership_epoch
+            {
+                return Err(ProjectionError::StaleBinding);
+            }
+            return Ok(ProjectionBindingReceipt {
+                token: binding.token.clone(),
+                account_id: binding.account_id.clone(),
+            });
+        }
+        let binding = ProjectionBinding {
+            token: uuid::Uuid::new_v4().to_string(),
+            process_generation: owner.process_generation.clone(),
+            account_id: owner.account_id.clone(),
+            captured_ownership_epoch: owner.ownership_epoch,
+        };
+        let receipt = ProjectionBindingReceipt {
+            token: binding.token.clone(),
+            account_id: binding.account_id.clone(),
+        };
+        authority.binding = Some(binding);
+        Ok(receipt)
+    }
+
+    pub fn replace_bound(
+        &self,
+        input: AutoFillProjectionInput,
+        binding_token: &str,
+        owner: &ProjectionOwner,
+    ) -> Result<ProjectionReceipt, ProjectionError> {
+        let authority = self.authority.lock().map_err(|_| ProjectionError::Io)?;
+        let binding = authority
+            .binding
+            .as_ref()
+            .ok_or(ProjectionError::StaleBinding)?;
+        if binding.token != binding_token
+            || binding.account_id != input.account_id
+            || binding.account_id != owner.account_id
+            || binding.process_generation != owner.process_generation
+            || owner.ownership_epoch != binding.captured_ownership_epoch
+        {
+            return Err(ProjectionError::StaleBinding);
+        }
+        self.replace_with_hook(input, |_| Ok(()))
+    }
+
+    pub fn invalidate_and_lock(&self, owner: &ProjectionOwner) -> Result<(), ProjectionError> {
+        let mut authority = self.authority.lock().map_err(|_| ProjectionError::Io)?;
+        authority.binding = None;
+        authority.invalidated_at = Some((owner.process_generation.clone(), owner.ownership_epoch));
+        self.lock()
+    }
+
+    fn begin_recovery_ledger(
+        &self,
+        artifacts: impl IntoIterator<Item = String>,
+        agent_lock_required: bool,
+    ) -> Result<(), ProjectionError> {
+        let mut recovery = self.recovery.lock().map_err(|_| ProjectionError::Io)?;
+        let ledger = recovery.get_or_insert_with(RecoveryLedger::default);
+        for artifact in artifacts {
+            ledger.remember(artifact);
+        }
+        ledger.agent_lock_required |= agent_lock_required;
+        ledger.directory_sync_required = true;
+        Ok(())
+    }
+
+    fn mark_pending_recovery(&self, agent_lock_required: bool) {
+        self.pending_lock
+            .fetch_or(agent_lock_required, Ordering::SeqCst);
+        if let Ok(mut recovery) = self.recovery.lock() {
+            let ledger = recovery.get_or_insert_with(RecoveryLedger::default);
+            ledger.agent_lock_required |= agent_lock_required;
+            ledger.directory_sync_required = true;
+        }
+    }
+
+    fn recover_pending(
+        &self,
+        directory: &SecureDirectory,
+        state: &mut Option<ProjectionState>,
+        stage_hook: &mut impl FnMut(ReplaceStage) -> Result<(), ProjectionError>,
+    ) -> Result<(), ProjectionError> {
+        {
+            let mut recovery = self.recovery.lock().map_err(|_| ProjectionError::Io)?;
+            if recovery.is_none() && state.is_none() {
+                let artifacts = directory.artifact_names()?;
+                if !artifacts.is_empty() {
+                    let mut ledger = RecoveryLedger {
+                        agent_lock_required: true,
+                        directory_sync_required: true,
+                        ..RecoveryLedger::default()
+                    };
+                    for artifact in artifacts {
+                        ledger.remember(artifact);
+                    }
+                    *recovery = Some(ledger);
+                    self.pending_lock.store(true, Ordering::SeqCst);
+                }
+            }
+        }
+
+        let (agent_lock_required, mut artifacts) = {
+            let recovery = self.recovery.lock().map_err(|_| ProjectionError::Io)?;
+            let Some(ledger) = recovery.as_ref() else {
+                return Ok(());
+            };
+            (ledger.agent_lock_required, ledger.artifacts.clone())
+        };
+
+        if agent_lock_required || self.pending_lock.load(Ordering::SeqCst) {
+            self.agent.lock()?;
+            if let Some(previous) = state.take() {
+                if let Some(name) = previous.path.file_name().and_then(|name| name.to_str()) {
+                    artifacts.push(name.to_owned());
+                }
+            }
+            artifacts.extend(directory.artifact_names()?);
+        }
+        if let Ok(mut pending) = self.pending_cleanup.lock() {
+            for path in pending.drain(..) {
+                if let Some(name) = path.file_name().and_then(|name| name.to_str()) {
+                    artifacts.push(name.to_owned());
+                }
+            }
+        }
+        artifacts.sort();
+        artifacts.dedup();
+        for artifact in &artifacts {
+            if !is_projection_artifact(artifact) {
+                continue;
+            }
+            stage_hook(ReplaceStage::BeforeCleanupRemove)?;
+            directory.remove(artifact)?;
+        }
+        stage_hook(ReplaceStage::BeforeCleanupDirectorySync)?;
+        directory.sync()?;
+        *self.recovery.lock().map_err(|_| ProjectionError::Io)? = None;
+        self.pending_lock.store(false, Ordering::SeqCst);
+        self.pending_directory_sync.store(false, Ordering::SeqCst);
+        Ok(())
     }
 
     pub fn replace(
@@ -402,13 +716,7 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         validate_input(&input)?;
         let directory = SecureDirectory::open(&self.root)?;
         let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
-        if self.pending_lock.load(Ordering::SeqCst) {
-            self.agent.lock()?;
-            if let Some(previous) = state.take() {
-                self.remember_cleanup(previous.path.clone());
-            }
-            self.pending_lock.store(false, Ordering::SeqCst);
-        }
+        self.recover_pending(&directory, &mut state, &mut stage_hook)?;
         self.retry_pending_cleanup(&directory, &mut stage_hook)?;
         let same_account = state
             .as_ref()
@@ -450,6 +758,16 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         let temp_name = format!(".projection-{}.tmp", uuid::Uuid::new_v4());
         let backup_name = format!(".projection-{}.bak", uuid::Uuid::new_v4());
         let had_final = directory.validate_existing_file(&final_name)?;
+        let mut transaction_artifacts =
+            vec![temp_name.clone(), backup_name.clone(), final_name.clone()];
+        if let Some(previous_name) = state
+            .as_ref()
+            .and_then(|previous| previous.path.file_name())
+            .and_then(|name| name.to_str())
+        {
+            transaction_artifacts.push(previous_name.to_owned());
+        }
+        self.begin_recovery_ledger(transaction_artifacts, true)?;
         let mut rollback_failed = false;
 
         let write_result = (|| {
@@ -521,8 +839,14 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             Ok(())
         })();
         if write_result.is_err() {
-            let _ = directory.remove(&temp_name);
-            let _ = directory.sync();
+            let temp_cleanup = stage_hook(ReplaceStage::BeforeTempCleanupRemove)
+                .and_then(|_| directory.remove(&temp_name).map(|_| ()))
+                .and_then(|_| stage_hook(ReplaceStage::BeforeTempCleanupDirectorySync))
+                .and_then(|_| directory.sync());
+            if temp_cleanup.is_err() {
+                self.pending_directory_sync.store(true, Ordering::SeqCst);
+            }
+            self.mark_pending_recovery(true);
             if rollback_failed {
                 self.pending_lock.store(true, Ordering::SeqCst);
                 if self.agent.lock().is_ok() {
@@ -544,6 +868,7 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             )
             .is_err()
             {
+                self.mark_pending_recovery(true);
                 self.pending_lock.store(true, Ordering::SeqCst);
                 if self.agent.lock().is_ok() {
                     if let Some(previous) = state.take() {
@@ -552,6 +877,7 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
                     self.pending_lock.store(false, Ordering::SeqCst);
                 }
             }
+            self.mark_pending_recovery(true);
             return Err(error);
         }
 
@@ -564,21 +890,25 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             projection_path: final_path.clone(),
         };
         if let Err(error) = self.agent.provision(provision) {
-            let rollback = (|| {
-                directory.remove(&final_name)?;
-                if had_final {
-                    directory.rename(&backup_name, &final_name)?;
+            self.mark_pending_recovery(true);
+            self.pending_lock.store(true, Ordering::SeqCst);
+            if self.agent.lock().is_err() {
+                return Err(error);
+            }
+            state.take();
+            let cleanup = (|| {
+                stage_hook(ReplaceStage::BeforeProvisionRollback)?;
+                for artifact in directory.artifact_names()? {
+                    directory.remove(&artifact)?;
                 }
                 directory.sync()
             })();
-            self.pending_lock.store(true, Ordering::SeqCst);
-            if self.agent.lock().is_ok() {
-                if let Some(previous) = state.take() {
-                    self.remember_cleanup(previous.path.clone());
-                }
+            if cleanup.is_ok() {
+                *self.recovery.lock().map_err(|_| ProjectionError::Io)? = None;
                 self.pending_lock.store(false, Ordering::SeqCst);
+                self.pending_directory_sync.store(false, Ordering::SeqCst);
             }
-            return Err(rollback.err().unwrap_or(error));
+            return Err(cleanup.err().unwrap_or(error));
         }
 
         let previous_path = state.as_ref().map(|previous| previous.path.clone());
@@ -597,9 +927,13 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
                 self.remember_cleanup(previous_path);
             }
         }
-        if stage_hook(ReplaceStage::BeforeCleanupRemove).is_ok() {
-            let _ = self.retry_pending_cleanup(&directory, &mut stage_hook);
+        if let Err(error) = stage_hook(ReplaceStage::BeforeCleanupRemove)
+            .and_then(|_| self.retry_pending_cleanup(&directory, &mut stage_hook))
+        {
+            self.mark_pending_recovery(true);
+            return Err(error);
         }
+        *self.recovery.lock().map_err(|_| ProjectionError::Io)? = None;
         Ok(ProjectionReceipt {
             path: final_path,
             generation,
@@ -660,76 +994,91 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
     }
 
     pub fn clear(&self, account_id: &str) -> Result<(), ProjectionError> {
+        self.clear_with_hook(account_id, |_| Ok(()))
+    }
+
+    fn clear_with_hook(
+        &self,
+        account_id: &str,
+        mut stage_hook: impl FnMut(ReplaceStage) -> Result<(), ProjectionError>,
+    ) -> Result<(), ProjectionError> {
         if account_id.is_empty() {
             return Err(ProjectionError::InvalidInput);
         }
         let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
         let directory = SecureDirectory::open(&self.root)?;
+        self.recover_pending(&directory, &mut state, &mut |_| Ok(()))?;
         let name = projection_file_name(account_id);
         let is_active = state
             .as_ref()
             .is_some_and(|current| current.account_id == account_id);
+        self.begin_recovery_ledger([name.clone()], is_active)?;
         if is_active {
             self.pending_lock.store(true, Ordering::SeqCst);
+            self.agent.lock()?;
+            state.take();
         }
-        let disk_result = (|| {
+        let result = (|| {
+            stage_hook(ReplaceStage::BeforeClearRemove)?;
             if directory.remove(&name)? {
+                stage_hook(ReplaceStage::BeforeClearDirectorySync)?;
                 directory.sync()?;
             }
             Ok(())
         })();
-        if is_active {
-            let lock_result = self.agent.lock();
-            if lock_result.is_err() {
-                return lock_result;
-            }
-            if let Some(previous) = state.take() {
-                if previous.path != directory.path(&name) {
-                    self.remember_cleanup(previous.path.clone());
-                }
-            }
-            self.pending_lock.store(false, Ordering::SeqCst);
+        if result.is_err() {
+            self.mark_pending_recovery(is_active);
+            return result;
         }
-        disk_result
+        *self.recovery.lock().map_err(|_| ProjectionError::Io)? = None;
+        self.pending_lock.store(false, Ordering::SeqCst);
+        Ok(())
     }
 
     pub fn lock(&self) -> Result<(), ProjectionError> {
+        self.lock_with_hook(|_| Ok(()))
+    }
+
+    fn lock_with_hook(
+        &self,
+        mut stage_hook: impl FnMut(ReplaceStage) -> Result<(), ProjectionError>,
+    ) -> Result<(), ProjectionError> {
         let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
+        let remembered = state
+            .as_ref()
+            .and_then(|current| current.path.file_name())
+            .and_then(|name| name.to_str())
+            .map(str::to_owned)
+            .into_iter();
+        self.begin_recovery_ledger(remembered, true)?;
         self.pending_lock.store(true, Ordering::SeqCst);
-        let disk_result = if let Some(current) = state.as_ref() {
-            (|| {
-                let directory = SecureDirectory::open(&self.root)?;
-                let name = current
-                    .path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .ok_or(ProjectionError::Io)?;
-                if directory.remove(name)? {
-                    directory.sync()?;
-                }
-                Ok(())
-            })()
-        } else {
-            Ok(())
-        };
         self.agent.lock()?;
-        if let Some(previous) = state.take() {
-            self.remember_cleanup(previous.path.clone());
+        state.take();
+        let directory = SecureDirectory::open(&self.root)?;
+        let artifacts = directory.artifact_names()?;
+        self.begin_recovery_ledger(artifacts.clone(), true)?;
+        for artifact in artifacts {
+            stage_hook(ReplaceStage::BeforeLockRemove)?;
+            if let Err(error) = directory.remove(&artifact) {
+                self.mark_pending_recovery(true);
+                return Err(error);
+            }
         }
+        stage_hook(ReplaceStage::BeforeLockDirectorySync)?;
+        if let Err(error) = directory.sync() {
+            self.mark_pending_recovery(true);
+            return Err(error);
+        }
+        *self.recovery.lock().map_err(|_| ProjectionError::Io)? = None;
         self.pending_lock.store(false, Ordering::SeqCst);
-        disk_result
+        self.pending_directory_sync.store(false, Ordering::SeqCst);
+        Ok(())
     }
 
     pub fn renew_lease(&self) -> Result<(), ProjectionError> {
         let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
-        if self.pending_lock.load(Ordering::SeqCst) {
-            self.agent.lock()?;
-            if let Some(previous) = state.take() {
-                self.remember_cleanup(previous.path.clone());
-            }
-            self.pending_lock.store(false, Ordering::SeqCst);
-        }
         let directory = SecureDirectory::open(&self.root)?;
+        self.recover_pending(&directory, &mut state, &mut |_| Ok(()))?;
         self.retry_pending_cleanup(&directory, &mut |_| Ok(()))?;
         if let Some(current) = state.as_ref() {
             self.agent
@@ -837,16 +1186,34 @@ fn command_error(error: ProjectionError) -> &'static str {
         ProjectionError::CorruptProjection => "corrupt_projection",
         ProjectionError::AgentUnavailable => "agent_unavailable",
         ProjectionError::Interrupted | ProjectionError::Io => "projection_unavailable",
+        ProjectionError::StaleBinding => "stale_binding",
     }
+}
+
+#[tauri::command]
+pub fn autofill_capture_projection_binding(
+    manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
+    broker: tauri::State<'_, SessionBroker>,
+    account_id: String,
+) -> Result<ProjectionBindingReceipt, &'static str> {
+    let context = broker.projection_context().map_err(|_| "stale_binding")?;
+    let owner = ProjectionOwner::from_context(&context).map_err(command_error)?;
+    manager
+        .capture_binding(&account_id, &owner)
+        .map_err(command_error)
 }
 
 #[tauri::command]
 pub fn autofill_replace_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
+    broker: tauri::State<'_, SessionBroker>,
     input: AutoFillProjectionInput,
+    binding_token: String,
 ) -> Result<u64, &'static str> {
+    let context = broker.projection_context().map_err(|_| "stale_binding")?;
+    let owner = ProjectionOwner::from_context(&context).map_err(command_error)?;
     manager
-        .replace(input)
+        .replace_bound(input, &binding_token, &owner)
         .map(|receipt| receipt.vault_revision)
         .map_err(command_error)
 }
@@ -854,16 +1221,34 @@ pub fn autofill_replace_projection(
 #[tauri::command]
 pub fn autofill_clear_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
+    broker: tauri::State<'_, SessionBroker>,
     account_id: String,
 ) -> Result<(), &'static str> {
-    manager.clear(&account_id).map_err(command_error)
+    let context = broker.projection_context().map_err(|_| "stale_binding")?;
+    if context.active_account_id.as_deref() == Some(account_id.as_str()) {
+        let owner = ProjectionOwner {
+            process_generation: context.process_generation,
+            ownership_epoch: context.ownership_epoch,
+            account_id,
+        };
+        manager.invalidate_and_lock(&owner).map_err(command_error)
+    } else {
+        manager.clear(&account_id).map_err(command_error)
+    }
 }
 
 #[tauri::command]
 pub fn autofill_lock_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
+    broker: tauri::State<'_, SessionBroker>,
 ) -> Result<(), &'static str> {
-    manager.lock().map_err(command_error)
+    let context = broker.projection_context().map_err(|_| "stale_binding")?;
+    let owner = ProjectionOwner {
+        process_generation: context.process_generation,
+        ownership_epoch: context.ownership_epoch,
+        account_id: context.active_account_id.unwrap_or_default(),
+    };
+    manager.invalidate_and_lock(&owner).map_err(command_error)
 }
 
 fn validate_input(input: &AutoFillProjectionInput) -> Result<(), ProjectionError> {
@@ -1114,6 +1499,53 @@ mod tests {
     }
 
     #[test]
+    fn stale_cross_window_binding_is_rejected_before_revision_or_disk_write() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        let owner_a = ProjectionOwner::unlocked("process-1", 7, "account-a");
+        let binding_a = manager.capture_binding("account-a", &owner_a).unwrap();
+
+        manager.invalidate_and_lock(&owner_a).unwrap();
+        let owner_b = ProjectionOwner::unlocked("process-1", 9, "account-b");
+        let binding_b = manager.capture_binding("account-b", &owner_b).unwrap();
+
+        assert_eq!(
+            manager.replace_bound(input("account-a", 1), &binding_a.token, &owner_b),
+            Err(ProjectionError::StaleBinding)
+        );
+        assert!(!projection_path(&root, "account-a").exists());
+        assert_eq!(agent.provisions.lock().unwrap().len(), 0);
+
+        let receipt = manager
+            .replace_bound(input("account-b", 1), &binding_b.token, &owner_b)
+            .unwrap();
+        assert_eq!(receipt.vault_revision, 1);
+        assert!(receipt.path.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn binding_requires_the_exact_native_ownership_epoch() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        let captured_owner = ProjectionOwner::unlocked("process-1", 7, "account-a");
+        let binding = manager
+            .capture_binding("account-a", &captured_owner)
+            .unwrap();
+        let advanced_owner = ProjectionOwner::unlocked("process-1", 8, "account-a");
+
+        assert_eq!(
+            manager.replace_bound(input("account-a", 1), &binding.token, &advanced_owner),
+            Err(ProjectionError::StaleBinding)
+        );
+        assert_eq!(agent.provisions.lock().unwrap().len(), 0);
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn failed_lock_retains_pending_state_stops_renewal_and_retries_to_acknowledgement() {
         let root = temporary_directory();
         let agent = Arc::new(RecordingAgent::default());
@@ -1124,8 +1556,8 @@ mod tests {
         assert_eq!(manager.lock(), Err(ProjectionError::AgentUnavailable));
         assert!(manager.state.lock().unwrap().is_some());
         assert!(
-            !receipt.path.exists(),
-            "deleting the ciphertext revokes reads even before IPC recovers"
+            receipt.path.exists(),
+            "the Agent-referenced inode remains until lock acknowledgement"
         );
         assert_eq!(
             manager.renew_lease(),
@@ -1136,6 +1568,7 @@ mod tests {
         agent.fail_lock.store(false, Ordering::SeqCst);
         manager.renew_lease().unwrap();
         assert!(manager.state.lock().unwrap().is_none());
+        assert!(!receipt.path.exists());
         assert_eq!(agent.locks.load(Ordering::SeqCst), 3);
         fs::remove_dir_all(root).unwrap();
     }
@@ -1170,6 +1603,8 @@ mod tests {
         );
         assert_eq!(fs::read(current.path).unwrap(), before);
         assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        manager.renew_lease().unwrap();
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1189,7 +1624,7 @@ mod tests {
     }
 
     #[test]
-    fn failed_reprovision_drops_the_old_lease_and_locks_the_agent() {
+    fn failed_reprovision_locks_before_removing_every_ambiguous_candidate() {
         let root = temporary_directory();
         let agent = Arc::new(RecordingAgent::default());
         let manager = ProjectionManager::new(root.clone(), agent.clone());
@@ -1200,14 +1635,35 @@ mod tests {
             manager.replace(input("account-a", 2)),
             Err(ProjectionError::AgentUnavailable),
         );
-        assert!(current.path.exists());
-        let provisions = agent.provisions.lock().unwrap();
-        let restored =
-            decrypt_projection(&fs::read(&current.path).unwrap(), &provisions[0].key).unwrap();
-        assert_eq!(restored.vault_revision, 1);
-        drop(provisions);
+        assert!(!current.path.exists());
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
         assert!(manager.state.lock().unwrap().is_none());
         assert_eq!(agent.locks.load(Ordering::SeqCst), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ambiguous_provision_failure_keeps_all_files_until_agent_lock_is_acknowledged() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        manager.replace(input("account-a", 1)).unwrap();
+        agent.fail.store(true, Ordering::SeqCst);
+        agent.fail_lock.store(true, Ordering::SeqCst);
+
+        assert_eq!(
+            manager.replace(input("account-a", 2)),
+            Err(ProjectionError::AgentUnavailable)
+        );
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
+        assert!(manager.state.lock().unwrap().is_some());
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 0);
+
+        agent.fail_lock.store(false, Ordering::SeqCst);
+        manager.renew_lease().unwrap();
+        assert!(manager.state.lock().unwrap().is_none());
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 0);
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1303,6 +1759,8 @@ mod tests {
             );
             assert_eq!(fs::read(&current.path).unwrap(), before);
             assert_eq!(agent.provisions.lock().unwrap().len(), 1);
+            manager.renew_lease().unwrap();
+            assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
             fs::remove_dir_all(root).unwrap();
         }
     }
@@ -1348,18 +1806,19 @@ mod tests {
         let manager = ProjectionManager::new(root.clone(), agent.clone());
         let previous = manager.replace(input("account-a", 1)).unwrap();
 
-        let current = manager
-            .replace_with_hook(input("account-b", 1), |stage| {
+        assert_eq!(
+            manager.replace_with_hook(input("account-b", 1), |stage| {
                 if stage == ReplaceStage::BeforeCleanupRemove {
                     Err(ProjectionError::Io)
                 } else {
                     Ok(())
                 }
-            })
-            .unwrap();
+            }),
+            Err(ProjectionError::Io)
+        );
 
         assert!(previous.path.exists());
-        assert!(current.path.exists());
+        assert!(projection_path(&root, "account-b").exists());
         assert_eq!(
             manager.state.lock().unwrap().as_ref().unwrap().account_id,
             "account-b"
@@ -1369,7 +1828,9 @@ mod tests {
             "account-b"
         );
         manager.renew_lease().unwrap();
-        assert!(!previous.path.exists());
+        assert!(manager.state.lock().unwrap().is_none());
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 0);
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1380,20 +1841,127 @@ mod tests {
         let manager = ProjectionManager::new(root.clone(), agent);
         manager.replace(input("account-a", 1)).unwrap();
 
-        let receipt = manager
-            .replace_with_hook(input("account-b", 1), |stage| {
+        assert_eq!(
+            manager.replace_with_hook(input("account-b", 1), |stage| {
                 if stage == ReplaceStage::BeforeCleanupDirectorySync {
                     Err(ProjectionError::Io)
                 } else {
                     Ok(())
                 }
-            })
-            .unwrap();
+            }),
+            Err(ProjectionError::Io)
+        );
 
-        assert!(receipt.path.exists());
         assert!(manager.pending_directory_sync.load(Ordering::SeqCst));
         manager.renew_lease().unwrap();
         assert!(!manager.pending_directory_sync.load(Ordering::SeqCst));
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn temp_and_provision_secondary_failures_recover_without_orphans_or_renewal() {
+        for fault in [
+            ReplaceStage::BeforeTempCleanupRemove,
+            ReplaceStage::BeforeTempCleanupDirectorySync,
+            ReplaceStage::BeforeProvisionRollback,
+        ] {
+            let root = temporary_directory();
+            let agent = Arc::new(RecordingAgent::default());
+            let manager = ProjectionManager::new(root.clone(), agent.clone());
+            manager.replace(input("account-a", 1)).unwrap();
+            if fault == ReplaceStage::BeforeProvisionRollback {
+                agent.fail.store(true, Ordering::SeqCst);
+            }
+
+            assert!(manager
+                .replace_with_hook(input("account-a", 2), |stage| {
+                    if stage == fault
+                        || (fault != ReplaceStage::BeforeProvisionRollback
+                            && stage == ReplaceStage::AfterTempSync)
+                    {
+                        Err(ProjectionError::Io)
+                    } else {
+                        Ok(())
+                    }
+                })
+                .is_err());
+            agent.fail.store(false, Ordering::SeqCst);
+            manager.renew_lease().unwrap();
+
+            assert!(manager.state.lock().unwrap().is_none());
+            assert_eq!(agent.renewals.load(Ordering::SeqCst), 0);
+            assert_eq!(fs::read_dir(&root).unwrap().count(), 0, "fault={fault:?}");
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
+    fn clear_and_lock_secondary_failures_recover_after_agent_ack_and_directory_sync() {
+        for fault in [
+            ReplaceStage::BeforeClearRemove,
+            ReplaceStage::BeforeClearDirectorySync,
+            ReplaceStage::BeforeLockRemove,
+            ReplaceStage::BeforeLockDirectorySync,
+        ] {
+            let root = temporary_directory();
+            let agent = Arc::new(RecordingAgent::default());
+            let manager = ProjectionManager::new(root.clone(), agent.clone());
+            let receipt = manager.replace(input("account-a", 1)).unwrap();
+            let result = if matches!(
+                fault,
+                ReplaceStage::BeforeClearRemove | ReplaceStage::BeforeClearDirectorySync
+            ) {
+                manager.clear_with_hook("account-a", |stage| {
+                    if stage == fault {
+                        Err(ProjectionError::Io)
+                    } else {
+                        Ok(())
+                    }
+                })
+            } else {
+                manager.lock_with_hook(|stage| {
+                    if stage == fault {
+                        Err(ProjectionError::Io)
+                    } else {
+                        Ok(())
+                    }
+                })
+            };
+
+            assert_eq!(result, Err(ProjectionError::Io));
+            assert!(manager.pending_lock.load(Ordering::SeqCst));
+            manager.renew_lease().unwrap();
+            assert!(!receipt.path.exists());
+            assert_eq!(fs::read_dir(&root).unwrap().count(), 0, "fault={fault:?}");
+            assert_eq!(agent.renewals.load(Ordering::SeqCst), 0);
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
+    fn restart_scan_locks_agent_before_cleaning_all_trusted_projection_artifacts() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        {
+            let manager = ProjectionManager::new(root.clone(), agent.clone());
+            manager.replace(input("account-a", 1)).unwrap();
+        }
+        for suffix in ["tmp", "bak"] {
+            let path = root.join(format!(".projection-{}.{}", uuid::Uuid::new_v4(), suffix));
+            fs::write(&path, b"orphan").unwrap();
+            fs::set_permissions(path, fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        let obsolete = projection_path(&root, "obsolete-account");
+        fs::write(&obsolete, b"obsolete").unwrap();
+        fs::set_permissions(&obsolete, fs::Permissions::from_mode(0o600)).unwrap();
+
+        let restarted = ProjectionManager::new(root.clone(), agent.clone());
+        restarted.renew_lease().unwrap();
+
+        assert_eq!(agent.locks.load(Ordering::SeqCst), 1);
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 0);
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
         fs::remove_dir_all(root).unwrap();
     }
 

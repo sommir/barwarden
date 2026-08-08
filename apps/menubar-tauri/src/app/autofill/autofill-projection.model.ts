@@ -19,3 +19,8 @@ export interface AutoFillProjectionInput {
   readonly createdAt: string;
   readonly logins: readonly AutoFillProjectionLogin[];
 }
+
+export interface AutoFillProjectionBinding {
+  readonly token: string;
+  readonly accountId: string;
+}

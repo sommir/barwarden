@@ -267,12 +267,12 @@ export class AuthFacade {
       }
       const candidateState = this.store.snapshot();
       this.store.restore({ ...baseline, isLoggingIn: true, loginError: "" });
-      await this.commitAuthenticatedAccount(request, session, epoch);
+      const vaultOwnerAccountId = await this.commitAuthenticatedAccount(request, session, epoch);
       if (!this.isCurrentOperation(epoch)) {
         return;
       }
       await this.activatePersistedPinAfterMasterPassword();
-      this.store.restore(candidateState);
+      this.store.restore({ ...candidateState, vaultOwnerAccountId });
       this.finishAuthentication();
       await this.publishCurrentUnlockedState();
     } catch (error) {
@@ -640,7 +640,7 @@ export class AuthFacade {
             handoff,
             this.store.snapshot(),
           );
-          this.store.restore(decoded);
+          this.store.restore(decoded, processSnapshot.activeAccountId);
           this.setRuntimeAccountId(processSnapshot.activeAccountId);
           await this.activatePersistedPinForAttachedProcess(processSnapshot.activeAccountId);
           this.vaultTimeout?.start();
@@ -707,7 +707,7 @@ export class AuthFacade {
             session,
             this.store.snapshot(),
           );
-          this.store.restore(decoded);
+          this.store.restore(decoded, processSnapshot.activeAccountId);
           restoredSharedSnapshot = true;
           requiresLocalHydration =
             processSharedPopupStateRequiresLocalHydration(decoded);
@@ -1505,12 +1505,12 @@ export class AuthFacade {
       }
       const candidateState = this.store.snapshot();
       this.store.restore({ ...baseline, isLoggingIn: true, loginError: "" });
-      await this.commitAuthenticatedAccount(request, session, epoch);
+      const vaultOwnerAccountId = await this.commitAuthenticatedAccount(request, session, epoch);
       if (!this.isCurrentOperation(epoch)) {
         return authChallengeOutcome(this.store.snapshot(), activeChallenge?.type ?? "twoFactor");
       }
       await this.activatePersistedPinAfterMasterPassword();
-      this.store.restore(candidateState);
+      this.store.restore({ ...candidateState, vaultOwnerAccountId });
       this.finishAuthentication();
       return "unlocked";
     } catch (error) {
@@ -1606,9 +1606,9 @@ export class AuthFacade {
     request: LoginRequest,
     session: AuthSession,
     epoch: number,
-  ): Promise<void> {
+  ): Promise<string | null> {
     if (!this.accountStore) {
-      return;
+      return null;
     }
 
     const commit = this.trackAccountMutation(() => this.accountStore!.saveAccount(
@@ -1627,6 +1627,7 @@ export class AuthFacade {
         persistActiveAccountHint(savedAccount);
         this.accountPersistedSubject.next();
       }
+      return savedAccount.id;
     } catch (error) {
       if (error instanceof AccountSessionMutationCancelledError) {
         throw new AccountOperationCancelledError();
@@ -1656,6 +1657,7 @@ export class AuthFacade {
   private setRuntimeAccountId(accountId: string | null): void {
     if (this.runtimeAccountId !== null && this.runtimeAccountId !== accountId) {
       this.routeCache?.clear();
+      this.store.clearVaultOwnerAccountId();
     }
     this.runtimeAccountId = accountId;
     this.vaultTimeout?.useAccount(accountId);

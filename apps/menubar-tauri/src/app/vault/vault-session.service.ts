@@ -98,7 +98,12 @@ export class VaultSessionService {
       }
 
       const syncedAt = new Date();
-      this.store.setItems(result.items, result.folders, syncedAt);
+      this.store.setItems(
+        result.items,
+        result.folders,
+        syncedAt,
+        options.accountId ?? this.store.snapshot().vaultOwnerAccountId,
+      );
       this.store.setArchivedItems(result.archivedItems);
       this.store.setDeletedItems(result.deletedItems);
       this.store.setOrganizationData(result.organizations, result.collections);

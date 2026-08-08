@@ -1711,10 +1711,14 @@ describe("AuthFacade", () => {
 
     await facade.login(loginRequest("two@example.com"));
 
-    expect((await facade.accounts()).map((account) => account.email)).toEqual([
+    const accounts = await facade.accounts();
+    expect(accounts.map((account) => account.email)).toEqual([
       "two@example.com",
       "one@example.com",
     ]);
+    expect(store.snapshot().vaultOwnerAccountId).toBe(
+      accounts.find((account) => account.email === "two@example.com")?.id,
+    );
   });
 
   it("uses a fixed Chinese error when account registration fails without exposing persistence details", async () => {

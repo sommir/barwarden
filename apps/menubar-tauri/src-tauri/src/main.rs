@@ -103,6 +103,7 @@ fn main() {
             autofill_ipc::autofill_agent_probe,
             autofill_ipc::autofill_agent_status,
             autofill_ipc::autofill_agent_lock,
+            autofill_projection::autofill_capture_projection_binding,
             autofill_projection::autofill_replace_projection,
             autofill_projection::autofill_clear_projection,
             autofill_projection::autofill_lock_projection,
