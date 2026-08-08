@@ -10,6 +10,104 @@ enum AgentOperation: String, Codable, Equatable {
     case lock
     case provision
     case renewLease = "renew_lease"
+    case queryCandidates = "query_candidates"
+    case releaseSecret = "release_secret"
+}
+
+enum CandidateGroup: String, Codable, Equatable {
+    case exact
+    case relevant
+    case other
+}
+
+struct NativeAutoFillContext: Codable, Equatable {
+    let bundleID: String
+    let appName: String
+    let serviceIdentifiers: [String]
+    let query: String
+
+    private enum CodingKeys: String, CodingKey {
+        case bundleID = "bundle_id"
+        case appName = "app_name"
+        case serviceIdentifiers = "service_identifiers"
+        case query
+    }
+}
+
+struct RankedCandidate: Codable, Equatable {
+    let cipherID: String
+    let displayName: String
+    let username: String
+    let group: CandidateGroup
+    let reason: String
+    let requiresMismatchConfirmation: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case cipherID = "cipher_id"
+        case displayName = "display_name"
+        case username
+        case group
+        case reason
+        case requiresMismatchConfirmation = "requires_mismatch_confirmation"
+    }
+}
+
+struct CandidateQueryPayload: Codable, Equatable {
+    let generation: UUID
+    let accountID: String
+    let context: NativeAutoFillContext
+
+    private enum CodingKeys: String, CodingKey {
+        case generation
+        case accountID = "account_id"
+        case context
+    }
+}
+
+struct CandidateResponsePayload: Codable, Equatable {
+    let contextToken: String
+    let candidates: [RankedCandidate]
+
+    private enum CodingKeys: String, CodingKey {
+        case contextToken = "context_token"
+        case candidates
+    }
+}
+
+enum AutoFillSecretField: String, Codable, Equatable {
+    case username
+    case password
+    case totp
+}
+
+enum RepromptResult: String, Codable, Equatable {
+    case notRequired = "not_required"
+    case grant
+}
+
+struct RepromptResultPayload: Codable, Equatable {
+    let result: RepromptResult
+    let grant: String?
+}
+
+struct SecretReleasePayload: Codable, Equatable {
+    let generation: UUID
+    let accountID: String
+    let candidateID: String
+    let field: AutoFillSecretField
+    let contextToken: String
+    let mismatchConfirmed: Bool
+    let reprompt: RepromptResultPayload
+
+    private enum CodingKeys: String, CodingKey {
+        case generation
+        case accountID = "account_id"
+        case candidateID = "candidate_id"
+        case field
+        case contextToken = "context_token"
+        case mismatchConfirmed = "mismatch_confirmed"
+        case reprompt
+    }
 }
 
 final class ProjectionProvisionPayload: Codable, Equatable {
@@ -102,6 +200,8 @@ struct AgentRequest: Codable, Equatable {
     let nonce: Data
     let projection: ProjectionProvisionPayload?
     let lease: ProjectionLeasePayload?
+    let candidateQuery: CandidateQueryPayload?
+    let secretRelease: SecretReleasePayload?
 
     private enum CodingKeys: String, CodingKey {
         case version
@@ -110,6 +210,8 @@ struct AgentRequest: Codable, Equatable {
         case nonce
         case projection
         case lease
+        case candidateQuery = "candidate_query"
+        case secretRelease = "secret_release"
     }
 
     init(
@@ -118,7 +220,9 @@ struct AgentRequest: Codable, Equatable {
         operation: AgentOperation,
         nonce: Data,
         projection: ProjectionProvisionPayload? = nil,
-        lease: ProjectionLeasePayload? = nil
+        lease: ProjectionLeasePayload? = nil,
+        candidateQuery: CandidateQueryPayload? = nil,
+        secretRelease: SecretReleasePayload? = nil
     ) {
         self.version = version
         self.requestID = requestID
@@ -126,6 +230,8 @@ struct AgentRequest: Codable, Equatable {
         self.nonce = nonce
         self.projection = projection
         self.lease = lease
+        self.candidateQuery = candidateQuery
+        self.secretRelease = secretRelease
     }
 
     init(from decoder: Decoder) throws {
@@ -136,6 +242,8 @@ struct AgentRequest: Codable, Equatable {
         nonce = Data(try container.decode([UInt8].self, forKey: .nonce))
         projection = try container.decodeIfPresent(ProjectionProvisionPayload.self, forKey: .projection)
         lease = try container.decodeIfPresent(ProjectionLeasePayload.self, forKey: .lease)
+        candidateQuery = try container.decodeIfPresent(CandidateQueryPayload.self, forKey: .candidateQuery)
+        secretRelease = try container.decodeIfPresent(SecretReleasePayload.self, forKey: .secretRelease)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -146,6 +254,8 @@ struct AgentRequest: Codable, Equatable {
         try container.encode(Array(nonce), forKey: .nonce)
         try container.encodeIfPresent(projection, forKey: .projection)
         try container.encodeIfPresent(lease, forKey: .lease)
+        try container.encodeIfPresent(candidateQuery, forKey: .candidateQuery)
+        try container.encodeIfPresent(secretRelease, forKey: .secretRelease)
     }
 }
 
@@ -155,6 +265,7 @@ struct AgentResponse: Codable, Equatable {
     let nonce: Data
     let status: AgentResponseStatus
     let error: AgentProtocolError?
+    let candidateResponse: CandidateResponsePayload?
 
     private enum CodingKeys: String, CodingKey {
         case version
@@ -162,6 +273,7 @@ struct AgentResponse: Codable, Equatable {
         case nonce
         case status
         case error
+        case candidateResponse = "candidate_response"
     }
 
     static func success(requestID: UUID, nonce: Data) -> AgentResponse {
@@ -170,7 +282,23 @@ struct AgentResponse: Codable, Equatable {
             requestID: requestID,
             nonce: nonce,
             status: .ok,
-            error: nil
+            error: nil,
+            candidateResponse: nil
+        )
+    }
+
+    static func candidates(
+        requestID: UUID,
+        nonce: Data,
+        payload: CandidateResponsePayload
+    ) -> AgentResponse {
+        AgentResponse(
+            version: AgentProtocol.currentVersion,
+            requestID: requestID,
+            nonce: nonce,
+            status: .ok,
+            error: nil,
+            candidateResponse: payload
         )
     }
 
@@ -180,7 +308,8 @@ struct AgentResponse: Codable, Equatable {
             requestID: nil,
             nonce: Data(),
             status: .error,
-            error: error
+            error: error,
+            candidateResponse: nil
         )
     }
 
@@ -189,13 +318,15 @@ struct AgentResponse: Codable, Equatable {
         requestID: UUID?,
         nonce: Data,
         status: AgentResponseStatus,
-        error: AgentProtocolError?
+        error: AgentProtocolError?,
+        candidateResponse: CandidateResponsePayload? = nil
     ) {
         self.version = version
         self.requestID = requestID
         self.nonce = nonce
         self.status = status
         self.error = error
+        self.candidateResponse = candidateResponse
     }
 
     init(from decoder: Decoder) throws {
@@ -205,6 +336,7 @@ struct AgentResponse: Codable, Equatable {
         nonce = Data(try container.decode([UInt8].self, forKey: .nonce))
         status = try container.decode(AgentResponseStatus.self, forKey: .status)
         error = try container.decodeIfPresent(AgentProtocolError.self, forKey: .error)
+        candidateResponse = try container.decodeIfPresent(CandidateResponsePayload.self, forKey: .candidateResponse)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -214,6 +346,7 @@ struct AgentResponse: Codable, Equatable {
         try container.encode(Array(nonce), forKey: .nonce)
         try container.encode(status, forKey: .status)
         try container.encodeIfPresent(error, forKey: .error)
+        try container.encodeIfPresent(candidateResponse, forKey: .candidateResponse)
     }
 }
 

@@ -41,6 +41,24 @@ pub struct AutoFillLogin {
     pub totp: String,
     pub favorite: bool,
     pub reprompt: bool,
+    #[serde(default)]
+    pub last_used_at: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Zeroize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AutoFillBinding {
+    pub bundle_id: String,
+    pub cipher_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Zeroize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AutoFillHistory {
+    pub context_key: String,
+    pub cipher_id: String,
+    pub successful_selection_count: u32,
+    pub last_selected_at: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Zeroize)]
@@ -49,6 +67,8 @@ pub struct AutoFillProjectionInput {
     pub account_id: String,
     pub created_at: String,
     pub logins: Vec<AutoFillLogin>,
+    pub bindings: Vec<AutoFillBinding>,
+    pub history: Vec<AutoFillHistory>,
 }
 
 impl Drop for AutoFillProjectionInput {
@@ -65,6 +85,8 @@ pub struct AutoFillProjection {
     pub vault_revision: u64,
     pub created_at: String,
     pub logins: Vec<AutoFillLogin>,
+    pub bindings: Vec<AutoFillBinding>,
+    pub history: Vec<AutoFillHistory>,
 }
 
 impl AutoFillProjection {
@@ -75,6 +97,8 @@ impl AutoFillProjection {
             vault_revision,
             created_at: std::mem::take(&mut input.created_at),
             logins: std::mem::take(&mut input.logins),
+            bindings: std::mem::take(&mut input.bindings),
+            history: std::mem::take(&mut input.history),
         }
     }
 }
@@ -1255,6 +1279,16 @@ fn validate_input(input: &AutoFillProjectionInput) -> Result<(), ProjectionError
     if input.account_id.is_empty()
         || input.created_at.is_empty()
         || input.logins.iter().any(|login| login.cipher_id.is_empty())
+        || input
+            .bindings
+            .iter()
+            .any(|binding| binding.bundle_id.is_empty() || binding.cipher_id.is_empty())
+        || input.history.iter().any(|entry| {
+            entry.context_key.is_empty()
+                || entry.cipher_id.is_empty()
+                || entry.successful_selection_count == 0
+                || entry.last_selected_at.is_empty()
+        })
     {
         return Err(ProjectionError::InvalidInput);
     }
@@ -1384,7 +1418,10 @@ mod tests {
                 totp: "JBSWY3DPEHPK3PXP".to_owned(),
                 favorite: true,
                 reprompt: false,
+                last_used_at: Some("2026-08-08T00:00:00Z".to_owned()),
             }],
+            bindings: vec![],
+            history: vec![],
         }
     }
 
@@ -1394,6 +1431,34 @@ mod tests {
         fs::create_dir_all(&path).unwrap();
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
         path
+    }
+
+    #[test]
+    fn accepts_account_scoped_matching_metadata_and_recent_timestamp() {
+        let json = serde_json::json!({
+            "accountId": "account-a",
+            "createdAt": "2026-08-08T08:00:00Z",
+            "logins": [{
+                "cipherId": "cipher-a",
+                "name": "Example",
+                "username": "person@example.test",
+                "password": "secret",
+                "uris": [],
+                "totp": "seed",
+                "favorite": false,
+                "reprompt": false,
+                "lastUsedAt": "2026-08-09T00:00:00Z"
+            }],
+            "bindings": [{ "bundleId": "com.example.app", "cipherId": "cipher-a" }],
+            "history": [{
+                "contextKey": "app:com.example.app",
+                "cipherId": "cipher-a",
+                "successfulSelectionCount": 2,
+                "lastSelectedAt": "2026-08-09T00:00:00Z"
+            }]
+        });
+
+        assert!(serde_json::from_value::<AutoFillProjectionInput>(json).is_ok());
     }
 
     #[test]

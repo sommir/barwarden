@@ -1,0 +1,10 @@
+[
+  {
+    "bundleId": "com.github.GitHubClient",
+    "services": ["github.com"]
+  },
+  {
+    "bundleId": "com.tinyspeck.slackmacgap",
+    "services": ["slack.com"]
+  }
+]

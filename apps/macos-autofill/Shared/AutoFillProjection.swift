@@ -20,6 +20,7 @@ struct AutoFillLogin: Codable, Equatable {
     let totp: String
     let favorite: Bool
     let reprompt: Bool
+    let lastUsedAt: String?
 
     private enum CodingKeys: String, CodingKey {
         case cipherID = "cipherId"
@@ -30,6 +31,53 @@ struct AutoFillLogin: Codable, Equatable {
         case totp
         case favorite
         case reprompt
+        case lastUsedAt
+    }
+
+    init(
+        cipherID: String,
+        name: String,
+        username: String,
+        password: String,
+        uris: [AutoFillURI],
+        totp: String,
+        favorite: Bool,
+        reprompt: Bool,
+        lastUsedAt: String? = nil
+    ) {
+        self.cipherID = cipherID
+        self.name = name
+        self.username = username
+        self.password = password
+        self.uris = uris
+        self.totp = totp
+        self.favorite = favorite
+        self.reprompt = reprompt
+        self.lastUsedAt = lastUsedAt
+    }
+}
+
+struct AutoFillBinding: Codable, Equatable {
+    let bundleID: String
+    let cipherID: String
+
+    private enum CodingKeys: String, CodingKey {
+        case bundleID = "bundleId"
+        case cipherID = "cipherId"
+    }
+}
+
+struct AutoFillHistory: Codable, Equatable {
+    let contextKey: String
+    let cipherID: String
+    let successfulSelectionCount: UInt
+    let lastSelectedAt: String
+
+    private enum CodingKeys: String, CodingKey {
+        case contextKey
+        case cipherID = "cipherId"
+        case successfulSelectionCount
+        case lastSelectedAt
     }
 }
 
@@ -39,6 +87,8 @@ struct AutoFillProjection: Codable, Equatable {
     let vaultRevision: UInt64
     let createdAt: String
     let logins: [AutoFillLogin]
+    let bindings: [AutoFillBinding]
+    let history: [AutoFillHistory]
 
     private enum CodingKeys: String, CodingKey {
         case version
@@ -46,6 +96,26 @@ struct AutoFillProjection: Codable, Equatable {
         case vaultRevision
         case createdAt
         case logins
+        case bindings
+        case history
+    }
+
+    init(
+        version: UInt16,
+        accountID: String,
+        vaultRevision: UInt64,
+        createdAt: String,
+        logins: [AutoFillLogin],
+        bindings: [AutoFillBinding] = [],
+        history: [AutoFillHistory] = []
+    ) {
+        self.version = version
+        self.accountID = accountID
+        self.vaultRevision = vaultRevision
+        self.createdAt = createdAt
+        self.logins = logins
+        self.bindings = bindings
+        self.history = history
     }
 }
 

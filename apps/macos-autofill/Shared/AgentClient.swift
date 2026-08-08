@@ -40,16 +40,36 @@ struct AgentClient {
     }
 
     func perform(_ operation: AgentOperation) throws -> AgentResponse {
-        let socket = try connect()
-        defer { close(socket) }
-        try AgentSocketIO.applyDeadline(timeout, to: socket)
-
         let request = AgentRequest(
             version: AgentProtocol.currentVersion,
             requestID: UUID(),
             operation: operation,
             nonce: try Self.randomNonce()
         )
+        let response = try perform(request)
+        guard response.candidateResponse == nil else { throw AgentProtocolError.malformedMessage }
+        return response
+    }
+
+    func queryCandidates(_ payload: CandidateQueryPayload) throws -> CandidateResponsePayload {
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .queryCandidates,
+            nonce: try Self.randomNonce(),
+            candidateQuery: payload
+        )
+        guard let candidates = try perform(request).candidateResponse else {
+            throw AgentProtocolError.malformedMessage
+        }
+        return candidates
+    }
+
+    private func perform(_ request: AgentRequest) throws -> AgentResponse {
+        let socket = try connect()
+        defer { close(socket) }
+        try AgentSocketIO.applyDeadline(timeout, to: socket)
+
         try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: socket)
         guard shutdown(socket, SHUT_WR) == 0 else {
             throw AgentProtocolError.transport

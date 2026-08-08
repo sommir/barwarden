@@ -17,6 +17,7 @@ import type {
   AutoFillProjectionLogin,
 } from "./autofill-projection.model";
 import type { AutoFillProjectionLifecyclePort } from "../auth/autofill-projection-lifecycle.port";
+import { AutoFillBindingsService } from "./autofill-bindings.service";
 
 export interface AutoFillProjectionHost {
   captureBinding(accountId: string): Promise<AutoFillProjectionBinding>;
@@ -45,7 +46,8 @@ const noopHost: AutoFillProjectionHost = {
 @Injectable({ providedIn: "root" })
 export class AutoFillProjectionService implements AutoFillProjectionLifecyclePort {
   private readonly host: AutoFillProjectionHost;
-  private readonly subscription: Subscription;
+  private readonly stateSubscription: Subscription;
+  private readonly matchingSubscription: Subscription;
   private operationTail: Promise<void> = Promise.resolve();
   private lastItems: readonly VaultItem[] | null = null;
   private wasUnlocked = false;
@@ -55,17 +57,30 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     private readonly store: PopupStateStore,
     @Optional() @Inject(AUTOFILL_PROJECTION_HOST) host: AutoFillProjectionHost | null = null,
     @Inject(AUTOFILL_PROJECTION_CLOCK) private readonly clock: () => Date = () => new Date(),
+    private readonly matchingState: AutoFillBindingsService = new AutoFillBindingsService(),
   ) {
     this.host = host ?? (isTauriRuntime()
       ? new NativeAutoFillProjectionHost()
       : noopHost);
     this.wasUnlocked = this.store.snapshot().isUnlocked;
-    this.subscription = this.store.state$.subscribe((state) => this.observe(state));
+    this.stateSubscription = this.store.state$.subscribe((state) => this.observe(state));
+    this.matchingSubscription = this.matchingState.changes$.subscribe(() => {
+      this.invalidateLifecycle();
+      const pending = this.enqueueProjection(this.store.snapshot());
+      if (pending) {
+        void pending.catch(() => {
+          this.store.setSyncError(translateOfficialMessage("i18nUnableToLockAutoFill"));
+        });
+      }
+    });
   }
 
   async clearAccount(accountId: string): Promise<void> {
     if (!accountId) return;
-    await this.enqueue(() => this.clearWithRetry(accountId));
+    await this.enqueue(async () => {
+      await this.clearWithRetry(accountId);
+      this.matchingState.clearAccountAfterProjectionRemoval(accountId);
+    });
   }
 
   async invalidateAndLock(): Promise<void> {
@@ -87,7 +102,8 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
   }
 
   destroy(): void {
-    this.subscription.unsubscribe();
+    this.stateSubscription.unsubscribe();
+    this.matchingSubscription.unsubscribe();
   }
 
   private observe(state: PopupState): void {
@@ -127,6 +143,7 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
         accountId: snapshot.accountId,
         createdAt: this.clock().toISOString(),
         logins: snapshot.items.flatMap(projectLogin),
+        ...this.matchingState.snapshot(snapshot.accountId),
       }, binding);
     });
   }
@@ -236,5 +253,6 @@ function projectLogin(item: VaultItem): AutoFillProjectionLogin[] {
     totp: value("otp"),
     favorite: item.favorite,
     reprompt: item.reprompt === true,
+    lastUsedAt: item.revisionDate || undefined,
   }];
 }

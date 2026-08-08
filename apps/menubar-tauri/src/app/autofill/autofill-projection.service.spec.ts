@@ -7,6 +7,7 @@ import {
   AutoFillProjectionService,
   type AutoFillProjectionHost,
 } from "./autofill-projection.service";
+import { AutoFillBindingsService } from "./autofill-bindings.service";
 
 const accountId = "a".repeat(64);
 const session = {
@@ -54,7 +55,10 @@ describe("AutoFillProjectionService", () => {
         totp: "123456",
         favorite: true,
         reprompt: false,
+        lastUsedAt: login.revisionDate,
       }],
+      bindings: [],
+      history: [],
     });
     const wire = JSON.stringify(fixture.host.replacements[0]);
     for (const forbidden of [
@@ -87,6 +91,24 @@ describe("AutoFillProjectionService", () => {
     fixture.service.destroy();
   });
 
+  it("replaces the encrypted projection when a user binding changes without a vault mutation", async () => {
+    const matching = new AutoFillBindingsService();
+    const fixture = createFixture(new RecordingProjectionHost(), matching);
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([demoVaultItems[0]]);
+    await fixture.service.settled();
+
+    matching.bind(accountId, "com.example.app", "github");
+    await fixture.service.settled();
+
+    expect(fixture.host.replacements).toHaveLength(2);
+    expect(fixture.host.replacements[1].bindings).toEqual([
+      { bundleId: "com.example.app", cipherId: "github" },
+    ]);
+    fixture.service.destroy();
+  });
+
   it("locks the Agent on every unlocked to locked transition", async () => {
     const fixture = createFixture();
     fixture.store.setActiveSession(session);
@@ -107,6 +129,26 @@ describe("AutoFillProjectionService", () => {
     await fixture.service.clearAccount(accountId);
 
     expect(fixture.host.clears).toEqual([accountId]);
+    fixture.service.destroy();
+  });
+
+  it("deletes account-scoped bindings and history only after native projection clear succeeds", async () => {
+    const matching = new AutoFillBindingsService();
+    matching.bind(accountId, "com.example.app", "github");
+    matching.recordSuccessfulSelection({
+      accountId,
+      bundleId: "com.example.app",
+      serviceIdentifiers: [],
+      cipherId: "github",
+      selectedAt: "2026-08-08T00:00:00Z",
+      explicitUserAction: true,
+      succeeded: true,
+    });
+    const fixture = createFixture(new RecordingProjectionHost(), matching);
+
+    await fixture.service.clearAccount(accountId);
+
+    expect(matching.snapshot(accountId)).toEqual({ bindings: [], history: [] });
     fixture.service.destroy();
   });
 
@@ -271,12 +313,14 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
 
 function createFixture(
   host = new RecordingProjectionHost(),
+  matching = new AutoFillBindingsService(),
 ) {
   const store = new PopupStateStore();
   const service = new AutoFillProjectionService(
     store,
     host,
     () => new Date("2026-08-08T08:00:00.000Z"),
+    matching,
   );
   store.setItems([], undefined, undefined, accountId);
   return { store, host, service };

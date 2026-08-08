@@ -3,7 +3,7 @@
 - Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
-- Status: Task 4 implemented; awaiting review
+- Status: Task 5 implemented; awaiting review
 - Baseline contract tests: 7 passed, 1 browser-release skip.
 - Baseline full regression: 3462 passed, 22 skipped (from prior Task 1 gate; only design/plan docs changed afterward).
 
@@ -13,7 +13,7 @@
 - [x] Task 2 — Build the native Agent and Credential Provider sidecars
 - [x] Task 3 — Authenticate main app and Credential Provider IPC
 - [x] Task 4 — Write and provision the encrypted AutoFill projection
-- [ ] Task 5 — Rank native application candidates and support all-Login search
+- [x] Task 5 — Rank native application candidates and support all-Login search
 - [ ] Task 6 — Implement macOS system password AutoFill
 - [ ] Task 7 — Add the main-app AutoFill picker and explicit field actions
 - [ ] Task 8 — Add conservative Accessibility floating action
@@ -59,3 +59,17 @@
 - Security-review final verification: TypeScript 3,473 passed/22 skipped; Rust 191 passed/4 ignored; Swift 56 passed; native project/identity tests 36 passed; production web build passed.
 - Security-review round 2 closes process-shared exact-epoch account bindings, atomic vault-owner envelopes, lock-before-delete recovery obligations with restart reconstruction, and bounded fail-closed retired generations.
 - Round 2 final verification: TypeScript 3,473 passed/22 skipped; Rust 198 passed/4 ignored; Swift 57 passed; native project/identity tests 36 passed; production web build passed.
+- Final compensation fix: `f4470015 fix: compensate failed autofill account switches`.
+- Final verification: TypeScript 3,477 passed/22 skipped; Rust 199 passed/4 ignored; Swift 57 passed; production web build passed.
+- Review: approved with 0 Critical, 0 Important, and 0 Minor after failed-switch persistence readback, new ownership-epoch restoration, reprojection, and fail-closed recovery handling.
+
+## Task 5
+
+- Implementation: current change set, target commit `feat: rank native autofill candidates`.
+- Candidate ordering: exact user binding/service/preset/URI-rule signals, relevant host/domain signals, then mismatch-confirmed fuzzy/history/favorite/recent/other candidates with stable tie-breaks.
+- All-Login search filters all active Login records by normalized query while current-context empty search remains contextual. Unicode/IDNA/confusable/public-suffix boundaries fail closed.
+- Candidate Agent responses contain display metadata and opaque cipher IDs only. The separate bounded, expiring, single-use release authorization contract validates account, generation, candidate, mismatch, and reprompt but does not release a Task 6 secret.
+- Account-scoped bindings and explicit-success history travel only inside the existing ChaCha20-Poly1305 projection and are cleared after account-projection deletion succeeds.
+- Focused verification: TypeScript 17 passed; Rust 28 passed; Swift 32 passed. Property coverage exercises 48 ordering permutations and secret-free serialization.
+- Full verification: TypeScript 3,484 passed/22 skipped; Rust 200 passed/4 ignored; Swift 72 passed; native project/wrapper 13 passed; production web build passed.
+- Production Tauri configuration and native entitlements remain unchanged.
