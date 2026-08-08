@@ -144,6 +144,34 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertEqual(ranked.map(\.group), [.exact, .relevant, .other, .other])
     }
 
+    func testHostRuleHonorsSpecifiedEffectivePortAndNormalizesIPv6() throws {
+        let cases: [(rule: String, service: String, expected: CandidateGroup)] = [
+            ("https://example.test", "https://example.test:8443/login", .exact),
+            ("https://example.test:8443", "http://example.test:8443/login", .exact),
+            ("https://example.test:8443", "https://example.test/login", .other),
+            ("https://example.test:443", "https://example.test/login", .exact),
+            ("https://example.test:443", "http://example.test/login", .other),
+            ("https://[2001:db8::1]:8443", "http://[2001:0DB8:0:0:0:0:0:1]:8443/x", .exact),
+            ("https://[2001:db8::1]:8443", "https://[2001:db8::1]:443/x", .other),
+        ]
+        let engine = MatchingEngine(presets: [], domainRules: .empty)
+        for testCase in cases {
+            let candidate = try XCTUnwrap(engine.rank(
+                accountID: "account-a",
+                logins: [login("rule", name: "Unrelated", uris: [(testCase.rule, .host)])],
+                context: NativeAutoFillContext(
+                    bundleID: "com.no.fuzzy.match",
+                    appName: "No Match",
+                    serviceIdentifiers: [testCase.service],
+                    query: ""
+                ),
+                bindings: [],
+                history: []
+            ).first)
+            XCTAssertEqual(candidate.group, testCase.expected, "\(testCase.rule) vs \(testCase.service)")
+        }
+    }
+
     func testPrivateSuffixTenantsAndUnknownDelegationsNeverCrossMatch() throws {
         let rules = DomainMatchRules(
             allowedRegistrableDomains: [],
@@ -364,6 +392,30 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertTrue(forward.allSatisfy(\.requiresMismatchConfirmation))
     }
 
+    func testRecentCandidatesUseDescendingEpochBeforeStableTextAndInvalidValuesAreLowest() {
+        let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [
+                login("older", name: "Alpha", lastUsedAt: 1_700_000_000_000),
+                login("newer", name: "Zulu", lastUsedAt: 1_800_000_000_000),
+                login("zero", name: "Able", lastUsedAt: 0),
+                login("negative", name: "Baker", lastUsedAt: -1),
+                login("nil", name: "Charlie"),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.no.fuzzy.match",
+                appName: "No Match",
+                serviceIdentifiers: [],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.map(\.cipherID), ["newer", "older", "zero", "negative", "nil"])
+        XCTAssertEqual(ranked.map(\.reason), ["recent", "recent", "other", "other", "other"])
+    }
+
     func testRankedCandidateEncodingNeverContainsProjectedSecretsOrURIs() throws {
         let password = "PASSWORD-MUST-NOT-LEAVE-RANKING"
         let totp = "TOTP-MUST-NOT-LEAVE-RANKING"
@@ -509,6 +561,7 @@ final class MatchingEngineTests: XCTestCase {
                 mismatchConfirmed: false,
                 reprompt: RepromptResultPayload(result: .grant, grant: "valid-grant")
             ),
+            authorization: try XCTUnwrap(store.take(contextToken: first.contextToken)),
             currentVaultRevision: 7,
             currentContextDigest: contextDigest,
             currentPolicyDigest: policyDigest,
@@ -534,20 +587,16 @@ final class MatchingEngineTests: XCTestCase {
             mismatchConfirmed: true,
             reprompt: RepromptResultPayload(result: .grant, grant: "valid-grant")
         )
+        let secondAuthorization = try XCTUnwrap(store.take(contextToken: second.contextToken))
         XCTAssertNoThrow(try store.validate(
             authorized,
+            authorization: secondAuthorization,
             currentVaultRevision: 7,
             currentContextDigest: contextDigest,
             currentPolicyDigest: policyDigest,
             verifyRepromptGrant: { _, _, _, _, grant in grant == "valid-grant" }
         ))
-        XCTAssertThrowsError(try store.validate(
-            authorized,
-            currentVaultRevision: 7,
-            currentContextDigest: contextDigest,
-            currentPolicyDigest: policyDigest,
-            verifyRepromptGrant: { _, _, _, _, _ in true }
-        )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
+        XCTAssertNil(store.take(contextToken: second.contextToken))
 
         let expired = try store.issue(
             accountID: "account-a",
@@ -570,6 +619,7 @@ final class MatchingEngineTests: XCTestCase {
                 mismatchConfirmed: true,
                 reprompt: RepromptResultPayload(result: .grant, grant: "valid-grant")
             ),
+            authorization: try XCTUnwrap(store.take(contextToken: expired.contextToken)),
             currentVaultRevision: 7,
             currentContextDigest: contextDigest,
             currentPolicyDigest: policyDigest,

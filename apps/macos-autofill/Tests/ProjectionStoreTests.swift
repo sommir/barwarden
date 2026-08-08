@@ -432,16 +432,18 @@ final class ProjectionStoreTests: XCTestCase {
         }
     }
 
-    func testReleaseRejectsRepromptURISecretAndDeletionChangesAfterQuery() throws {
-        let policyChanges = [
-            candidateProjection(revision: 1, reprompt: true),
-            candidateProjection(revision: 1, uri: "https://changed.example.test"),
-            candidateProjection(revision: 1, password: "changed-secret"),
-            candidateProjection(revision: 1, includeLogin: false),
+    func testReleaseMismatchPermanentlyConsumesTokenBeforeAnyProjectionCheck() throws {
+        let baseProjection = candidateProjection(revision: 1)
+        let policyChanges: [(projection: AutoFillProjection, error: AgentProtocolError)] = [
+            (candidateProjection(revision: 2), .staleRevision),
+            (candidateProjection(revision: 1, reprompt: true), .unauthorized),
+            (candidateProjection(revision: 1, uri: "https://changed.example.test"), .unauthorized),
+            (candidateProjection(revision: 1, password: "changed-secret"), .unauthorized),
+            (candidateProjection(revision: 1, includeLogin: false), .unauthorized),
         ]
-        for changedProjection in policyChanges {
+        for policyChange in policyChanges {
             let fixture = try Fixture()
-            try fixture.writeProjection(candidateProjection(revision: 1), key: key)
+            try fixture.writeProjection(baseProjection, key: key)
             let store = ProjectionStore(projectionURL: fixture.url, clock: fixture.clock)
             try store.provision(material(accountID: "account-a", revision: 1), from: .mainApplication)
             let engine = MatchingEngine(presets: [], domainRules: .empty)
@@ -452,18 +454,28 @@ final class ProjectionStoreTests: XCTestCase {
                 matchingEngine: engine
             )
 
-            try fixture.writeProjection(changedProjection, key: key)
+            try fixture.writeProjection(policyChange.projection, key: key)
             var operationRan = false
+            let request = SecretReleasePayload(
+                generation: generation,
+                accountID: "account-a",
+                candidateID: "login-1",
+                field: .password,
+                contextToken: response.contextToken,
+                mismatchConfirmed: false,
+                reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
+            )
             XCTAssertThrowsError(try store.withAuthorizedCandidate(
-                SecretReleasePayload(
-                    generation: generation,
-                    accountID: "account-a",
-                    candidateID: "login-1",
-                    field: .password,
-                    contextToken: response.contextToken,
-                    mismatchConfirmed: false,
-                    reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
-                ),
+                request,
+                matchingEngine: engine,
+                verifyRepromptGrant: { _, _, _, _, _ in false },
+                operation: { _ in operationRan = true }
+            )) { XCTAssertEqual($0 as? AgentProtocolError, policyChange.error) }
+            XCTAssertFalse(operationRan)
+
+            try fixture.writeProjection(baseProjection, key: key)
+            XCTAssertThrowsError(try store.withAuthorizedCandidate(
+                request,
                 matchingEngine: engine,
                 verifyRepromptGrant: { _, _, _, _, _ in false },
                 operation: { _ in operationRan = true }

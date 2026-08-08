@@ -303,11 +303,16 @@ final class ProjectionStore {
     ) throws -> T {
         lockState.lock()
         defer { lockState.unlock() }
+        guard let authorization = candidateAuthorizations.take(
+            contextToken: request.contextToken
+        ) else {
+            throw AgentProtocolError.unauthorized
+        }
+        let snapshot = authorization.snapshot
         let projection = try currentProjection(
             accountID: request.accountID,
             generation: request.generation
         )
-        let snapshot = try candidateAuthorizations.snapshot(for: request)
         let contextDigest = matchingEngine.authorizationContextDigest(snapshot.context)
         let policyDigest = matchingEngine.authorizationPolicyDigest(
             projection: projection,
@@ -322,6 +327,7 @@ final class ProjectionStore {
         onSecretReleaseSnapshot?()
         try candidateAuthorizations.validate(
             request,
+            authorization: authorization,
             currentVaultRevision: projection.vaultRevision,
             currentContextDigest: contextDigest,
             currentPolicyDigest: policyDigest,

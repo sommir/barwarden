@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 
 struct AppPreset: Codable, Equatable {
@@ -190,6 +191,7 @@ struct MatchingEngine {
         let signal: Signal
         let historyCount: UInt
         let historyDate: Int64
+        let recentDate: Int64
     }
 
     func rank(
@@ -226,7 +228,8 @@ struct MatchingEngine {
                     hasHistory: matchingHistory != nil
                 ),
                 historyCount: matchingHistory?.successfulSelectionCount ?? 0,
-                historyDate: matchingHistory?.lastSelectedAt ?? 0
+                historyDate: matchingHistory?.lastSelectedAt ?? 0,
+                recentDate: max(login.lastUsedAt ?? 0, 0)
             )
         }.sorted { lhs, rhs in
             if lhs.signal.rawValue != rhs.signal.rawValue {
@@ -234,6 +237,9 @@ struct MatchingEngine {
             }
             if lhs.historyCount != rhs.historyCount { return lhs.historyCount > rhs.historyCount }
             if lhs.historyDate != rhs.historyDate { return lhs.historyDate > rhs.historyDate }
+            if lhs.signal == .recent, lhs.recentDate != rhs.recentDate {
+                return lhs.recentDate > rhs.recentDate
+            }
             let left = (
                 Self.normalizeText(lhs.login.name),
                 Self.normalizeText(lhs.login.username),
@@ -397,7 +403,7 @@ struct MatchingEngine {
                   let expected = Self.canonicalExactService(rule.uri),
                   Self.host(service) == Self.host(rule.uri) else { return false }
             return candidate.hasPrefix(expected)
-        case .host: return Self.host(rule.uri) == Self.host(service)
+        case .host: return Self.hostRuleMatches(rule.uri, service)
         case .domain:
             return hostOrDomainMatches(rule.uri, service)
         case .regularExpression, .never: return false
@@ -447,7 +453,9 @@ struct MatchingEngine {
               let host = components.host,
               components.user == nil,
               components.password == nil else { return nil }
-        var result = normalizeText(scheme) + "://" + normalizeHost(host)
+        let normalizedHost = normalizeHost(host)
+        let serializedHost = normalizedHost.contains(":") ? "[\(normalizedHost)]" : normalizedHost
+        var result = normalizeText(scheme) + "://" + serializedHost
         if let port = components.port { result += ":\(port)" }
         result += components.percentEncodedPath
         if let query = components.percentEncodedQuery { result += "?\(query)" }
@@ -463,6 +471,47 @@ struct MatchingEngine {
         return normalizeHost(host)
     }
 
+    private static func hostRuleMatches(_ rule: String, _ service: String) -> Bool {
+        guard let expected = hostIdentity(rule),
+              let candidate = hostIdentity(service),
+              expected.host == candidate.host else { return false }
+        guard let requiredPort = expected.explicitPort else { return true }
+        return candidate.effectivePort == requiredPort
+    }
+
+    private struct HostIdentity {
+        let host: String
+        let explicitPort: Int?
+        let effectivePort: Int?
+    }
+
+    private static func hostIdentity(_ value: String) -> HostIdentity? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let source = hasExplicitScheme(trimmed) ? trimmed : "https://\(trimmed)"
+        guard let parsed = URLComponents(string: source),
+              let scheme = parsed.scheme,
+              let host = parsed.host,
+              parsed.user == nil,
+              parsed.password == nil else { return nil }
+        let explicitPort = parsed.port
+        guard explicitPort.map({ (1...65_535).contains($0) }) ?? true else { return nil }
+        return HostIdentity(
+            host: normalizeHost(host),
+            explicitPort: explicitPort,
+            effectivePort: explicitPort ?? defaultPort(for: scheme)
+        )
+    }
+
+    private static func defaultPort(for scheme: String) -> Int? {
+        switch normalizeText(scheme) {
+        case "http", "ws": 80
+        case "https", "wss": 443
+        case "ftp": 21
+        default: nil
+        }
+    }
+
     private static func hasExplicitScheme(_ value: String) -> Bool {
         value.range(
             of: #"^[A-Za-z][A-Za-z0-9+.-]*://"#,
@@ -471,8 +520,45 @@ struct MatchingEngine {
     }
 
     private static func normalizeHost(_ value: String) -> String {
-        let normalized = normalizeText(value).trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let normalized = normalizeText(value).trimmingCharacters(
+            in: CharacterSet(charactersIn: ".[]")
+        )
+        if let address = canonicalIPAddress(normalized) { return address }
         return URL(string: "https://\(normalized)")?.host.map(normalizeText) ?? normalized
+    }
+
+    private static func canonicalIPAddress(_ value: String) -> String? {
+        var ipv6 = in6_addr()
+        if inet_pton(AF_INET6, value, &ipv6) == 1 {
+            var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+            return withUnsafePointer(to: &ipv6) { address in
+                buffer.withUnsafeMutableBufferPointer { output in
+                    guard inet_ntop(
+                        AF_INET6,
+                        address,
+                        output.baseAddress,
+                        socklen_t(output.count)
+                    ) != nil else { return nil }
+                    return String(cString: output.baseAddress!)
+                }
+            }
+        }
+        var ipv4 = in_addr()
+        if inet_pton(AF_INET, value, &ipv4) == 1 {
+            var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+            return withUnsafePointer(to: &ipv4) { address in
+                buffer.withUnsafeMutableBufferPointer { output in
+                    guard inet_ntop(
+                        AF_INET,
+                        address,
+                        output.baseAddress,
+                        socklen_t(output.count)
+                    ) != nil else { return nil }
+                    return String(cString: output.baseAddress!)
+                }
+            }
+        }
+        return nil
     }
 
     private static func normalizeText(_ value: String) -> String {
@@ -509,7 +595,7 @@ final class CandidateAuthorizationStore {
         let policyDigest: Data
     }
 
-    private struct Authorization {
+    struct Authorization {
         let accountID: String
         let generation: UUID
         let snapshot: Snapshot
@@ -517,7 +603,7 @@ final class CandidateAuthorizationStore {
         let candidates: [String: Candidate]
     }
 
-    private struct Candidate {
+    struct Candidate {
         let requiresMismatchConfirmation: Bool
         let requiresReprompt: Bool
     }
@@ -591,26 +677,15 @@ final class CandidateAuthorizationStore {
         return CandidateResponsePayload(contextToken: token, candidates: candidates)
     }
 
-    func snapshot(for request: SecretReleasePayload) throws -> Snapshot {
-        guard !request.accountID.isEmpty,
-              !request.candidateID.isEmpty,
-              !request.contextToken.isEmpty else {
-            throw AgentProtocolError.malformedMessage
-        }
+    func take(contextToken: String) -> Authorization? {
         lock.lock()
         defer { lock.unlock() }
-        guard let authorization = records[request.contextToken],
-              authorization.expiresAt > clock(),
-              authorization.accountID == request.accountID,
-              authorization.generation == request.generation,
-              authorization.candidates[request.candidateID] != nil else {
-            throw AgentProtocolError.unauthorized
-        }
-        return authorization.snapshot
+        return records.removeValue(forKey: contextToken)
     }
 
     func validate(
         _ request: SecretReleasePayload,
+        authorization: Authorization,
         currentVaultRevision: UInt64,
         currentContextDigest: Data,
         currentPolicyDigest: Data,
@@ -621,11 +696,7 @@ final class CandidateAuthorizationStore {
               !request.contextToken.isEmpty else {
             throw AgentProtocolError.malformedMessage
         }
-        lock.lock()
-        let authorization = records.removeValue(forKey: request.contextToken)
-        lock.unlock()
-        guard let authorization,
-              authorization.expiresAt > clock(),
+        guard authorization.expiresAt > clock(),
               authorization.accountID == request.accountID,
               authorization.generation == request.generation,
               authorization.snapshot.vaultRevision == currentVaultRevision,

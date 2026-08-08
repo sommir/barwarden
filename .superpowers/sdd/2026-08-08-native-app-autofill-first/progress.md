@@ -65,13 +65,14 @@
 
 ## Task 5
 
-- Implementation: `cfd69762 feat: rank native autofill candidates`; security-review target commit `fix: harden native autofill candidate authorization`.
+- Implementation: `cfd69762 feat: rank native autofill candidates`; security review `7833e1eb fix: harden native autofill candidate authorization`; final residual target commit `fix: close autofill candidate review gaps`.
 - Candidate ordering: exact user binding/service/preset/URI-rule signals, relevant host/domain signals, then mismatch-confirmed fuzzy/history/favorite/recent/other candidates with stable tie-breaks.
 - All-Login search filters all active Login records by normalized query while current-context empty search remains contextual. Unicode/IDNA/confusable/public-suffix boundaries fail closed.
 - Candidate Agent responses contain display metadata and opaque cipher IDs only. The separate bounded, expiring, single-use release authorization contract validates account, generation, candidate, mismatch, and reprompt but does not release a Task 6 secret.
 - Account-scoped bindings and explicit-success history travel only inside the existing ChaCha20-Poly1305 projection and are cleared after account-projection deletion succeeds.
 - Security review fixes canonical numeric URI match values, schemeless exact URLs, host-safe startsWith, a pinned MPL-2.0 PSL/private-suffix fail-closed allowlist, malformed projection rejection, actual epoch usage time, and atomic ProjectionStore candidate authorization bound to revision/context/policy.
 - Deterministic race coverage proves provision cannot interleave query snapshot/issue and lock cannot interleave release revalidation/consume/operation; reprompt, URI, secret, and candidate deletion changes stale the token.
-- Focused verification: TypeScript 20 passed; Rust 30 passed; Swift 39 passed. Property coverage exercises 48 ordering permutations and secret-free serialization.
-- Full verification: TypeScript 3,487 passed/22 skipped; Rust 202 passed/4 ignored; Swift 83 passed; native project/wrapper 13 passed; production web build passed.
+- Final residual fix makes release authorization take/remove atomic before every current-state check, adds Bitwarden Host effective-port and IPv6 semantics, and sorts recent candidates by descending positive usage epoch.
+- Focused verification: TypeScript 20 passed; Rust 30 passed; Swift 41 passed. Property coverage exercises 48 ordering permutations and secret-free serialization.
+- Full verification: TypeScript 3,487 passed/22 skipped; Rust 202 passed/4 ignored; Swift 85 passed; native project/wrapper 13 passed; production web build passed.
 - Production Tauri configuration and native entitlements remain unchanged.
