@@ -1,5 +1,6 @@
 mod autofill_contract;
 mod autofill_ipc;
+mod autofill_projection;
 mod biometric;
 #[cfg(target_os = "macos")]
 mod biometric_macos;
@@ -58,7 +59,11 @@ fn main() {
         .manage(window::PopupPresentationState::default())
         .manage(session_broker::SessionBroker::new(
             uuid::Uuid::new_v4().to_string(),
-        ));
+        ))
+        .manage(
+            autofill_projection::system_projection_manager()
+                .unwrap_or_else(|_| panic!("failed to initialize native AutoFill projection")),
+        );
 
     if updater_plugin_is_configured(context.config()) {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
@@ -98,6 +103,9 @@ fn main() {
             autofill_ipc::autofill_agent_probe,
             autofill_ipc::autofill_agent_status,
             autofill_ipc::autofill_agent_lock,
+            autofill_projection::autofill_replace_projection,
+            autofill_projection::autofill_clear_projection,
+            autofill_projection::autofill_lock_projection,
             clipboard::copy_text,
             paste::paste_text,
             keychain::secure_get,

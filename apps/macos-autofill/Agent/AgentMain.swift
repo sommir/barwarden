@@ -4,6 +4,10 @@ import Foundation
 enum BarwardenAutoFillAgent {
     static func main() {
         guard let socketURL = try? AgentSocketLocation.socketURL() else { return }
-        try? AgentServer(socketURL: socketURL).run()
+        let projectionStore = ProjectionStore(
+            allowedRootURL: socketURL.deletingLastPathComponent()
+        )
+        let handler = AgentConnectionHandler(projectionStore: projectionStore)
+        try? AgentServer(socketURL: socketURL, handler: handler).run()
     }
 }

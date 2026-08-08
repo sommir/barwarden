@@ -1,4 +1,5 @@
 import Darwin
+import CryptoKit
 import Foundation
 import XCTest
 
@@ -226,6 +227,75 @@ final class AgentClientServerTests: XCTestCase {
         close(slowloris.takeClient())
     }
 
+    func testCredentialProviderCannotProvisionProjectionKey() throws {
+        let fixture = try ProjectionHandlerFixture()
+        let sockets = try SocketPair()
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .provision,
+            nonce: Data([4]),
+            projection: fixture.provisionPayload
+        )
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: sockets.client)
+
+        AgentConnectionHandler(
+            authorize: { _ in .credentialProvider },
+            projectionStore: fixture.store
+        ).handleAcceptedSocket(sockets.takeServer())
+
+        let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
+        XCTAssertEqual(response.error, .unauthorized)
+    }
+
+    func testAuthenticatedMainApplicationProvisionRenewAndLockMutateLease() throws {
+        let fixture = try ProjectionHandlerFixture()
+        try performProjectionRequest(
+            .provision,
+            projection: fixture.provisionPayload,
+            store: fixture.store
+        )
+        fixture.now += 20
+        try performProjectionRequest(
+            .renewLease,
+            lease: ProjectionLeasePayload(
+                generation: fixture.generation,
+                accountID: "account-a",
+                leaseDurationSeconds: 30
+            ),
+            store: fixture.store
+        )
+        fixture.now += 20
+        XCTAssertNoThrow(try fixture.store.read(accountID: "account-a", generation: fixture.generation))
+
+        try performProjectionRequest(.lock, store: fixture.store)
+        XCTAssertThrowsError(try fixture.store.read(accountID: "account-a", generation: fixture.generation))
+    }
+
+    private func performProjectionRequest(
+        _ operation: AgentOperation,
+        projection: ProjectionProvisionPayload? = nil,
+        lease: ProjectionLeasePayload? = nil,
+        store: ProjectionStore
+    ) throws {
+        let sockets = try SocketPair()
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: operation,
+            nonce: Data([8]),
+            projection: projection,
+            lease: lease
+        )
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: sockets.client)
+        AgentConnectionHandler(
+            authorize: { _ in .mainApplication },
+            projectionStore: store
+        ).handleAcceptedSocket(sockets.takeServer())
+        let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
+        XCTAssertEqual(response.status, .ok)
+    }
+
     private func performLoopbackClientRequest() throws -> AgentResponse {
         let sockets = try SocketPair()
         let client = AgentClient(connect: { sockets.takeClient() }, timeout: 1)
@@ -235,6 +305,50 @@ final class AgentClientServerTests: XCTestCase {
         }
         return try client.perform(.probe)
     }
+}
+
+private final class ProjectionHandlerFixture {
+    let directory: URL
+    let url: URL
+    let generation = UUID()
+    var now: TimeInterval = 1_800_000_000
+    lazy var store = ProjectionStore(projectionURL: url, clock: { [unowned self] in self.now })
+
+    var provisionPayload: ProjectionProvisionPayload {
+        ProjectionProvisionPayload(
+            generation: generation,
+            accountID: "account-a",
+            vaultRevision: 1,
+            key: Data((0..<32).map(UInt8.init)),
+            leaseDurationSeconds: 30
+        )
+    }
+
+    init() throws {
+        directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("barwarden-handler-\(UUID().uuidString)", isDirectory: true)
+        url = directory.appendingPathComponent("projection.bwaf")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let projection = AutoFillProjection(
+            version: 1,
+            accountID: "account-a",
+            vaultRevision: 1,
+            createdAt: "2026-08-08T08:00:00.000Z",
+            logins: []
+        )
+        let key = SymmetricKey(data: Data((0..<32).map(UInt8.init)))
+        let nonce = try ChaChaPoly.Nonce(data: Data(repeating: 7, count: 12))
+        let header = AutoFillProjectionEnvelope.header(nonce: Data(nonce))
+        let sealed = try ChaChaPoly.seal(
+            JSONEncoder().encode(projection),
+            using: key,
+            nonce: nonce,
+            authenticating: header
+        )
+        try (header + sealed.ciphertext + sealed.tag).write(to: url)
+    }
+
+    deinit { try? FileManager.default.removeItem(at: directory) }
 }
 
 final class SocketPair: @unchecked Sendable {

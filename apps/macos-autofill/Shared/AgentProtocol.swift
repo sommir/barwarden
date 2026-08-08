@@ -8,6 +8,91 @@ enum AgentOperation: String, Codable, Equatable {
     case probe
     case status
     case lock
+    case provision
+    case renewLease = "renew_lease"
+}
+
+final class ProjectionProvisionPayload: Codable, Equatable {
+    let generation: UUID
+    let accountID: String
+    let vaultRevision: UInt64
+    private(set) var key: Data
+    let leaseDurationSeconds: TimeInterval
+    let projectionPath: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case generation
+        case accountID = "account_id"
+        case vaultRevision = "vault_revision"
+        case key
+        case leaseDurationSeconds = "lease_duration_seconds"
+        case projectionPath = "projection_path"
+    }
+
+    init(
+        generation: UUID,
+        accountID: String,
+        vaultRevision: UInt64,
+        key: Data,
+        leaseDurationSeconds: TimeInterval,
+        projectionPath: String? = nil
+    ) {
+        self.generation = generation
+        self.accountID = accountID
+        self.vaultRevision = vaultRevision
+        self.key = key
+        self.leaseDurationSeconds = leaseDurationSeconds
+        self.projectionPath = projectionPath
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        generation = try container.decode(UUID.self, forKey: .generation)
+        accountID = try container.decode(String.self, forKey: .accountID)
+        vaultRevision = try container.decode(UInt64.self, forKey: .vaultRevision)
+        key = Data(try container.decode([UInt8].self, forKey: .key))
+        leaseDurationSeconds = try container.decode(TimeInterval.self, forKey: .leaseDurationSeconds)
+        projectionPath = try container.decodeIfPresent(String.self, forKey: .projectionPath)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(generation, forKey: .generation)
+        try container.encode(accountID, forKey: .accountID)
+        try container.encode(vaultRevision, forKey: .vaultRevision)
+        try container.encode(Array(key), forKey: .key)
+        try container.encode(leaseDurationSeconds, forKey: .leaseDurationSeconds)
+        try container.encodeIfPresent(projectionPath, forKey: .projectionPath)
+    }
+
+    deinit {
+        clearKey()
+    }
+
+    func clearKey() {
+        key.resetBytes(in: key.startIndex..<key.endIndex)
+    }
+
+    static func == (lhs: ProjectionProvisionPayload, rhs: ProjectionProvisionPayload) -> Bool {
+        lhs.generation == rhs.generation &&
+            lhs.accountID == rhs.accountID &&
+            lhs.vaultRevision == rhs.vaultRevision &&
+            lhs.key == rhs.key &&
+            lhs.leaseDurationSeconds == rhs.leaseDurationSeconds &&
+            lhs.projectionPath == rhs.projectionPath
+    }
+}
+
+struct ProjectionLeasePayload: Codable, Equatable {
+    let generation: UUID
+    let accountID: String
+    let leaseDurationSeconds: TimeInterval
+
+    private enum CodingKeys: String, CodingKey {
+        case generation
+        case accountID = "account_id"
+        case leaseDurationSeconds = "lease_duration_seconds"
+    }
 }
 
 struct AgentRequest: Codable, Equatable {
@@ -15,19 +100,32 @@ struct AgentRequest: Codable, Equatable {
     let requestID: UUID
     let operation: AgentOperation
     let nonce: Data
+    let projection: ProjectionProvisionPayload?
+    let lease: ProjectionLeasePayload?
 
     private enum CodingKeys: String, CodingKey {
         case version
         case requestID = "request_id"
         case operation
         case nonce
+        case projection
+        case lease
     }
 
-    init(version: UInt16, requestID: UUID, operation: AgentOperation, nonce: Data) {
+    init(
+        version: UInt16,
+        requestID: UUID,
+        operation: AgentOperation,
+        nonce: Data,
+        projection: ProjectionProvisionPayload? = nil,
+        lease: ProjectionLeasePayload? = nil
+    ) {
         self.version = version
         self.requestID = requestID
         self.operation = operation
         self.nonce = nonce
+        self.projection = projection
+        self.lease = lease
     }
 
     init(from decoder: Decoder) throws {
@@ -36,6 +134,8 @@ struct AgentRequest: Codable, Equatable {
         requestID = try container.decode(UUID.self, forKey: .requestID)
         operation = try container.decode(AgentOperation.self, forKey: .operation)
         nonce = Data(try container.decode([UInt8].self, forKey: .nonce))
+        projection = try container.decodeIfPresent(ProjectionProvisionPayload.self, forKey: .projection)
+        lease = try container.decodeIfPresent(ProjectionLeasePayload.self, forKey: .lease)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -44,6 +144,8 @@ struct AgentRequest: Codable, Equatable {
         try container.encode(requestID, forKey: .requestID)
         try container.encode(operation, forKey: .operation)
         try container.encode(Array(nonce), forKey: .nonce)
+        try container.encodeIfPresent(projection, forKey: .projection)
+        try container.encodeIfPresent(lease, forKey: .lease)
     }
 }
 
@@ -130,4 +232,8 @@ enum AgentProtocolError: String, Codable, Error, Equatable {
     case timeout
     case unavailable
     case transport
+    case corruptProjection = "corrupt_projection"
+    case staleRevision = "stale_revision"
+    case accountMismatch = "account_mismatch"
+    case locked
 }

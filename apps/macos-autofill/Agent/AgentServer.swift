@@ -55,17 +55,20 @@ final class AgentConnectionHandler {
     private let authorize: (Int32) throws -> AuthorizedPeer
     private let requestGate: AgentRequestGate
     private let timeout: TimeInterval
+    private let projectionStore: ProjectionStore?
 
     init(
         authorize: @escaping (Int32) throws -> AuthorizedPeer = {
             try PeerIdentityVerifier().verifyAcceptedSocket($0)
         },
         requestGate: AgentRequestGate = AgentRequestGate(),
-        timeout: TimeInterval = AgentClient.defaultTimeout
+        timeout: TimeInterval = AgentClient.defaultTimeout,
+        projectionStore: ProjectionStore? = nil
     ) {
         self.authorize = authorize
         self.requestGate = requestGate
         self.timeout = timeout
+        self.projectionStore = projectionStore
     }
 
     func handleAcceptedSocket(_ socket: Int32) {
@@ -73,23 +76,74 @@ final class AgentConnectionHandler {
         do {
             try AgentSocketIO.applyDeadline(timeout, to: socket)
             let deadline = try AgentDeadline(timeout: timeout)
+            let peer: AuthorizedPeer
             do {
-                _ = try authorize(socket)
+                peer = try authorize(socket)
             } catch {
                 try? sendFailure(.unauthorized, to: socket)
                 finishRejectedConnection(socket)
                 return
             }
-            let frame = try AgentSocketIO.readFrame(from: socket, deadline: deadline)
-            let request = try AgentFrame.decode(frame, as: AgentRequest.self)
-            try requestGate.accept(request)
-            let response = AgentResponse.success(requestID: request.requestID, nonce: request.nonce)
-            try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(response), to: socket)
+            try handleAuthorizedSocket(socket, peer: peer, deadline: deadline)
         } catch let error as AgentProtocolError {
             try? sendFailure(error, to: socket)
         } catch {
             try? sendFailure(.malformedMessage, to: socket)
         }
+    }
+
+    private func handleAuthorizedSocket(
+        _ socket: Int32,
+        peer: AuthorizedPeer,
+        deadline: AgentDeadline
+    ) throws {
+        var frame = try AgentSocketIO.readFrame(from: socket, deadline: deadline)
+        defer { frame.resetBytes(in: frame.indices) }
+        let request = try AgentFrame.decode(frame, as: AgentRequest.self)
+        try requestGate.accept(request)
+        switch request.operation {
+        case .probe, .status:
+            guard request.projection == nil, request.lease == nil else {
+                throw AgentProtocolError.malformedMessage
+            }
+        case .lock:
+            guard request.projection == nil, request.lease == nil else {
+                throw AgentProtocolError.malformedMessage
+            }
+            projectionStore?.lock()
+        case .provision:
+            guard let payload = request.projection,
+                  request.lease == nil,
+                  let projectionStore else {
+                throw AgentProtocolError.malformedMessage
+            }
+            defer { payload.clearKey() }
+            try projectionStore.provision(
+                ProjectionProvision(
+                    generation: payload.generation,
+                    accountID: payload.accountID,
+                    vaultRevision: payload.vaultRevision,
+                    key: payload.key,
+                    leaseDurationSeconds: payload.leaseDurationSeconds,
+                    projectionURL: payload.projectionPath.map { URL(fileURLWithPath: $0) }
+                ),
+                from: peer
+            )
+        case .renewLease:
+            guard request.projection == nil,
+                  let payload = request.lease,
+                  let projectionStore else {
+                throw AgentProtocolError.malformedMessage
+            }
+            try projectionStore.renewLease(
+                generation: payload.generation,
+                accountID: payload.accountID,
+                durationSeconds: payload.leaseDurationSeconds,
+                from: peer
+            )
+        }
+        let response = AgentResponse.success(requestID: request.requestID, nonce: request.nonce)
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(response), to: socket)
     }
 
     private func sendFailure(_ error: AgentProtocolError, to socket: Int32) throws {

@@ -65,7 +65,9 @@ enum AgentFrame {
 
     static func decode<Value: Decodable>(_ frame: Data, as type: Value.Type) throws -> Value {
         do {
-            return try JSONDecoder().decode(type, from: payload(from: frame))
+            var payload = try payload(from: frame)
+            defer { payload.resetBytes(in: payload.indices) }
+            return try JSONDecoder().decode(type, from: payload)
         } catch let error as AgentProtocolError {
             throw error
         } catch {

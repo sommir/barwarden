@@ -7,7 +7,7 @@ import { CompositeAccountCleanupService } from "./composite-account-cleanup.serv
 const accountA = "a".repeat(64);
 
 describe("CompositeAccountCleanupService", () => {
-  it("clears unlock material before generator and settings state", async () => {
+  it("clears the native projection before other account removal state", async () => {
     const events: string[] = [];
     const unlockMethods = unlockMethodsPort({
       clearAccount: async (id) => {
@@ -19,11 +19,21 @@ describe("CompositeAccountCleanupService", () => {
         events.push(`generator:${id}`);
       }),
     } as unknown as GeneratorAccountCleanupService;
-    const cleanup = new CompositeAccountCleanupService(unlockMethods, generatorCleanup);
+    const projectionCleanup = {
+      clearAccount: vi.fn(async (id: string) => {
+        events.push(`projection:${id}`);
+      }),
+    };
+    const cleanup = new CompositeAccountCleanupService(
+      unlockMethods,
+      generatorCleanup,
+      projectionCleanup as never,
+    );
 
     await cleanup.clearAccount(accountA);
 
     expect(events).toEqual([
+      `projection:${accountA}`,
       `unlock:${accountA}`,
       `generator:${accountA}`,
     ]);
@@ -33,6 +43,7 @@ describe("CompositeAccountCleanupService", () => {
     const generatorCleanup = {
       clearAccount: vi.fn(async () => undefined),
     } as unknown as GeneratorAccountCleanupService;
+    const projectionClear = vi.fn(async () => undefined);
     const cleanup = new CompositeAccountCleanupService(
       unlockMethodsPort({
         clearAccount: async () => {
@@ -40,10 +51,12 @@ describe("CompositeAccountCleanupService", () => {
         },
       }),
       generatorCleanup,
+      { clearAccount: projectionClear } as never,
     );
 
     await expect(cleanup.clearAccount(accountA)).rejects.toThrow("unlock cleanup failed");
 
+    expect(projectionClear).toHaveBeenCalledWith(accountA);
     expect(generatorCleanup.clearAccount).not.toHaveBeenCalled();
   });
 });

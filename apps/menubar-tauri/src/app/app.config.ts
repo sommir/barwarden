@@ -44,6 +44,7 @@ import {
   POPUP_ROUTER_CACHE_LIFECYCLE_PORT,
   POPUP_ROUTER_CACHE_ROUTE_GRAPH,
 } from "./platform/popup-router-cache.lifecycle";
+import { AutoFillProjectionService } from "./autofill/autofill-projection.service";
 
 const evidenceSearch = globalThis.location?.search ?? "";
 const settingsEvidencePreview = createSettingsEvidencePreview(evidenceSearch);
@@ -61,6 +62,7 @@ export const appConfig: ApplicationConfig = {
     { provide: I18nService, useExisting: OfficialI18nService },
     provideAppInitializer(() => {
       inject(SettingsService);
+      inject(AutoFillProjectionService);
     }),
     { provide: RETAINED_LOGIN_FORM_GENERATOR, useExisting: GeneratorService },
     { provide: RETAINED_LOGIN_FORM_STATUS_STORE, useExisting: PopupStateStore },

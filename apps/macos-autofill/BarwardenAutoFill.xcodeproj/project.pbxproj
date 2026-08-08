@@ -31,6 +31,11 @@
 		A10000000000000000000017 /* Security.framework in Provider Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* Security.framework */; };
 		A10000000000000000000018 /* libbsm.tbd in Agent Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* libbsm.tbd */; };
 		A10000000000000000000019 /* libbsm.tbd in Test Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* libbsm.tbd */; };
+		A1000000000000000000001A /* ProjectionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* ProjectionStoreTests.swift */; };
+		A1000000000000000000001B /* AutoFillProjection.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* AutoFillProjection.swift */; };
+		A1000000000000000000001C /* AutoFillProjection.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* AutoFillProjection.swift */; };
+		A1000000000000000000001D /* ProjectionStore.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ProjectionStore.swift */; };
+		A1000000000000000000001E /* ProjectionStore.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ProjectionStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +60,9 @@
 		A20000000000000000000014 /* AgentClientServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentClientServerTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* AgentClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentClient.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* libbsm.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbsm.tbd; path = usr/lib/libbsm.tbd; sourceTree = SDKROOT; };
+		A20000000000000000000017 /* ProjectionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectionStoreTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* AutoFillProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoFillProjection.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* ProjectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectionStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,12 +74,12 @@
 /* Begin PBXGroup section */
 		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002 /* Config */, A40000000000000000000008 /* Shared */, A40000000000000000000003 /* Agent */, A40000000000000000000004 /* CredentialProvider */, A40000000000000000000005 /* Tests */, A40000000000000000000006 /* Frameworks */, A40000000000000000000007 /* Products */,); sourceTree = "<group>"; };
 		A40000000000000000000002 /* Config */ = {isa = PBXGroup; children = (A20000000000000000000004 /* Native.xcconfig */,); path = Config; sourceTree = "<group>"; };
-		A40000000000000000000003 /* Agent */ = {isa = PBXGroup; children = (A20000000000000000000001 /* AgentMain.swift */, A20000000000000000000012 /* AgentServer.swift */, A20000000000000000000011 /* PeerIdentityVerifier.swift */, A20000000000000000000005 /* Agent Entitlements.plist */, A20000000000000000000006 /* Agent LaunchAgent.plist */,); path = Agent; sourceTree = "<group>"; };
+		A40000000000000000000003 /* Agent */ = {isa = PBXGroup; children = (A20000000000000000000001 /* AgentMain.swift */, A20000000000000000000012 /* AgentServer.swift */, A20000000000000000000011 /* PeerIdentityVerifier.swift */, A20000000000000000000019 /* ProjectionStore.swift */, A20000000000000000000005 /* Agent Entitlements.plist */, A20000000000000000000006 /* Agent LaunchAgent.plist */,); path = Agent; sourceTree = "<group>"; };
 		A40000000000000000000004 /* CredentialProvider */ = {isa = PBXGroup; children = (A20000000000000000000002 /* CredentialProviderViewController.swift */, A20000000000000000000007 /* Credential Provider Info.plist */, A20000000000000000000008 /* Credential Provider Entitlements.plist */,); path = CredentialProvider; sourceTree = "<group>"; };
-		A40000000000000000000005 /* Tests */ = {isa = PBXGroup; children = (A20000000000000000000003 /* AgentProtocolTests.swift */, A20000000000000000000014 /* AgentClientServerTests.swift */, A20000000000000000000010 /* PeerIdentityVerifierTests.swift */,); path = Tests; sourceTree = "<group>"; };
+		A40000000000000000000005 /* Tests */ = {isa = PBXGroup; children = (A20000000000000000000003 /* AgentProtocolTests.swift */, A20000000000000000000014 /* AgentClientServerTests.swift */, A20000000000000000000010 /* PeerIdentityVerifierTests.swift */, A20000000000000000000017 /* ProjectionStoreTests.swift */,); path = Tests; sourceTree = "<group>"; };
 		A40000000000000000000006 /* Frameworks */ = {isa = PBXGroup; children = (A2000000000000000000000D /* AuthenticationServices.framework */, A20000000000000000000013 /* Security.framework */, A20000000000000000000016 /* libbsm.tbd */,); name = Frameworks; sourceTree = "<group>"; };
 		A40000000000000000000007 /* Products */ = {isa = PBXGroup; children = (A20000000000000000000009 /* BarwardenAutoFillAgent */, A2000000000000000000000A /* BarwardenCredentialProvider.appex */, A2000000000000000000000B /* BarwardenAutoFillTests.xctest */,); name = Products; sourceTree = "<group>"; };
-		A40000000000000000000008 /* Shared */ = {isa = PBXGroup; children = (A2000000000000000000000E /* AgentProtocol.swift */, A2000000000000000000000F /* AgentFraming.swift */, A20000000000000000000015 /* AgentClient.swift */,); path = Shared; sourceTree = "<group>"; };
+		A40000000000000000000008 /* Shared */ = {isa = PBXGroup; children = (A2000000000000000000000E /* AgentProtocol.swift */, A2000000000000000000000F /* AgentFraming.swift */, A20000000000000000000015 /* AgentClient.swift */, A20000000000000000000018 /* AutoFillProjection.swift */,); path = Shared; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -91,9 +99,9 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* AgentMain.swift in Sources */, A1000000000000000000000F /* AgentServer.swift in Agent Sources */, A1000000000000000000000D /* PeerIdentityVerifier.swift in Agent Sources */, A10000000000000000000005 /* AgentProtocol.swift in Agent Sources */, A10000000000000000000006 /* AgentFraming.swift in Agent Sources */, A10000000000000000000014 /* AgentClient.swift in Agent Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* AgentMain.swift in Sources */, A1000000000000000000000F /* AgentServer.swift in Agent Sources */, A1000000000000000000000D /* PeerIdentityVerifier.swift in Agent Sources */, A10000000000000000000005 /* AgentProtocol.swift in Agent Sources */, A10000000000000000000006 /* AgentFraming.swift in Agent Sources */, A10000000000000000000014 /* AgentClient.swift in Agent Sources */, A1000000000000000000001B /* AutoFillProjection.swift in Agent Sources */, A1000000000000000000001D /* ProjectionStore.swift in Agent Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A60000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000002 /* CredentialProviderViewController.swift in Sources */, A10000000000000000000007 /* AgentProtocol.swift in Provider Sources */, A10000000000000000000008 /* AgentFraming.swift in Provider Sources */, A10000000000000000000015 /* AgentClient.swift in Provider Sources */,); runOnlyForDeploymentPostprocessing = 0; };
-		A60000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* AgentProtocolTests.swift in Sources */, A10000000000000000000013 /* AgentClientServerTests.swift in Sources */, A1000000000000000000000C /* PeerIdentityVerifierTests.swift in Sources */, A10000000000000000000010 /* AgentServer.swift in Test Sources */, A1000000000000000000000E /* PeerIdentityVerifier.swift in Test Sources */, A10000000000000000000009 /* AgentProtocol.swift in Test Sources */, A1000000000000000000000A /* AgentFraming.swift in Test Sources */, A10000000000000000000016 /* AgentClient.swift in Test Sources */, A1000000000000000000000B /* CredentialProviderViewController.swift in Test Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* AgentProtocolTests.swift in Sources */, A10000000000000000000013 /* AgentClientServerTests.swift in Sources */, A1000000000000000000000C /* PeerIdentityVerifierTests.swift in Sources */, A1000000000000000000001A /* ProjectionStoreTests.swift in Sources */, A10000000000000000000010 /* AgentServer.swift in Test Sources */, A1000000000000000000000E /* PeerIdentityVerifier.swift in Test Sources */, A10000000000000000000009 /* AgentProtocol.swift in Test Sources */, A1000000000000000000000A /* AgentFraming.swift in Test Sources */, A10000000000000000000016 /* AgentClient.swift in Test Sources */, A1000000000000000000001C /* AutoFillProjection.swift in Test Sources */, A1000000000000000000001E /* ProjectionStore.swift in Test Sources */, A1000000000000000000000B /* CredentialProviderViewController.swift in Test Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */

@@ -7,6 +7,9 @@ const allowedCommands = [
   "autofill_agent_lock",
   "autofill_agent_probe",
   "autofill_agent_status",
+  "autofill_clear_projection",
+  "autofill_lock_projection",
+  "autofill_replace_projection",
   "biometric_disable",
   "biometric_enable",
   "biometric_status",
@@ -46,6 +49,7 @@ describe("native command surface", () => {
       "utf8",
     );
     const host = [
+      "autofill-projection.host.ts",
       "tauri-host.service.ts",
       "launch-at-login.ts",
     ].map((file) =>

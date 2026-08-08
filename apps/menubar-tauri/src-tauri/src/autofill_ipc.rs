@@ -6,6 +6,7 @@ use std::io::{ErrorKind, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use zeroize::Zeroizing;
 
 pub const MAXIMUM_PAYLOAD_BYTES: usize = 65_536;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
@@ -32,6 +33,10 @@ impl AgentClient {
     }
 
     pub fn perform(&self, operation: AgentOperation) -> Result<AgentResponse, AgentErrorCode> {
+        self.perform_request(AgentRequest::new(operation))
+    }
+
+    pub fn perform_request(&self, request: AgentRequest) -> Result<AgentResponse, AgentErrorCode> {
         let mut stream =
             UnixStream::connect(&self.socket_path).map_err(|_| AgentErrorCode::Unavailable)?;
         stream
@@ -41,16 +46,12 @@ impl AgentClient {
             .set_write_timeout(Some(self.timeout))
             .map_err(|_| AgentErrorCode::Transport)?;
 
-        let request = AgentRequest {
-            version: AGENT_PROTOCOL_VERSION,
-            request_id: uuid::Uuid::new_v4().to_string(),
-            operation,
-            nonce: random_nonce(),
-        };
-        let payload = serde_json::to_vec(&request).map_err(|_| AgentErrorCode::MalformedRequest)?;
-        stream
-            .write_all(&encode_frame(&payload)?)
-            .map_err(map_io_error)?;
+        let payload = Zeroizing::new(
+            serde_json::to_vec(&request).map_err(|_| AgentErrorCode::MalformedRequest)?,
+        );
+        let frame = Zeroizing::new(encode_frame(&payload)?);
+        let write_result = stream.write_all(&frame).map_err(map_io_error);
+        write_result?;
         stream
             .shutdown(std::net::Shutdown::Write)
             .map_err(|_| AgentErrorCode::Transport)?;
@@ -120,13 +121,6 @@ fn map_io_error(error: std::io::Error) -> AgentErrorCode {
         ErrorKind::UnexpectedEof | ErrorKind::InvalidData => AgentErrorCode::MalformedRequest,
         _ => AgentErrorCode::Transport,
     }
-}
-
-fn random_nonce() -> Vec<u8> {
-    let mut nonce = Vec::with_capacity(AgentClient::NONCE_BYTES);
-    nonce.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
-    nonce.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
-    nonce
 }
 
 fn default_socket_path() -> Result<PathBuf, AgentErrorCode> {
@@ -240,7 +234,7 @@ mod tests {
             let response = AgentResponse {
                 version: 1,
                 request_id: Some("00000000-0000-4000-8000-000000000001".to_owned()),
-                nonce: request.nonce,
+                nonce: request.nonce.clone(),
                 status: AgentResponseStatus::Ok,
                 error: None,
             };
