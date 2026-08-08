@@ -47,8 +47,26 @@ struct AgentClient {
             nonce: try Self.randomNonce()
         )
         let response = try perform(request)
-        guard response.candidateResponse == nil else { throw AgentProtocolError.malformedMessage }
+        guard response.candidateResponse == nil,
+              response.session == nil,
+              response.secretResponse == nil else { throw AgentProtocolError.malformedMessage }
         return response
+    }
+
+    func currentSession() throws -> AgentSessionPayload {
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .status,
+            nonce: try Self.randomNonce()
+        )
+        let response = try perform(request)
+        guard let session = response.session,
+              response.candidateResponse == nil,
+              response.secretResponse == nil else {
+            throw AgentProtocolError.malformedMessage
+        }
+        return session
     }
 
     func queryCandidates(_ payload: CandidateQueryPayload) throws -> CandidateResponsePayload {
@@ -59,10 +77,32 @@ struct AgentClient {
             nonce: try Self.randomNonce(),
             candidateQuery: payload
         )
-        guard let candidates = try perform(request).candidateResponse else {
+        let response = try perform(request)
+        guard let candidates = response.candidateResponse,
+              response.session == nil,
+              response.secretResponse == nil else {
             throw AgentProtocolError.malformedMessage
         }
         return candidates
+    }
+
+    func releaseSecret(_ payload: SecretReleasePayload) throws -> ReleasedSecret {
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .releaseSecret,
+            nonce: try Self.randomNonce(),
+            secretRelease: payload
+        )
+        let response = try perform(request)
+        guard let secret = response.secretResponse,
+              secret.field == payload.field,
+              response.session == nil,
+              response.candidateResponse == nil else {
+            response.secretResponse?.clear()
+            throw AgentProtocolError.malformedMessage
+        }
+        return secret
     }
 
     private func perform(_ request: AgentRequest) throws -> AgentResponse {

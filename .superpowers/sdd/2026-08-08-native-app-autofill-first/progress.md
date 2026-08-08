@@ -3,7 +3,7 @@
 - Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
-- Status: Task 5 security review fixes implemented; awaiting review
+- Status: Task 6 implemented; review pending
 - Baseline contract tests: 7 passed, 1 browser-release skip.
 - Baseline full regression: 3462 passed, 22 skipped (from prior Task 1 gate; only design/plan docs changed afterward).
 
@@ -14,7 +14,7 @@
 - [x] Task 3 — Authenticate main app and Credential Provider IPC
 - [x] Task 4 — Write and provision the encrypted AutoFill projection
 - [x] Task 5 — Rank native application candidates and support all-Login search
-- [ ] Task 6 — Implement macOS system password AutoFill
+- [x] Task 6 — Implement macOS system password AutoFill
 - [ ] Task 7 — Add the main-app AutoFill picker and explicit field actions
 - [ ] Task 8 — Add conservative Accessibility floating action
 - [ ] Task 9 — Pass the native packaging, signing, and installation gate
@@ -65,7 +65,7 @@
 
 ## Task 5
 
-- Implementation: `cfd69762 feat: rank native autofill candidates`; security review `7833e1eb fix: harden native autofill candidate authorization`; final residual target commit `fix: close autofill candidate review gaps`.
+- Implementation: `cfd69762 feat: rank native autofill candidates`; security review `7833e1eb fix: harden native autofill candidate authorization`; final residual fix `bf9b0d6c fix: close autofill candidate review gaps`.
 - Candidate ordering: exact user binding/service/preset/URI-rule signals, relevant host/domain signals, then mismatch-confirmed fuzzy/history/favorite/recent/other candidates with stable tie-breaks.
 - All-Login search filters all active Login records by normalized query while current-context empty search remains contextual. Unicode/IDNA/confusable/public-suffix boundaries fail closed.
 - Candidate Agent responses contain display metadata and opaque cipher IDs only. The separate bounded, expiring, single-use release authorization contract validates account, generation, candidate, mismatch, and reprompt but does not release a Task 6 secret.
@@ -76,3 +76,14 @@
 - Focused verification: TypeScript 20 passed; Rust 30 passed; Swift 41 passed. Property coverage exercises 48 ordering permutations and secret-free serialization.
 - Full verification: TypeScript 3,487 passed/22 skipped; Rust 202 passed/4 ignored; Swift 85 passed; native project/wrapper 13 passed; production web build passed.
 - Production Tauri configuration and native entitlements remain unchanged.
+- Review: approved with 0 Critical, 0 Important, and 0 Minor after consume-on-failure, Host effective-port/IPv6, and recent-epoch ordering fixes.
+
+## Task 6
+
+- Implementation pending commit: macOS 13+ AuthenticationServices Provider, metadata-only identity lifecycle, explicit grouped/all-Login picker, and atomic Agent secret release.
+- Identity publication uses only active Login service/username metadata plus an opaque account/generation-scoped record identifier. Full replace covers sync/account switch, logout publishes an empty replacement, lock retains safe metadata, disabled store and replace errors fail closed.
+- Password/TOTP-code release reads the requested field only inside the existing `ProjectionStore` authorization transaction after current lease/account/generation/revision/context/policy/candidate/mismatch/reprompt validation. Candidate queries remain secret-free; application-controlled response buffers are cleared after use.
+- macOS 13/14 return stable `unsupported-system-totp`; macOS 15 one-time-code APIs are availability guarded. Reprompt-protected system Provider completion remains fail closed with accurate in-app AutoFill guidance; the successful reprompt Provider path is deferred.
+- Final verification: Swift/Xcode 107 passed; native project/wrapper/IPC contracts 17 passed; full TypeScript 3,487 passed/22 skipped; Rust 202 passed/4 ignored; production web build passed.
+- Signed build/live system smoke is blocked by the missing `com.sommir.barwarden.credential-provider` provisioning profile and missing Team `K7LY92JY96` Mac Development certificate/private key. No extension installation or live success is claimed; Task 9 owns that gate.
+- Production Tauri configuration/native entitlements and Task 7 Accessibility/browser/focused-field behavior remain unchanged.

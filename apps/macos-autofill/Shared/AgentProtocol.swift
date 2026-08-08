@@ -74,6 +74,18 @@ struct CandidateResponsePayload: Codable, Equatable {
     }
 }
 
+struct AgentSessionPayload: Codable, Equatable {
+    let generation: UUID
+    let accountID: String
+    let vaultRevision: UInt64
+
+    private enum CodingKeys: String, CodingKey {
+        case generation
+        case accountID = "account_id"
+        case vaultRevision = "vault_revision"
+    }
+}
+
 enum AutoFillSecretField: String, Codable, Equatable {
     case username
     case password
@@ -107,6 +119,36 @@ struct SecretReleasePayload: Codable, Equatable {
         case contextToken = "context_token"
         case mismatchConfirmed = "mismatch_confirmed"
         case reprompt
+    }
+}
+
+final class ReleasedSecret: Codable, Equatable {
+    let field: AutoFillSecretField
+    private(set) var value: Data
+    private(set) var isCleared = false
+
+    init(field: AutoFillSecretField, value: Data) {
+        self.field = field
+        self.value = value
+    }
+
+    deinit { clear() }
+
+    func clear() {
+        guard !isCleared else { return }
+        value.resetBytes(in: value.indices)
+        isCleared = true
+    }
+
+    func string() throws -> String {
+        guard !isCleared, let string = String(data: value, encoding: .utf8) else {
+            throw AgentProtocolError.malformedMessage
+        }
+        return string
+    }
+
+    static func == (lhs: ReleasedSecret, rhs: ReleasedSecret) -> Bool {
+        lhs.field == rhs.field && lhs.value == rhs.value && lhs.isCleared == rhs.isCleared
     }
 }
 
@@ -266,6 +308,8 @@ struct AgentResponse: Codable, Equatable {
     let status: AgentResponseStatus
     let error: AgentProtocolError?
     let candidateResponse: CandidateResponsePayload?
+    let session: AgentSessionPayload?
+    let secretResponse: ReleasedSecret?
 
     private enum CodingKeys: String, CodingKey {
         case version
@@ -274,6 +318,8 @@ struct AgentResponse: Codable, Equatable {
         case status
         case error
         case candidateResponse = "candidate_response"
+        case session
+        case secretResponse = "secret_response"
     }
 
     static func success(requestID: UUID, nonce: Data) -> AgentResponse {
@@ -283,7 +329,9 @@ struct AgentResponse: Codable, Equatable {
             nonce: nonce,
             status: .ok,
             error: nil,
-            candidateResponse: nil
+            candidateResponse: nil,
+            session: nil,
+            secretResponse: nil
         )
     }
 
@@ -298,7 +346,43 @@ struct AgentResponse: Codable, Equatable {
             nonce: nonce,
             status: .ok,
             error: nil,
-            candidateResponse: payload
+            candidateResponse: payload,
+            session: nil,
+            secretResponse: nil
+        )
+    }
+
+    static func session(
+        requestID: UUID,
+        nonce: Data,
+        payload: AgentSessionPayload
+    ) -> AgentResponse {
+        AgentResponse(
+            version: AgentProtocol.currentVersion,
+            requestID: requestID,
+            nonce: nonce,
+            status: .ok,
+            error: nil,
+            candidateResponse: nil,
+            session: payload,
+            secretResponse: nil
+        )
+    }
+
+    static func secret(
+        requestID: UUID,
+        nonce: Data,
+        payload: ReleasedSecret
+    ) -> AgentResponse {
+        AgentResponse(
+            version: AgentProtocol.currentVersion,
+            requestID: requestID,
+            nonce: nonce,
+            status: .ok,
+            error: nil,
+            candidateResponse: nil,
+            session: nil,
+            secretResponse: payload
         )
     }
 
@@ -309,7 +393,9 @@ struct AgentResponse: Codable, Equatable {
             nonce: Data(),
             status: .error,
             error: error,
-            candidateResponse: nil
+            candidateResponse: nil,
+            session: nil,
+            secretResponse: nil
         )
     }
 
@@ -319,7 +405,9 @@ struct AgentResponse: Codable, Equatable {
         nonce: Data,
         status: AgentResponseStatus,
         error: AgentProtocolError?,
-        candidateResponse: CandidateResponsePayload? = nil
+        candidateResponse: CandidateResponsePayload? = nil,
+        session: AgentSessionPayload? = nil,
+        secretResponse: ReleasedSecret? = nil
     ) {
         self.version = version
         self.requestID = requestID
@@ -327,6 +415,8 @@ struct AgentResponse: Codable, Equatable {
         self.status = status
         self.error = error
         self.candidateResponse = candidateResponse
+        self.session = session
+        self.secretResponse = secretResponse
     }
 
     init(from decoder: Decoder) throws {
@@ -337,6 +427,8 @@ struct AgentResponse: Codable, Equatable {
         status = try container.decode(AgentResponseStatus.self, forKey: .status)
         error = try container.decodeIfPresent(AgentProtocolError.self, forKey: .error)
         candidateResponse = try container.decodeIfPresent(CandidateResponsePayload.self, forKey: .candidateResponse)
+        session = try container.decodeIfPresent(AgentSessionPayload.self, forKey: .session)
+        secretResponse = try container.decodeIfPresent(ReleasedSecret.self, forKey: .secretResponse)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -347,6 +439,8 @@ struct AgentResponse: Codable, Equatable {
         try container.encode(status, forKey: .status)
         try container.encodeIfPresent(error, forKey: .error)
         try container.encodeIfPresent(candidateResponse, forKey: .candidateResponse)
+        try container.encodeIfPresent(session, forKey: .session)
+        try container.encodeIfPresent(secretResponse, forKey: .secretResponse)
     }
 }
 

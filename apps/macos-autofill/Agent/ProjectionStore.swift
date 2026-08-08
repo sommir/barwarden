@@ -247,6 +247,18 @@ final class ProjectionStore {
         return try currentProjection(accountID: accountID, generation: generation)
     }
 
+    func currentSession() throws -> AgentSessionPayload {
+        lockState.lock()
+        defer { lockState.unlock() }
+        guard let current = lease else { throw AgentProtocolError.locked }
+        _ = try currentProjection(accountID: current.accountID, generation: current.generation)
+        return AgentSessionPayload(
+            generation: current.generation,
+            accountID: current.accountID,
+            vaultRevision: current.vaultRevision
+        )
+    }
+
     func queryCandidates(
         accountID: String,
         generation: UUID,

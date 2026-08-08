@@ -114,6 +114,30 @@ final class AgentClientServerTests: XCTestCase {
         }
     }
 
+    func testGenericClientOperationRejectsUnexpectedSessionPayload() throws {
+        let sockets = try SocketPair()
+        let client = AgentClient(connect: { sockets.takeClient() }, timeout: 1)
+        DispatchQueue.global().async {
+            let server = sockets.takeServer()
+            defer { close(server) }
+            guard let request = try? AgentSocketIO.readJSON(from: server, as: AgentRequest.self) else { return }
+            let response = AgentResponse.session(
+                requestID: request.requestID,
+                nonce: request.nonce,
+                payload: AgentSessionPayload(
+                    generation: UUID(),
+                    accountID: "account-a",
+                    vaultRevision: 1
+                )
+            )
+            try? AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(response), to: server)
+        }
+
+        XCTAssertThrowsError(try client.perform(.probe)) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .malformedMessage)
+        }
+    }
+
     func testClientReadDeadlineIsEnforced() throws {
         let sockets = try SocketPair()
         let server = sockets.takeServer()
@@ -338,17 +362,19 @@ final class AgentClientServerTests: XCTestCase {
         XCTAssertEqual(response.candidateResponse?.candidates.first?.group, .exact)
         let encoded = String(decoding: try JSONEncoder().encode(response), as: UTF8.self)
         XCTAssertFalse(encoded.contains("fixture-password-value"))
-        XCTAssertFalse(encoded.contains("JBSWY3DPEHPK3PXP"))
+        XCTAssertFalse(encoded.contains("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"))
         XCTAssertFalse(encoded.contains("https://fixture.example.test"))
     }
 
-    func testSecretReleaseOperationValidatesOneTimeContextButNeverReturnsSecret() throws {
+    func testSecretReleaseReturnsOnlyRequestedPasswordAfterAtomicAuthorizationAndClearsServerBuffer() throws {
         let fixture = try ProjectionHandlerFixture()
         try performProjectionRequest(.provision, projection: fixture.provisionPayload, store: fixture.store)
+        var clearedSecret: Data?
         let handler = AgentConnectionHandler(
             authorize: { _ in .credentialProvider },
             projectionStore: fixture.store,
-            matchingEngine: MatchingEngine(presets: [])
+            matchingEngine: MatchingEngine(presets: []),
+            onSecretResponseCleared: { clearedSecret = $0 }
         )
         let query = AgentRequest(
             version: AgentProtocol.currentVersion,
@@ -385,11 +411,98 @@ final class AgentClientServerTests: XCTestCase {
         )
 
         let response = try perform(release, handler: handler)
-        XCTAssertEqual(response.error, .unavailable)
+        XCTAssertEqual(response.status, .ok)
         XCTAssertNil(response.candidateResponse)
+        XCTAssertNil(response.session)
+        XCTAssertEqual(response.secretResponse?.field, .password)
+        XCTAssertEqual(try response.secretResponse?.string(), "fixture-password-value")
         let encoded = String(decoding: try JSONEncoder().encode(response), as: UTF8.self)
-        XCTAssertFalse(encoded.contains("fixture-password-value"))
+        XCTAssertTrue(encoded.contains(Data("fixture-password-value".utf8).base64EncodedString()))
+        XCTAssertFalse(encoded.contains("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"))
+        XCTAssertEqual(clearedSecret, Data(repeating: 0, count: "fixture-password-value".utf8.count))
+        response.secretResponse?.clear()
         XCTAssertEqual(try perform(release, handler: handler).error, .replayedRequest)
+    }
+
+    func testSharedAgentClientReadsCurrentProjectionSession() throws {
+        let fixture = try ProjectionHandlerFixture()
+        try performProjectionRequest(.provision, projection: fixture.provisionPayload, store: fixture.store)
+        let sockets = try SocketPair()
+        let handler = AgentConnectionHandler(
+            authorize: { _ in .credentialProvider },
+            projectionStore: fixture.store
+        )
+        DispatchQueue.global().async { handler.handleAcceptedSocket(sockets.takeServer()) }
+        let client = AgentClient(connect: { sockets.takeClient() }, timeout: 1)
+
+        let session = try client.currentSession()
+
+        XCTAssertEqual(session.accountID, "account-a")
+        XCTAssertEqual(session.generation, fixture.generation)
+        XCTAssertEqual(session.vaultRevision, 1)
+    }
+
+    func testTOTPGeneratorMatchesRFC6238VectorAndRejectsMalformedSeeds() throws {
+        XCTAssertEqual(
+            try TOTPGenerator.currentCode(
+                seed: "otpauth://totp/Example?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=8&period=30",
+                at: Date(timeIntervalSince1970: 59)
+            ),
+            "94287082"
+        )
+        XCTAssertThrowsError(try TOTPGenerator.currentCode(
+            seed: "otpauth://totp/Example?secret=not-base32&digits=12",
+            at: Date(timeIntervalSince1970: 59)
+        )) { XCTAssertEqual($0 as? AgentProtocolError, .malformedMessage) }
+    }
+
+    func testTOTPReleaseReturnsCurrentCodeOnlyAndNeverReturnsSeed() throws {
+        let fixture = try ProjectionHandlerFixture()
+        try performProjectionRequest(.provision, projection: fixture.provisionPayload, store: fixture.store)
+        let handler = AgentConnectionHandler(
+            authorize: { _ in .credentialProvider },
+            projectionStore: fixture.store,
+            matchingEngine: MatchingEngine(presets: []),
+            totpClock: { Date(timeIntervalSince1970: 59) }
+        )
+        let query = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .queryCandidates,
+            nonce: Data([12]),
+            candidateQuery: CandidateQueryPayload(
+                generation: fixture.generation,
+                accountID: "account-a",
+                context: NativeAutoFillContext(
+                    bundleID: "com.example.App",
+                    appName: "Example",
+                    serviceIdentifiers: ["https://fixture.example.test"],
+                    query: ""
+                )
+            )
+        )
+        let token = try XCTUnwrap(try perform(query, handler: handler).candidateResponse?.contextToken)
+        let response = try perform(AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .releaseSecret,
+            nonce: Data([13]),
+            secretRelease: SecretReleasePayload(
+                generation: fixture.generation,
+                accountID: "account-a",
+                candidateID: "login-1",
+                field: .totp,
+                contextToken: token,
+                mismatchConfirmed: false,
+                reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
+            )
+        ), handler: handler)
+
+        XCTAssertEqual(response.secretResponse?.field, .totp)
+        XCTAssertEqual(try response.secretResponse?.string(), "287082")
+        let encoded = String(decoding: try JSONEncoder().encode(response), as: UTF8.self)
+        XCTAssertFalse(encoded.contains("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"))
+        response.secretResponse?.clear()
     }
 
     func testSharedAgentClientCanRequestCandidatesWithoutReceivingSecrets() throws {
@@ -519,7 +632,7 @@ private final class ProjectionHandlerFixture {
                 username: "fixture-user@example.test",
                 password: "fixture-password-value",
                 uris: [AutoFillURI(uri: "https://fixture.example.test", matchType: .exact)],
-                totp: "JBSWY3DPEHPK3PXP",
+                totp: "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
                 favorite: false,
                 reprompt: false
             )]

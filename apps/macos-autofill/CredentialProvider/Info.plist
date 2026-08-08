@@ -26,6 +26,11 @@
   <dict>
     <key>NSExtensionAttributes</key>
     <dict>
+      <key>ASCredentialProviderExtensionCapabilities</key>
+      <dict>
+        <key>ProvidesOneTimeCodes</key>
+        <true/>
+      </dict>
       <key>ASCredentialProviderExtensionShowsConfigurationUI</key>
       <false/>
     </dict>

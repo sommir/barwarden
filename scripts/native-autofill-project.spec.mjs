@@ -171,6 +171,10 @@ test("declares the macOS AutoFill Credential Provider extension point", () => {
     info.NSExtension.NSExtensionPrincipalClass,
     "$(PRODUCT_MODULE_NAME).CredentialProviderViewController",
   );
+  assert.deepEqual(
+    info.NSExtension.NSExtensionAttributes.ASCredentialProviderExtensionCapabilities,
+    { ProvidesOneTimeCodes: true },
+  );
 });
 
 let unsignedBuildPromise;

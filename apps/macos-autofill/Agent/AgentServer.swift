@@ -59,6 +59,8 @@ final class AgentConnectionHandler {
     private let matchingEngine: MatchingEngine
     private let verifyRepromptGrant: CandidateAuthorizationStore.RepromptGrantVerifier
     private let onProjectionKeyCleared: ((Data) -> Void)?
+    private let onSecretResponseCleared: ((Data) -> Void)?
+    private let totpClock: () -> Date
 
     init(
         authorize: @escaping (Int32) throws -> AuthorizedPeer = {
@@ -71,7 +73,9 @@ final class AgentConnectionHandler {
         verifyRepromptGrant: @escaping CandidateAuthorizationStore.RepromptGrantVerifier = {
             _, _, _, _, _ in false
         },
-        onProjectionKeyCleared: ((Data) -> Void)? = nil
+        onProjectionKeyCleared: ((Data) -> Void)? = nil,
+        onSecretResponseCleared: ((Data) -> Void)? = nil,
+        totpClock: @escaping () -> Date = Date.init
     ) {
         self.authorize = authorize
         self.requestGate = requestGate
@@ -80,6 +84,8 @@ final class AgentConnectionHandler {
         self.matchingEngine = matchingEngine
         self.verifyRepromptGrant = verifyRepromptGrant
         self.onProjectionKeyCleared = onProjectionKeyCleared
+        self.onSecretResponseCleared = onSecretResponseCleared
+        self.totpClock = totpClock
     }
 
     func handleAcceptedSocket(_ socket: Int32) {
@@ -113,12 +119,27 @@ final class AgentConnectionHandler {
         let request = try AgentFrame.decode(frame, as: AgentRequest.self)
         try requestGate.accept(request)
         var candidateResponse: CandidateResponsePayload?
+        var sessionResponse: AgentSessionPayload?
+        var secretResponse: ReleasedSecret?
+        defer {
+            secretResponse?.clear()
+            if let secretResponse {
+                onSecretResponseCleared?(secretResponse.value)
+            }
+        }
         switch request.operation {
-        case .probe, .status:
+        case .probe:
             guard request.projection == nil, request.lease == nil,
                   request.candidateQuery == nil, request.secretRelease == nil else {
                 throw AgentProtocolError.malformedMessage
             }
+        case .status:
+            guard request.projection == nil, request.lease == nil,
+                  request.candidateQuery == nil, request.secretRelease == nil,
+                  let projectionStore else {
+                throw AgentProtocolError.malformedMessage
+            }
+            sessionResponse = try projectionStore.currentSession()
         case .lock:
             guard peer == .mainApplication,
                   request.projection == nil, request.lease == nil,
@@ -188,20 +209,44 @@ final class AgentConnectionHandler {
                   let projectionStore else {
                 throw AgentProtocolError.malformedMessage
             }
-            try projectionStore.withAuthorizedCandidate(
+            secretResponse = try projectionStore.withAuthorizedCandidate(
                 payload,
                 matchingEngine: matchingEngine,
                 verifyRepromptGrant: verifyRepromptGrant,
-                operation: { _ in
-                    // Task 5 validates this boundary only. Task 6 owns actual field release.
-                    throw AgentProtocolError.unavailable
+                operation: { login in
+                    let value: String
+                    switch payload.field {
+                    case .username:
+                        value = login.username
+                    case .password:
+                        value = login.password
+                    case .totp:
+                        guard !login.totp.isEmpty else { throw AgentProtocolError.unavailable }
+                        value = try TOTPGenerator.currentCode(seed: login.totp, at: totpClock())
+                    }
+                    return ReleasedSecret(field: payload.field, value: Data(value.utf8))
                 }
             )
         }
-        let response = candidateResponse.map {
-            AgentResponse.candidates(requestID: request.requestID, nonce: request.nonce, payload: $0)
-        } ?? AgentResponse.success(requestID: request.requestID, nonce: request.nonce)
-        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(response), to: socket)
+        let response: AgentResponse
+        if let candidateResponse {
+            response = AgentResponse.candidates(
+                requestID: request.requestID, nonce: request.nonce, payload: candidateResponse
+            )
+        } else if let sessionResponse {
+            response = AgentResponse.session(
+                requestID: request.requestID, nonce: request.nonce, payload: sessionResponse
+            )
+        } else if let secretResponse {
+            response = AgentResponse.secret(
+                requestID: request.requestID, nonce: request.nonce, payload: secretResponse
+            )
+        } else {
+            response = AgentResponse.success(requestID: request.requestID, nonce: request.nonce)
+        }
+        var encodedResponse = try AgentFrame.encodeJSON(response)
+        defer { encodedResponse.resetBytes(in: encodedResponse.indices) }
+        try AgentSocketIO.writeFrame(encodedResponse, to: socket)
     }
 
     private func sendFailure(_ error: AgentProtocolError, to socket: Int32) throws {
