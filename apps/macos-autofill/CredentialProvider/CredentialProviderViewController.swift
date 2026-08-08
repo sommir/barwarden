@@ -16,7 +16,7 @@ enum SystemAutoFillError: String, Error, Equatable {
         case .unsupportedSystemTOTP:
             return "System one-time-code AutoFill requires macOS 15. Use Barwarden focused-field actions."
         case .locked, .authorizationRequired:
-            return "Open Barwarden to unlock this item, then try AutoFill again."
+            return "This item requires verification that system AutoFill cannot complete. Open Barwarden to access it."
         case .agentUnavailable:
             return "Barwarden AutoFill Agent is unavailable. Open Barwarden to repair AutoFill."
         case .staleRequest:

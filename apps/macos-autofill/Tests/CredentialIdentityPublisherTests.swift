@@ -166,17 +166,26 @@ final class CredentialIdentityPublisherTests: XCTestCase {
         let publisher = CredentialIdentityPublisher(store: store)
         var oldResult: Result<Void, Error>?
         var logoutResult: Result<Void, Error>?
+        let oldCompletion = expectation(description: "old request completion")
+        let logoutCompletion = expectation(description: "logout completion")
 
         publisher.replaceAfterSync(CredentialIdentitySnapshot(
             accountID: "account-a",
             generation: UUID(),
             items: [item("old", username: "old-user", services: ["old.example.test"])]
-        )) { oldResult = $0 }
-        publisher.removeForLogout { logoutResult = $0 }
+        )) {
+            oldResult = $0
+            oldCompletion.fulfill()
+        }
+        publisher.removeForLogout {
+            logoutResult = $0
+            logoutCompletion.fulfill()
+        }
 
         XCTAssertEqual(store.pendingStateCount, 1, "publisher must serialize store calls")
         store.completeNextState(enabled: true)
         XCTAssertEqual(store.pendingReplaceCount, 0, "superseded sync must never start a replace")
+        wait(for: [oldCompletion], timeout: 1)
         XCTAssertThrowsError(try XCTUnwrap(oldResult).get()) {
             XCTAssertEqual($0 as? CredentialIdentityPublisherError, .superseded)
         }
@@ -187,6 +196,7 @@ final class CredentialIdentityPublisherTests: XCTestCase {
         XCTAssertEqual(store.pendingReplacements.only?.count, 0)
         store.completeNextReplace()
 
+        wait(for: [logoutCompletion], timeout: 1)
         XCTAssertNoThrow(try XCTUnwrap(logoutResult).get())
         XCTAssertEqual(store.committedReplacements.count, 1)
         XCTAssertTrue(store.committedReplacements[0].isEmpty)
@@ -196,12 +206,15 @@ final class CredentialIdentityPublisherTests: XCTestCase {
         let store = ControllableCredentialIdentityStore()
         let publisher = CredentialIdentityPublisher(store: store)
         var completions: [String] = []
+        let oldCompletion = expectation(description: "old completion")
+        let newCompletion = expectation(description: "new completion")
 
         publisher.replaceAfterSync(CredentialIdentitySnapshot(
             accountID: "account-a",
             generation: UUID(),
             items: [item("old", username: "old-user", services: ["old.example.test"])]
         )) { result in
+            defer { oldCompletion.fulfill() }
             guard case let .failure(error) = result else {
                 XCTFail("superseded request must fail")
                 return
@@ -217,6 +230,7 @@ final class CredentialIdentityPublisherTests: XCTestCase {
             generation: UUID(),
             items: [item("new", username: "new-user", services: ["new.example.test"])]
         )) { result in
+            defer { newCompletion.fulfill() }
             guard case .success = result else {
                 XCTFail("newest request must succeed")
                 return
@@ -226,14 +240,93 @@ final class CredentialIdentityPublisherTests: XCTestCase {
         XCTAssertEqual(store.pendingStateCount, 0, "new request waits behind the in-flight replace")
 
         store.completeNextReplace()
+        wait(for: [oldCompletion], timeout: 1)
         XCTAssertEqual(completions, ["old"])
         XCTAssertEqual(store.pendingStateCount, 1)
         store.completeNextState(enabled: true)
         store.completeNextReplace()
 
+        wait(for: [newCompletion], timeout: 1)
         XCTAssertEqual(completions, ["old", "new"])
         XCTAssertEqual(store.committedReplacements.map { $0.map(\.user) }, [["old-user"], ["new-user"]])
         XCTAssertEqual(store.committedReplacements.last?.map(\.user), ["new-user"])
+    }
+
+    func testSupersededCompletionReentrancyIsAsynchronousOneShotAndNewestLogoutWins() throws {
+        let store = ControllableCredentialIdentityStore()
+        let publisher = CredentialIdentityPublisher(store: store)
+        let callbacks = expectation(description: "all lifecycle callbacks")
+        callbacks.expectedFulfillmentCount = 4
+        callbacks.assertForOverFulfill = true
+        let reentrantLogoutSubmitted = expectation(description: "reentrant logout submitted")
+        let lock = NSLock()
+        var counts: [String: Int] = [:]
+        var outcomes: [String: String] = [:]
+
+        func record(_ name: String, _ result: Result<Void, Error>) -> Int {
+            let outcome: String
+            switch result {
+            case .success:
+                outcome = "success"
+            case let .failure(error as CredentialIdentityPublisherError):
+                outcome = error == .superseded ? "superseded" : "publisher-error"
+            case .failure:
+                outcome = "other-error"
+            }
+            lock.lock()
+            counts[name, default: 0] += 1
+            outcomes[name] = outcome
+            let count = counts[name]!
+            lock.unlock()
+            callbacks.fulfill()
+            return count
+        }
+
+        publisher.replaceAfterSync(CredentialIdentitySnapshot(
+            accountID: "account-a",
+            generation: UUID(),
+            items: [item("active", username: "active-user", services: ["active.example.test"])]
+        )) { _ = record("active", $0) }
+        store.completeNextState(enabled: true)
+        XCTAssertEqual(store.pendingReplaceCount, 1)
+
+        publisher.replaceAfterSync(CredentialIdentitySnapshot(
+            accountID: "account-b",
+            generation: UUID(),
+            items: [item("pending", username: "pending-user", services: ["pending.example.test"])]
+        )) { result in
+            guard record("pending", result) == 1 else { return }
+            publisher.removeForLogout { _ = record("logout", $0) }
+            reentrantLogoutSubmitted.fulfill()
+        }
+        publisher.replaceAfterSync(CredentialIdentitySnapshot(
+            accountID: "account-c",
+            generation: UUID(),
+            items: [item("newer", username: "newer-user", services: ["newer.example.test"])]
+        )) { _ = record("newer", $0) }
+
+        wait(for: [reentrantLogoutSubmitted], timeout: 1)
+        store.completeNextReplace()
+        XCTAssertEqual(store.pendingStateCount, 1)
+        store.completeNextState(enabled: true)
+        XCTAssertEqual(store.pendingReplacements.only?.count, 0, "reentrant logout must remain latest")
+        if store.pendingReplaceCount == 1 {
+            store.completeNextReplace()
+        }
+        wait(for: [callbacks], timeout: 1)
+
+        lock.lock()
+        let finalCounts = counts
+        let finalOutcomes = outcomes
+        lock.unlock()
+        XCTAssertEqual(finalCounts, ["active": 1, "pending": 1, "newer": 1, "logout": 1])
+        XCTAssertEqual(finalOutcomes, [
+            "active": "superseded",
+            "pending": "superseded",
+            "newer": "superseded",
+            "logout": "success"
+        ])
+        XCTAssertEqual(store.committedReplacements.map { $0.map(\.user) }, [["active-user"], []])
     }
 
     private func item(
@@ -257,6 +350,7 @@ final class CredentialIdentityPublisherTests: XCTestCase {
 
 private enum IdentityStoreTestError: Error, Equatable {
     case replaceFailed
+    case callbackTimedOut
 }
 
 private final class RecordingCredentialIdentityStore: CredentialIdentityStoreWriting {
@@ -324,13 +418,27 @@ private final class ControllableCredentialIdentityStore: CredentialIdentityStore
 private extension CredentialIdentityPublisher {
     func replaceAfterSyncAndWait(_ snapshot: CredentialIdentitySnapshot) throws {
         var result: Result<Void, Error>?
-        replaceAfterSync(snapshot) { result = $0 }
+        let completion = DispatchSemaphore(value: 0)
+        replaceAfterSync(snapshot) {
+            result = $0
+            completion.signal()
+        }
+        guard completion.wait(timeout: .now() + 1) == .success else {
+            throw IdentityStoreTestError.callbackTimedOut
+        }
         try XCTUnwrap(result).get()
     }
 
     func removeForLogoutAndWait() throws {
         var result: Result<Void, Error>?
-        removeForLogout { result = $0 }
+        let completion = DispatchSemaphore(value: 0)
+        removeForLogout {
+            result = $0
+            completion.signal()
+        }
+        guard completion.wait(timeout: .now() + 1) == .success else {
+            throw IdentityStoreTestError.callbackTimedOut
+        }
         try XCTUnwrap(result).get()
     }
 }

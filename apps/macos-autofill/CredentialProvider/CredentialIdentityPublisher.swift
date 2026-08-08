@@ -116,6 +116,7 @@ final class CredentialIdentityPublisher {
 
     private let store: CredentialIdentityStoreWriting
     private let queue = DispatchQueue(label: "com.sommir.barwarden.credential-identities")
+    private let callbackQueue = DispatchQueue(label: "com.sommir.barwarden.credential-identities.callbacks")
     private let queueKey = DispatchSpecificKey<Void>()
     private var nextEpoch: UInt64 = 0
     private var active: Request?
@@ -131,7 +132,7 @@ final class CredentialIdentityPublisher {
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         guard !snapshot.accountID.isEmpty else {
-            completion(.failure(AgentProtocolError.malformedMessage))
+            notify(completion, with: .failure(AgentProtocolError.malformedMessage))
             return
         }
         var seen = Set<IdentityKey>()
@@ -183,11 +184,12 @@ final class CredentialIdentityPublisher {
         onQueue {
             nextEpoch &+= 1
             let request = Request(epoch: nextEpoch, identities: identities, completion: completion)
-            if let pending {
-                pending.completion(.failure(CredentialIdentityPublisherError.superseded))
-            }
+            let superseded = pending
             pending = request
             startNextIfNeeded()
+            if let superseded {
+                notify(superseded, with: .failure(CredentialIdentityPublisherError.superseded))
+            }
         }
     }
 
@@ -233,8 +235,19 @@ final class CredentialIdentityPublisher {
     private func finish(_ request: Request, with result: Result<Void, Error>) {
         guard active?.epoch == request.epoch else { return }
         active = nil
-        request.completion(result)
         startNextIfNeeded()
+        notify(request, with: result)
+    }
+
+    private func notify(_ request: Request, with result: Result<Void, Error>) {
+        notify(request.completion, with: result)
+    }
+
+    private func notify(
+        _ completion: @escaping (Result<Void, Error>) -> Void,
+        with result: Result<Void, Error>
+    ) {
+        callbackQueue.async { completion(result) }
     }
 
     private func onQueue(_ operation: () -> Void) {

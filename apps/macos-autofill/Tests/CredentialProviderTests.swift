@@ -24,8 +24,10 @@ final class CredentialProviderTests: XCTestCase {
         XCTAssertEqual(agent.releaseRequests.count, 1)
         XCTAssertEqual(
             SystemAutoFillError.authorizationRequired.recoveryMessage,
-            "Open Barwarden to unlock this item, then try AutoFill again."
+            "This item requires verification that system AutoFill cannot complete. Open Barwarden to access it."
         )
+        XCTAssertFalse(SystemAutoFillError.authorizationRequired.recoveryMessage.localizedCaseInsensitiveContains("retry"))
+        XCTAssertFalse(SystemAutoFillError.authorizationRequired.recoveryMessage.localizedCaseInsensitiveContains("AutoFill again"))
         XCTAssertFalse(SystemAutoFillError.authorizationRequired.recoveryMessage.localizedCaseInsensitiveContains("approve"))
         XCTAssertFalse(SystemAutoFillError.authorizationRequired.recoveryMessage.localizedCaseInsensitiveContains("in-app"))
     }
