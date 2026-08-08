@@ -4,6 +4,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const allowedCommands = [
+  "autofill_agent_lock",
+  "autofill_agent_probe",
+  "autofill_agent_status",
   "biometric_disable",
   "biometric_enable",
   "biometric_status",

@@ -251,6 +251,18 @@ export class TauriHostService
     );
   }
 
+  autofillAgentProbe(): Promise<unknown> {
+    return this.invoke<unknown>("autofill_agent_probe");
+  }
+
+  autofillAgentStatus(): Promise<unknown> {
+    return this.invoke<unknown>("autofill_agent_status");
+  }
+
+  autofillAgentLock(): Promise<unknown> {
+    return this.invoke<unknown>("autofill_agent_lock");
+  }
+
   async fetchJson<T>(url: string, init: RequestInit): Promise<T> {
     const request = {
       url,

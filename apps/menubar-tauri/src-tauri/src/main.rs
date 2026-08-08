@@ -1,3 +1,5 @@
+mod autofill_contract;
+mod autofill_ipc;
 mod biometric;
 #[cfg(target_os = "macos")]
 mod biometric_macos;
@@ -93,6 +95,9 @@ fn main() {
             biometric::biometric_enable,
             biometric::biometric_unlock,
             biometric::biometric_disable,
+            autofill_ipc::autofill_agent_probe,
+            autofill_ipc::autofill_agent_status,
+            autofill_ipc::autofill_agent_lock,
             clipboard::copy_text,
             paste::paste_text,
             keychain::secure_get,

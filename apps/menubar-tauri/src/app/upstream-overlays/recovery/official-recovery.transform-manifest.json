@@ -398,7 +398,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/host/tauri-host.service.ts",
-      "sha256": "e9f2c78a097a74901c9a5e89afc21158b4d810c0b18678a47b640d6e91c35e14"
+      "sha256": "ede45f60ac1f062cab102a162e0b734cb3f1ae1f629a28e81089ba9a14612cd2"
     },
     {
       "path": "apps/menubar-tauri/src/vault/vault-sync.service.ts",
