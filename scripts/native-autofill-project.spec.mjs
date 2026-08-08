@@ -73,12 +73,42 @@ function xpath(expression) {
   }).trim();
 }
 
+function projectTargets() {
+  const inventory = JSON.parse(runXcodebuild([
+    "-project", projectPath,
+    "-list",
+    "-json",
+  ]));
+  return inventory.project.targets.toSorted();
+}
+
+test("Xcode project inventory rejects every undeclared or browser-related target", () => {
+  const targets = projectTargets();
+
+  assert.deepEqual(targets, [
+    "BarwardenAutoFillAgent",
+    "BarwardenAutoFillTests",
+    "BarwardenCredentialProvider",
+  ]);
+  for (const target of targets) {
+    assert.doesNotMatch(target, /Safari|WebExtension|Chromium|NativeMessaging/i);
+  }
+});
+
 test("shared scheme has only two deliverable native products and one test bundle", () => {
   assert.equal(xpath("string(count(/Scheme/BuildAction/BuildActionEntries/BuildActionEntry))"), "3");
   assert.equal(xpath("string(count(//BuildActionEntry[@buildForRunning='YES']/BuildableReference[@BlueprintName='BarwardenAutoFillAgent' and @BuildableName='BarwardenAutoFillAgent']))"), "1");
   assert.equal(xpath("string(count(//BuildActionEntry[@buildForRunning='YES']/BuildableReference[@BlueprintName='BarwardenCredentialProvider' and @BuildableName='BarwardenCredentialProvider.appex']))"), "1");
   assert.equal(xpath("string(count(//BuildActionEntry[@buildForRunning='NO']/BuildableReference[@BlueprintName='BarwardenAutoFillTests' and @BuildableName='BarwardenAutoFillTests.xctest']))"), "1");
   assert.equal(xpath("string(count(/Scheme/TestAction/Testables/TestableReference/BuildableReference[@BlueprintName='BarwardenAutoFillTests']))"), "1");
+});
+
+test("shared scheme archives only the Agent and Credential Provider", () => {
+  assert.equal(xpath("string(count(//BuildActionEntry[@buildForArchiving='YES']))"), "2");
+  assert.equal(xpath("string(count(//BuildActionEntry[@buildForArchiving='NO']))"), "1");
+  assert.equal(xpath("string(count(//BuildActionEntry[@buildForArchiving='YES']/BuildableReference[@BlueprintName='BarwardenAutoFillAgent']))"), "1");
+  assert.equal(xpath("string(count(//BuildActionEntry[@buildForArchiving='YES']/BuildableReference[@BlueprintName='BarwardenCredentialProvider']))"), "1");
+  assert.equal(xpath("string(count(//BuildActionEntry[@buildForArchiving='NO']/BuildableReference[@BlueprintName='BarwardenAutoFillTests']))"), "1");
 });
 
 test("Xcode resolves exact target identities, entitlements, products, and macOS floor", async () => {

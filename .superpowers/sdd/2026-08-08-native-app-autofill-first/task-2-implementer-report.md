@@ -58,3 +58,10 @@
 - GREEN: `node --test scripts/native-autofill-project.spec.mjs` with a runtime-provided full Xcode directory passed 11/11, including parsed Debug/Release settings, scheme associations, real product metadata, symlink ancestry/subtree cases, strict `.framework`/`.bundle`/arbitrary inventory cases, and non-empty staging.
 - GREEN: the unsigned Debug Xcode test run executed 7 tests with 0 failures. A real unsigned universal Release wrapper run succeeded and staged exactly `BarwardenAutoFillAgent` and `BarwardenCredentialProvider.appex`; its expanded provider metadata contains the exact bundle ID, macOS 13.0 floor, and module-qualified principal class.
 - Full repository regression was run once after the production fixes: 231 files passed, 2 skipped; 3,462 tests passed, 22 skipped (exit 0).
+
+### Remaining target-inventory review
+
+- Added a real `xcodebuild -list -json` inventory assertion requiring exactly `BarwardenAutoFillAgent`, `BarwardenCredentialProvider`, and `BarwardenAutoFillTests`. Exact equality rejects any other hidden target, while an explicit forbidden-name assertion covers Safari, WebExtension, Chromium, and Native Messaging names.
+- Extended parsed shared-scheme assertions without removing the existing running/test associations: the Agent and provider are the only two entries with `buildForArchiving=YES`, and the test bundle is the sole entry with `buildForArchiving=NO`.
+- RED: the inventory test failed when its hand-written expected list omitted the test target; the archive test separately failed when it expected the Agent to be excluded from archives. Both failures came from the real Xcode inventory/scheme metadata boundaries.
+- GREEN: the complete focused Node suite passed 13/13 with a runtime-provided full Xcode directory. No production source, project, scheme, entitlement, or build-wrapper change was necessary in this round.
