@@ -128,13 +128,16 @@ pub async fn biometric_enable(
     account_id: String,
     reason: BiometricReason,
 ) -> BiometricOperationOutcome {
+    let popup_was_visible = main_popup_is_visible(&app);
     let _popup_visibility = app.state::<crate::window::PopupVisibilityHold>().acquire();
     let state = app.state::<PlatformBiometricState>().inner().clone();
-    run_blocking(
+    let outcome = run_blocking(
         move || state.enable(&account_id, reason),
         BiometricOperationOutcome::StorageUnavailable,
     )
-    .await
+    .await;
+    restore_popup_after_native_security(popup_was_visible, || refocus_main_popup(&app));
+    outcome
 }
 
 #[cfg(target_os = "macos")]
@@ -144,13 +147,16 @@ pub async fn biometric_unlock(
     account_id: String,
     reason: BiometricReason,
 ) -> BiometricOperationOutcome {
+    let popup_was_visible = main_popup_is_visible(&app);
     let _popup_visibility = app.state::<crate::window::PopupVisibilityHold>().acquire();
     let state = app.state::<PlatformBiometricState>().inner().clone();
-    run_blocking(
+    let outcome = run_blocking(
         move || state.unlock(&account_id, reason),
         BiometricOperationOutcome::StorageUnavailable,
     )
-    .await
+    .await;
+    restore_popup_after_native_security(popup_was_visible, || refocus_main_popup(&app));
+    outcome
 }
 
 #[cfg(target_os = "macos")]
@@ -159,13 +165,16 @@ pub async fn biometric_disable(
     app: tauri::AppHandle,
     account_id: String,
 ) -> BiometricOperationOutcome {
+    let popup_was_visible = main_popup_is_visible(&app);
     let _popup_visibility = app.state::<crate::window::PopupVisibilityHold>().acquire();
     let state = app.state::<PlatformBiometricState>().inner().clone();
-    run_blocking(
+    let outcome = run_blocking(
         move || state.disable(&account_id),
         BiometricOperationOutcome::StorageUnavailable,
     )
-    .await
+    .await;
+    restore_popup_after_native_security(popup_was_visible, || refocus_main_popup(&app));
+    outcome
 }
 
 #[cfg(target_os = "macos")]
@@ -179,14 +188,59 @@ where
         .unwrap_or(unavailable)
 }
 
+#[cfg(target_os = "macos")]
+fn main_popup_is_visible(app: &tauri::AppHandle) -> bool {
+    app.get_webview_window("main")
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "macos")]
+fn refocus_main_popup(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn restore_popup_after_native_security<F>(was_visible: bool, restore: F)
+where
+    F: FnOnce(),
+{
+    if was_visible {
+        restore();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
-        sync::{Arc, Mutex},
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc, Mutex,
+        },
         thread,
     };
 
     use super::*;
+
+    #[test]
+    fn visible_popup_is_restored_after_native_biometric_input() {
+        let restored = AtomicBool::new(false);
+
+        restore_popup_after_native_security(true, || restored.store(true, Ordering::Release));
+
+        assert!(restored.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn hidden_popup_is_not_opened_by_background_biometric_work() {
+        let restored = AtomicBool::new(false);
+
+        restore_popup_after_native_security(false, || restored.store(true, Ordering::Release));
+
+        assert!(!restored.load(Ordering::Acquire));
+    }
 
     #[test]
     fn accepts_only_canonical_scoped_account_ids() {

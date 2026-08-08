@@ -3,8 +3,9 @@ use crate::frontmost;
 use objc2_app_kit::{NSColor, NSWindow};
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
-    Arc,
+    Arc, Mutex,
 };
+use std::time::{Duration, Instant};
 use tauri::{
     LogicalPosition, Manager, Monitor, PhysicalPosition, PhysicalRect, PhysicalSize, Position,
     Rect, Size, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent,
@@ -28,12 +29,19 @@ const POPOUT_WINDOW_ERROR: &str = "pop-out window operation failed";
 // Hidden macOS WebKit views may resume with a live DOM but an evicted layer
 // tree. Defer the recovery event twice so the first frame restores the native
 // view and the second frame commits the Angular compositing update.
-const POPUP_RENDER_RECOVERY_SCRIPT: &str = r#"
-(() => {
-  const restore = () => window.dispatchEvent(new Event("barwarden:popup-shown"));
+const POPUP_RESET_AFTER: Duration = Duration::from_secs(60);
+const TRAY_CLICK_BLUR_WINDOW: Duration = Duration::from_millis(250);
+
+fn popup_render_recovery_script(reset: bool) -> String {
+    format!(
+        r#"
+(() => {{
+  const restore = () => window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {{ detail: {{ reset: {reset} }} }}));
   requestAnimationFrame(() => requestAnimationFrame(restore));
-})();
-"#;
+}})();
+"#,
+    )
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PopupLifecycleEvent {
@@ -66,6 +74,67 @@ pub enum PopoutDockVisibilityAction {
 pub struct PopupVisibilityHold(Arc<AtomicUsize>);
 
 pub struct PopupVisibilityGuard(Arc<AtomicUsize>);
+
+#[derive(Default)]
+struct PopupPresentationTimestamps {
+    hidden_at: Option<Instant>,
+    blurred_at: Option<Instant>,
+}
+
+#[derive(Clone, Default)]
+pub struct PopupPresentationState(Arc<Mutex<PopupPresentationTimestamps>>);
+
+impl PopupPresentationState {
+    fn mark_hidden_at(&self, hidden_at: Instant) {
+        let mut timestamps = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        timestamps.hidden_at = Some(hidden_at);
+        timestamps.blurred_at = None;
+    }
+
+    fn mark_hidden(&self) {
+        self.mark_hidden_at(Instant::now());
+    }
+
+    fn mark_blurred_at(&self, blurred_at: Instant) {
+        self.0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .blurred_at = Some(blurred_at);
+    }
+
+    fn mark_blurred(&self) {
+        self.mark_blurred_at(Instant::now());
+    }
+
+    fn blurred_for_tray_click_at(&self, clicked_at: Instant) -> bool {
+        self.0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .blurred_at
+            .and_then(|blurred_at| clicked_at.checked_duration_since(blurred_at))
+            .is_some_and(|elapsed| elapsed <= TRAY_CLICK_BLUR_WINDOW)
+    }
+
+    fn take_reset_required_at(&self, shown_at: Instant) -> bool {
+        let mut timestamps = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        timestamps.blurred_at = None;
+        timestamps
+            .hidden_at
+            .take()
+            .and_then(|hidden_at| shown_at.checked_duration_since(hidden_at))
+            .is_some_and(|elapsed| elapsed >= POPUP_RESET_AFTER)
+    }
+
+    fn take_reset_required(&self) -> bool {
+        self.take_reset_required_at(Instant::now())
+    }
+}
 
 impl PopupVisibilityHold {
     pub fn acquire(&self) -> PopupVisibilityGuard {
@@ -240,9 +309,12 @@ pub fn show_popup_window(
         .window
         .set_focus()
         .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
+    let reset_required = app.state::<PopupPresentationState>().take_reset_required();
     // A repaint failure must not prevent users from opening the popup; the
     // frontend treats this event as a best-effort compositor recovery.
-    let _ = context.window.eval(POPUP_RENDER_RECOVERY_SCRIPT);
+    let _ = context
+        .window
+        .eval(popup_render_recovery_script(reset_required));
     Ok(())
 }
 
@@ -299,11 +371,16 @@ pub fn hide_popup_window(app: &tauri::AppHandle) -> Result<(), String> {
         .ok_or_else(|| POPUP_WINDOW_NOT_FOUND.to_owned())?;
 
     window.hide().map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
+    app.state::<PopupPresentationState>().mark_hidden();
     Ok(())
 }
 
-pub fn popup_toggle_action(is_visible: bool) -> PopupToggleAction {
-    if is_visible {
+pub fn popup_toggle_action(
+    is_visible: bool,
+    is_focused: bool,
+    blurred_for_tray_click: bool,
+) -> PopupToggleAction {
+    if is_visible && (is_focused || blurred_for_tray_click) {
         PopupToggleAction::Hide
     } else {
         PopupToggleAction::Show
@@ -321,7 +398,12 @@ pub fn toggle_popup_window(
         .is_visible()
         .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
 
-    match popup_toggle_action(is_visible) {
+    let is_focused = matches!(window.is_focused(), Ok(true));
+    let blurred_for_tray_click = app
+        .state::<PopupPresentationState>()
+        .blurred_for_tray_click_at(Instant::now());
+
+    match popup_toggle_action(is_visible, is_focused, blurred_for_tray_click) {
         PopupToggleAction::Show => show_popup_window(app, event_tray_rect),
         PopupToggleAction::Hide => hide_popup_window(app),
     }
@@ -579,6 +661,10 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
     match popup_lifecycle_action(window.label(), lifecycle_event) {
         PopupLifecycleAction::Keep => {}
         PopupLifecycleAction::HideAfterDelay => {
+            window
+                .app_handle()
+                .state::<PopupPresentationState>()
+                .mark_blurred();
             let window = window.clone();
             std::thread::spawn(move || {
                 // Let a status-item mouse-up toggle the still-visible popup first.
@@ -586,7 +672,12 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
                 let focused = matches!(window.is_focused(), Ok(true));
                 let visibility_held = window.app_handle().state::<PopupVisibilityHold>().is_held();
                 if should_hide_after_popup_blur(focused, visibility_held) {
-                    let _ = window.hide();
+                    if window.hide().is_ok() {
+                        window
+                            .app_handle()
+                            .state::<PopupPresentationState>()
+                            .mark_hidden();
+                    }
                 }
             });
         }
@@ -594,7 +685,12 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
             }
-            let _ = window.hide();
+            if window.hide().is_ok() {
+                window
+                    .app_handle()
+                    .state::<PopupPresentationState>()
+                    .mark_hidden();
+            }
         }
     }
 }
@@ -792,11 +888,12 @@ mod tests {
     use super::{
         existing_popout_url, monitor_index_for_tray, monitor_index_for_tray_or_primary,
         physical_popup_size, popout_dock_visibility_action, popout_url, popup_lifecycle_action,
-        popup_origin, popup_position_for_monitor, popup_size_and_position, popup_target_height,
-        popup_toggle_action, sanitize_route, should_hide_after_popup_blur, MonitorGeometry,
-        PopoutDockVisibilityAction, PopupLifecycleAction, PopupLifecycleEvent, PopupToggleAction,
+        popup_origin, popup_position_for_monitor, popup_render_recovery_script,
+        popup_size_and_position, popup_target_height, popup_toggle_action, sanitize_route,
+        should_hide_after_popup_blur, MonitorGeometry, PopoutDockVisibilityAction,
+        PopupLifecycleAction, PopupLifecycleEvent, PopupPresentationState, PopupToggleAction,
         PopupVisibilityHold, POPOUT_HEIGHT, POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH, POPOUT_WIDTH,
-        POPUP_RENDER_RECOVERY_SCRIPT, POPUP_WINDOW_ERROR,
+        POPUP_WINDOW_ERROR,
     };
     use tauri::{LogicalPosition, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Url};
 
@@ -1183,23 +1280,55 @@ mod tests {
 
     #[test]
     fn hidden_popup_toggle_requests_show() {
-        assert_eq!(popup_toggle_action(false), PopupToggleAction::Show);
-    }
-
-    #[test]
-    fn visible_popup_toggle_requests_hide() {
-        assert_eq!(popup_toggle_action(true), PopupToggleAction::Hide);
-    }
-
-    #[test]
-    fn popup_show_requests_a_webkit_composition_recovery_after_two_frames() {
-        assert!(POPUP_RENDER_RECOVERY_SCRIPT.contains("barwarden:popup-shown"));
         assert_eq!(
-            POPUP_RENDER_RECOVERY_SCRIPT
-                .matches("requestAnimationFrame")
-                .count(),
-            2
+            popup_toggle_action(false, false, false),
+            PopupToggleAction::Show
         );
+    }
+
+    #[test]
+    fn focused_visible_popup_toggle_requests_hide() {
+        assert_eq!(
+            popup_toggle_action(true, true, false),
+            PopupToggleAction::Hide
+        );
+    }
+
+    #[test]
+    fn unfocused_visible_popup_toggle_requests_show() {
+        assert_eq!(
+            popup_toggle_action(true, false, false),
+            PopupToggleAction::Show
+        );
+    }
+
+    #[test]
+    fn tray_click_that_just_blurred_the_popup_still_requests_hide() {
+        assert_eq!(
+            popup_toggle_action(true, false, true),
+            PopupToggleAction::Hide
+        );
+    }
+
+    #[test]
+    fn popup_hidden_for_one_minute_requests_initial_state_on_next_show() {
+        let state = PopupPresentationState::default();
+        let hidden_at = std::time::Instant::now();
+        state.mark_hidden_at(hidden_at);
+
+        assert!(!state.take_reset_required_at(hidden_at + std::time::Duration::from_secs(59)));
+        state.mark_hidden_at(hidden_at);
+        assert!(state.take_reset_required_at(hidden_at + std::time::Duration::from_secs(60)));
+        assert!(!state.take_reset_required_at(hidden_at + std::time::Duration::from_secs(120)));
+    }
+
+    #[test]
+    fn popup_show_reports_reset_intent_after_two_render_recovery_frames() {
+        let script = popup_render_recovery_script(true);
+
+        assert!(script.contains("barwarden:popup-shown"));
+        assert!(script.contains("reset: true"));
+        assert_eq!(script.matches("requestAnimationFrame").count(), 2);
     }
 
     #[test]

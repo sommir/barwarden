@@ -16,6 +16,7 @@ import { AppComponent } from "./app.component";
 import { PopupStateStore } from "./popup-state";
 import { POPUP_LIFECYCLE_HOST } from "./app.component";
 import { OfficialI18nService } from "./official-ui/official-i18n.service";
+import { VaultFacade } from "./vault/vault.facade";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -113,6 +114,40 @@ describe("AppComponent rendering", () => {
     fixture.detectChanges();
 
     expect(source.classList.contains("popup-window-size-source--render-recovery")).toBe(true);
+  });
+
+  it("resets an unlocked popup to the vault search after one minute hidden", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setActiveTab("settings");
+    store.setFilterFolderId("folder-1");
+    store.setFilterType("login");
+    const { fixture, navigateByUrl } = await renderRoot({
+      restoreStartup: vi.fn().mockResolvedValue("unlocked"),
+      store,
+    });
+    const vault = TestBed.inject(VaultFacade);
+    vault.setSearch("github");
+    const search = document.createElement("input");
+    search.type = "search";
+    const searchHost = document.createElement("bw-root-search");
+    searchHost.append(search);
+    (fixture.nativeElement as HTMLElement).append(searchHost);
+    navigateByUrl.mockClear();
+
+    window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {
+      detail: { reset: true },
+    }));
+
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+      "/tabs/vault",
+      { replaceUrl: true },
+    ));
+    expect(store.snapshot().activeTab).toBe("vault");
+    expect(store.snapshot().filterFolderId).toBe("");
+    expect(store.snapshot().filterType).toBe("");
+    expect(vault.queryValue()).toBe("");
+    await vi.waitFor(() => expect(document.activeElement).toBe(search));
   });
 
   it("wraps focus through the root sentinels and removes listeners on teardown", async () => {

@@ -53,6 +53,7 @@ fn main() {
         ))
         .manage(clipboard::ClipboardGeneration::default())
         .manage(window::PopupVisibilityHold::default())
+        .manage(window::PopupPresentationState::default())
         .manage(session_broker::SessionBroker::new(
             uuid::Uuid::new_v4().to_string(),
         ));

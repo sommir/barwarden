@@ -62,6 +62,7 @@ import { LocalCopyFeedbackService } from "./official-ui/local-copy-feedback.serv
 import { PopupWindowSizeService } from "./window-size/popup-window-size.service";
 import { translateOfficialMessage } from "./official-ui/official-i18n.service";
 import { LocaleRouteRefreshService } from "./platform/locale-route-refresh.service";
+import { VaultFacade } from "./vault/vault.facade";
 
 const startupNavigationErrorMessage = () =>
   translateOfficialMessage("i18nStartupNavigationFailed");
@@ -205,6 +206,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly popupWindowSize: PopupWindowSizeService | null = null,
     @Optional()
     private readonly localeRouteRefresh: LocaleRouteRefreshService | null = null,
+    @Optional()
+    private readonly vault: VaultFacade | null = null,
   ) {
     // The root owns the singleton so every live route is refreshed when the
     // user changes language, including secondary Settings routes.
@@ -579,8 +582,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
    * Recreating one composited frame after it is shown prevents the live
    * Angular view from being left behind a blank canvas after an autofill.
    */
-  @HostListener("window:barwarden:popup-shown")
-  restorePopupComposition(): void {
+  @HostListener("window:barwarden:popup-shown", ["$event"])
+  restorePopupComposition(event: Event): void {
     if (this.popupRenderRecoveryFrame !== undefined) {
       globalThis.cancelAnimationFrame?.(this.popupRenderRecoveryFrame);
     }
@@ -590,6 +593,33 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         this.popupRenderRecoveryActive.set(false);
         this.popupRenderRecoveryFrame = undefined;
       });
+    });
+    if ((event as CustomEvent<{ reset?: boolean }>).detail?.reset === true) {
+      void this.resetPopupToInitialState();
+    }
+  }
+
+  private async resetPopupToInitialState(): Promise<void> {
+    if (
+      this.evidenceMode
+      || !this.store.snapshot().isUnlocked
+      || resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout"
+    ) {
+      return;
+    }
+    this.routeCache?.clear();
+    this.store.setActiveTab("vault");
+    this.store.resetFilters();
+    this.vault?.resetSearch();
+    try {
+      await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
+    } catch {
+      return;
+    }
+    globalThis.requestAnimationFrame(() => {
+      globalThis.document
+        ?.querySelector<HTMLInputElement>('bw-root-search input[type="search"]')
+        ?.focus();
     });
   }
 
