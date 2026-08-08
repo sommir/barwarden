@@ -28,6 +28,12 @@
 - Durability RED: fault injection exposed rollback-before-action, temp cleanup, provision ambiguity, clear/lock removal, and directory-fsync secondary failures that could leave memory/Agent/disk disagreement. GREEN registers recovery obligations before mutation, never deletes Agent-referenced files before lock ACK, blocks renewals while recovery is pending, and cleans every trusted `.tmp`, `.bak`, obsolete `.bwaf`, and current projection before the final directory fsync. Restart recovery reconstructs obligations by a verified dirfd scan rather than a disk journal. A final RED found that `dup(dirfd)` shared its directory offset and made a second scan miss the candidate; `openat(dirfd, ".", O_DIRECTORY|O_NOFOLLOW)` supplies an independent scan description.
 - Retired-generation RED: a bounded eviction policy could eventually make an old generation eligible again. GREEN keeps a bounded fail-closed set (default capacity 4,096): once full, new provision returns `requestCapacity`; no retired generation is evicted or accepted again during that Agent process.
 
+## Final account-switch compensation fix
+
+- RED: after an acknowledged projection invalidation/Agent lock, a `setActive(B)` persistence failure merely restored window-local PopupState A. The process broker remained at A's old ownership epoch, so A looked unlocked while native capture correctly rejected its revoked token. The two focused failures also proved that raw persistence details could escape through the rejected promise.
+- GREEN: the failure path now performs a bounded compensating transaction. It first reads the persistent account index back and requires A to remain active, then republishes A's session handoff and sanitized shared snapshot through an acknowledged native SessionBroker `unlocked(A)` mutation, which advances the authoritative ownership epoch; only then does it restore PopupState A and await an explicit AutoFill reprojection. The original A token remains stale before revision allocation, disk write, or Agent provision, while a newly captured A token commits revision 1. An ambiguous after-apply persistence failure therefore cannot be disguised as a successful A rollback.
+- Compensation is fail-closed. Broker restoration rejection, timeout, malformed acknowledgement, or Agent reprojection failure clears local session/items, stops the timeout lease, and attempts an acknowledged `recovery-required(A, projection-unavailable)` mutation. The UI exposes only the existing localized fixed account-action error. Focused TypeScript is 182/182 and Rust projection is 27/27.
+
 ## Fault and leakage coverage
 
 - Deterministic account-switch interleavings assert A-only username/password bytes cannot be emitted with B's account ID. AuthFacade tests assert projection lock precedes persistent active-account selection and a missing acknowledgement prevents `setActive`.
@@ -38,12 +44,12 @@
 
 ## Final verification
 
-- `npm test -- --reporter=dot` — exit 0; 232 files passed, 2 skipped; 3,473 tests passed, 22 skipped.
+- `npm test -- --reporter=dot` — exit 0; 232 files passed, 2 skipped; 3,477 tests passed, 22 skipped.
 - `npm run build:web` — exit 0; production web build completed with the existing browser-externalization, Tailwind-at-rule, and bundle-size warnings.
-- Rust `cargo fmt --check && cargo test` — exit 0; 198 passed, 0 failed, 4 ignored. The ignored tests require the signed Agent, Touch ID, or local Keychain harnesses. The three local Unix-socket IPC tests were run outside the restricted sandbox after the sandbox correctly denied socket setup.
+- Rust `cargo fmt --check && cargo test` — exit 0; 199 passed, 0 failed, 4 ignored. The ignored tests require the signed Agent, Touch ID, or local Keychain harnesses. The three local Unix-socket IPC tests were run outside the restricted sandbox after the sandbox correctly denied socket setup.
 - Full `BarwardenNativeAutoFill` Xcode test action — exit 0; 57 passed, 0 failed, 0 skipped. Commands used caller-scoped `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`; global Xcode selection was not changed.
 - Native project/IPC portability tests — exit 0; 17 passed. Native identity/contract tests — exit 0; 19 passed.
-- Focused final security checks — TypeScript AuthFacade/AutoFill/Vault 206/206; Rust projection 26/26; Swift full native 57/57.
+- Focused final security checks — final compensation TypeScript AuthFacade/AutoFill 182/182; Rust projection 27/27; prior Swift full native 57/57 remains applicable because the final fix changes no Swift source.
 - `git diff --check`, production `tauri.conf.json` no-diff, and native entitlement no-diff checks pass.
 
 ## Limitations and deferred work

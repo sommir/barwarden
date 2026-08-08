@@ -73,6 +73,15 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     await this.enqueue(() => this.lockWithRetry());
   }
 
+  async reprojectCurrent(): Promise<void> {
+    this.invalidateLifecycle();
+    const pending = this.enqueueProjection(this.store.snapshot());
+    if (!pending) {
+      throw new Error("projection unavailable");
+    }
+    await pending;
+  }
+
   settled(): Promise<void> {
     return this.operationTail;
   }
@@ -89,6 +98,10 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
       });
     }
     this.wasUnlocked = state.isUnlocked;
+    void this.enqueueProjection(state);
+  }
+
+  private enqueueProjection(state: PopupState): Promise<void> | null {
     if (
       !state.isUnlocked ||
       !state.activeSession ||
@@ -96,7 +109,7 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
       state.vaultSyncStatus !== "fresh" ||
       state.items === this.lastItems
     ) {
-      return;
+      return null;
     }
 
     this.lastItems = state.items;
@@ -106,7 +119,7 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
       items: state.items,
       accountId: state.vaultOwnerAccountId,
     } as const;
-    void this.enqueue(async () => {
+    return this.enqueue(async () => {
       if (!this.isCurrentSnapshot(snapshot)) return;
       const binding = await this.host.captureBinding(snapshot.accountId);
       if (binding.accountId !== snapshot.accountId || !this.isCurrentSnapshot(snapshot)) return;

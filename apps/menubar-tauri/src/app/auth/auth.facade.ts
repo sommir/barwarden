@@ -1029,12 +1029,25 @@ export class AuthFacade {
     try {
       selectedAccount = await this.trackAccountMutation(() => accountStore.setActive(id));
     } catch (error) {
-      if (this.inFlightSwitchEpoch === epoch) {
-        this.inFlightSwitchEpoch = null;
-      }
       if (!this.isCurrentOperation(epoch)) {
         throw new AccountOperationCancelledError();
       }
+      if (this.projectionLifecycle) {
+        try {
+          await this.compensateFailedAccountSwitch(previousState, epoch);
+        } catch {
+          if (!this.isCurrentOperation(epoch)) {
+            throw new AccountOperationCancelledError();
+          }
+          await this.failClosedAfterSwitchCompensation(previousState);
+        }
+        if (this.inFlightSwitchEpoch === epoch) this.inFlightSwitchEpoch = null;
+        const message = translateOfficialMessage("i18nUnableToCompleteAccountAction");
+        this.store.setSyncError(message);
+        this.store.setStatus(message);
+        throw new Error(message);
+      }
+      if (this.inFlightSwitchEpoch === epoch) this.inFlightSwitchEpoch = null;
       this.store.restore(previousState);
       this.surfaceLifecycleError("Unable to switch account", error);
       throw new Error(sanitizedErrorMessage(error));
@@ -1139,6 +1152,76 @@ export class AuthFacade {
         this.inFlightSwitchEpoch = null;
       }
     }
+  }
+
+  private async compensateFailedAccountSwitch(
+    previousState: PopupState,
+    epoch: number,
+  ): Promise<void> {
+    const broker = this.processSessionBroker;
+    const accountId = this.runtimeAccountId;
+    if (
+      !broker ||
+      !accountId ||
+      !previousState.isUnlocked ||
+      !previousState.activeSession ||
+      previousState.vaultOwnerAccountId !== accountId
+    ) {
+      throw new Error("switch compensation unavailable");
+    }
+    const persistedActive = (await this.boundedRead(
+      this.requireAccountStore().list(),
+      "Verify previous active account",
+    )).find((account) => account.isActive);
+    if (persistedActive?.id !== accountId) {
+      throw new Error("switch persistence state is ambiguous");
+    }
+    this.assertCurrentOperation(epoch);
+    const sharedSnapshot = encodeProcessSharedPopupState(previousState);
+    if (broker.setSessionHandoff) {
+      await this.boundedRead(
+        broker.setSessionHandoff(previousState.activeSession),
+        "Restore account session handoff",
+      );
+    }
+    this.assertCurrentOperation(epoch);
+    const restored = await this.boundedRead(
+      broker.mutate({
+        type: "unlocked",
+        activeAccountId: accountId,
+        sharedSnapshot,
+      }),
+      "Restore account authority",
+    );
+    if (restored.authorization !== "unlocked" || restored.activeAccountId !== accountId) {
+      throw new Error("switch compensation rejected");
+    }
+    this.assertCurrentOperation(epoch);
+    this.store.restore(previousState, accountId);
+    await this.boundedRead(
+      this.projectionLifecycle!.reprojectCurrent(),
+      "Restore AutoFill projection",
+    );
+    this.assertCurrentOperation(epoch);
+    this.vaultTimeout?.start();
+  }
+
+  private async failClosedAfterSwitchCompensation(previousState: PopupState): Promise<void> {
+    const accountId = this.runtimeAccountId ?? previousState.vaultOwnerAccountId;
+    this.prepareRuntimeLock(previousState.activeSession);
+    this.vaultTimeout?.stop();
+    this.store.setLocked();
+    if (!accountId || !this.processSessionBroker) return;
+    try {
+      await this.boundedRead(
+        this.processSessionBroker.mutate({
+          type: "recovery-required",
+          activeAccountId: accountId,
+          code: "projection-unavailable",
+        }),
+        "Publish account recovery",
+      );
+    } catch {}
   }
 
   private async performLogoutAccount(id: string, epoch: number): Promise<StoredAccount | null> {

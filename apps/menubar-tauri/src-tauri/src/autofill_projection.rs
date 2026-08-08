@@ -1546,6 +1546,70 @@ mod tests {
     }
 
     #[test]
+    fn failed_account_switch_can_restore_the_previous_owner_with_a_new_epoch_only() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        let broker = SessionBroker::new("process-1");
+        broker.attach("main").unwrap();
+        broker
+            .mutate(
+                "main",
+                crate::session_broker::SessionBrokerMutation::Unlocked {
+                    active_account_id: "account-a".to_owned(),
+                    shared_snapshot: Some(serde_json::json!({ "isUnlocked": true })),
+                },
+            )
+            .unwrap();
+        let original_owner =
+            ProjectionOwner::from_context(&broker.projection_context().unwrap()).unwrap();
+        let original_binding = manager
+            .capture_binding("account-a", &original_owner)
+            .unwrap();
+
+        manager.invalidate_and_lock(&original_owner).unwrap();
+        broker
+            .mutate(
+                "main",
+                crate::session_broker::SessionBrokerMutation::Unlocked {
+                    active_account_id: "account-a".to_owned(),
+                    shared_snapshot: Some(serde_json::json!({ "isUnlocked": true })),
+                },
+            )
+            .unwrap();
+        let restored_owner =
+            ProjectionOwner::from_context(&broker.projection_context().unwrap()).unwrap();
+        let restored_binding = manager
+            .capture_binding("account-a", &restored_owner)
+            .unwrap();
+
+        assert!(restored_owner.ownership_epoch > original_owner.ownership_epoch);
+        assert_ne!(restored_binding.token, original_binding.token);
+        assert_eq!(
+            manager.replace_bound(
+                input("account-a", 1),
+                &original_binding.token,
+                &restored_owner,
+            ),
+            Err(ProjectionError::StaleBinding)
+        );
+        assert_eq!(agent.provisions.lock().unwrap().len(), 0);
+        assert!(!projection_path(&root, "account-a").exists());
+
+        let receipt = manager
+            .replace_bound(
+                input("account-a", 1),
+                &restored_binding.token,
+                &restored_owner,
+            )
+            .unwrap();
+        assert_eq!(receipt.vault_revision, 1);
+        assert_eq!(agent.provisions.lock().unwrap().len(), 1);
+        assert!(receipt.path.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn failed_lock_retains_pending_state_stops_renewal_and_retries_to_acknowledgement() {
         let root = temporary_directory();
         let agent = Arc::new(RecordingAgent::default());

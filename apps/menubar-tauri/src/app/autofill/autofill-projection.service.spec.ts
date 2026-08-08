@@ -184,6 +184,22 @@ describe("AutoFillProjectionService", () => {
     fixture.service.destroy();
   });
 
+  it("explicitly reprojects the current owner after an acknowledged switch abort", async () => {
+    const fixture = createFixture();
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([demoVaultItems[0]]);
+    await fixture.service.settled();
+
+    await fixture.service.invalidateAndLock();
+    await fixture.service.reprojectCurrent();
+
+    expect(fixture.host.lockAttempts).toBe(1);
+    expect(fixture.host.replacements).toHaveLength(2);
+    expect(fixture.host.replacements[1].accountId).toBe(accountId);
+    fixture.service.destroy();
+  });
+
   it("surfaces a bounded background lock failure without exposing native details", async () => {
     const fixture = createFixture();
     fixture.host.lockFailures = 3;

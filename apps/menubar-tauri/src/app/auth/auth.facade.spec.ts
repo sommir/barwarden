@@ -90,6 +90,7 @@ describe("AuthFacade", () => {
     });
     const projectionLifecycle = {
       invalidateAndLock: vi.fn(async () => { events.push("projection-locked"); }),
+      reprojectCurrent: vi.fn(async () => undefined),
     };
     const facade = new AuthFacade(
       new PopupStateStore(), null, syncPort(), null, undefined, accountStore,
@@ -106,11 +107,137 @@ describe("AuthFacade", () => {
     const facade = new AuthFacade(
       new PopupStateStore(), null, syncPort(), null, undefined, accountPort({ setActive }),
       undefined, null, undefined, null, null, null, null,
-      { invalidateAndLock: async () => { throw new Error("agent unavailable"); } },
+      {
+        invalidateAndLock: async () => { throw new Error("agent unavailable"); },
+        reprojectCurrent: async () => undefined,
+      },
     );
 
     await expect(facade.switchAccount("target")).rejects.toThrow("Unable to switch account");
     expect(setActive).not.toHaveBeenCalled();
+  });
+
+  it("compensates a failed persistent switch by republishing the previous account authority", async () => {
+    const store = new PopupStateStore();
+    const active = storedAccount("account-a", "a@example.com", true);
+    const target = storedAccount("account-b", "b@example.com", false);
+    setPriorPopupState(store);
+    store.setItems(store.snapshot().items, undefined, undefined, active.id);
+    const list = vi.fn(async () => [active, target]);
+    const accountStore = accountPort({
+      list,
+      setActive: async () => {
+        throw new Error("password https://private.example.test eyJprivate");
+      },
+    });
+    const broker = new FakeProcessSessionBroker(brokerSnapshot({
+      authorization: "unlocked",
+      activeAccountId: active.id,
+    }));
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => undefined),
+    };
+    const facade = new AuthFacade(
+      store, null, syncPort(), null, undefined, accountStore,
+      undefined, null, undefined, null, null, null, broker, projectionLifecycle,
+    );
+    setRuntimeAccount(facade, active.id);
+
+    const switchFailure = translateOfficialMessage("i18nUnableToCompleteAccountAction");
+    await expect(facade.switchAccount(target.id)).rejects.toThrow(switchFailure);
+
+    expect(projectionLifecycle.invalidateAndLock).toHaveBeenCalledTimes(1);
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledTimes(1);
+    expect(broker.mutations.at(-1)).toMatchObject({
+      type: "unlocked",
+      activeAccountId: active.id,
+    });
+    expect(store.snapshot()).toMatchObject({
+      isUnlocked: true,
+      vaultOwnerAccountId: active.id,
+    });
+    expect(list).toHaveBeenCalled();
+    expect((await accountStore.list()).find((account) => account.isActive)?.id).toBe(active.id);
+    expect(store.snapshot().syncError).toBe(switchFailure);
+    expect(store.snapshot().syncError).not.toContain("private.example.test");
+    expect(store.snapshot().syncError).not.toContain("eyJprivate");
+  });
+
+  it("fails closed in recovery-required when failed-switch compensation cannot reproject", async () => {
+    const store = new PopupStateStore();
+    const active = storedAccount("account-a", "a@example.com", true);
+    const target = storedAccount("account-b", "b@example.com", false);
+    setPriorPopupState(store);
+    store.setItems(store.snapshot().items, undefined, undefined, active.id);
+    const broker = new FakeProcessSessionBroker(brokerSnapshot({
+      authorization: "unlocked",
+      activeAccountId: active.id,
+    }));
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => {
+        throw new Error("Agent path exposed password https://private.example.test");
+      }),
+    };
+    const facade = new AuthFacade(
+      store, null, syncPort(), null, undefined,
+      accountPort({
+        list: async () => [active, target],
+        setActive: async () => { throw new Error("switch persistence failed"); },
+      }),
+      undefined, null, undefined, null, null, null, broker, projectionLifecycle,
+    );
+    setRuntimeAccount(facade, active.id);
+
+    const switchFailure = translateOfficialMessage("i18nUnableToCompleteAccountAction");
+    await expect(facade.switchAccount(target.id)).rejects.toThrow(switchFailure);
+
+    expect(store.snapshot().isUnlocked).toBe(false);
+    expect(store.snapshot().activeSession).toBeNull();
+    expect(broker.mutations.map((mutation) => mutation.type).slice(-2)).toEqual([
+      "unlocked",
+      "recovery-required",
+    ]);
+    expect(store.snapshot().syncError).toBe(switchFailure);
+    expect(store.snapshot().syncError).not.toContain("private.example.test");
+  });
+
+  it("fails closed when the broker rejects previous-account authority restoration", async () => {
+    const store = new PopupStateStore();
+    const active = storedAccount("account-a", "a@example.com", true);
+    const target = storedAccount("account-b", "b@example.com", false);
+    setPriorPopupState(store);
+    store.setItems(store.snapshot().items, undefined, undefined, active.id);
+    const broker = new FakeProcessSessionBroker(brokerSnapshot({
+      authorization: "unlocked",
+      activeAccountId: active.id,
+    }));
+    broker.failUnlockedMutations = 1;
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => undefined),
+    };
+    const facade = new AuthFacade(
+      store, null, syncPort(), null, undefined,
+      accountPort({
+        list: async () => [active, target],
+        setActive: async () => { throw new Error("switch persistence failed"); },
+      }),
+      undefined, null, undefined, null, null, null, broker, projectionLifecycle,
+    );
+    setRuntimeAccount(facade, active.id);
+
+    const switchFailure = translateOfficialMessage("i18nUnableToCompleteAccountAction");
+    await expect(facade.switchAccount(target.id)).rejects.toThrow(switchFailure);
+
+    expect(projectionLifecycle.reprojectCurrent).not.toHaveBeenCalled();
+    expect(store.snapshot()).toMatchObject({ isUnlocked: false, activeSession: null });
+    expect(broker.mutations.at(-1)).toMatchObject({
+      type: "recovery-required",
+      activeAccountId: active.id,
+      code: "projection-unavailable",
+    });
   });
 
   it("broadcasts explicit lock without putting session credentials in the process event", async () => {
@@ -4957,6 +5084,7 @@ class FakeProcessSessionBroker implements ProcessSessionBrokerPort {
   readonly changesSubject = new ReplaySubject<ProcessSessionSnapshot>(1);
   readonly changes$ = this.changesSubject.asObservable();
   readonly mutations: ProcessSessionMutation[] = [];
+  failUnlockedMutations = 0;
 
   constructor(
     private current: ProcessSessionSnapshot,
@@ -4970,6 +5098,10 @@ class FakeProcessSessionBroker implements ProcessSessionBrokerPort {
   }
 
   async mutate(mutation: ProcessSessionMutation): Promise<ProcessSessionSnapshot> {
+    if (mutation.type === "unlocked" && this.failUnlockedMutations > 0) {
+      this.failUnlockedMutations -= 1;
+      throw new Error("broker restoration failed");
+    }
     this.mutations.push(mutation);
     this.current = {
       ...this.current,
