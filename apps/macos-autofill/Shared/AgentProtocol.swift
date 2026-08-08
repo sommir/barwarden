@@ -12,6 +12,7 @@ enum AgentOperation: String, Codable, Equatable {
     case renewLease = "renew_lease"
     case queryCandidates = "query_candidates"
     case releaseSecret = "release_secret"
+    case issueRepromptGrant = "issue_reprompt_grant"
 }
 
 enum CandidateGroup: String, Codable, Equatable {
@@ -195,6 +196,26 @@ struct SecretReleasePayload: Codable, Equatable {
     }
 }
 
+struct RepromptGrantIssuePayload: Codable, Equatable {
+    let generation: UUID
+    let accountID: String
+    let candidateID: String
+    let field: AutoFillSecretField
+    let contextToken: String
+
+    private enum CodingKeys: String, CodingKey {
+        case generation
+        case accountID = "account_id"
+        case candidateID = "candidate_id"
+        case field
+        case contextToken = "context_token"
+    }
+}
+
+struct RepromptGrantPayload: Codable, Equatable {
+    let grant: String
+}
+
 final class ReleasedSecret: Codable, Equatable {
     let field: AutoFillSecretField
     private(set) var value: Data
@@ -317,6 +338,7 @@ struct AgentRequest: Codable, Equatable {
     let lease: ProjectionLeasePayload?
     let candidateQuery: CandidateQueryPayload?
     let secretRelease: SecretReleasePayload?
+    let repromptGrantIssue: RepromptGrantIssuePayload?
 
     private enum CodingKeys: String, CodingKey {
         case version
@@ -327,6 +349,7 @@ struct AgentRequest: Codable, Equatable {
         case lease
         case candidateQuery = "candidate_query"
         case secretRelease = "secret_release"
+        case repromptGrantIssue = "reprompt_grant_issue"
     }
 
     init(
@@ -337,7 +360,8 @@ struct AgentRequest: Codable, Equatable {
         projection: ProjectionProvisionPayload? = nil,
         lease: ProjectionLeasePayload? = nil,
         candidateQuery: CandidateQueryPayload? = nil,
-        secretRelease: SecretReleasePayload? = nil
+        secretRelease: SecretReleasePayload? = nil,
+        repromptGrantIssue: RepromptGrantIssuePayload? = nil
     ) {
         self.version = version
         self.requestID = requestID
@@ -347,6 +371,7 @@ struct AgentRequest: Codable, Equatable {
         self.lease = lease
         self.candidateQuery = candidateQuery
         self.secretRelease = secretRelease
+        self.repromptGrantIssue = repromptGrantIssue
     }
 
     init(from decoder: Decoder) throws {
@@ -359,6 +384,7 @@ struct AgentRequest: Codable, Equatable {
         lease = try container.decodeIfPresent(ProjectionLeasePayload.self, forKey: .lease)
         candidateQuery = try container.decodeIfPresent(CandidateQueryPayload.self, forKey: .candidateQuery)
         secretRelease = try container.decodeIfPresent(SecretReleasePayload.self, forKey: .secretRelease)
+        repromptGrantIssue = try container.decodeIfPresent(RepromptGrantIssuePayload.self, forKey: .repromptGrantIssue)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -371,6 +397,7 @@ struct AgentRequest: Codable, Equatable {
         try container.encodeIfPresent(lease, forKey: .lease)
         try container.encodeIfPresent(candidateQuery, forKey: .candidateQuery)
         try container.encodeIfPresent(secretRelease, forKey: .secretRelease)
+        try container.encodeIfPresent(repromptGrantIssue, forKey: .repromptGrantIssue)
     }
 }
 
@@ -383,6 +410,7 @@ struct AgentResponse: Codable, Equatable {
     let candidateResponse: CandidateResponsePayload?
     let session: AgentSessionPayload?
     let secretResponse: ReleasedSecret?
+    let repromptGrant: RepromptGrantPayload?
 
     private enum CodingKeys: String, CodingKey {
         case version
@@ -393,6 +421,7 @@ struct AgentResponse: Codable, Equatable {
         case candidateResponse = "candidate_response"
         case session
         case secretResponse = "secret_response"
+        case repromptGrant = "reprompt_grant"
     }
 
     static func success(requestID: UUID, nonce: Data) -> AgentResponse {
@@ -404,7 +433,8 @@ struct AgentResponse: Codable, Equatable {
             error: nil,
             candidateResponse: nil,
             session: nil,
-            secretResponse: nil
+            secretResponse: nil,
+            repromptGrant: nil
         )
     }
 
@@ -421,7 +451,8 @@ struct AgentResponse: Codable, Equatable {
             error: nil,
             candidateResponse: payload,
             session: nil,
-            secretResponse: nil
+            secretResponse: nil,
+            repromptGrant: nil
         )
     }
 
@@ -438,7 +469,8 @@ struct AgentResponse: Codable, Equatable {
             error: nil,
             candidateResponse: nil,
             session: payload,
-            secretResponse: nil
+            secretResponse: nil,
+            repromptGrant: nil
         )
     }
 
@@ -455,7 +487,26 @@ struct AgentResponse: Codable, Equatable {
             error: nil,
             candidateResponse: nil,
             session: nil,
-            secretResponse: payload
+            secretResponse: payload,
+            repromptGrant: nil
+        )
+    }
+
+    static func repromptGrant(
+        requestID: UUID,
+        nonce: Data,
+        payload: RepromptGrantPayload
+    ) -> AgentResponse {
+        AgentResponse(
+            version: AgentProtocol.currentVersion,
+            requestID: requestID,
+            nonce: nonce,
+            status: .ok,
+            error: nil,
+            candidateResponse: nil,
+            session: nil,
+            secretResponse: nil,
+            repromptGrant: payload
         )
     }
 
@@ -468,7 +519,8 @@ struct AgentResponse: Codable, Equatable {
             error: error,
             candidateResponse: nil,
             session: nil,
-            secretResponse: nil
+            secretResponse: nil,
+            repromptGrant: nil
         )
     }
 
@@ -480,7 +532,8 @@ struct AgentResponse: Codable, Equatable {
         error: AgentProtocolError?,
         candidateResponse: CandidateResponsePayload? = nil,
         session: AgentSessionPayload? = nil,
-        secretResponse: ReleasedSecret? = nil
+        secretResponse: ReleasedSecret? = nil,
+        repromptGrant: RepromptGrantPayload? = nil
     ) {
         self.version = version
         self.requestID = requestID
@@ -490,6 +543,7 @@ struct AgentResponse: Codable, Equatable {
         self.candidateResponse = candidateResponse
         self.session = session
         self.secretResponse = secretResponse
+        self.repromptGrant = repromptGrant
     }
 
     init(from decoder: Decoder) throws {
@@ -502,6 +556,7 @@ struct AgentResponse: Codable, Equatable {
         candidateResponse = try container.decodeIfPresent(CandidateResponsePayload.self, forKey: .candidateResponse)
         session = try container.decodeIfPresent(AgentSessionPayload.self, forKey: .session)
         secretResponse = try container.decodeIfPresent(ReleasedSecret.self, forKey: .secretResponse)
+        repromptGrant = try container.decodeIfPresent(RepromptGrantPayload.self, forKey: .repromptGrant)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -514,6 +569,7 @@ struct AgentResponse: Codable, Equatable {
         try container.encodeIfPresent(candidateResponse, forKey: .candidateResponse)
         try container.encodeIfPresent(session, forKey: .session)
         try container.encodeIfPresent(secretResponse, forKey: .secretResponse)
+        try container.encodeIfPresent(repromptGrant, forKey: .repromptGrant)
     }
 }
 

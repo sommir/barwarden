@@ -579,12 +579,95 @@ struct MatchingEngine {
 
 }
 
+final class RepromptGrantStore {
+    private struct Grant {
+        let accountID: String
+        let cipherID: String
+        let field: AutoFillSecretField
+        let generation: UUID
+        let contextToken: String
+        let expiresAt: TimeInterval
+    }
+
+    private let clock: () -> TimeInterval
+    private let lifetimeSeconds: TimeInterval
+    private let maximumRecords: Int
+    private let lock = NSLock()
+    private var records: [String: Grant] = [:]
+
+    init(
+        clock: @escaping () -> TimeInterval = { Date().timeIntervalSince1970 },
+        lifetimeSeconds: TimeInterval = 30,
+        maximumRecords: Int = 4_096
+    ) {
+        precondition(lifetimeSeconds > 0 && lifetimeSeconds <= 60)
+        precondition(maximumRecords > 0)
+        self.clock = clock
+        self.lifetimeSeconds = lifetimeSeconds
+        self.maximumRecords = maximumRecords
+    }
+
+    func issue(
+        accountID: String,
+        cipherID: String,
+        field: AutoFillSecretField,
+        generation: UUID,
+        contextToken: String
+    ) throws -> String {
+        guard !accountID.isEmpty, !cipherID.isEmpty, !contextToken.isEmpty else {
+            throw AgentProtocolError.malformedMessage
+        }
+        lock.lock()
+        defer { lock.unlock() }
+        let now = clock()
+        records = records.filter { $0.value.expiresAt > now }
+        guard records.count < maximumRecords else { throw AgentProtocolError.requestCapacity }
+        var token = UUID().uuidString
+        while records[token] != nil { token = UUID().uuidString }
+        records[token] = Grant(
+            accountID: accountID,
+            cipherID: cipherID,
+            field: field,
+            generation: generation,
+            contextToken: contextToken,
+            expiresAt: now + lifetimeSeconds
+        )
+        return token
+    }
+
+    func consume(
+        accountID: String,
+        cipherID: String,
+        field: AutoFillSecretField,
+        generation: UUID,
+        contextToken: String,
+        grant: String
+    ) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let record = records.removeValue(forKey: grant) else { return false }
+        return record.expiresAt > clock()
+            && record.accountID == accountID
+            && record.cipherID == cipherID
+            && record.field == field
+            && record.generation == generation
+            && record.contextToken == contextToken
+    }
+
+    func clear() {
+        lock.lock()
+        records.removeAll(keepingCapacity: false)
+        lock.unlock()
+    }
+}
+
 final class CandidateAuthorizationStore {
     typealias RepromptGrantVerifier = (
         _ accountID: String,
         _ cipherID: String,
         _ field: AutoFillSecretField,
         _ generation: UUID,
+        _ contextToken: String,
         _ grant: String
     ) -> Bool
 
@@ -598,6 +681,7 @@ final class CandidateAuthorizationStore {
     struct Authorization {
         let accountID: String
         let generation: UUID
+        let field: AutoFillSecretField
         let snapshot: Snapshot
         let expiresAt: TimeInterval
         let candidates: [String: Candidate]
@@ -629,6 +713,7 @@ final class CandidateAuthorizationStore {
     func issue(
         accountID: String,
         generation: UUID,
+        field: AutoFillSecretField,
         vaultRevision: UInt64,
         context: NativeAutoFillContext,
         contextDigest: Data,
@@ -665,6 +750,7 @@ final class CandidateAuthorizationStore {
         records[token] = Authorization(
             accountID: accountID,
             generation: generation,
+            field: field,
             snapshot: Snapshot(
                 vaultRevision: vaultRevision,
                 context: context,
@@ -699,6 +785,7 @@ final class CandidateAuthorizationStore {
         guard authorization.expiresAt > clock(),
               authorization.accountID == request.accountID,
               authorization.generation == request.generation,
+              authorization.field == request.field,
               authorization.snapshot.vaultRevision == currentVaultRevision,
               authorization.snapshot.contextDigest == currentContextDigest,
               authorization.snapshot.policyDigest == currentPolicyDigest,
@@ -715,6 +802,7 @@ final class CandidateAuthorizationStore {
                     request.candidateID,
                     request.field,
                     request.generation,
+                    request.contextToken,
                     grant
                   ) else {
                 throw AgentProtocolError.unauthorized

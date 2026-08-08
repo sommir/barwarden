@@ -1,6 +1,7 @@
 mod autofill_contract;
 mod autofill_ipc;
 mod autofill_projection;
+mod autofill_reprompt;
 mod biometric;
 #[cfg(target_os = "macos")]
 mod biometric_macos;
@@ -43,9 +44,12 @@ fn main() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     if global_shortcut::shortcut_trigger_action(event.state)
-                        == global_shortcut::ShortcutTriggerAction::Toggle
+                        == global_shortcut::ShortcutTriggerAction::OpenAutoFill
                     {
-                        let _ = crate::window::toggle_popup_window(app, None);
+                        let _ = crate::window::show_autofill_picker_window(
+                            app,
+                            crate::window::PopupEntrySource::AutoFillShortcut,
+                        );
                     }
                 })
                 .build(),
@@ -59,6 +63,9 @@ fn main() {
         .manage(window::PopupPresentationState::default())
         .manage(session_broker::SessionBroker::new(
             uuid::Uuid::new_v4().to_string(),
+        ))
+        .manage(std::sync::Arc::new(
+            autofill_reprompt::AutoFillRepromptReceiptStore::default(),
         ))
         .manage(
             autofill_projection::system_projection_manager()
@@ -96,13 +103,19 @@ fn main() {
             window::popup_window_metrics,
             window::pop_out,
             window::set_popup_height,
+            frontmost::autofill_entry_context,
             biometric::biometric_status,
             biometric::biometric_enable,
             biometric::biometric_unlock,
+            biometric::autofill_biometric_reprompt,
             biometric::biometric_disable,
             autofill_ipc::autofill_agent_probe,
             autofill_ipc::autofill_agent_status,
             autofill_ipc::autofill_agent_lock,
+            autofill_ipc::autofill_agent_session,
+            autofill_ipc::autofill_query_candidates,
+            autofill_ipc::autofill_release_secret,
+            autofill_reprompt::autofill_begin_reprompt,
             autofill_projection::autofill_capture_projection_binding,
             autofill_projection::autofill_replace_projection,
             autofill_projection::autofill_clear_projection,

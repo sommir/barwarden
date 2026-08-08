@@ -1,8 +1,12 @@
-use crate::window::{hide_popup_window, show_popup_window, toggle_popup_window};
+use crate::window::{
+    hide_popup_window, show_autofill_picker_window, show_popup_window, toggle_popup_window,
+    PopupEntrySource,
+};
 use tauri::image::Image;
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
+const MENU_AUTOFILL: &str = "autofill";
 const MENU_SHOW: &str = "show";
 const MENU_HIDE: &str = "hide";
 const MENU_QUIT: &str = "quit";
@@ -10,6 +14,8 @@ const BARWARDEN_TEMPLATE_ICON_PNG: &[u8] = include_bytes!("../icons/tray-templat
 
 pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let menu = MenuBuilder::new(app)
+        .text(MENU_AUTOFILL, "AutoFill…")
+        .separator()
         .text(MENU_SHOW, "Show Popup")
         .text(MENU_HIDE, "Hide Popup")
         .separator()
@@ -29,6 +35,9 @@ pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
             }
         })
         .on_menu_event(|app, event| match event.id().as_ref() {
+            MENU_AUTOFILL => {
+                let _ = show_autofill_picker_window(app, PopupEntrySource::AutoFillMenu);
+            }
             MENU_SHOW => {
                 let _ = show_popup_window(app, None);
             }

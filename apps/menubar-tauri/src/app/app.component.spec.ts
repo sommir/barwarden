@@ -105,6 +105,35 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
+  it.each(["autofill-menu", "autofill-shortcut"])(
+    "routes the dedicated %s entry to the shared picker without resetting the vault route",
+    async (entrySource) => {
+      const store = new PopupStateStore();
+      const navigateByUrl = vi.fn().mockResolvedValue(true);
+      const component = new AppComponent(
+        { restoreStartup: vi.fn() } as any,
+        {
+          navigateByUrl,
+          url: "/tabs/vault",
+          events: { subscribe: () => ({ unsubscribe() {} }) },
+        } as any,
+        { recordActivity: vi.fn() } as any,
+        store,
+      );
+
+      component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+        detail: { reset: true, entrySource },
+      }));
+
+      await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+        "/autofill-picker",
+        { replaceUrl: true },
+      ));
+      expect(store.snapshot().activeTab).toBe("vault");
+      component.ngOnDestroy();
+    },
+  );
+
   it("does not route away while login temporarily hides a synchronized candidate state", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");

@@ -46,6 +46,9 @@ import {
 } from "./platform/popup-router-cache.lifecycle";
 import { AutoFillProjectionService } from "./autofill/autofill-projection.service";
 import { AUTOFILL_PROJECTION_LIFECYCLE_PORT } from "./auth/autofill-projection-lifecycle.port";
+import { AUTOFILL_CANDIDATE_HOST } from "./autofill/autofill-candidate.service";
+import { AUTOFILL_NATIVE_HOST } from "./autofill/autofill-native.host";
+import { TauriHostService } from "../host/tauri-host.service";
 
 const evidenceSearch = globalThis.location?.search ?? "";
 const settingsEvidencePreview = createSettingsEvidencePreview(evidenceSearch);
@@ -62,6 +65,8 @@ export const appConfig: ApplicationConfig = {
     OfficialI18nService,
     { provide: I18nService, useExisting: OfficialI18nService },
     { provide: AUTOFILL_PROJECTION_LIFECYCLE_PORT, useExisting: AutoFillProjectionService },
+    { provide: AUTOFILL_CANDIDATE_HOST, useFactory: () => new TauriHostService() },
+    { provide: AUTOFILL_NATIVE_HOST, useFactory: () => new TauriHostService() },
     provideAppInitializer(() => {
       inject(SettingsService);
       inject(AutoFillProjectionService);

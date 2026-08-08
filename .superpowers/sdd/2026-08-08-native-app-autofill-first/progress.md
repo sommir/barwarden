@@ -3,7 +3,7 @@
 - Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
-- Status: Task 6 review fixes implemented; final review pending
+- Status: Task 7 implementation complete; review pending
 - Baseline contract tests: 7 passed, 1 browser-release skip.
 - Baseline full regression: 3462 passed, 22 skipped (from prior Task 1 gate; only design/plan docs changed afterward).
 
@@ -15,7 +15,7 @@
 - [x] Task 4 — Write and provision the encrypted AutoFill projection
 - [x] Task 5 — Rank native application candidates and support all-Login search
 - [x] Task 6 — Implement macOS system password AutoFill
-- [ ] Task 7 — Add the main-app AutoFill picker and explicit field actions
+- [x] Task 7 — Add the main-app AutoFill picker and explicit field actions
 - [ ] Task 8 — Add conservative Accessibility floating action
 - [ ] Task 9 — Pass the native packaging, signing, and installation gate
 
@@ -80,7 +80,7 @@
 
 ## Task 6
 
-- Implementation: `82afd68e feat: add macOS credential provider autofill`; review hardening: `20bfdd01 fix: harden macOS credential provider autofill`; final completion/copy fix is the current change set.
+- Implementation: `82afd68e feat: add macOS credential provider autofill`; review hardening: `20bfdd01 fix: harden macOS credential provider autofill`; final callback/copy fix: `69f59eb9 fix: make autofill identity callbacks reentrant-safe`.
 - Identity publication uses only active Login service/username metadata plus an opaque account/generation-scoped record identifier. Full replace covers sync/account switch, logout publishes an empty replacement, lock retains safe metadata, disabled store and replace errors fail closed.
 - Password/TOTP-code release reads the requested field only inside the existing `ProjectionStore` authorization transaction after current lease/account/generation/revision/context/policy/candidate/mismatch/reprompt validation. Candidate queries remain secret-free; application-controlled response buffers are cleared after use.
 - macOS 13/14 return stable `unsupported-system-totp`; macOS 15 one-time-code APIs are availability guarded. Reprompt-protected system Provider completion remains fail closed and states that system AutoFill cannot complete verification, directing the user only to open Barwarden for access; it promises no retry, approval, or Task 7 flow.
@@ -88,3 +88,14 @@
 - Final verification: Swift/Xcode 124 passed; native project/wrapper/Info contracts 13 passed; full TypeScript 3,487 passed/22 skipped; Rust 202 passed/4 ignored; production web build passed.
 - Signed build/live system smoke is blocked by the missing `com.sommir.barwarden.credential-provider` provisioning profile and missing Team `K7LY92JY96` Mac Development certificate/private key. No extension installation or live success is claimed; Task 9 owns that gate.
 - Production Tauri configuration/native entitlements and Task 7 Accessibility/browser/focused-field behavior remain unchanged.
+- Review: approved with 0 Critical, 0 Important, and 0 Minor after reentrant exact-once identity publication and accurate reprompt copy fixes.
+
+## Task 7
+
+- Implementation is the current change set (`feat: add native autofill picker`).
+- The dedicated native tray menu entry and current global shortcut capture the previous exact live external application and open one shared picker state machine; ordinary tray clicks continue opening the vault.
+- Candidate selection remains metadata-only. Explicit username/password/TOTP Fill or Copy actions re-query one field and request one Agent secret. Guarded paste preserves copied-manually fallback and never synthesizes Tab/Enter/Return, fills multiple fields, or submits.
+- Locked, repair, empty, unavailable-context, and explicit account-override states fail closed; no candidate query or account mixing occurs before the user selects the projected account.
+- Master-password and Touch ID reprompt produce a native verified, 30-second, single-use full-scope receipt. Only the authenticated main-app Agent peer may exchange it for the immediately consumed field-bound grant; UI unlock alone cannot authorize release.
+- Final verification: full TypeScript 3,493 passed/22 skipped; Rust 215 passed/4 ignored; Swift/Xcode 126 passed; native project/build/IPC contracts 28 passed; production web build passed.
+- Production Tauri configuration/native entitlements remain unchanged. Task 8 Accessibility floating UI and browser behavior are not implemented; signed live installation remains Task 9.

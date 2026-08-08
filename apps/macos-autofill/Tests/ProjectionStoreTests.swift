@@ -372,7 +372,7 @@ final class ProjectionStoreTests: XCTestCase {
                 reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
             ),
             matchingEngine: engine,
-            verifyRepromptGrant: { _, _, _, _, _ in false },
+            verifyRepromptGrant: { _, _, _, _, _, _ in false },
             operation: { _ in XCTFail("stale candidate operation must not execute") }
         )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
     }
@@ -420,7 +420,7 @@ final class ProjectionStoreTests: XCTestCase {
                 reprompt: RepromptResultPayload(result: .notRequired, grant: nil)
             ),
             matchingEngine: engine,
-            verifyRepromptGrant: { _, _, _, _, _ in false },
+            verifyRepromptGrant: { _, _, _, _, _, _ in false },
             operation: { _ in
                 operationRan = true
                 XCTAssertEqual(lockFinished.wait(timeout: .now()), .timedOut)
@@ -471,7 +471,7 @@ final class ProjectionStoreTests: XCTestCase {
             XCTAssertThrowsError(try store.withAuthorizedCandidate(
                 request,
                 matchingEngine: engine,
-                verifyRepromptGrant: { _, _, _, _, _ in false },
+                verifyRepromptGrant: { _, _, _, _, _, _ in false },
                 operation: { _ in operationRan = true }
             )) { XCTAssertEqual($0 as? AgentProtocolError, policyChange.error) }
             XCTAssertFalse(operationRan)
@@ -480,7 +480,7 @@ final class ProjectionStoreTests: XCTestCase {
             XCTAssertThrowsError(try store.withAuthorizedCandidate(
                 request,
                 matchingEngine: engine,
-                verifyRepromptGrant: { _, _, _, _, _ in false },
+                verifyRepromptGrant: { _, _, _, _, _, _ in false },
                 operation: { _ in operationRan = true }
             )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
             XCTAssertFalse(operationRan)
@@ -577,7 +577,7 @@ final class ProjectionStoreTests: XCTestCase {
                     publishedService: service
                 ),
                 matchingEngine: engine,
-                verifyRepromptGrant: { _, _, _, _, _ in false },
+                verifyRepromptGrant: { _, _, _, _, _, _ in false },
                 operation: { _ in operationRan = true }
             )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
             XCTAssertFalse(operationRan)
@@ -605,7 +605,7 @@ final class ProjectionStoreTests: XCTestCase {
                 )
             ),
             matchingEngine: engine,
-            verifyRepromptGrant: { _, _, _, _, _ in false },
+            verifyRepromptGrant: { _, _, _, _, _, _ in false },
             operation: { $0.password }
         )
         XCTAssertEqual(released, "fixture-password-value")
@@ -647,7 +647,7 @@ final class ProjectionStoreTests: XCTestCase {
                 )
             ),
             matchingEngine: engine,
-            verifyRepromptGrant: { _, _, _, _, _ in false },
+            verifyRepromptGrant: { _, _, _, _, _, _ in false },
             operation: { _ in operationRan = true }
         )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
         XCTAssertFalse(operationRan)

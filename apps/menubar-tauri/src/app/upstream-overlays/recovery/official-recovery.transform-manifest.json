@@ -378,7 +378,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
-      "sha256": "71d605c5f0b19b8bbfdf822e22d2641cad3cad5a077908468f6304c44d483ad8"
+      "sha256": "a17f6b716decb6cfc1365eea71ecc8c69e0c4a78eb82f3ead5d341f5fd5bec65"
     },
     {
       "path": "apps/menubar-tauri/src/host/biometric-host.ts",
@@ -398,7 +398,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/host/tauri-host.service.ts",
-      "sha256": "ede45f60ac1f062cab102a162e0b734cb3f1ae1f629a28e81089ba9a14612cd2"
+      "sha256": "68ec19b6242dfadc4cb7d263438cd392281d869390cad54f0467063fcedbb0dc"
     },
     {
       "path": "apps/menubar-tauri/src/vault/vault-sync.service.ts",

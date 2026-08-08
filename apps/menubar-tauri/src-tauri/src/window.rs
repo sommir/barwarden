@@ -32,11 +32,29 @@ const POPOUT_WINDOW_ERROR: &str = "pop-out window operation failed";
 const POPUP_RESET_AFTER: Duration = Duration::from_secs(60);
 const TRAY_CLICK_BLUR_WINDOW: Duration = Duration::from_millis(250);
 
-fn popup_render_recovery_script(reset: bool) -> String {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PopupEntrySource {
+    Vault,
+    AutoFillMenu,
+    AutoFillShortcut,
+}
+
+impl PopupEntrySource {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Vault => "vault",
+            Self::AutoFillMenu => "autofill-menu",
+            Self::AutoFillShortcut => "autofill-shortcut",
+        }
+    }
+}
+
+fn popup_render_recovery_script(reset: bool, entry_source: PopupEntrySource) -> String {
+    let entry_source = entry_source.as_str();
     format!(
         r#"
 (() => {{
-  const restore = () => window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {{ detail: {{ reset: {reset} }} }}));
+  const restore = () => window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {{ detail: {{ reset: {reset}, entrySource: "{entry_source}" }} }}));
   requestAnimationFrame(() => requestAnimationFrame(restore));
 }})();
 "#,
@@ -282,6 +300,22 @@ pub fn show_popup_window(
     app: &tauri::AppHandle,
     event_tray_rect: Option<Rect>,
 ) -> Result<(), String> {
+    show_popup_window_for_entry(app, event_tray_rect, PopupEntrySource::Vault)
+}
+
+pub fn show_autofill_picker_window(
+    app: &tauri::AppHandle,
+    source: PopupEntrySource,
+) -> Result<(), String> {
+    debug_assert!(source != PopupEntrySource::Vault);
+    show_popup_window_for_entry(app, None, source)
+}
+
+fn show_popup_window_for_entry(
+    app: &tauri::AppHandle,
+    event_tray_rect: Option<Rect>,
+    entry_source: PopupEntrySource,
+) -> Result<(), String> {
     frontmost::capture_current_target_app();
 
     let context = resolve_popup_geometry(app, event_tray_rect)?;
@@ -314,7 +348,7 @@ pub fn show_popup_window(
     // frontend treats this event as a best-effort compositor recovery.
     let _ = context
         .window
-        .eval(popup_render_recovery_script(reset_required));
+        .eval(popup_render_recovery_script(reset_required, entry_source));
     Ok(())
 }
 
@@ -891,9 +925,9 @@ mod tests {
         popup_origin, popup_position_for_monitor, popup_render_recovery_script,
         popup_size_and_position, popup_target_height, popup_toggle_action, sanitize_route,
         should_hide_after_popup_blur, MonitorGeometry, PopoutDockVisibilityAction,
-        PopupLifecycleAction, PopupLifecycleEvent, PopupPresentationState, PopupToggleAction,
-        PopupVisibilityHold, POPOUT_HEIGHT, POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH, POPOUT_WIDTH,
-        POPUP_WINDOW_ERROR,
+        PopupEntrySource, PopupLifecycleAction, PopupLifecycleEvent, PopupPresentationState,
+        PopupToggleAction, PopupVisibilityHold, POPOUT_HEIGHT, POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH,
+        POPOUT_WIDTH, POPUP_WINDOW_ERROR,
     };
     use tauri::{LogicalPosition, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Url};
 
@@ -1324,11 +1358,21 @@ mod tests {
 
     #[test]
     fn popup_show_reports_reset_intent_after_two_render_recovery_frames() {
-        let script = popup_render_recovery_script(true);
+        let script = popup_render_recovery_script(true, PopupEntrySource::Vault);
 
         assert!(script.contains("barwarden:popup-shown"));
         assert!(script.contains("reset: true"));
+        assert!(script.contains("entrySource: \"vault\""));
         assert_eq!(script.matches("requestAnimationFrame").count(), 2);
+    }
+
+    #[test]
+    fn autofill_entry_reports_the_exact_menu_or_shortcut_source() {
+        let menu = popup_render_recovery_script(false, PopupEntrySource::AutoFillMenu);
+        let shortcut = popup_render_recovery_script(false, PopupEntrySource::AutoFillShortcut);
+
+        assert!(menu.contains("entrySource: \"autofill-menu\""));
+        assert!(shortcut.contains("entrySource: \"autofill-shortcut\""));
     }
 
     #[test]

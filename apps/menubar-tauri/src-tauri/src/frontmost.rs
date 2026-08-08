@@ -1,4 +1,7 @@
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
+use serde::Serialize;
 
 #[cfg(target_os = "macos")]
 use objc2::rc::Retained;
@@ -12,8 +15,10 @@ pub const APP_BUNDLE_ID: &str = crate::brand::BUNDLE_IDENTIFIER;
 #[derive(Clone, Debug)]
 pub struct FrontmostApp {
     pub(crate) bundle_id: String,
+    app_name: String,
     pub(crate) process_id: i32,
     instance: ApplicationInstance,
+    captured_at: Instant,
 }
 
 #[derive(Clone, Debug)]
@@ -46,6 +51,7 @@ impl Eq for ApplicationInstance {}
 impl PartialEq for FrontmostApp {
     fn eq(&self, other: &Self) -> bool {
         self.bundle_id == other.bundle_id
+            && self.app_name == other.app_name
             && self.process_id == other.process_id
             && self.instance == other.instance
     }
@@ -76,6 +82,19 @@ impl TargetAppStore {
 }
 
 static LAST_TARGET_APP: OnceLock<TargetAppStore> = OnceLock::new();
+const AUTOFILL_CONTEXT_MAX_AGE: Duration = Duration::from_secs(30);
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
+pub enum AutoFillEntryContextOutcome {
+    Available {
+        #[serde(rename = "bundleId")]
+        bundle_id: String,
+        #[serde(rename = "appName")]
+        app_name: String,
+    },
+    Unavailable,
+}
 
 pub fn capture_current_target_app() {
     capture_current_target_with(target_app_store(), current_frontmost_app, APP_BUNDLE_ID);
@@ -83,6 +102,34 @@ pub fn capture_current_target_app() {
 
 pub(crate) fn last_target_app() -> Option<FrontmostApp> {
     target_app_store().current()
+}
+
+#[tauri::command]
+pub fn autofill_entry_context() -> AutoFillEntryContextOutcome {
+    autofill_context_with(last_target_app(), Instant::now(), target_is_running)
+}
+
+fn autofill_context_with<IsRunning>(
+    target: Option<FrontmostApp>,
+    now: Instant,
+    is_running: IsRunning,
+) -> AutoFillEntryContextOutcome
+where
+    IsRunning: FnOnce(&FrontmostApp) -> bool,
+{
+    let Some(target) = target else {
+        return AutoFillEntryContextOutcome::Unavailable;
+    };
+    let is_fresh = now
+        .checked_duration_since(target.captured_at)
+        .is_some_and(|age| age <= AUTOFILL_CONTEXT_MAX_AGE);
+    if !is_fresh || !is_running(&target) {
+        return AutoFillEntryContextOutcome::Unavailable;
+    }
+    AutoFillEntryContextOutcome::Available {
+        bundle_id: target.bundle_id,
+        app_name: target.app_name,
+    }
 }
 
 pub(crate) fn current_frontmost_app() -> Result<Option<FrontmostApp>, String> {
@@ -145,6 +192,10 @@ fn capture_running_application(
     let bundle_id = application
         .bundleIdentifier()
         .map(|value| value.to_string());
+    let app_name = application
+        .localizedName()
+        .map(|value| value.to_string())
+        .unwrap_or_default();
     let (bundle_id, process_id) = validated_running_application_identity(
         bundle_id.as_deref(),
         application.processIdentifier(),
@@ -152,8 +203,10 @@ fn capture_running_application(
     )?;
     Some(FrontmostApp {
         bundle_id,
+        app_name,
         process_id,
         instance: ApplicationInstance::Native(application),
+        captured_at: Instant::now(),
     })
 }
 
@@ -198,10 +251,22 @@ pub(crate) fn test_frontmost_app(
     process_id: i32,
     instance_token: u64,
 ) -> FrontmostApp {
+    test_frontmost_app_named(bundle_id, bundle_id, process_id, instance_token)
+}
+
+#[cfg(test)]
+pub(crate) fn test_frontmost_app_named(
+    bundle_id: &str,
+    app_name: &str,
+    process_id: i32,
+    instance_token: u64,
+) -> FrontmostApp {
     FrontmostApp {
         bundle_id: bundle_id.to_owned(),
+        app_name: app_name.to_owned(),
         process_id,
         instance: ApplicationInstance::Test(instance_token),
+        captured_at: Instant::now(),
     }
 }
 
@@ -322,5 +387,35 @@ mod tests {
         assert!(!source.contains(concat!("System", " Events")));
         assert!(!source.contains(concat!("runningApplicationWith", "ProcessIdentifier")));
         assert!(!source.contains(concat!("runningApplicationsWith", "BundleIdentifier")));
+    }
+
+    #[test]
+    fn autofill_context_exposes_only_fresh_live_external_app_metadata() {
+        let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
+        let captured_at = target.captured_at;
+
+        assert_eq!(
+            autofill_context_with(
+                Some(target.clone()),
+                captured_at + std::time::Duration::from_secs(29),
+                |_| true,
+            ),
+            AutoFillEntryContextOutcome::Available {
+                bundle_id: "com.example.target".to_owned(),
+                app_name: "Example".to_owned(),
+            }
+        );
+        assert_eq!(
+            autofill_context_with(
+                Some(target.clone()),
+                captured_at + std::time::Duration::from_secs(31),
+                |_| true,
+            ),
+            AutoFillEntryContextOutcome::Unavailable,
+        );
+        assert_eq!(
+            autofill_context_with(Some(target), captured_at, |_| false),
+            AutoFillEntryContextOutcome::Unavailable,
+        );
     }
 }

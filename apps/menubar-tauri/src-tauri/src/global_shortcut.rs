@@ -73,12 +73,12 @@ pub enum ShortcutAvailability {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ShortcutTriggerAction {
     Ignore,
-    Toggle,
+    OpenAutoFill,
 }
 
 pub fn shortcut_trigger_action(state: ShortcutState) -> ShortcutTriggerAction {
     match state {
-        ShortcutState::Pressed => ShortcutTriggerAction::Toggle,
+        ShortcutState::Pressed => ShortcutTriggerAction::OpenAutoFill,
         ShortcutState::Released => ShortcutTriggerAction::Ignore,
     }
 }
@@ -563,10 +563,10 @@ mod tests {
     }
 
     #[test]
-    fn pressed_shortcut_events_toggle_the_popup() {
+    fn pressed_shortcut_events_open_the_autofill_picker() {
         assert_eq!(
             shortcut_trigger_action(ShortcutState::Pressed),
-            ShortcutTriggerAction::Toggle
+            ShortcutTriggerAction::OpenAutoFill
         );
     }
 

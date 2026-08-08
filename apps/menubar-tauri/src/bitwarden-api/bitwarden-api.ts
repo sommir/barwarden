@@ -426,6 +426,7 @@ export class BitwardenApiClient {
   postVerifyPassword(
     request: VerifyPasswordRequest,
     accessToken: string,
+    repromptReceipt?: string,
   ): Promise<void> {
     return this.transport.fetchJson<void>(`${this.environment.apiUrl}/accounts/verify-password`, {
       method: "POST",
@@ -435,6 +436,9 @@ export class BitwardenApiClient {
         Accept: "application/json",
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
+        ...(repromptReceipt
+          ? { "x-barwarden-autofill-reprompt": repromptReceipt }
+          : {}),
       },
       body: JSON.stringify(request),
     });

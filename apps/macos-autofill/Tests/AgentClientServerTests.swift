@@ -4,6 +4,60 @@ import Foundation
 import XCTest
 
 final class AgentClientServerTests: XCTestCase {
+    func testOnlyMainApplicationCanIssueAScopedRepromptGrant() throws {
+        let fixture = try ProjectionHandlerFixture()
+        try performProjectionRequest(
+            .provision,
+            projection: fixture.provisionPayload,
+            store: fixture.store
+        )
+        let generation = fixture.generation
+        let grants = RepromptGrantStore()
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .issueRepromptGrant,
+            nonce: Data([41]),
+            repromptGrantIssue: RepromptGrantIssuePayload(
+                generation: generation,
+                accountID: "account-a",
+                candidateID: "cipher-a",
+                field: .password,
+                contextToken: "context-a"
+            )
+        )
+
+        let denied = try perform(
+            request,
+            handler: AgentConnectionHandler(
+                authorize: { _ in .credentialProvider },
+                projectionStore: fixture.store,
+                repromptGrants: grants
+            )
+        )
+        XCTAssertEqual(denied.error, .unauthorized)
+
+        let response = try perform(
+            AgentRequest(
+                version: AgentProtocol.currentVersion,
+                requestID: UUID(),
+                operation: .issueRepromptGrant,
+                nonce: Data([42]),
+                repromptGrantIssue: request.repromptGrantIssue
+            ),
+            handler: AgentConnectionHandler(
+                authorize: { _ in .mainApplication },
+                projectionStore: fixture.store,
+                repromptGrants: grants
+            )
+        )
+        let grant = try XCTUnwrap(response.repromptGrant?.grant)
+        XCTAssertTrue(grants.consume(
+            accountID: "account-a", cipherID: "cipher-a", field: .password,
+            generation: generation, contextToken: "context-a", grant: grant
+        ))
+    }
+
     func testAuthorizedConnectionEchoesExactNonceAndClosesAfterOneRequest() throws {
         let sockets = try SocketPair()
         let request = AgentRequest(

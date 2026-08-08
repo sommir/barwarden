@@ -2,6 +2,51 @@ import Foundation
 import XCTest
 
 final class MatchingEngineTests: XCTestCase {
+    func testRepromptGrantIsShortLivedSingleUseAndBoundToEveryReleaseDimension() throws {
+        let generation = UUID()
+        var now: TimeInterval = 1_800_000_000
+        let store = RepromptGrantStore(clock: { now }, lifetimeSeconds: 15)
+        let grant = try store.issue(
+            accountID: "account-a",
+            cipherID: "cipher-a",
+            field: .password,
+            generation: generation,
+            contextToken: "context-a"
+        )
+
+        XCTAssertFalse(store.consume(
+            accountID: "account-a", cipherID: "cipher-a", field: .username,
+            generation: generation, contextToken: "context-a", grant: grant
+        ))
+        XCTAssertFalse(store.consume(
+            accountID: "account-a", cipherID: "cipher-a", field: .password,
+            generation: generation, contextToken: "context-a", grant: grant
+        ))
+
+        let expired = try store.issue(
+            accountID: "account-a", cipherID: "cipher-a", field: .password,
+            generation: generation, contextToken: "context-a"
+        )
+        now += 16
+        XCTAssertFalse(store.consume(
+            accountID: "account-a", cipherID: "cipher-a", field: .password,
+            generation: generation, contextToken: "context-a", grant: expired
+        ))
+
+        let success = try store.issue(
+            accountID: "account-a", cipherID: "cipher-a", field: .password,
+            generation: generation, contextToken: "context-a"
+        )
+        XCTAssertTrue(store.consume(
+            accountID: "account-a", cipherID: "cipher-a", field: .password,
+            generation: generation, contextToken: "context-a", grant: success
+        ))
+        XCTAssertFalse(store.consume(
+            accountID: "account-a", cipherID: "cipher-a", field: .password,
+            generation: generation, contextToken: "context-a", grant: success
+        ))
+    }
+
     func testProjectionURIWireAcceptsOnlyNumericBitwardenMatchValues() throws {
         for rawValue in UInt8(0)...UInt8(5) {
             let uri = try JSONDecoder().decode(
@@ -543,6 +588,7 @@ final class MatchingEngineTests: XCTestCase {
         let first = try store.issue(
             accountID: "account-a",
             generation: generation,
+            field: .password,
             vaultRevision: 7,
             context: context,
             contextDigest: contextDigest,
@@ -565,12 +611,13 @@ final class MatchingEngineTests: XCTestCase {
             currentVaultRevision: 7,
             currentContextDigest: contextDigest,
             currentPolicyDigest: policyDigest,
-            verifyRepromptGrant: { _, _, _, _, _ in true }
+            verifyRepromptGrant: { _, _, _, _, _, _ in true }
         )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
 
         let second = try store.issue(
             accountID: "account-a",
             generation: generation,
+            field: .password,
             vaultRevision: 7,
             context: context,
             contextDigest: contextDigest,
@@ -594,13 +641,42 @@ final class MatchingEngineTests: XCTestCase {
             currentVaultRevision: 7,
             currentContextDigest: contextDigest,
             currentPolicyDigest: policyDigest,
-            verifyRepromptGrant: { _, _, _, _, grant in grant == "valid-grant" }
+            verifyRepromptGrant: { _, _, _, _, _, grant in grant == "valid-grant" }
         ))
         XCTAssertNil(store.take(contextToken: second.contextToken))
+
+        let wrongField = try store.issue(
+            accountID: "account-a",
+            generation: generation,
+            field: .password,
+            vaultRevision: 7,
+            context: context,
+            contextDigest: contextDigest,
+            policyDigest: policyDigest,
+            candidates: [fuzzy],
+            logins: [login]
+        )
+        XCTAssertThrowsError(try store.validate(
+            SecretReleasePayload(
+                generation: generation,
+                accountID: "account-a",
+                candidateID: "cipher-a",
+                field: .username,
+                contextToken: wrongField.contextToken,
+                mismatchConfirmed: true,
+                reprompt: RepromptResultPayload(result: .grant, grant: "valid-grant")
+            ),
+            authorization: try XCTUnwrap(store.take(contextToken: wrongField.contextToken)),
+            currentVaultRevision: 7,
+            currentContextDigest: contextDigest,
+            currentPolicyDigest: policyDigest,
+            verifyRepromptGrant: { _, _, _, _, _, _ in true }
+        )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
 
         let expired = try store.issue(
             accountID: "account-a",
             generation: generation,
+            field: .password,
             vaultRevision: 7,
             context: context,
             contextDigest: contextDigest,
@@ -623,7 +699,7 @@ final class MatchingEngineTests: XCTestCase {
             currentVaultRevision: 7,
             currentContextDigest: contextDigest,
             currentPolicyDigest: policyDigest,
-            verifyRepromptGrant: { _, _, _, _, _ in true }
+            verifyRepromptGrant: { _, _, _, _, _, _ in true }
         )) { XCTAssertEqual($0 as? AgentProtocolError, .unauthorized) }
     }
 
@@ -648,6 +724,7 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertThrowsError(try store.issue(
             accountID: "account-a",
             generation: generation,
+            field: .password,
             vaultRevision: 1,
             context: context,
             contextDigest: contextDigest,
@@ -658,6 +735,7 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertThrowsError(try store.issue(
             accountID: "account-a",
             generation: generation,
+            field: .password,
             vaultRevision: 1,
             context: context,
             contextDigest: contextDigest,

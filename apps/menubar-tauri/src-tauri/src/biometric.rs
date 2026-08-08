@@ -1,4 +1,6 @@
+use crate::autofill_reprompt::AutoFillRepromptReceiptStore;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 #[cfg(target_os = "macos")]
 use tauri::Manager;
 
@@ -86,6 +88,23 @@ impl<B: BiometricBackend> BiometricState<B> {
     }
 }
 
+fn verify_autofill_biometric<B: BiometricBackend>(
+    state: &BiometricState<B>,
+    receipts: &AutoFillRepromptReceiptStore,
+    account_id: &str,
+    receipt: &str,
+) -> BiometricOperationOutcome {
+    if receipts
+        .begin_native_verification(receipt, account_id)
+        .is_err()
+    {
+        return BiometricOperationOutcome::InvalidAccount;
+    }
+    let outcome = state.unlock(account_id, BiometricReason::Unlock);
+    receipts.complete_verification(receipt, outcome == BiometricOperationOutcome::Success);
+    outcome
+}
+
 fn validated_account_name(account_id: &str) -> Result<String, BiometricError> {
     validate_account_id(account_id)?;
     Ok(biometric_account_name(account_id))
@@ -152,6 +171,29 @@ pub async fn biometric_unlock(
     let state = app.state::<PlatformBiometricState>().inner().clone();
     let outcome = run_blocking(
         move || state.unlock(&account_id, reason),
+        BiometricOperationOutcome::StorageUnavailable,
+    )
+    .await;
+    restore_popup_after_native_security(popup_was_visible, || refocus_main_popup(&app));
+    outcome
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub async fn autofill_biometric_reprompt(
+    app: tauri::AppHandle,
+    account_id: String,
+    receipt: String,
+) -> BiometricOperationOutcome {
+    let popup_was_visible = main_popup_is_visible(&app);
+    let _popup_visibility = app.state::<crate::window::PopupVisibilityHold>().acquire();
+    let state = app.state::<PlatformBiometricState>().inner().clone();
+    let receipts = app
+        .state::<Arc<AutoFillRepromptReceiptStore>>()
+        .inner()
+        .clone();
+    let outcome = run_blocking(
+        move || verify_autofill_biometric(&state, &receipts, &account_id, &receipt),
         BiometricOperationOutcome::StorageUnavailable,
     )
     .await;
@@ -416,6 +458,39 @@ mod tests {
         ));
 
         assert!(dispatched);
+    }
+
+    #[test]
+    fn autofill_touch_id_marks_a_bound_receipt_only_after_native_success() {
+        use crate::autofill_contract::AutoFillSecretField;
+        use crate::autofill_reprompt::{AutoFillRepromptReceiptStore, AutoFillRepromptScope};
+
+        let account = "a".repeat(64);
+        let scope = AutoFillRepromptScope {
+            account_id: account.clone(),
+            candidate_id: "cipher-a".to_owned(),
+            field: AutoFillSecretField::Password,
+            generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            context_token: "context-a".to_owned(),
+        };
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let receipt = receipts
+            .begin(
+                scope.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+
+        assert_eq!(
+            verify_autofill_biometric(
+                &BiometricState::new(RecordingBiometricBackend::default()),
+                &receipts,
+                &account,
+                &receipt,
+            ),
+            BiometricOperationOutcome::Success
+        );
+        assert!(receipts.consume_verified(&receipt, &scope));
     }
 
     #[derive(Clone, Default)]

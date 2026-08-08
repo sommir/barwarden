@@ -594,8 +594,31 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         this.popupRenderRecoveryFrame = undefined;
       });
     });
-    if ((event as CustomEvent<{ reset?: boolean }>).detail?.reset === true) {
+    const detail = (event as CustomEvent<{
+      reset?: boolean;
+      entrySource?: "vault" | "autofill-menu" | "autofill-shortcut";
+    }>).detail;
+    if (detail?.entrySource === "autofill-menu" || detail?.entrySource === "autofill-shortcut") {
+      void this.openAutoFillPicker();
+      return;
+    }
+    if (detail?.reset === true) {
       void this.resetPopupToInitialState();
+    }
+  }
+
+  private async openAutoFillPicker(): Promise<void> {
+    if (
+      this.evidenceMode
+      || resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout"
+    ) {
+      return;
+    }
+    this.routeCache?.clear();
+    try {
+      await this.router.navigateByUrl("/autofill-picker", { replaceUrl: true });
+    } catch {
+      // Keep the existing popup route usable when picker navigation cannot settle.
     }
   }
 

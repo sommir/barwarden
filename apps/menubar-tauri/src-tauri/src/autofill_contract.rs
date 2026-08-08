@@ -11,6 +11,148 @@ pub enum AgentOperation {
     Lock,
     Provision,
     RenewLease,
+    QueryCandidates,
+    ReleaseSecret,
+    IssueRepromptGrant,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoFillSecretField {
+    Username,
+    Password,
+    Totp,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct NativeAutoFillContext {
+    pub bundle_id: String,
+    pub app_name: String,
+    pub service_identifiers: Vec<String>,
+    pub query: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CandidateQueryPayload {
+    pub generation: String,
+    pub account_id: String,
+    pub field: AutoFillSecretField,
+    pub context: NativeAutoFillContext,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateGroup {
+    Exact,
+    Relevant,
+    Other,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RankedCandidate {
+    pub cipher_id: String,
+    pub display_name: String,
+    pub username: String,
+    pub group: CandidateGroup,
+    pub reason: String,
+    pub requires_mismatch_confirmation: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CandidateResponsePayload {
+    pub context_token: String,
+    pub candidates: Vec<RankedCandidate>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AgentSessionPayload {
+    pub generation: String,
+    pub account_id: String,
+    pub vault_revision: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RepromptResult {
+    NotRequired,
+    Grant,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RepromptResultPayload {
+    pub result: RepromptResult,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grant: Option<String>,
+}
+
+impl RepromptResultPayload {
+    pub fn not_required() -> Self {
+        Self {
+            result: RepromptResult::NotRequired,
+            grant: None,
+        }
+    }
+
+    pub fn grant(grant: String) -> Self {
+        Self {
+            result: RepromptResult::Grant,
+            grant: Some(grant),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PublishedCredentialService {
+    pub identifier: String,
+    pub kind: PublishedCredentialServiceKind,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum PublishedCredentialServiceKind {
+    #[serde(rename = "URL")]
+    Url,
+    #[serde(rename = "domain")]
+    Domain,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SecretReleasePayload {
+    pub generation: String,
+    pub account_id: String,
+    pub candidate_id: String,
+    pub field: AutoFillSecretField,
+    pub context_token: String,
+    pub mismatch_confirmed: bool,
+    pub reprompt: RepromptResultPayload,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub published_service: Option<PublishedCredentialService>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RepromptGrantIssuePayload {
+    pub generation: String,
+    pub account_id: String,
+    pub candidate_id: String,
+    pub field: AutoFillSecretField,
+    pub context_token: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RepromptGrantPayload {
+    pub grant: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ReleasedSecret {
+    pub field: AutoFillSecretField,
+    #[serde(with = "base64_key")]
+    pub value: Vec<u8>,
+}
+
+impl Drop for ReleasedSecret {
+    fn drop(&mut self) {
+        self.value.zeroize();
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -75,6 +217,12 @@ pub struct AgentRequest {
     pub projection: Option<ProjectionProvisionPayload>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lease: Option<ProjectionLeasePayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub candidate_query: Option<CandidateQueryPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret_release: Option<SecretReleasePayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reprompt_grant_issue: Option<RepromptGrantIssuePayload>,
 }
 
 impl AgentRequest {
@@ -89,6 +237,9 @@ impl AgentRequest {
             nonce,
             projection: None,
             lease: None,
+            candidate_query: None,
+            secret_release: None,
+            reprompt_grant_issue: None,
         }
     }
 
@@ -125,6 +276,24 @@ impl AgentRequest {
         });
         request
     }
+
+    pub fn candidate_query(payload: CandidateQueryPayload) -> Self {
+        let mut request = Self::new(AgentOperation::QueryCandidates);
+        request.candidate_query = Some(payload);
+        request
+    }
+
+    pub fn secret_release(payload: SecretReleasePayload) -> Self {
+        let mut request = Self::new(AgentOperation::ReleaseSecret);
+        request.secret_release = Some(payload);
+        request
+    }
+
+    pub fn reprompt_grant_issue(payload: RepromptGrantIssuePayload) -> Self {
+        let mut request = Self::new(AgentOperation::IssueRepromptGrant);
+        request.reprompt_grant_issue = Some(payload);
+        request
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -134,13 +303,21 @@ pub enum AgentResponseStatus {
     Error,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AgentResponse {
     pub version: u16,
     pub request_id: Option<String>,
     pub nonce: Vec<u8>,
     pub status: AgentResponseStatus,
     pub error: Option<AgentErrorCode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_response: Option<CandidateResponsePayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<AgentSessionPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secret_response: Option<ReleasedSecret>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reprompt_grant: Option<RepromptGrantPayload>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -184,7 +361,7 @@ impl AgentCommandOutcome {
 
 #[cfg(test)]
 mod tests {
-    use super::{AgentErrorCode, AgentOperation, AgentRequest, AgentResponse, AgentResponseStatus};
+    use super::*;
 
     #[test]
     fn request_wire_shape_matches_swift_contract() {
@@ -195,6 +372,9 @@ mod tests {
             nonce: vec![0, 1, 254, 255],
             projection: None,
             lease: None,
+            candidate_query: None,
+            secret_release: None,
+            reprompt_grant_issue: None,
         };
 
         assert_eq!(
@@ -216,6 +396,10 @@ mod tests {
             nonce: Vec::new(),
             status: AgentResponseStatus::Error,
             error: Some(AgentErrorCode::Unauthorized),
+            candidate_response: None,
+            session: None,
+            secret_response: None,
+            reprompt_grant: None,
         };
 
         assert_eq!(
@@ -262,5 +446,82 @@ mod tests {
         );
         assert!(value.get("access_token").is_none());
         assert!(value.get("master_password").is_none());
+    }
+
+    #[test]
+    fn candidate_query_wire_is_metadata_only_and_field_scoped() {
+        let request = AgentRequest::candidate_query(CandidateQueryPayload {
+            generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            account_id: "account-a".to_owned(),
+            field: AutoFillSecretField::Password,
+            context: NativeAutoFillContext {
+                bundle_id: "com.example.App".to_owned(),
+                app_name: "Example".to_owned(),
+                service_identifiers: vec!["https://example.test".to_owned()],
+                query: String::new(),
+            },
+        });
+        let value = serde_json::to_value(request).unwrap();
+
+        assert_eq!(value["operation"], "query_candidates");
+        assert_eq!(value["candidate_query"]["field"], "password");
+        assert_eq!(
+            value["candidate_query"]["context"]["bundle_id"],
+            "com.example.App"
+        );
+        assert!(value.get("secret_release").is_none());
+        assert!(!value.to_string().contains("password-value"));
+    }
+
+    #[test]
+    fn secret_release_wire_binds_every_authorization_dimension_to_one_field() {
+        let request = AgentRequest::secret_release(SecretReleasePayload {
+            generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            account_id: "account-a".to_owned(),
+            candidate_id: "cipher-a".to_owned(),
+            field: AutoFillSecretField::Password,
+            context_token: "context-a".to_owned(),
+            mismatch_confirmed: true,
+            reprompt: RepromptResultPayload::grant("grant-a".to_owned()),
+            published_service: None,
+        });
+        let value = serde_json::to_value(request).unwrap();
+
+        assert_eq!(value["operation"], "release_secret");
+        assert_eq!(value["secret_release"]["account_id"], "account-a");
+        assert_eq!(value["secret_release"]["candidate_id"], "cipher-a");
+        assert_eq!(value["secret_release"]["field"], "password");
+        assert_eq!(value["secret_release"]["context_token"], "context-a");
+        assert_eq!(value["secret_release"]["reprompt"]["grant"], "grant-a");
+    }
+
+    #[test]
+    fn response_decodes_exact_metadata_session_and_base64_secret_shapes() {
+        let response: AgentResponse = serde_json::from_value(serde_json::json!({
+            "version": 1,
+            "request_id": "00000000-0000-4000-8000-000000000001",
+            "nonce": [1, 2, 3],
+            "status": "ok",
+            "candidate_response": {
+                "context_token": "context-a",
+                "candidates": [{
+                    "cipher_id": "cipher-a",
+                    "display_name": "Example",
+                    "username": "person@example.test",
+                    "group": "exact",
+                    "reason": "service_identifier",
+                    "requires_mismatch_confirmation": false
+                }]
+            },
+            "session": null,
+            "secret_response": { "field": "password", "value": "c2VjcmV0" }
+        }))
+        .unwrap();
+
+        assert_eq!(
+            response.candidate_response.unwrap().candidates[0].cipher_id,
+            "cipher-a"
+        );
+        assert_eq!(response.secret_response.unwrap().value, b"secret");
     }
 }

@@ -46,6 +46,25 @@ import {
   type LaunchAtLoginHost,
   type NativeAutostartApi,
 } from "./launch-at-login";
+type AutoFillSecretField = "username" | "password" | "totp";
+interface AutoFillCandidateQueryContract {
+  readonly accountId: string;
+  readonly lockGeneration: string;
+  readonly field?: AutoFillSecretField;
+  readonly context: { readonly bundleId: string; readonly appName: string; readonly serviceIdentifiers: readonly string[]; readonly query: string };
+}
+interface AutoFillRepromptScope {
+  readonly accountId: string;
+  readonly candidateId: string;
+  readonly field: AutoFillSecretField;
+  readonly generation: string;
+  readonly contextToken: string;
+}
+interface AutoFillSecretCommandRequest {
+  readonly scope: AutoFillRepromptScope;
+  readonly mismatchConfirmed: boolean;
+  readonly repromptReceipt?: string;
+}
 
 export class TauriHostService
   implements
@@ -261,6 +280,35 @@ export class TauriHostService
 
   autofillAgentLock(): Promise<unknown> {
     return this.invoke<unknown>("autofill_agent_lock");
+  }
+
+  async entryContext() {
+    return decodeEntryContext(await this.invoke<unknown>("autofill_entry_context"));
+  }
+
+  async agentSession() {
+    return decodeAgentSession(await this.invoke<unknown>("autofill_agent_session"));
+  }
+
+  async queryCandidates(request: AutoFillCandidateQueryContract): Promise<unknown> {
+    return decodeCandidateOutcome(await this.invoke<unknown>("autofill_query_candidates", {
+      request,
+    }));
+  }
+
+  async beginReprompt(scope: AutoFillRepromptScope) {
+    return decodeBeginReprompt(await this.invoke<unknown>("autofill_begin_reprompt", { scope }));
+  }
+
+  biometricReprompt(accountId: string, receipt: string): Promise<BiometricOperationStatus> {
+    return this.decodeBiometric(
+      this.invoke<unknown>("autofill_biometric_reprompt", { accountId, receipt }),
+      decodeBiometricOperation,
+    );
+  }
+
+  async releaseSecret(request: AutoFillSecretCommandRequest) {
+    return decodeSecretOutcome(await this.invoke<unknown>("autofill_release_secret", { request }));
   }
 
   async fetchJson<T>(url: string, init: RequestInit): Promise<T> {
@@ -818,4 +866,69 @@ function requestBodyToString(body: BodyInit | null | undefined): string | null {
   }
 
   throw new Error("Unsupported native HTTP request body type");
+}
+
+function decodeEntryContext(value: unknown) {
+  if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
+  if (value["status"] === "unavailable" && exactKeys(value, ["status"])) return { status: "unavailable" as const };
+  if (value["status"] === "available" && exactKeys(value, ["status", "bundleId", "appName"])
+      && nonEmpty(value["bundleId"]) && typeof value["appName"] === "string") {
+    return { status: "available" as const, bundleId: value["bundleId"], appName: value["appName"] };
+  }
+  throw new Error("AutoFill unavailable");
+}
+
+function decodeAgentSession(value: unknown) {
+  if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
+  if (value["status"] === "error" && exactKeys(value, ["status", "code"]) && nonEmpty(value["code"])) {
+    return { status: "error" as const, code: value["code"] };
+  }
+  if (value["status"] === "success" && exactKeys(value, ["status", "generation", "accountId", "vaultRevision"])
+      && isNativeUuid(value["generation"]) && nonEmpty(value["accountId"]) && Number.isSafeInteger(value["vaultRevision"])) {
+    return { status: "success" as const, generation: value["generation"], accountId: value["accountId"], vaultRevision: value["vaultRevision"] as number };
+  }
+  throw new Error("AutoFill unavailable");
+}
+
+function decodeCandidateOutcome(value: unknown): unknown {
+  if (!isExactRecord(value) || value["status"] !== "success") throw new Error("AutoFill unavailable");
+  const { status: _status, ...response } = value;
+  return response;
+}
+
+function decodeBeginReprompt(value: unknown) {
+  if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
+  if (value["status"] === "unavailable" && exactKeys(value, ["status"])) return { status: "unavailable" as const };
+  if (value["status"] === "pending" && exactKeys(value, ["status", "receipt"]) && nonEmpty(value["receipt"])) {
+    return { status: "pending" as const, receipt: value["receipt"] };
+  }
+  throw new Error("AutoFill unavailable");
+}
+
+function decodeSecretOutcome(value: unknown) {
+  if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
+  if (value["status"] === "error" && exactKeys(value, ["status", "code"]) && nonEmpty(value["code"])) {
+    return { status: "error" as const, code: value["code"] };
+  }
+  if (value["status"] === "success" && exactKeys(value, ["status", "field", "value"])
+      && ["username", "password", "totp"].includes(String(value["field"])) && typeof value["value"] === "string") {
+    return { status: "success" as const, field: value["field"] as AutoFillSecretField, value: value["value"] };
+  }
+  throw new Error("AutoFill unavailable");
+}
+
+function isExactRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  return Object.keys(value).sort().join("|") === [...keys].sort().join("|");
+}
+
+function nonEmpty(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 2_048;
+}
+
+function isNativeUuid(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

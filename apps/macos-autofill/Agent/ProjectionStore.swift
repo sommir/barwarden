@@ -306,6 +306,7 @@ final class ProjectionStore {
         return try candidateAuthorizations.issue(
             accountID: projection.accountID,
             generation: generation,
+            field: field,
             vaultRevision: projection.vaultRevision,
             context: context,
             contextDigest: contextDigest,

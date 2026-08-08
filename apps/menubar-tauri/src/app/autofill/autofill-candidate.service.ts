@@ -21,6 +21,7 @@ export interface RankedAutoFillCandidate {
 export interface AutoFillCandidateQuery {
   readonly accountId: string;
   readonly lockGeneration: string;
+  readonly field?: AutoFillSecretField;
   readonly context: NativeAutoFillContext;
 }
 
@@ -56,6 +57,7 @@ export class AutoFillCandidateService {
     const normalized = {
       accountId: required(request.accountId),
       lockGeneration: required(request.lockGeneration),
+      field: request.field ?? "password",
       context: {
         bundleId: bounded(request.context.bundleId, 255),
         appName: bounded(request.context.appName, 255),

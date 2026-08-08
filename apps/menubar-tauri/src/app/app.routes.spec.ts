@@ -68,7 +68,9 @@ describe("popup routes", () => {
       knownAccountGuard,
     ]);
 
-    const publicPaths = new Set(["login", "hint", "", "**"]);
+    // AutoFill owns its locked/repair/context-unavailable states and must remain reachable
+    // from the native shortcut while the vault is locked.
+    const publicPaths = new Set(["login", "hint", "autofill-picker", "", "**"]);
     for (const route of routes) {
       if (!publicPaths.has(route.path ?? "") && !["lock", "account-switcher", "2fa", "new-device-verification"].includes(route.path ?? "")) {
         expect(route.canMatch, `route ${route.path} must require an unlocked vault`).toEqual([

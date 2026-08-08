@@ -58,6 +58,7 @@ final class AgentConnectionHandler {
     private let projectionStore: ProjectionStore?
     private let matchingEngine: MatchingEngine
     private let verifyRepromptGrant: CandidateAuthorizationStore.RepromptGrantVerifier
+    private let repromptGrants: RepromptGrantStore
     private let onProjectionKeyCleared: ((Data) -> Void)?
     private let onSecretResponseCleared: ((Data) -> Void)?
     private let totpClock: () -> Date
@@ -70,9 +71,8 @@ final class AgentConnectionHandler {
         timeout: TimeInterval = AgentClient.defaultTimeout,
         projectionStore: ProjectionStore? = nil,
         matchingEngine: MatchingEngine = MatchingEngine(presets: AppPresetCatalog.bundled()),
-        verifyRepromptGrant: @escaping CandidateAuthorizationStore.RepromptGrantVerifier = {
-            _, _, _, _, _ in false
-        },
+        repromptGrants: RepromptGrantStore = RepromptGrantStore(),
+        verifyRepromptGrant: CandidateAuthorizationStore.RepromptGrantVerifier? = nil,
         onProjectionKeyCleared: ((Data) -> Void)? = nil,
         onSecretResponseCleared: ((Data) -> Void)? = nil,
         totpClock: @escaping () -> Date = Date.init
@@ -82,7 +82,17 @@ final class AgentConnectionHandler {
         self.timeout = timeout
         self.projectionStore = projectionStore
         self.matchingEngine = matchingEngine
-        self.verifyRepromptGrant = verifyRepromptGrant
+        self.repromptGrants = repromptGrants
+        self.verifyRepromptGrant = verifyRepromptGrant ?? { [repromptGrants] in
+            repromptGrants.consume(
+                accountID: $0,
+                cipherID: $1,
+                field: $2,
+                generation: $3,
+                contextToken: $4,
+                grant: $5
+            )
+        }
         self.onProjectionKeyCleared = onProjectionKeyCleared
         self.onSecretResponseCleared = onSecretResponseCleared
         self.totpClock = totpClock
@@ -127,6 +137,7 @@ final class AgentConnectionHandler {
         var candidateResponse: CandidateResponsePayload?
         var sessionResponse: AgentSessionPayload?
         var secretResponse: ReleasedSecret?
+        var repromptGrantResponse: RepromptGrantPayload?
         defer {
             secretResponse?.clear()
             if let secretResponse {
@@ -136,12 +147,14 @@ final class AgentConnectionHandler {
         switch request.operation {
         case .probe:
             guard request.projection == nil, request.lease == nil,
-                  request.candidateQuery == nil, request.secretRelease == nil else {
+                  request.candidateQuery == nil, request.secretRelease == nil,
+                  request.repromptGrantIssue == nil else {
                 throw AgentProtocolError.malformedMessage
             }
         case .status:
             guard request.projection == nil, request.lease == nil,
                   request.candidateQuery == nil, request.secretRelease == nil,
+                  request.repromptGrantIssue == nil,
                   let projectionStore else {
                 throw AgentProtocolError.malformedMessage
             }
@@ -149,14 +162,17 @@ final class AgentConnectionHandler {
         case .lock:
             guard peer == .mainApplication,
                   request.projection == nil, request.lease == nil,
-                  request.candidateQuery == nil, request.secretRelease == nil else {
+                  request.candidateQuery == nil, request.secretRelease == nil,
+                  request.repromptGrantIssue == nil else {
                 if peer != .mainApplication { throw AgentProtocolError.unauthorized }
                 throw AgentProtocolError.malformedMessage
             }
             projectionStore?.lock()
+            repromptGrants.clear()
         case .provision:
             guard let payload = request.projection,
                   request.lease == nil, request.candidateQuery == nil, request.secretRelease == nil,
+                  request.repromptGrantIssue == nil,
                   let projectionStore else {
                 throw AgentProtocolError.malformedMessage
             }
@@ -171,11 +187,13 @@ final class AgentConnectionHandler {
                 ),
                 from: peer
             )
+            repromptGrants.clear()
         case .renewLease:
             guard request.projection == nil,
                   let payload = request.lease,
                   request.candidateQuery == nil,
                   request.secretRelease == nil,
+                  request.repromptGrantIssue == nil,
                   let projectionStore else {
                 throw AgentProtocolError.malformedMessage
             }
@@ -189,6 +207,7 @@ final class AgentConnectionHandler {
             guard request.projection == nil, request.lease == nil,
                   let payload = request.candidateQuery,
                   request.secretRelease == nil,
+                  request.repromptGrantIssue == nil,
                   let projectionStore,
                   !payload.accountID.isEmpty,
                   payload.context.bundleID.count <= 255,
@@ -209,6 +228,7 @@ final class AgentConnectionHandler {
             guard request.projection == nil, request.lease == nil,
                   request.candidateQuery == nil,
                   let payload = request.secretRelease,
+                  request.repromptGrantIssue == nil,
                   let projectionStore else {
                 throw AgentProtocolError.malformedMessage
             }
@@ -230,6 +250,27 @@ final class AgentConnectionHandler {
                     return ReleasedSecret(field: payload.field, value: Data(value.utf8))
                 }
             )
+        case .issueRepromptGrant:
+            guard peer == .mainApplication,
+                  request.projection == nil, request.lease == nil,
+                  request.candidateQuery == nil, request.secretRelease == nil,
+                  let payload = request.repromptGrantIssue,
+                  let projectionStore else {
+                if peer != .mainApplication { throw AgentProtocolError.unauthorized }
+                throw AgentProtocolError.malformedMessage
+            }
+            let session = try projectionStore.currentSession()
+            guard session.accountID == payload.accountID,
+                  session.generation == payload.generation else {
+                throw AgentProtocolError.unauthorized
+            }
+            repromptGrantResponse = RepromptGrantPayload(grant: try repromptGrants.issue(
+                accountID: payload.accountID,
+                cipherID: payload.candidateID,
+                field: payload.field,
+                generation: payload.generation,
+                contextToken: payload.contextToken
+            ))
         }
         let response: AgentResponse
         if let candidateResponse {
@@ -243,6 +284,12 @@ final class AgentConnectionHandler {
         } else if let secretResponse {
             response = AgentResponse.secret(
                 requestID: request.requestID, nonce: request.nonce, payload: secretResponse
+            )
+        } else if let repromptGrantResponse {
+            response = AgentResponse.repromptGrant(
+                requestID: request.requestID,
+                nonce: request.nonce,
+                payload: repromptGrantResponse
             )
         } else {
             response = AgentResponse.success(requestID: request.requestID, nonce: request.nonce)
