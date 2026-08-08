@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { barwardenTeamId } from "./autofill-spike-release-identities.mjs";
+import { writeJsonAtomically } from "./autofill-spike-atomic-write.mjs";
 
 export { barwardenTeamId };
 
@@ -42,14 +43,19 @@ export function inspectDeveloperIdCertificate(certificatePath, runner = runOpenS
   return { teamId: commonNameTeamId, commonName };
 }
 
-export function recordAutoFillTeamIdentity(root, certificatePath, runner = runOpenSsl) {
+const defaultFileSystem = { readFileSync, renameSync, rmSync, writeFileSync };
+
+export function recordAutoFillTeamIdentity(
+  root,
+  certificatePath,
+  runner = runOpenSsl,
+  fileSystem = defaultFileSystem,
+) {
   const identity = inspectDeveloperIdCertificate(certificatePath, runner);
   const contractPath = resolve(root, "config/autofill-spike-contract.json");
-  const contract = JSON.parse(readFileSync(contractPath, "utf8"));
+  const contract = JSON.parse(fileSystem.readFileSync(contractPath, "utf8"));
   const next = { ...contract, teamId: identity.teamId };
-  const temporaryPath = `${contractPath}.${process.pid}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
-  renameSync(temporaryPath, contractPath);
+  writeJsonAtomically(contractPath, next, fileSystem);
   return identity;
 }
 

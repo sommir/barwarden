@@ -39,3 +39,12 @@
 - RED: the six focused guard files failed, with 6 failed and 57 passed tests; every failure showed the same root package-hash mismatch.
 - GREEN: `npx vitest run` against those six guard files completed with 6 files and 63 tests passed.
 - Full regression: `npm test -- --reporter=dot` exited `0` with 231 files passed, 2 skipped; 3462 tests passed, 22 skipped.
+
+## Review-gap follow-up: atomicity and browser recorder
+
+- RED: the new atomicity tests failed because the Team-ID recorder read and wrote Node's filesystem directly; the new browser-recorder specification failed because no injectable successful-path API existed.
+- Added a minimal shared atomic JSON writer with injectable filesystem operations. The Team-ID recorder now proves temp-write-before-rename ordering; a simulated write failure leaves the final contract unchanged, removes the temp path, and rethrows the original error.
+- Added an injectable browser-identity recorder. Its focused successful-path test supplies only a synthetic signing-identity listing, retains `K7LY92JY96`, records two allowed browser IDs, performs temp-write-before-rename, and reloads under browser-release validation. The former three-argument API remains rejected.
+- The AutoFill contract command now includes both recorder specs. Its `package.json` change required the same six generated `rootPackageSha256` updates and two guard-manifest digest recalculations described above.
+- GREEN focused checks: `npm run test:autofill-spike:contract` passed 19/19; the six overlay guard files passed 63/63.
+- Full regression: `npm test -- --reporter=dot` exited `0` with 231 files passed, 2 skipped; 3462 tests passed, 22 skipped.

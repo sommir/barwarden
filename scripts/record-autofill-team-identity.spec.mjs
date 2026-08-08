@@ -38,6 +38,37 @@ function createContractFixture() {
   return root;
 }
 
+function createMemoryFileSystem(path, initialContents, { failWrite = false } = {}) {
+  const files = new Map([[path, initialContents]]);
+  const calls = [];
+  return {
+    calls,
+    files,
+    fileSystem: {
+      readFileSync(filePath) {
+        calls.push(`read:${filePath}`);
+        return files.get(filePath);
+      },
+      writeFileSync(filePath, contents) {
+        calls.push(`write:${filePath}`);
+        if (failWrite) {
+          throw new Error("simulated write failure");
+        }
+        files.set(filePath, contents);
+      },
+      renameSync(fromPath, toPath) {
+        calls.push(`rename:${fromPath}:${toPath}`);
+        files.set(toPath, files.get(fromPath));
+        files.delete(fromPath);
+      },
+      rmSync(filePath) {
+        calls.push(`remove:${filePath}`);
+        files.delete(filePath);
+      },
+    },
+  };
+}
+
 test.after(() => {
   for (const root of fixtureRoots) {
     rmSync(root, { force: true, recursive: true });
@@ -96,4 +127,50 @@ test("records only the inspected team ID without releasing browser identities", 
   assert.equal(recorded.teamId, "K7LY92JY96");
   assert.deepEqual(recorded.chromium, { chromeExtensionId: null, edgeExtensionId: null });
   assert.equal(statSync(join(root, "config/autofill-spike-contract.json")).mode & 0o777, 0o600);
+});
+
+test("writes the inspected Team ID to a temporary file before atomically replacing the contract", () => {
+  const root = "/synthetic-team-contract";
+  const contractPath = join(root, "config/autofill-spike-contract.json");
+  const original = JSON.stringify({ teamId: null, chromium: { chromeExtensionId: null, edgeExtensionId: null } });
+  const memory = createMemoryFileSystem(contractPath, original);
+
+  recordAutoFillTeamIdentity(root, "/external/developer-id.cer", () => (
+    "subject=UID=K7LY92JY96, CN = Developer ID Application: Fixture Developer (K7LY92JY96)"
+  ), memory.fileSystem);
+
+  const temporaryPath = `${contractPath}.${process.pid}.tmp`;
+  assert.deepEqual(memory.calls, [
+    `read:${contractPath}`,
+    `write:${temporaryPath}`,
+    `rename:${temporaryPath}:${contractPath}`,
+  ]);
+  assert.deepEqual(JSON.parse(memory.files.get(contractPath)), {
+    teamId: "K7LY92JY96",
+    chromium: { chromeExtensionId: null, edgeExtensionId: null },
+  });
+  assert.equal(memory.files.has(temporaryPath), false);
+});
+
+test("preserves the final contract and removes the temporary file when its atomic write fails", () => {
+  const root = "/synthetic-team-contract-failure";
+  const contractPath = join(root, "config/autofill-spike-contract.json");
+  const original = JSON.stringify({ teamId: null, chromium: { chromeExtensionId: null, edgeExtensionId: null } });
+  const memory = createMemoryFileSystem(contractPath, original, { failWrite: true });
+
+  assert.throws(
+    () => recordAutoFillTeamIdentity(root, "/external/developer-id.cer", () => (
+      "subject=UID=K7LY92JY96, CN = Developer ID Application: Fixture Developer (K7LY92JY96)"
+    ), memory.fileSystem),
+    /simulated write failure/,
+  );
+
+  const temporaryPath = `${contractPath}.${process.pid}.tmp`;
+  assert.deepEqual(memory.calls, [
+    `read:${contractPath}`,
+    `write:${temporaryPath}`,
+    `remove:${temporaryPath}`,
+  ]);
+  assert.equal(memory.files.get(contractPath), original);
+  assert.equal(memory.files.has(temporaryPath), false);
 });
