@@ -31,3 +31,11 @@
 
 - Independent read-only review found and prompted fixes for DER provenance and the residual browser-writer Team-ID path.
 - Re-review found no Critical or Important issues. An optional minor recommendation is an additional complete-but-malformed browser-ID test; validation already rejects that state.
+
+## Post-commit integrity-pin repair
+
+- Root cause: adding the native Team-ID recorder command changed the root `package.json` byte hash to `1e12928b256b4fe9f4e730bb1a279f08b815cb17efec142af9d12593d30fc35a`, while six upstream-overlay manifests still pinned the prior `6c23a491d1a1e9c68b2d5a4ece75da3a507147e6909694013be7fe7ba68a3c7d` value. The six guard failures were exclusively this mismatch.
+- Applied the established generated-data pattern from `83b1f57e`: updated only the six `rootPackageSha256` values and recalculated the two manifest digests that guard their own manifest bytes. No guard behavior or functional implementation changed.
+- RED: the six focused guard files failed, with 6 failed and 57 passed tests; every failure showed the same root package-hash mismatch.
+- GREEN: `npx vitest run` against those six guard files completed with 6 files and 63 tests passed.
+- Full regression: `npm test -- --reporter=dot` exited `0` with 231 files passed, 2 skipped; 3462 tests passed, 22 skipped.
