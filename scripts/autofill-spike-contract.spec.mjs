@@ -9,6 +9,8 @@ import { loadAutoFillSpikeContract } from "./autofill-spike-contract.mjs";
 const fixtureRoots = [];
 const fixtureChromeExtensionId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const fixtureEdgeExtensionId = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const upstreamChromeExtensionId = "nngceckbapebfimnlniiiahkandclblb";
+const upstreamEdgeExtensionId = "jbkfoedolllekgbhcbcoahefnbanhhlh";
 
 function write(root, relativePath, contents) {
   const path = join(root, relativePath);
@@ -70,7 +72,11 @@ test("locks the nested bundle identity and macOS floor", () => {
 
 test("requires the signing team and distinct Chrome and Edge store IDs", (context) => {
   const structural = loadAutoFillSpikeContract(process.cwd());
-  if (!structural.teamId || !structural.chromium.chromeExtensionId || !structural.chromium.edgeExtensionId) {
+  if (
+    structural.teamId === null &&
+    structural.chromium.chromeExtensionId === null &&
+    structural.chromium.edgeExtensionId === null
+  ) {
     context.skip("official release identities have not been recorded");
     return;
   }
@@ -99,7 +105,34 @@ test("rejects partial release identities", () => {
   assert.throws(() => loadAutoFillSpikeContract(root), /release identities/);
 });
 
-test("release identity writer rejects fixture and duplicate extension IDs before signing lookup", () => {
+test("rejects upstream Bitwarden browser store IDs in a complete release identity triple", () => {
+  for (const chromium of [
+    { chromeExtensionId: upstreamChromeExtensionId, edgeExtensionId: "cccccccccccccccccccccccccccccccc" },
+    { chromeExtensionId: "dddddddddddddddddddddddddddddddd", edgeExtensionId: upstreamEdgeExtensionId },
+  ]) {
+    const root = createFixture((contract) => ({
+      ...contract,
+      teamId: "ABCDEFGHIJ",
+      chromium,
+    }));
+
+    assert.throws(() => loadAutoFillSpikeContract(root), /forbidden/);
+  }
+});
+
+test("requires exactly null values to represent absent release identities", () => {
+  for (const values of [
+    { teamId: "", chromium: { chromeExtensionId: null, edgeExtensionId: null } },
+    { teamId: null, chromium: { chromeExtensionId: "", edgeExtensionId: null } },
+    { teamId: null, chromium: { chromeExtensionId: null, edgeExtensionId: "" } },
+  ]) {
+    const root = createFixture((contract) => ({ ...contract, ...values }));
+
+    assert.throws(() => loadAutoFillSpikeContract(root), /release identities/);
+  }
+});
+
+test("release identity writer rejects forbidden fixture and duplicate extension IDs before signing lookup", () => {
   const writer = resolve(process.cwd(), "scripts/record-autofill-release-identities.mjs");
   const fixtureResult = spawnSync(
     process.execPath,
@@ -113,7 +146,26 @@ test("release identity writer rejects fixture and duplicate extension IDs before
   );
 
   assert.notEqual(fixtureResult.status, 0);
-  assert.match(fixtureResult.stderr, /fixture/);
+  assert.match(fixtureResult.stderr, /forbidden/);
   assert.notEqual(duplicateResult.status, 0);
   assert.match(duplicateResult.stderr, /notStrictEqual/);
+});
+
+test("release identity writer rejects upstream Bitwarden store IDs before signing lookup", () => {
+  const writer = resolve(process.cwd(), "scripts/record-autofill-release-identities.mjs");
+  const chromeResult = spawnSync(
+    process.execPath,
+    [writer, "ABCDEFGHIJ", upstreamChromeExtensionId, "cccccccccccccccccccccccccccccccc"],
+    { encoding: "utf8" },
+  );
+  const edgeResult = spawnSync(
+    process.execPath,
+    [writer, "ABCDEFGHIJ", "dddddddddddddddddddddddddddddddd", upstreamEdgeExtensionId],
+    { encoding: "utf8" },
+  );
+
+  assert.notEqual(chromeResult.status, 0);
+  assert.match(chromeResult.stderr, /forbidden/);
+  assert.notEqual(edgeResult.status, 0);
+  assert.match(edgeResult.stderr, /forbidden/);
 });

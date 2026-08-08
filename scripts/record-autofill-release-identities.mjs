@@ -4,22 +4,13 @@ import { renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { loadAutoFillSpikeContract } from "./autofill-spike-contract.mjs";
-
-const fixtureExtensionIds = new Set([
-  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-]);
+import { assertBarwardenReleaseIdentities } from "./autofill-spike-release-identities.mjs";
 
 const identities = process.argv.slice(2);
 assert.equal(identities.length, 3, "exactly three release identities are required");
 const [teamId, chromeExtensionId, edgeExtensionId] = identities;
 
-assert.match(teamId, /^[A-Z0-9]{10}$/);
-assert.match(chromeExtensionId, /^[a-p]{32}$/);
-assert.match(edgeExtensionId, /^[a-p]{32}$/);
-assert.ok(!fixtureExtensionIds.has(chromeExtensionId), "fixture Chrome extension IDs cannot be recorded");
-assert.ok(!fixtureExtensionIds.has(edgeExtensionId), "fixture Edge extension IDs cannot be recorded");
-assert.notEqual(chromeExtensionId, edgeExtensionId);
+assertBarwardenReleaseIdentities({ teamId, chromeExtensionId, edgeExtensionId });
 
 const signingIdentities = execFileSync("security", ["find-identity", "-v", "-p", "codesigning"], {
   encoding: "utf8",
