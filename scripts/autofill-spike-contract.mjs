@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
-  assertBarwardenReleaseIdentities,
-  hasNoReleaseIdentities,
+  assertBrowserReleaseIdentities,
+  assertTeamIdentity,
+  hasDeferredBrowserReleaseIdentities,
 } from "./autofill-spike-release-identities.mjs";
 
 const expectedBundleIds = {
@@ -17,14 +18,6 @@ const expectedBundleIds = {
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
-}
-
-function releaseIdentityTriple(value) {
-  return {
-    teamId: value.teamId,
-    chromeExtensionId: value.chromium.chromeExtensionId,
-    edgeExtensionId: value.chromium.edgeExtensionId,
-  };
 }
 
 export function loadAutoFillSpikeContract(root, options = {}) {
@@ -46,12 +39,12 @@ export function loadAutoFillSpikeContract(root, options = {}) {
   assert.equal(new Set(Object.values(value.components).map((entry) => entry.bundleId)).size, 5);
   assert.deepEqual(Object.keys(value.chromium), ["chromeExtensionId", "edgeExtensionId"]);
 
-  const identities = releaseIdentityTriple(value);
-  if (!hasNoReleaseIdentities(identities)) {
-    assertBarwardenReleaseIdentities(identities);
+  assertTeamIdentity(value.teamId);
+  if (!hasDeferredBrowserReleaseIdentities(value.chromium)) {
+    assertBrowserReleaseIdentities(value.chromium);
   }
-  if (options.requireReleaseIdentities) {
-    assertBarwardenReleaseIdentities(identities);
+  if (options.requireBrowserReleaseIdentities || options.requireReleaseIdentities) {
+    assertBrowserReleaseIdentities(value.chromium);
   }
 
   return Object.freeze(value);

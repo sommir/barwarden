@@ -4,22 +4,23 @@ import { renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { loadAutoFillSpikeContract } from "./autofill-spike-contract.mjs";
-import { assertBarwardenReleaseIdentities } from "./autofill-spike-release-identities.mjs";
+import { assertBrowserReleaseIdentities } from "./autofill-spike-release-identities.mjs";
 
-const identities = process.argv.slice(2);
-assert.equal(identities.length, 3, "exactly three release identities are required");
-const [teamId, chromeExtensionId, edgeExtensionId] = identities;
+const extensionIds = process.argv.slice(2);
+assert.equal(extensionIds.length, 2, "exactly two browser extension IDs are required");
+const [chromeExtensionId, edgeExtensionId] = extensionIds;
 
-assertBarwardenReleaseIdentities({ teamId, chromeExtensionId, edgeExtensionId });
+assertBrowserReleaseIdentities({ chromeExtensionId, edgeExtensionId });
+
+const contract = loadAutoFillSpikeContract(process.cwd(), { requireTeamIdentity: true });
 
 const signingIdentities = execFileSync("security", ["find-identity", "-v", "-p", "codesigning"], {
   encoding: "utf8",
 });
-assert.match(signingIdentities, new RegExp(`Developer ID Application:.*\\(${teamId}\\)`));
+assert.match(signingIdentities, new RegExp(`Developer ID Application:.*\\(${contract.teamId}\\)`));
 
 const next = {
-  ...loadAutoFillSpikeContract(process.cwd()),
-  teamId,
+  ...contract,
   chromium: { chromeExtensionId, edgeExtensionId },
 };
 const contractPath = resolve(process.cwd(), "config/autofill-spike-contract.json");

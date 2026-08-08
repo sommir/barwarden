@@ -33,7 +33,7 @@ function createFixture(mutator = (value) => value) {
       schemaVersion: 1,
       productVersion: "0.1.2",
       appGroup: "group.com.sommir.barwarden.autofill",
-      teamId: null,
+      teamId: "K7LY92JY96",
       deploymentTarget: "13.0",
       components: {
         app: { bundleId: "com.sommir.barwarden" },
@@ -70,21 +70,17 @@ test("locks the nested bundle identity and macOS floor", () => {
   );
 });
 
-test("requires the signing team and distinct Chrome and Edge store IDs", (context) => {
-  const structural = loadAutoFillSpikeContract(process.cwd());
-  if (
-    structural.teamId === null &&
-    structural.chromium.chromeExtensionId === null &&
-    structural.chromium.edgeExtensionId === null
-  ) {
-    context.skip("official release identities have not been recorded");
-    return;
-  }
-  const contract = loadAutoFillSpikeContract(process.cwd(), { requireReleaseIdentities: true });
-  assert.match(contract.teamId, /^[A-Z0-9]{10}$/);
-  assert.match(contract.chromium.chromeExtensionId, /^[a-p]{32}$/);
-  assert.match(contract.chromium.edgeExtensionId, /^[a-p]{32}$/);
-  assert.notEqual(contract.chromium.chromeExtensionId, contract.chromium.edgeExtensionId);
+test("accepts the signed native identity while browser publication is deferred", () => {
+  const contract = loadAutoFillSpikeContract(process.cwd(), { requireTeamIdentity: true });
+  assert.equal(contract.teamId, "K7LY92JY96");
+  assert.deepEqual(contract.chromium, { chromeExtensionId: null, edgeExtensionId: null });
+});
+
+test("browser release mode still rejects deferred IDs", () => {
+  assert.throws(
+    () => loadAutoFillSpikeContract(process.cwd(), { requireBrowserReleaseIdentities: true }),
+    /browser release identities/,
+  );
 });
 
 test("rejects a contract that diverges from the production app identity", () => {
@@ -96,13 +92,19 @@ test("rejects a contract that diverges from the production app identity", () => 
   assert.throws(() => loadAutoFillSpikeContract(root), /com\.sommir\.barwarden/);
 });
 
-test("rejects partial release identities", () => {
+test("rejects a native team identity that is not Barwarden's verified Team ID", () => {
+  const root = createFixture((contract) => ({ ...contract, teamId: "ABCDEFGHIJ" }));
+
+  assert.throws(() => loadAutoFillSpikeContract(root), /K7LY92JY96/);
+});
+
+test("rejects partial browser release identities", () => {
   const root = createFixture((contract) => ({
     ...contract,
-    teamId: "ABCDEFGHIJ",
+    chromium: { chromeExtensionId: fixtureChromeExtensionId, edgeExtensionId: null },
   }));
 
-  assert.throws(() => loadAutoFillSpikeContract(root), /release identities/);
+  assert.throws(() => loadAutoFillSpikeContract(root), /browser release identities/);
 });
 
 test("rejects upstream Bitwarden browser store IDs in a complete release identity triple", () => {
@@ -112,7 +114,6 @@ test("rejects upstream Bitwarden browser store IDs in a complete release identit
   ]) {
     const root = createFixture((contract) => ({
       ...contract,
-      teamId: "ABCDEFGHIJ",
       chromium,
     }));
 
@@ -120,28 +121,29 @@ test("rejects upstream Bitwarden browser store IDs in a complete release identit
   }
 });
 
-test("requires exactly null values to represent absent release identities", () => {
+test("requires a concrete team ID and exactly null deferred browser IDs", () => {
   for (const values of [
     { teamId: "", chromium: { chromeExtensionId: null, edgeExtensionId: null } },
     { teamId: null, chromium: { chromeExtensionId: "", edgeExtensionId: null } },
-    { teamId: null, chromium: { chromeExtensionId: null, edgeExtensionId: "" } },
+    { teamId: "K7LY92JY96", chromium: { chromeExtensionId: null, edgeExtensionId: "" } },
   ]) {
     const root = createFixture((contract) => ({ ...contract, ...values }));
 
-    assert.throws(() => loadAutoFillSpikeContract(root), /release identities/);
+    assert.throws(() => loadAutoFillSpikeContract(root), /(?:team identity|browser release identities)/);
   }
 });
+
 
 test("release identity writer rejects forbidden fixture and duplicate extension IDs before signing lookup", () => {
   const writer = resolve(process.cwd(), "scripts/record-autofill-release-identities.mjs");
   const fixtureResult = spawnSync(
     process.execPath,
-    [writer, "ABCDEFGHIJ", fixtureChromeExtensionId, fixtureEdgeExtensionId],
+    [writer, fixtureChromeExtensionId, fixtureEdgeExtensionId],
     { encoding: "utf8" },
   );
   const duplicateResult = spawnSync(
     process.execPath,
-    [writer, "ABCDEFGHIJ", "cccccccccccccccccccccccccccccccc", "cccccccccccccccccccccccccccccccc"],
+    [writer, "cccccccccccccccccccccccccccccccc", "cccccccccccccccccccccccccccccccc"],
     { encoding: "utf8" },
   );
 
@@ -155,12 +157,12 @@ test("release identity writer rejects upstream Bitwarden store IDs before signin
   const writer = resolve(process.cwd(), "scripts/record-autofill-release-identities.mjs");
   const chromeResult = spawnSync(
     process.execPath,
-    [writer, "ABCDEFGHIJ", upstreamChromeExtensionId, "cccccccccccccccccccccccccccccccc"],
+    [writer, upstreamChromeExtensionId, "cccccccccccccccccccccccccccccccc"],
     { encoding: "utf8" },
   );
   const edgeResult = spawnSync(
     process.execPath,
-    [writer, "ABCDEFGHIJ", "dddddddddddddddddddddddddddddddd", upstreamEdgeExtensionId],
+    [writer, "dddddddddddddddddddddddddddddddd", upstreamEdgeExtensionId],
     { encoding: "utf8" },
   );
 
@@ -168,4 +170,16 @@ test("release identity writer rejects upstream Bitwarden store IDs before signin
   assert.match(chromeResult.stderr, /forbidden/);
   assert.notEqual(edgeResult.status, 0);
   assert.match(edgeResult.stderr, /forbidden/);
+});
+
+test("browser identity writer refuses a caller-supplied Team ID", () => {
+  const writer = resolve(process.cwd(), "scripts/record-autofill-release-identities.mjs");
+  const result = spawnSync(
+    process.execPath,
+    [writer, "K7LY92JY96", fixtureChromeExtensionId, fixtureEdgeExtensionId],
+    { encoding: "utf8" },
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /exactly two browser extension IDs/);
 });

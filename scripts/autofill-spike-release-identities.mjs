@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 
+export const barwardenTeamId = "K7LY92JY96";
+
 export const forbiddenChromiumExtensionIds = new Set([
   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -7,16 +9,29 @@ export const forbiddenChromiumExtensionIds = new Set([
   "jbkfoedolllekgbhcbcoahefnbanhhlh",
 ]);
 
-export function hasNoReleaseIdentities({ teamId, chromeExtensionId, edgeExtensionId }) {
-  return teamId === null && chromeExtensionId === null && edgeExtensionId === null;
+export function assertTeamIdentity(teamId) {
+  assert.equal(typeof teamId, "string", "team identity must be a non-empty Team ID");
+  assert.match(teamId, /^[A-Z0-9]{10}$/, "team identity must be a ten-character Team ID");
+  assert.equal(teamId, barwardenTeamId, `team identity must be ${barwardenTeamId}`);
 }
 
-export function assertBarwardenReleaseIdentities({ teamId, chromeExtensionId, edgeExtensionId }) {
-  assert.ok(teamId && chromeExtensionId && edgeExtensionId, "release identities must be a complete non-empty triple");
-  assert.match(teamId, /^[A-Z0-9]{10}$/);
+export function hasDeferredBrowserReleaseIdentities({ chromeExtensionId, edgeExtensionId }) {
+  return chromeExtensionId === null && edgeExtensionId === null;
+}
+
+export function assertBrowserReleaseIdentities({ chromeExtensionId, edgeExtensionId }) {
+  assert.ok(
+    typeof chromeExtensionId === "string" && typeof edgeExtensionId === "string",
+    "browser release identities must be a complete non-empty pair",
+  );
   assert.match(chromeExtensionId, /^[a-p]{32}$/);
   assert.match(edgeExtensionId, /^[a-p]{32}$/);
   assert.ok(!forbiddenChromiumExtensionIds.has(chromeExtensionId), "forbidden browser store ID cannot be recorded");
   assert.ok(!forbiddenChromiumExtensionIds.has(edgeExtensionId), "forbidden browser store ID cannot be recorded");
   assert.notEqual(chromeExtensionId, edgeExtensionId);
+}
+
+export function assertBarwardenReleaseIdentities({ teamId, chromeExtensionId, edgeExtensionId }) {
+  assertTeamIdentity(teamId);
+  assertBrowserReleaseIdentities({ chromeExtensionId, edgeExtensionId });
 }
