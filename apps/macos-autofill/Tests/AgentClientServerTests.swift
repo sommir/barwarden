@@ -15,7 +15,7 @@ final class AgentClientServerTests: XCTestCase {
         try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: sockets.client)
 
         AgentConnectionHandler(authorize: { _ in .mainApplication })
-            .handleAcceptedSocket(sockets.server)
+            .handleAcceptedSocket(sockets.takeServer())
 
         let response = try AgentSocketIO.readJSON(
             from: sockets.client,
@@ -39,7 +39,7 @@ final class AgentClientServerTests: XCTestCase {
         try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: sockets.client)
 
         AgentConnectionHandler(authorize: { _ in throw AgentProtocolError.unauthorized })
-            .handleAcceptedSocket(sockets.server)
+            .handleAcceptedSocket(sockets.takeServer())
 
         let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
         XCTAssertEqual(response.status, .error)
@@ -56,7 +56,7 @@ final class AgentClientServerTests: XCTestCase {
         )
 
         AgentConnectionHandler(authorize: { _ in .credentialProvider })
-            .handleAcceptedSocket(sockets.server)
+            .handleAcceptedSocket(sockets.takeServer())
 
         let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
         XCTAssertEqual(response.error, .malformedMessage)
@@ -67,7 +67,7 @@ final class AgentClientServerTests: XCTestCase {
         try AgentSocketIO.writeAll(Data([0x00, 0x01, 0x00, 0x01]), to: sockets.client)
 
         AgentConnectionHandler(authorize: { _ in .mainApplication })
-            .handleAcceptedSocket(sockets.server)
+            .handleAcceptedSocket(sockets.takeServer())
 
         let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
         XCTAssertEqual(response.error, .messageTooLarge)
@@ -78,7 +78,7 @@ final class AgentClientServerTests: XCTestCase {
         try AgentSocketIO.writeAll(Data([0x00, 0x01, 0x00, 0x01]), to: sockets.client)
 
         AgentConnectionHandler(authorize: { _ in throw AgentProtocolError.unauthorized })
-            .handleAcceptedSocket(sockets.server)
+            .handleAcceptedSocket(sockets.takeServer())
 
         let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
         XCTAssertEqual(response.error, .unauthorized)
@@ -96,15 +96,16 @@ final class AgentClientServerTests: XCTestCase {
 
     func testClientRejectsResponseWithWrongRequestID() throws {
         let sockets = try SocketPair()
-        let client = AgentClient(connect: { sockets.client }, timeout: 1)
+        let client = AgentClient(connect: { sockets.takeClient() }, timeout: 1)
         DispatchQueue.global().async {
-            defer { close(sockets.server) }
-            guard let request = try? AgentSocketIO.readJSON(from: sockets.server, as: AgentRequest.self) else { return }
+            let server = sockets.takeServer()
+            defer { close(server) }
+            guard let request = try? AgentSocketIO.readJSON(from: server, as: AgentRequest.self) else { return }
             let response = AgentResponse.success(
                 requestID: UUID(),
                 nonce: request.nonce
             )
-            try? AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(response), to: sockets.server)
+            try? AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(response), to: server)
         }
 
         XCTAssertThrowsError(try client.perform(.probe)) { error in
@@ -114,8 +115,9 @@ final class AgentClientServerTests: XCTestCase {
 
     func testClientReadDeadlineIsEnforced() throws {
         let sockets = try SocketPair()
-        defer { close(sockets.server) }
-        let client = AgentClient(connect: { sockets.client }, timeout: 0.05)
+        let server = sockets.takeServer()
+        defer { close(server) }
+        let client = AgentClient(connect: { sockets.takeClient() }, timeout: 0.05)
 
         XCTAssertThrowsError(try client.perform(.probe)) { error in
             XCTAssertEqual(error as? AgentProtocolError, .timeout)
@@ -124,10 +126,10 @@ final class AgentClientServerTests: XCTestCase {
 
     func testClientReceivesUnauthorizedCodeWhenServerRejectsBeforeDecode() throws {
         let sockets = try SocketPair()
-        let client = AgentClient(connect: { sockets.client }, timeout: 1)
+        let client = AgentClient(connect: { sockets.takeClient() }, timeout: 1)
         DispatchQueue.global().async {
             AgentConnectionHandler(authorize: { _ in throw AgentProtocolError.unauthorized })
-                .handleAcceptedSocket(sockets.server)
+                .handleAcceptedSocket(sockets.takeServer())
         }
 
         XCTAssertThrowsError(try client.perform(.probe)) { error in
@@ -135,20 +137,109 @@ final class AgentClientServerTests: XCTestCase {
         }
     }
 
+    func testAbsoluteReadDeadlineCoversHeaderAndPayloadDripFeed() throws {
+        let sockets = try SocketPair()
+        let finished = expectation(description: "handler deadline")
+        let started = DispatchTime.now().uptimeNanoseconds
+        DispatchQueue.global().async {
+            AgentConnectionHandler(authorize: { _ in .mainApplication }, timeout: 0.10)
+                .handleAcceptedSocket(sockets.takeServer())
+            finished.fulfill()
+        }
+
+        for byte in [UInt8(0), 0, 0, 8] {
+            _ = withUnsafePointer(to: byte) { Darwin.send(sockets.client, $0, 1, MSG_NOSIGNAL) }
+            usleep(35_000)
+        }
+
+        wait(for: [finished], timeout: 0.30)
+        let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
+        XCTAssertLessThan(elapsed, 0.25, "drip-fed bytes must not reset the request deadline")
+        let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
+        XCTAssertEqual(response.error, .timeout)
+    }
+
+    func testUnauthorizedSlowlorisIsRejectedWithoutWaitingForAFrame() throws {
+        let sockets = try SocketPair()
+        let finished = expectation(description: "unauthorized rejected")
+        DispatchQueue.global().async {
+            AgentConnectionHandler(authorize: { _ in throw AgentProtocolError.unauthorized }, timeout: 1)
+                .handleAcceptedSocket(sockets.takeServer())
+            finished.fulfill()
+        }
+
+        wait(for: [finished], timeout: 0.20)
+        let response = try AgentSocketIO.readJSON(from: sockets.client, as: AgentResponse.self)
+        XCTAssertEqual(response.error, .unauthorized)
+    }
+
+    func testBoundedExecutorRejectsBacklogImmediatelyAndRecoversCapacity() {
+        let executor = BoundedConnectionExecutor(maximumConcurrentConnections: 1)
+        let occupying = expectation(description: "occupying handler started")
+        let release = DispatchSemaphore(value: 0)
+        let completed = expectation(description: "occupying handler completed")
+        XCTAssertTrue(executor.submit {
+            occupying.fulfill()
+            release.wait()
+            completed.fulfill()
+        })
+        wait(for: [occupying], timeout: 1)
+
+        let rejectedWork = expectation(description: "rejected work must not run")
+        rejectedWork.isInverted = true
+        let started = DispatchTime.now().uptimeNanoseconds
+        XCTAssertFalse(executor.submit { rejectedWork.fulfill() })
+        let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
+        XCTAssertLessThan(elapsed, 0.05)
+
+        release.signal()
+        wait(for: [completed], timeout: 1)
+        let nextCompleted = expectation(description: "capacity recovered")
+        XCTAssertTrue(executor.submit { nextCompleted.fulfill() })
+        wait(for: [nextCompleted, rejectedWork], timeout: 1)
+    }
+
+    func testAuthorizedSlowlorisDoesNotBlockNormalClientWithinConcurrentLimit() throws {
+        let executor = BoundedConnectionExecutor(maximumConcurrentConnections: 2)
+        let handler = AgentConnectionHandler(authorize: { _ in .mainApplication }, timeout: 0.5)
+        let slowloris = try SocketPair()
+        let normal = try SocketPair()
+        try AgentSocketIO.applyDeadline(0.25, to: normal.client)
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .probe,
+            nonce: Data([9, 8, 7])
+        )
+
+        XCTAssertTrue(executor.submit {
+            handler.handleAcceptedSocket(slowloris.takeServer())
+        })
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: normal.client)
+        XCTAssertTrue(executor.submit {
+            handler.handleAcceptedSocket(normal.takeServer())
+        })
+
+        let response = try AgentSocketIO.readJSON(from: normal.client, as: AgentResponse.self)
+        XCTAssertEqual(response.status, .ok)
+        XCTAssertEqual(response.requestID, request.requestID)
+        close(slowloris.takeClient())
+    }
+
     private func performLoopbackClientRequest() throws -> AgentResponse {
         let sockets = try SocketPair()
-        let client = AgentClient(connect: { sockets.client }, timeout: 1)
+        let client = AgentClient(connect: { sockets.takeClient() }, timeout: 1)
         DispatchQueue.global().async {
             AgentConnectionHandler(authorize: { _ in .credentialProvider })
-                .handleAcceptedSocket(sockets.server)
+                .handleAcceptedSocket(sockets.takeServer())
         }
         return try client.perform(.probe)
     }
 }
 
-private final class SocketPair: @unchecked Sendable {
-    let client: Int32
-    let server: Int32
+final class SocketPair: @unchecked Sendable {
+    private(set) var client: Int32
+    private(set) var server: Int32
 
     init() throws {
         var descriptors: [Int32] = [0, 0]
@@ -160,7 +251,17 @@ private final class SocketPair: @unchecked Sendable {
     }
 
     deinit {
-        close(client)
-        close(server)
+        if client >= 0 { close(client) }
+        if server >= 0 { close(server) }
+    }
+
+    func takeClient() -> Int32 {
+        defer { client = -1 }
+        return client
+    }
+
+    func takeServer() -> Int32 {
+        defer { server = -1 }
+        return server
     }
 }

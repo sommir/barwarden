@@ -126,6 +126,7 @@ enum AgentProtocolError: String, Codable, Error, Equatable {
     case unauthorized
     case unsupportedVersion = "protocol_version"
     case replayedRequest = "replay"
+    case requestCapacity = "request_capacity"
     case timeout
     case unavailable
     case transport

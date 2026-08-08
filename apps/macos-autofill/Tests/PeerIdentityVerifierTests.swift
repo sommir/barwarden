@@ -43,8 +43,14 @@ final class PeerIdentityVerifierTests: XCTestCase {
 
     func testRejectsAcceptedSocketWithoutPeerPID() {
         let verifier = PeerIdentityVerifier(
-            peerPID: { _ in nil },
-            signingIdentity: { _ in XCTFail("signing lookup must not run without a peer PID"); return .init(teamIdentifier: nil, bundleIdentifier: nil) }
+            peerCredentials: { _ in
+                PeerCredentials(
+                    pid: 0,
+                    auditToken: Data(repeating: 7, count: MemoryLayout<audit_token_t>.size),
+                    auditTokenPID: 0
+                )
+            },
+            signingIdentity: { _ in XCTFail("signing lookup must not run without peer credentials"); return .init(teamIdentifier: nil, bundleIdentifier: nil) }
         )
 
         XCTAssertThrowsError(try verifier.verifyAcceptedSocket(7)) { error in
@@ -53,11 +59,14 @@ final class PeerIdentityVerifierTests: XCTestCase {
     }
 
     func testVerifierUsesKernelPIDRatherThanCallerClaimedIdentity() throws {
-        var inspectedPID: pid_t?
+        let auditToken = Data(repeating: 0xA5, count: MemoryLayout<audit_token_t>.size)
+        var inspectedAuditToken: Data?
         let verifier = PeerIdentityVerifier(
-            peerPID: { _ in 4_242 },
-            signingIdentity: { pid in
-                inspectedPID = pid
+            peerCredentials: { _ in
+                PeerCredentials(pid: 4_242, auditToken: auditToken, auditTokenPID: 4_242)
+            },
+            signingIdentity: { token in
+                inspectedAuditToken = token
                 return .init(
                     teamIdentifier: self.teamID,
                     bundleIdentifier: "com.sommir.barwarden"
@@ -68,7 +77,68 @@ final class PeerIdentityVerifierTests: XCTestCase {
 
         _ = try AgentFrame.decode(try AgentFrame.encode(requestWithForgedClaims), as: AgentRequest.self)
         XCTAssertEqual(try verifier.verifyAcceptedSocket(7), .mainApplication)
-        XCTAssertEqual(inspectedPID, 4_242)
+        XCTAssertEqual(inspectedAuditToken, auditToken)
+    }
+
+    func testRejectsMissingAuditToken() {
+        let verifier = PeerIdentityVerifier(
+            peerCredentials: { _ in
+                PeerCredentials(pid: 42, auditToken: Data(), auditTokenPID: 42)
+            },
+            signingIdentity: { _ in XCTFail("Security lookup must not run without an audit token"); return .init(teamIdentifier: nil, bundleIdentifier: nil) }
+        )
+
+        XCTAssertThrowsError(try verifier.verifyAcceptedSocket(7)) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .unauthorized)
+        }
+    }
+
+    func testRejectsLocalPeerPIDAndAuditTokenPIDMismatch() {
+        let verifier = PeerIdentityVerifier(
+            peerCredentials: { _ in
+                PeerCredentials(
+                    pid: 4_242,
+                    auditToken: Data(repeating: 1, count: MemoryLayout<audit_token_t>.size),
+                    auditTokenPID: 4_243
+                )
+            },
+            signingIdentity: { _ in XCTFail("Security lookup must not run for mismatched credentials"); return .init(teamIdentifier: nil, bundleIdentifier: nil) }
+        )
+
+        XCTAssertThrowsError(try verifier.verifyAcceptedSocket(7)) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .unauthorized)
+        }
+    }
+
+    func testSigningLookupIsBoundToAuditTokenRatherThanReusablePID() throws {
+        let trustedToken = Data(repeating: 0x11, count: MemoryLayout<audit_token_t>.size)
+        let reusedPIDToken = Data(repeating: 0x22, count: MemoryLayout<audit_token_t>.size)
+        var selectedToken = trustedToken
+        let verifier = PeerIdentityVerifier(
+            peerCredentials: { _ in
+                PeerCredentials(pid: 900, auditToken: selectedToken, auditTokenPID: 900)
+            },
+            signingIdentity: { token in
+                token == trustedToken
+                    ? .init(teamIdentifier: self.teamID, bundleIdentifier: "com.sommir.barwarden")
+                    : .init(teamIdentifier: "ATTACKER01", bundleIdentifier: "com.sommir.barwarden")
+            }
+        )
+
+        XCTAssertEqual(try verifier.verifyAcceptedSocket(7), .mainApplication)
+        selectedToken = reusedPIDToken
+        XCTAssertThrowsError(try verifier.verifyAcceptedSocket(7)) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .unauthorized)
+        }
+    }
+
+    func testKernelPeerCredentialsUseFullAuditTokenBuffer() throws {
+        let sockets = try SocketPair()
+        let credentials = PeerIdentityVerifier.kernelPeerCredentials(socket: sockets.server)
+
+        XCTAssertEqual(credentials?.pid, getpid())
+        XCTAssertEqual(credentials?.auditTokenPID, getpid())
+        XCTAssertEqual(credentials?.auditToken.count, MemoryLayout<audit_token_t>.size)
     }
 
     func testMalformedJSONIsSanitized() throws {
@@ -108,8 +178,39 @@ final class PeerIdentityVerifierTests: XCTestCase {
         }
     }
 
+    func testReplayCacheFailsClosedAtCapacityAndRetainsPriorIDs() throws {
+        let gate = AgentRequestGate(maximumRememberedRequestIDs: 2)
+        let first = request(id: UUID())
+        let second = request(id: UUID())
+
+        try gate.accept(first)
+        try gate.accept(second)
+        XCTAssertThrowsError(try gate.accept(request(id: UUID()))) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .requestCapacity)
+        }
+        XCTAssertThrowsError(try gate.accept(first)) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .replayedRequest)
+        }
+    }
+
+    func testReplayCapacityErrorUsesFixedSanitizedWireCode() throws {
+        let encoded = try JSONEncoder().encode(AgentResponse.failure(.requestCapacity))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+
+        XCTAssertEqual(json["error"] as? String, "request_capacity")
+    }
+
     private func makeVerifier(identity: PeerSigningIdentity) -> PeerIdentityVerifier {
-        PeerIdentityVerifier(peerPID: { _ in 42 }, signingIdentity: { _ in identity })
+        PeerIdentityVerifier(
+            peerCredentials: { _ in
+                PeerCredentials(
+                    pid: 42,
+                    auditToken: Data(repeating: 7, count: MemoryLayout<audit_token_t>.size),
+                    auditTokenPID: 42
+                )
+            },
+            signingIdentity: { _ in identity }
+        )
     }
 
     private func assertUnauthorized(identity: PeerSigningIdentity) {
@@ -117,5 +218,14 @@ final class PeerIdentityVerifierTests: XCTestCase {
         XCTAssertThrowsError(try verifier.verifyAcceptedSocket(7)) { error in
             XCTAssertEqual(error as? AgentProtocolError, .unauthorized)
         }
+    }
+
+    private func request(id: UUID) -> AgentRequest {
+        AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: id,
+            operation: .probe,
+            nonce: Data([1])
+        )
     }
 }

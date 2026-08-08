@@ -44,6 +44,7 @@ pub enum AgentErrorCode {
     UnsupportedVersion,
     #[serde(rename = "replay")]
     ReplayedRequest,
+    RequestCapacity,
     Timeout,
     Unavailable,
     Transport,
@@ -112,5 +113,12 @@ mod tests {
                 "error": "unauthorized"
             })
         );
+    }
+
+    #[test]
+    fn replay_capacity_error_matches_swift_wire_code() {
+        let code: AgentErrorCode = serde_json::from_str("\"request_capacity\"").unwrap();
+
+        assert_eq!(code, AgentErrorCode::RequestCapacity);
     }
 }

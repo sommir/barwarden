@@ -1,5 +1,30 @@
 import Darwin
+import Dispatch
 import Foundation
+
+struct AgentDeadline {
+    private let endNanoseconds: UInt64
+
+    init(timeout: TimeInterval) throws {
+        guard timeout.isFinite,
+              timeout > 0,
+              timeout <= Double(UInt64.max) / 1_000_000_000 else {
+            throw AgentProtocolError.transport
+        }
+        let interval = UInt64(timeout * 1_000_000_000)
+        let result = DispatchTime.now().uptimeNanoseconds.addingReportingOverflow(interval)
+        guard !result.overflow else { throw AgentProtocolError.transport }
+        endNanoseconds = result.partialValue
+    }
+
+    func remainingPollMilliseconds() throws -> Int32 {
+        let now = DispatchTime.now().uptimeNanoseconds
+        guard now < endNanoseconds else { throw AgentProtocolError.timeout }
+        let remainingNanoseconds = endNanoseconds - now
+        let roundedUpMilliseconds = (remainingNanoseconds + 999_999) / 1_000_000
+        return Int32(min(roundedUpMilliseconds, UInt64(Int32.max)))
+    }
+}
 
 enum AgentFrame {
     static let maximumPayloadBytes = 65_536
@@ -97,25 +122,36 @@ enum AgentSocketIO {
         }
     }
 
-    static func readJSON<Value: Decodable>(from socket: Int32, as type: Value.Type) throws -> Value {
-        try AgentFrame.decode(readFrame(from: socket), as: type)
+    static func readJSON<Value: Decodable>(
+        from socket: Int32,
+        as type: Value.Type,
+        deadline: AgentDeadline? = nil
+    ) throws -> Value {
+        try AgentFrame.decode(readFrame(from: socket, deadline: deadline), as: type)
     }
 
-    static func readFrame(from socket: Int32) throws -> Data {
-        let header = try readExactly(headerBytes, from: socket)
+    static func readFrame(from socket: Int32, deadline: AgentDeadline? = nil) throws -> Data {
+        let header = try readExactly(headerBytes, from: socket, deadline: deadline)
         let payloadLength = header.reduce(UInt32.zero) { partial, byte in
             (partial << 8) | UInt32(byte)
         }
         guard payloadLength <= AgentFrame.maximumPayloadBytes else {
             throw AgentProtocolError.messageTooLarge
         }
-        return header + (try readExactly(Int(payloadLength), from: socket))
+        return header + (try readExactly(Int(payloadLength), from: socket, deadline: deadline))
     }
 
-    private static func readExactly(_ byteCount: Int, from socket: Int32) throws -> Data {
+    private static func readExactly(
+        _ byteCount: Int,
+        from socket: Int32,
+        deadline: AgentDeadline?
+    ) throws -> Data {
         var data = Data(count: byteCount)
         var received = 0
         while received < byteCount {
+            if let deadline {
+                try waitUntilReadable(socket, deadline: deadline)
+            }
             let result = data.withUnsafeMutableBytes { rawBuffer -> Int in
                 guard let baseAddress = rawBuffer.baseAddress else { return 0 }
                 return Darwin.read(socket, baseAddress.advanced(by: received), byteCount - received)
@@ -133,5 +169,15 @@ enum AgentSocketIO {
             }
         }
         return data
+    }
+
+    private static func waitUntilReadable(_ socket: Int32, deadline: AgentDeadline) throws {
+        while true {
+            var descriptor = pollfd(fd: socket, events: Int16(POLLIN), revents: 0)
+            let result = Darwin.poll(&descriptor, 1, try deadline.remainingPollMilliseconds())
+            if result > 0 { return }
+            if result == 0 { throw AgentProtocolError.timeout }
+            if errno != EINTR { throw AgentProtocolError.transport }
+        }
     }
 }

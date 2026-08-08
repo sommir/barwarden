@@ -29,6 +29,8 @@
 		A10000000000000000000015 /* AgentClient.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* AgentClient.swift */; };
 		A10000000000000000000016 /* AgentClient.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* AgentClient.swift */; };
 		A10000000000000000000017 /* Security.framework in Provider Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* Security.framework */; };
+		A10000000000000000000018 /* libbsm.tbd in Agent Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* libbsm.tbd */; };
+		A10000000000000000000019 /* libbsm.tbd in Test Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* libbsm.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,12 +54,13 @@
 		A20000000000000000000013 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		A20000000000000000000014 /* AgentClientServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentClientServerTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* AgentClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentClient.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* libbsm.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbsm.tbd; path = usr/lib/libbsm.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000011 /* Security.framework in Agent Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000011 /* Security.framework in Agent Frameworks */, A10000000000000000000018 /* libbsm.tbd in Agent Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
 		A30000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AuthenticationServices.framework in Frameworks */, A10000000000000000000017 /* Security.framework in Provider Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
-		A30000000000000000000003 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000012 /* Security.framework in Test Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000003 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000012 /* Security.framework in Test Frameworks */, A10000000000000000000019 /* libbsm.tbd in Test Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -66,7 +69,7 @@
 		A40000000000000000000003 /* Agent */ = {isa = PBXGroup; children = (A20000000000000000000001 /* AgentMain.swift */, A20000000000000000000012 /* AgentServer.swift */, A20000000000000000000011 /* PeerIdentityVerifier.swift */, A20000000000000000000005 /* Agent Entitlements.plist */, A20000000000000000000006 /* Agent LaunchAgent.plist */,); path = Agent; sourceTree = "<group>"; };
 		A40000000000000000000004 /* CredentialProvider */ = {isa = PBXGroup; children = (A20000000000000000000002 /* CredentialProviderViewController.swift */, A20000000000000000000007 /* Credential Provider Info.plist */, A20000000000000000000008 /* Credential Provider Entitlements.plist */,); path = CredentialProvider; sourceTree = "<group>"; };
 		A40000000000000000000005 /* Tests */ = {isa = PBXGroup; children = (A20000000000000000000003 /* AgentProtocolTests.swift */, A20000000000000000000014 /* AgentClientServerTests.swift */, A20000000000000000000010 /* PeerIdentityVerifierTests.swift */,); path = Tests; sourceTree = "<group>"; };
-		A40000000000000000000006 /* Frameworks */ = {isa = PBXGroup; children = (A2000000000000000000000D /* AuthenticationServices.framework */, A20000000000000000000013 /* Security.framework */,); name = Frameworks; sourceTree = "<group>"; };
+		A40000000000000000000006 /* Frameworks */ = {isa = PBXGroup; children = (A2000000000000000000000D /* AuthenticationServices.framework */, A20000000000000000000013 /* Security.framework */, A20000000000000000000016 /* libbsm.tbd */,); name = Frameworks; sourceTree = "<group>"; };
 		A40000000000000000000007 /* Products */ = {isa = PBXGroup; children = (A20000000000000000000009 /* BarwardenAutoFillAgent */, A2000000000000000000000A /* BarwardenCredentialProvider.appex */, A2000000000000000000000B /* BarwardenAutoFillTests.xctest */,); name = Products; sourceTree = "<group>"; };
 		A40000000000000000000008 /* Shared */ = {isa = PBXGroup; children = (A2000000000000000000000E /* AgentProtocol.swift */, A2000000000000000000000F /* AgentFraming.swift */, A20000000000000000000015 /* AgentClient.swift */,); path = Shared; sourceTree = "<group>"; };
 /* End PBXGroup section */

@@ -4,6 +4,12 @@ import Foundation
 final class AgentRequestGate {
     private var requestIDs: Set<UUID> = []
     private let lock = NSLock()
+    private let maximumRememberedRequestIDs: Int
+
+    init(maximumRememberedRequestIDs: Int = 4_096) {
+        precondition(maximumRememberedRequestIDs > 0)
+        self.maximumRememberedRequestIDs = maximumRememberedRequestIDs
+    }
 
     func accept(_ request: AgentRequest) throws {
         guard request.version == AgentProtocol.currentVersion else {
@@ -12,9 +18,36 @@ final class AgentRequestGate {
 
         lock.lock()
         defer { lock.unlock() }
-        guard requestIDs.insert(request.requestID).inserted else {
+        guard !requestIDs.contains(request.requestID) else {
             throw AgentProtocolError.replayedRequest
         }
+        guard requestIDs.count < maximumRememberedRequestIDs else {
+            throw AgentProtocolError.requestCapacity
+        }
+        requestIDs.insert(request.requestID)
+    }
+}
+
+final class BoundedConnectionExecutor {
+    private let capacity: DispatchSemaphore
+    private let queue = DispatchQueue(
+        label: "com.sommir.barwarden.autofill-agent.connections",
+        qos: .userInitiated,
+        attributes: .concurrent
+    )
+
+    init(maximumConcurrentConnections: Int) {
+        precondition(maximumConcurrentConnections > 0)
+        capacity = DispatchSemaphore(value: maximumConcurrentConnections)
+    }
+
+    func submit(_ work: @escaping () -> Void) -> Bool {
+        guard capacity.wait(timeout: .now()) == .success else { return false }
+        queue.async { [capacity] in
+            defer { capacity.signal() }
+            work()
+        }
+        return true
     }
 }
 
@@ -39,14 +72,15 @@ final class AgentConnectionHandler {
         defer { close(socket) }
         do {
             try AgentSocketIO.applyDeadline(timeout, to: socket)
-            let authorization: Result<AuthorizedPeer, Error> = Result {
-                try authorize(socket)
+            let deadline = try AgentDeadline(timeout: timeout)
+            do {
+                _ = try authorize(socket)
+            } catch {
+                try? sendFailure(.unauthorized, to: socket)
+                finishRejectedConnection(socket)
+                return
             }
-            let incomingFrame: Result<Data, Error> = Result {
-                try AgentSocketIO.readFrame(from: socket)
-            }
-            _ = try authorization.get()
-            let frame = try incomingFrame.get()
+            let frame = try AgentSocketIO.readFrame(from: socket, deadline: deadline)
             let request = try AgentFrame.decode(frame, as: AgentRequest.self)
             try requestGate.accept(request)
             let response = AgentResponse.success(requestID: request.requestID, nonce: request.nonce)
@@ -64,18 +98,53 @@ final class AgentConnectionHandler {
             to: socket
         )
     }
+
+    private func finishRejectedConnection(_ socket: Int32) {
+        _ = shutdown(socket, SHUT_WR)
+        var buffer = [UInt8](repeating: 0, count: 4_096)
+        var remaining = AgentFrame.maximumPayloadBytes + MemoryLayout<UInt32>.size
+        let drainEnd = DispatchTime.now().uptimeNanoseconds + 25_000_000
+        while remaining > 0 {
+            let now = DispatchTime.now().uptimeNanoseconds
+            guard now < drainEnd else { break }
+            let remainingMilliseconds = Int32(
+                min((drainEnd - now + 999_999) / 1_000_000, UInt64(Int32.max))
+            )
+            var descriptor = pollfd(fd: socket, events: Int16(POLLIN), revents: 0)
+            let pollResult = Darwin.poll(&descriptor, 1, remainingMilliseconds)
+            if pollResult == 0 { break }
+            if pollResult < 0 {
+                if errno == EINTR { continue }
+                break
+            }
+            let amount = min(buffer.count, remaining)
+            let result = recv(socket, &buffer, amount, MSG_DONTWAIT)
+            if result > 0 {
+                remaining -= result
+            } else if result < 0, errno == EINTR {
+                continue
+            } else {
+                break
+            }
+        }
+    }
 }
 
 final class AgentServer {
     private let socketURL: URL
     private let handler: AgentConnectionHandler
+    private let executor: BoundedConnectionExecutor
 
     init(
         socketURL: URL,
-        handler: AgentConnectionHandler = AgentConnectionHandler()
+        handler: AgentConnectionHandler = AgentConnectionHandler(),
+        maximumConcurrentConnections: Int = 8
     ) {
         self.socketURL = socketURL
         self.handler = handler
+        executor = BoundedConnectionExecutor(
+            maximumConcurrentConnections: maximumConcurrentConnections
+        )
     }
 
     func run() throws -> Never {
@@ -118,7 +187,9 @@ final class AgentServer {
         while true {
             let accepted = accept(listener, nil, nil)
             if accepted >= 0 {
-                handler.handleAcceptedSocket(accepted)
+                if !executor.submit({ [handler] in handler.handleAcceptedSocket(accepted) }) {
+                    close(accepted)
+                }
             } else if errno != EINTR {
                 throw AgentProtocolError.transport
             }
