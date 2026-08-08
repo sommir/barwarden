@@ -8,6 +8,14 @@ final class AgentProtocolTests: XCTestCase {
         }
     }
 
+    func testFrameRejectsIncomingDeclaredLengthOver64KiB() throws {
+        let oversizedHeader = Data([0x00, 0x01, 0x00, 0x01])
+
+        XCTAssertThrowsError(try AgentFrame.payload(from: oversizedHeader)) { error in
+            XCTAssertEqual(error as? AgentProtocolError, .messageTooLarge)
+        }
+    }
+
     func testFrameAcceptsPayloadAt64KiBBoundary() throws {
         let payload = Data(repeating: 0x5a, count: 65_536)
 
@@ -41,6 +49,13 @@ final class AgentProtocolTests: XCTestCase {
         XCTAssertEqual(
             try AgentFrame.decode(AgentFrame.encodeJSON(request), as: AgentRequest.self),
             request
+        )
+    }
+
+    func testCredentialProviderRuntimeClassKeepsModuleQualification() {
+        XCTAssertEqual(
+            NSStringFromClass(CredentialProviderViewController.self),
+            "BarwardenAutoFillTests.CredentialProviderViewController"
         )
     }
 }

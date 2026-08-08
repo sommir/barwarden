@@ -9,12 +9,31 @@ SCHEME="BarwardenNativeAutoFill"
 CONFIGURATION="${CONFIGURATION:-Release}"
 DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$REPOSITORY_ROOT/apps/macos-autofill/build/DerivedData}"
 STAGING_DIR="${STAGING_DIR:-$REPOSITORY_ROOT/apps/macos-autofill/build/Staging/$CONFIGURATION}"
-DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-XCODEBUILD="${XCODEBUILD:-xcodebuild}"
+XCODE_SELECT="${XCODE_SELECT:-/usr/bin/xcode-select}"
 
 fail() {
   echo "build-native-autofill: $*" >&2
   exit 1
+}
+
+fail_with_code() {
+  local code="$1"
+  shift
+  echo "build-native-autofill: $*" >&2
+  exit "$code"
+}
+
+reject_symlink_components() {
+  local target="$1"
+  local current="/"
+  local component
+  local components
+  IFS='/' read -r -a components <<< "${target#/}"
+  for component in "${components[@]}"; do
+    [[ -n "$component" ]] || continue
+    current="${current%/}/$component"
+    [[ ! -L "$current" ]] || fail "path contains a symbolic link: $current"
+  done
 }
 
 case "$CONFIGURATION" in
@@ -24,11 +43,25 @@ esac
 
 [[ "$DERIVED_DATA_PATH" = /* ]] || fail "DERIVED_DATA_PATH must be an absolute path"
 [[ "$STAGING_DIR" = /* ]] || fail "STAGING_DIR must be an absolute path"
-[[ ! -L "$DERIVED_DATA_PATH" ]] || fail "DERIVED_DATA_PATH must not be a symbolic link"
-[[ ! -L "$STAGING_DIR" ]] || fail "STAGING_DIR must not be a symbolic link"
-[[ -d "$DEVELOPER_DIR" ]] || fail "DEVELOPER_DIR does not contain a full Xcode installation"
+reject_symlink_components "$DERIVED_DATA_PATH"
+reject_symlink_components "$STAGING_DIR"
+
+if [[ -z "${DEVELOPER_DIR:-}" ]]; then
+  DEVELOPER_DIR="$($XCODE_SELECT -p 2>/dev/null)" ||
+    fail_with_code 78 "unable to select a full Xcode developer directory"
+fi
+if [[ ! -x "$DEVELOPER_DIR/usr/bin/xcodebuild" || ! -d "$DEVELOPER_DIR/Platforms/MacOSX.platform" ]]; then
+  fail_with_code 78 "DEVELOPER_DIR is not a full Xcode developer directory"
+fi
+XCODEBUILD="${XCODEBUILD:-$DEVELOPER_DIR/usr/bin/xcodebuild}"
 
 mkdir -p "$DERIVED_DATA_PATH"
+mkdir -p "$STAGING_DIR"
+reject_symlink_components "$DERIVED_DATA_PATH"
+reject_symlink_components "$STAGING_DIR"
+if find "$STAGING_DIR" -mindepth 1 -print -quit | grep -q .; then
+  fail "STAGING_DIR must be empty"
+fi
 
 xcode_arguments=(
   -project "$PROJECT_PATH"
@@ -42,34 +75,30 @@ fi
 
 env DEVELOPER_DIR="$DEVELOPER_DIR" "$XCODEBUILD" "${xcode_arguments[@]}" build
 
+reject_symlink_components "$DERIVED_DATA_PATH"
+reject_symlink_components "$STAGING_DIR"
 PRODUCTS_DIR="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION"
+reject_symlink_components "$PRODUCTS_DIR"
 AGENT_SOURCE="$PRODUCTS_DIR/BarwardenAutoFillAgent"
 PROVIDER_SOURCE="$PRODUCTS_DIR/BarwardenCredentialProvider.appex"
 
 [[ -f "$AGENT_SOURCE" && -x "$AGENT_SOURCE" ]] || fail "Agent product is missing or not executable"
 [[ -d "$PROVIDER_SOURCE" ]] || fail "Credential Provider product is missing"
 
-for expected_product in "$AGENT_SOURCE" "$PROVIDER_SOURCE"; do
-  [[ ! -L "$expected_product" ]] || fail "product must not be a symbolic link: $expected_product"
-  if [[ -d "$expected_product" ]] && find "$expected_product" -type l -print -quit | grep -q .; then
-    fail "product contains a symbolic link: $expected_product"
-  fi
-done
+if [[ -n "$(find "$PRODUCTS_DIR" -type l -print -quit)" ]]; then
+  fail "built products must not contain a symbolic link"
+fi
 
 while IFS= read -r candidate; do
   name="$(basename "$candidate")"
   case "$name" in
     BarwardenAutoFillAgent|BarwardenCredentialProvider.appex) ;;
-    *.app|*.appex|*.xpc|*.xctest) fail "unexpected product: $name" ;;
-    *)
-      if [[ -f "$candidate" && -x "$candidate" ]]; then
-        fail "unexpected product: $name"
-      fi
-      ;;
+    BarwardenAutoFillAgent.dSYM|BarwardenAutoFillAgent.swiftmodule) ;;
+    BarwardenCredentialProvider.appex.dSYM|BarwardenCredentialProvider.swiftmodule) ;;
+    *) fail "unexpected product: $name" ;;
   esac
 done < <(find "$PRODUCTS_DIR" -mindepth 1 -maxdepth 1 -print | LC_ALL=C sort)
 
-mkdir -p "$STAGING_DIR"
 if find "$STAGING_DIR" -mindepth 1 -print -quit | grep -q .; then
   fail "STAGING_DIR must be empty"
 fi

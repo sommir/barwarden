@@ -16,6 +16,7 @@
 		A10000000000000000000008 /* AgentFraming.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AgentFraming.swift */; };
 		A10000000000000000000009 /* AgentProtocol.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* AgentProtocol.swift */; };
 		A1000000000000000000000A /* AgentFraming.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AgentFraming.swift */; };
+		A1000000000000000000000B /* CredentialProviderViewController.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* CredentialProviderViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,7 +72,7 @@
 /* Begin PBXSourcesBuildPhase section */
 		A60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* AgentMain.swift in Sources */, A10000000000000000000005 /* AgentProtocol.swift in Agent Sources */, A10000000000000000000006 /* AgentFraming.swift in Agent Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A60000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000002 /* CredentialProviderViewController.swift in Sources */, A10000000000000000000007 /* AgentProtocol.swift in Provider Sources */, A10000000000000000000008 /* AgentFraming.swift in Provider Sources */,); runOnlyForDeploymentPostprocessing = 0; };
-		A60000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* AgentProtocolTests.swift in Sources */, A10000000000000000000009 /* AgentProtocol.swift in Test Sources */, A1000000000000000000000A /* AgentFraming.swift in Test Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* AgentProtocolTests.swift in Sources */, A10000000000000000000009 /* AgentProtocol.swift in Test Sources */, A1000000000000000000000A /* AgentFraming.swift in Test Sources */, A1000000000000000000000B /* CredentialProviderViewController.swift in Test Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */

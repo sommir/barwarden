@@ -1,7 +1,6 @@
 import AppKit
 import AuthenticationServices
 
-@objc(CredentialProviderViewController)
 final class CredentialProviderViewController: ASCredentialProviderViewController {
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
         let label = NSTextField(labelWithString: "Barwarden AutoFill")

@@ -43,3 +43,18 @@
 - Confirmed the Release build action contains only the Agent and Credential Provider; the test bundle is not a Release deliverable.
 - Confirmed all generated build, result, and staging paths are outside the repository and no certificate, private key, API key, provisioning profile, password, or machine-specific external path is included.
 - The only observed warning relevant to test execution is that Xcode 26.6's bundled XCTest libraries declare macOS 14 while the test target inherits the required 13.0 floor. Both production products compile with `-target ...-apple-macos13.0`; the warning affects only running this Xcode version's XCTest bundle, not either shipped product.
+
+## Review remediation
+
+- Verified Xcode 26.6's macOS AutoFill template before changing the principal class: the template uses the module-qualified `NSExtensionPrincipalClass` and does not apply an explicit unqualified `@objc` rename. Removed that rename. A Swift runtime-name regression test and the expanded Info.plist from a real unsigned build now jointly verify the class/metadata contract.
+- Removed the wrapper's machine-specific Xcode default. It now respects a caller-provided `DEVELOPER_DIR`, otherwise asks `xcode-select`, validates that the selected directory contains both `xcodebuild` and the macOS platform, and exits with status 78 when only Command Line Tools are selected.
+- Hardened derived-data, staging, and product validation. Every existing path component is checked for symlinks before and after directory creation, every symlink in the built product tree is rejected, staging must be empty before the build, and the top-level product inventory is an exact allowlist of the two products plus Xcode's four observed bookkeeping entries.
+- Replaced disconnected project-text assertions with Xcode-parsed Debug and Release build settings, parsed shared-scheme XML associations, semantic plist checks, and real unsigned product inspection. The Agent's Mach-O `__info_plist` and the provider's expanded principal class are both asserted.
+- Added the requested incoming four-byte declared-length test for a payload greater than 65,536 bytes.
+
+### Review TDD and verification evidence
+
+- RED: the upgraded Node suite produced the expected three behavioral failures (invalid Xcode selection was accepted, a symlink ancestor was accepted, and an unexpected framework was accepted). The upgraded Swift suite executed seven tests with the principal-class runtime-name test as its single failure; the oversized incoming-frame test already passed against the bounded decoder.
+- GREEN: `node --test scripts/native-autofill-project.spec.mjs` with a runtime-provided full Xcode directory passed 11/11, including parsed Debug/Release settings, scheme associations, real product metadata, symlink ancestry/subtree cases, strict `.framework`/`.bundle`/arbitrary inventory cases, and non-empty staging.
+- GREEN: the unsigned Debug Xcode test run executed 7 tests with 0 failures. A real unsigned universal Release wrapper run succeeded and staged exactly `BarwardenAutoFillAgent` and `BarwardenCredentialProvider.appex`; its expanded provider metadata contains the exact bundle ID, macOS 13.0 floor, and module-qualified principal class.
+- Full repository regression was run once after the production fixes: 231 files passed, 2 skipped; 3,462 tests passed, 22 skipped (exit 0).
