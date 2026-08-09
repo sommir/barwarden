@@ -82,6 +82,26 @@ test("release builder policy requires exactly Agent then Provider then app then 
   );
   assert.throws(
     () => verifyNativeAutoFillBuilderPolicy([
+      signingArguments.replace("(--force", "(--identifier=com.sommir.shared --force"),
+      agent,
+      provider,
+      app,
+      dmg,
+    ].join("\n")),
+    /NATIVE_AUTOFILL_SIGNING_ARGS_IDENTIFIER_FORBIDDEN/,
+  );
+  assert.throws(
+    () => verifyNativeAutoFillBuilderPolicy([
+      signingArguments,
+      agent,
+      provider.replace('"$APP', '--identifier=com.sommir.wrong "$APP'),
+      app,
+      dmg,
+    ].join("\n")),
+    /NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID/,
+  );
+  assert.throws(
+    () => verifyNativeAutoFillBuilderPolicy([
       signingArguments,
       agent,
       provider.replace('"$APP', '--identifier "com.sommir.wrong" "$APP'),

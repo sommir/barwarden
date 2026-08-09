@@ -71,12 +71,12 @@ export function verifyNativeAutoFillBuilderPolicy(source) {
   ) {
     throw new Error("NATIVE_AUTOFILL_SIGN_ORDER_INVALID");
   }
-  if (/(?:^|[\s(])--identifier(?:\s|$)/u.test(signingArguments[0])) {
+  if (/(?:^|[\s(])--identifier(?:=|\s|$)/u.test(signingArguments[0])) {
     throw new Error("NATIVE_AUTOFILL_SIGNING_ARGS_IDENTIFIER_FORBIDDEN");
   }
   if (
     !signingLines[0].includes('--identifier "com.sommir.barwarden.autofill-agent"') ||
-    signingLines.slice(1).some((line) => /(?:^|\s)--identifier(?:\s|$)/u.test(line))
+    signingLines.slice(1).some((line) => /(?:^|\s)--identifier(?:=|\s|$)/u.test(line))
   ) {
     throw new Error("NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID");
   }

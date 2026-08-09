@@ -52,6 +52,10 @@ test("local builder preflight accepts only explicit external references and warn
 
 test("static local policy cannot be confused with release or deep signing", () => {
   const source = readFileSync(builder, "utf8");
+  const providerEqualsIdentifier = source.replace(
+    /(NATIVE_AUTOFILL_LOCAL_PROVIDER_SIGN_FAILED[\s\S]*?\/usr\/bin\/codesign "\$\{SIGNING_ARGS\[@\]\}")/u,
+    "$1 --identifier=com.sommir.wrong",
+  );
   const valid = run(process.execPath, [policy, builder]);
   assert.equal(valid.status, 0, valid.stderr);
   assert.equal(valid.stdout.trim(), "NATIVE_AUTOFILL_LOCAL_SMOKE_POLICY_PASS");
@@ -69,6 +73,8 @@ test("static local policy cannot be confused with release or deep signing", () =
       ["temp-failure", source.replace('2>/dev/null)" || fail NATIVE_AUTOFILL_LOCAL_TEMP_CREATE_FAILED', ')"'), "NATIVE_AUTOFILL_LOCAL_TEMP_CONTRACT_INVALID"],
       ["agent-identifier", source.replace('--identifier "com.sommir.barwarden.autofill-agent"', ''), "NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID"],
       ["shared-identifier", source.replace('SIGNING_ARGS=(--force', 'SIGNING_ARGS=(--identifier "com.sommir.shared" --force'), "NATIVE_AUTOFILL_SIGNING_ARGS_IDENTIFIER_FORBIDDEN"],
+      ["shared-identifier-equals", source.replace('SIGNING_ARGS=(--force', 'SIGNING_ARGS=(--identifier=com.sommir.shared --force'), "NATIVE_AUTOFILL_SIGNING_ARGS_IDENTIFIER_FORBIDDEN"],
+      ["provider-identifier-equals", providerEqualsIdentifier, "NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID"],
       ["requirement-command", source.replace('/usr/bin/codesign --verify -R="anchor apple generic', '/usr/bin/codesign -R "=designated => anchor apple generic'), "NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_COMMAND_INVALID"],
     ];
     for (const [name, mutation, code] of mutations) {
