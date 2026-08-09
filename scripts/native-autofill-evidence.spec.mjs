@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import Ajv2020 from "ajv/dist/2020.js";
 
 import {
   assertNativeAutoFillEvidence,
@@ -23,7 +24,8 @@ test("checked-in evidence is blocked, fixed-code-only, and schema-shaped", () =>
   assert.equal(evidence.productVersion, "0.1.2");
   assert.equal(evidence.artifactHashes.appSha256, null);
   assert.equal(evidence.artifactHashes.dmgSha256, null);
-  assert.ok(evidence.codes.includes("NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE"));
+  assert.equal(evidence.productionPromoted, false);
+  assert.ok(evidence.codes.includes("NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING"));
   assertNativeAutoFillEvidence(evidence);
   for (const code of [...evidence.codes, ...Object.values(evidence.liveMatrix)]) {
     assert.match(code, /^NATIVE_AUTOFILL_[A-Z0-9_]+$/);
@@ -64,6 +66,46 @@ test("PASS is rejected until artifacts and every live gate pass", () => {
   const evidence = createBlockedNativeAutoFillEvidence({ osVersion: "26.6" });
   evidence.status = "PASS";
   assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_PASS_INVALID/);
+});
+
+test("fixed-looking but unknown evidence codes are rejected", () => {
+  const evidence = createBlockedNativeAutoFillEvidence({ osVersion: "26.6" });
+  evidence.codes.push("NATIVE_AUTOFILL_MADE_UP_BLOCKER");
+  assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_INVALID/);
+  const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
+  const validate = new Ajv2020({ strict: false }).compile(schema);
+  assert.equal(validate(evidence), false);
+});
+
+test("JSON Schema rejects PASS without full hashes, pass codes, promotion, and a fully passing matrix", () => {
+  const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
+  const validate = new Ajv2020({ strict: false }).compile(schema);
+  const evidence = createBlockedNativeAutoFillEvidence({ osVersion: "26.6" });
+  evidence.status = "PASS";
+  assert.equal(validate(evidence), false);
+});
+
+test("PASS requires the explicit productionPromoted boolean in both runtime and JSON Schema validation", () => {
+  const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
+  const validate = new Ajv2020({ strict: false }).compile(schema);
+  const evidence = createBlockedNativeAutoFillEvidence({ osVersion: "26.6" });
+  evidence.status = "PASS";
+  evidence.artifactHashes = { appSha256: "a".repeat(64), dmgSha256: "b".repeat(64) };
+  evidence.codes = [
+    "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS",
+    "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS",
+    "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS",
+    "NATIVE_AUTOFILL_PRODUCTION_PROMOTED",
+  ];
+  evidence.liveMatrix = Object.fromEntries(
+    Object.keys(evidence.liveMatrix).map((key) => [key, "NATIVE_AUTOFILL_LIVE_PASS"]),
+  );
+  evidence.productionPromoted = false;
+  assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_PASS_INVALID/);
+  assert.equal(validate(evidence), false);
+  evidence.productionPromoted = true;
+  assert.doesNotThrow(() => assertNativeAutoFillEvidence(evidence));
+  assert.equal(validate(evidence), true, JSON.stringify(validate.errors));
 });
 
 test("writer emits JSON and Markdown without paths or credential references", () => {

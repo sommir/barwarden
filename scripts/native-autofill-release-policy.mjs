@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 
 const EXPECTED_TEAM_ID = "K7LY92JY96";
-const EXPECTED_APP_GROUP = "group.com.sommir.barwarden.autofill";
+const EXPECTED_APP_GROUP = "K7LY92JY96.com.sommir.barwarden.autofill";
 const EXPECTED_MINIMUM_MACOS = "13.0";
+const EXPECTED_PRODUCT_VERSION = "0.1.2";
 const EXPECTED_COMPONENTS = new Map([
   ["app", { path: ".", bundleId: "com.sommir.barwarden" }],
   [
@@ -46,7 +47,9 @@ const EXPECTED_ENTITLEMENT_KEYS = new Map([
   [
     "credential-provider",
     [
+      "com.apple.application-identifier",
       "com.apple.developer.authentication-services.autofill-credential-provider",
+      "com.apple.developer.team-identifier",
       "com.apple.security.app-sandbox",
       "com.apple.security.application-groups",
     ],
@@ -65,6 +68,9 @@ export function verifyNativeAutoFillInspection(inspection) {
   ) {
     reject("NATIVE_AUTOFILL_CONTRACT_MISMATCH");
   }
+  if (inspection.productVersion !== EXPECTED_PRODUCT_VERSION) {
+    reject("NATIVE_AUTOFILL_VERSION_MISMATCH");
+  }
 
   const byRole = new Map();
   for (const component of inspection.inventory) {
@@ -80,6 +86,15 @@ export function verifyNativeAutoFillInspection(inspection) {
     reject("NATIVE_AUTOFILL_INVENTORY_MISSING");
   }
   if (!Array.isArray(inspection.unexpectedNestedCode) || inspection.unexpectedNestedCode.length !== 0) {
+    reject("NATIVE_AUTOFILL_INVENTORY_UNEXPECTED");
+  }
+  if (!Array.isArray(inspection.unexpectedSymlinks) || inspection.unexpectedSymlinks.length !== 0) {
+    reject("NATIVE_AUTOFILL_SYMLINK_FORBIDDEN");
+  }
+  if (
+    !Array.isArray(inspection.unexpectedMachO) || inspection.unexpectedMachO.length !== 0 ||
+    !Array.isArray(inspection.unexpectedDylibs) || inspection.unexpectedDylibs.length !== 0
+  ) {
     reject("NATIVE_AUTOFILL_INVENTORY_UNEXPECTED");
   }
 
@@ -138,6 +153,23 @@ export function verifyNativeAutoFillInspection(inspection) {
   if (app.appSandbox !== false || agent.appSandbox !== false) {
     reject("NATIVE_AUTOFILL_SANDBOX_UNEXPECTED");
   }
+  if (
+    provider.applicationIdentifier !== `${EXPECTED_TEAM_ID}.com.sommir.barwarden.credential-provider` ||
+    provider.developerTeamIdentifier !== EXPECTED_TEAM_ID
+  ) {
+    reject("NATIVE_AUTOFILL_PROVIDER_ENTITLEMENT_INVALID");
+  }
+  for (const component of [app, agent]) {
+    if (
+      component.applicationIdentifier !== null ||
+      component.developerTeamIdentifier !== null ||
+      component.profileApplicationIdentifierKey !== null ||
+      !exactStringArray(component.profileEntitlementKeys, []) ||
+      component.profileCertificateMatchesSigner !== null
+    ) {
+      reject("NATIVE_AUTOFILL_ENTITLEMENT_INVENTORY_INVALID");
+    }
+  }
   if (inspection.insideOutSigning !== true) {
     reject("NATIVE_AUTOFILL_SIGN_ORDER_INVALID");
   }
@@ -147,26 +179,29 @@ export function verifyNativeAutoFillInspection(inspection) {
   if (inspection.outerSealValid !== true) {
     reject("NATIVE_AUTOFILL_OUTER_SEAL_INVALID");
   }
-  if (inspection.appProfileValid !== true) {
-    reject("NATIVE_AUTOFILL_APP_PROFILE_INVALID");
-  }
-  if (app.profileApplicationIdentifierKey !== "com.apple.application-identifier") {
-    reject("NATIVE_AUTOFILL_APP_PROFILE_INVALID");
-  }
   if (inspection.providerProfileValid !== true) {
     reject("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
   }
   if (provider.profileApplicationIdentifierKey !== "com.apple.application-identifier") {
     reject("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
   }
-  if (agent.profileApplicationIdentifierKey !== null) {
-    reject("NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE");
+  if (
+    !exactStringArray(provider.profileEntitlementKeys, EXPECTED_ENTITLEMENT_KEYS.get("credential-provider")) ||
+    provider.profileCertificateMatchesSigner !== true
+  ) {
+    reject("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
   }
-  if (inspection.agentRestrictedEntitlementPackageable !== true) {
-    reject("NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE");
+  if (inspection.launchAgentValid !== true) {
+    reject("NATIVE_AUTOFILL_LAUNCH_AGENT_INVALID");
+  }
+  if (inspection.registrationCommandSurfaceValid !== true) {
+    reject("NATIVE_AUTOFILL_AGENT_REGISTRATION_SURFACE_MISSING");
   }
   if (inspection.dmgInventoryValid !== true) {
     reject("NATIVE_AUTOFILL_DMG_INVENTORY_INVALID");
+  }
+  if (inspection.dmgSignatureValid !== true) {
+    reject("NATIVE_AUTOFILL_DMG_SIGNATURE_INVALID");
   }
   if (inspection.notarized !== true) {
     reject("NATIVE_AUTOFILL_NOTARIZATION_MISSING");
@@ -185,6 +220,12 @@ export function verifyNativeAutoFillInspection(inspection) {
   }
   if (inspection.dmgGatekeeperAccepted !== true) {
     reject("NATIVE_AUTOFILL_DMG_GATEKEEPER_REJECTED");
+  }
+  if (
+    inspection.attestedAppManifestSha256 !== inspection.artifacts?.appSha256 ||
+    inspection.builderPolicyHashValid !== true
+  ) {
+    reject("NATIVE_AUTOFILL_ATTESTATION_INVALID");
   }
   return "NATIVE_AUTOFILL_RELEASE_GATE_PASS";
 }

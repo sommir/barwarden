@@ -2,6 +2,8 @@ import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { NATIVE_AUTOFILL_RELEASE_CODES } from "./native-autofill-release-codes.mjs";
+
 const LIVE_KEYS = [
   "freshInstallCurrent",
   "updateCurrent",
@@ -34,13 +36,12 @@ export function createBlockedNativeAutoFillEvidence({ osVersion }) {
     productVersion: "0.1.2",
     teamId: "K7LY92JY96",
     osVersion,
+    productionPromoted: false,
     artifactHashes: { appSha256: null, dmgSha256: null },
     codes: [
       "NATIVE_AUTOFILL_TOOLING_IMPLEMENTED",
-      "NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE",
       "NATIVE_AUTOFILL_SIGNING_IDENTITY_KEYCHAIN_MISSING",
       "NATIVE_AUTOFILL_PRIVATE_KEY_IMPORT_NOT_AUTHORIZED",
-      "NATIVE_AUTOFILL_APP_PROFILE_MISSING",
       "NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING",
       "NATIVE_AUTOFILL_XCODE_AUTOMATIC_PROVISIONING_NOT_AUTHORIZED",
       "NATIVE_AUTOFILL_NOTARY_PROFILE_MISSING",
@@ -61,13 +62,16 @@ export function assertNativeAutoFillEvidence(evidence) {
     !["PASS", "BLOCKED"].includes(evidence?.status) ||
     evidence?.productVersion !== "0.1.2" ||
     evidence?.teamId !== "K7LY92JY96" ||
+    typeof evidence?.productionPromoted !== "boolean" ||
     !/^[0-9]+(?:\.[0-9]+){1,2}$/u.test(evidence?.osVersion ?? "") ||
     !Array.isArray(evidence?.codes) ||
     evidence.codes.length === 0 ||
     new Set(evidence.codes).size !== evidence.codes.length ||
-    evidence.codes.some((code) => !CODE.test(code)) ||
+    evidence.codes.some((code) => !CODE.test(code) || !NATIVE_AUTOFILL_RELEASE_CODES.has(code)) ||
     JSON.stringify(Object.keys(evidence?.liveMatrix ?? {})) !== JSON.stringify(LIVE_KEYS) ||
-    Object.values(evidence.liveMatrix).some((code) => !CODE.test(code));
+    Object.values(evidence.liveMatrix).some(
+      (code) => !CODE.test(code) || !NATIVE_AUTOFILL_RELEASE_CODES.has(code),
+    );
   if (invalid) throw new Error("NATIVE_AUTOFILL_EVIDENCE_INVALID");
 
   const appHash = evidence.artifactHashes?.appSha256;
@@ -84,6 +88,7 @@ export function assertNativeAutoFillEvidence(evidence) {
     if (
       !HASH.test(appHash ?? "") ||
       !HASH.test(dmgHash ?? "") ||
+      evidence.productionPromoted !== true ||
       required.some((code) => !evidence.codes.includes(code)) ||
       Object.values(evidence.liveMatrix).some((code) => code !== "NATIVE_AUTOFILL_LIVE_PASS")
     ) {
@@ -105,6 +110,7 @@ Status: ${evidence.status}
 
 - Product version: \`${evidence.productVersion}\`
 - Team ID: \`${evidence.teamId}\`
+- Production promoted: \`${evidence.productionPromoted}\`
 - Test OS: \`${evidence.osVersion}\`
 - App SHA-256: ${hash(evidence.artifactHashes.appSha256)}
 - DMG SHA-256: ${hash(evidence.artifactHashes.dmgSha256)}

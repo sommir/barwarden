@@ -4,9 +4,9 @@
 
 Task 9 is **BLOCKED**, not released. Reusable native release tooling, fixture tests, a real unsigned overlay build, and sanitized partial evidence are implemented. Production `tauri.conf.json` and production `Entitlements.plist` were not promoted or modified.
 
-The release builder uses a temporary native overlay, builds the main app and the two sidecars independently, embeds the Credential Provider at `Contents/PlugIns`, the Agent at `Contents/Helpers`, and the LaunchAgent metadata at `Contents/Library/LaunchAgents`. It consumes the signing identity, main-app profile, Credential Provider profile, signing Keychain, and notarytool Keychain profile only through environment references. Command output is discarded rather than persisted; outward diagnostics are fixed codes only.
+The release builder uses a temporary native overlay, builds the main app and the two sidecars independently, embeds the Credential Provider at `Contents/PlugIns`, the Agent at `Contents/Helpers`, and the LaunchAgent metadata at `Contents/Library/LaunchAgents`. It consumes the signing identity, Credential Provider profile, signing Keychain, and notarytool Keychain profile only through environment references. The main app and raw Agent do not require profiles. Command output is discarded rather than persisted; outward diagnostics pass through a fixed-code allowlist.
 
-Signing is inside-out: Agent, Credential Provider, then main app. Each inner component's exact designated requirement is verified before the app is signed. The builder never uses `codesign --deep` for signing; deep operation is verification-only. It submits an app archive, staples the app, creates the final DMG, submits and staples the DMG, then invokes the strict independent verifier.
+Signing is inside-out: Agent, Credential Provider, then main app. Each inner component's exact designated requirement is verified before the app is signed. The builder never uses `codesign --deep` for signing; deep operation is verification-only. It submits an app archive, staples the app, creates and Developer ID signs the final DMG, submits and staples the DMG, then invokes the strict independent verifier.
 
 ## Strict verifier
 
@@ -16,23 +16,23 @@ The verifier requires exactly these signed native components:
 - `com.sommir.barwarden.credential-provider`
 - `com.sommir.barwarden.autofill-agent`
 
-It rejects missing, duplicate, or unexpected executable/nested code; wrong paths, Team or bundle identifiers; unsigned/ad-hoc inner code; non-Developer-ID outer code; missing hardened runtime; wrong macOS floor; invalid designated requirements; missing or extra App Groups; every Keychain access group; unexpected entitlements; invalid or expired Developer ID profiles; an unsealed outer app; a non-exact DMG inventory; mismatched DMG/app contents; absent app or DMG tickets; missing notarized Gatekeeper source; and failed app/DMG Gatekeeper assessment.
+It rejects missing, duplicate, or unexpected executable/nested code, every app-bundle symlink, unexpected Mach-O or dylib payloads, wrong paths, Team or bundle identifiers, unsigned/ad-hoc inner code, non-Developer-ID outer code, an unsigned/non-Developer-ID/wrong-Team DMG, missing hardened runtime, wrong product version or macOS floor, invalid designated requirements, missing or extra App Groups, every Keychain access group, unexpected entitlements, an invalid or expired Provider Developer ID profile, an invalid LaunchAgent or missing Agent registration command surface, an unsealed outer app, a non-exact DMG inventory, mismatched DMG/app contents, absent app or DMG tickets, missing notarized Gatekeeper source, and failed app/DMG Gatekeeper assessment.
 
-The app and both inner components must carry exactly `group.com.sommir.barwarden.autofill`. Only the Provider may carry App Sandbox and the AutoFill Credential Provider entitlement. Every target must have an empty Keychain group set and a macOS 13.0 floor. The app and Provider profiles must be Team `K7LY92JY96` Developer ID distribution profiles granting only the exact bundle/application-group boundary required by that target; on macOS the verifier requires `com.apple.application-identifier` and rejects the iOS-style `application-identifier` key.
+The accepted macOS remediation changes the shared group everywhere to Team-prefixed `K7LY92JY96.com.sommir.barwarden.autofill`. The app and raw Agent carry only that App Group and no application/team identifier or profile. Only the Provider carries App Sandbox and the AutoFill Credential Provider capability; its generated effective signing entitlements additionally require exact `com.apple.application-identifier=K7LY92JY96.com.sommir.barwarden.credential-provider` and `com.apple.developer.team-identifier=K7LY92JY96`. The Provider profile must contain exactly that entitlement set, be unexpired and Team-scoped, and contain the exact signing leaf certificate/public key extracted from the Provider signature. Extra capabilities are rejected.
 
-[Apple Technical Note TN3125](https://developer.apple.com/documentation/technotes/tn3125-inside-code-signing-provisioning-profiles) states that a standalone executable has no place to embed a provisioning profile and therefore cannot claim a restricted entitlement. The current Agent is an Xcode command-line tool embedded as a raw Mach-O executable while claiming the App Group entitlement. The builder now detects that exact source shape during preflight and fails closed as `NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE`; the production collector also marks the current shape unpackageable. This is an architecture blocker, not a certificate failure. Candidate remediations requiring separate design/security review are either a profile-bearing helper app/XPC packaging model or a protocol/storage redesign in which the raw Agent claims no restricted entitlement. Task 9 selects neither and does not remove the Agent App Group.
+This is a pre-production spike identity correction, not a production data migration. Production native configuration has never been promoted, so no formal migration of the old local spike group container is performed; any old local spike container is intentionally left untouched.
 
-The builder creates a hash-bound assembly attestation containing only hashes, the inside-out role sequence, and the fixed `signingUsedDeep: false` decision. The verifier independently recalculates the app-executable and DMG SHA-256 hashes before accepting the attestation.
+The builder creates a hash-bound assembly attestation containing the complete bundle-manifest hash (root and relative paths, type, mode, and every file hash), DMG hash, exact Agent → Provider → app → DMG signing sequence, `signingUsedDeep: false`, and the release-builder policy hash. The verifier independently recalculates all hashes, derives app/inner/DMG signature and seal state from the artifacts, requires that exact sequence in the current builder policy, and checks the current builder-policy hash before accepting the attestation. Final output is staged as an exact three-item set and promoted with one directory rename.
 
 ## TDD evidence
 
 - Initial verifier RED: the valid fixture failed because the verifier did not exist.
-- Verifier GREEN covers the valid fixture plus fixed-code rejection for missing/duplicate/unexpected inventory, Team and bundle drift, missing/extra App Group, Keychain groups, extra entitlements, unsigned inner code, incorrect signing order, deep signing, missing hardened runtime, app/DMG stapling, macOS floor, designated requirements, outer seal, app/provider profiles, DMG inventory, Provider-only entitlements, notarization, and app/DMG Gatekeeper.
+- Verifier GREEN covers the valid fixture plus fixed-code rejection for missing/duplicate/unexpected inventory, Team and bundle drift, missing/extra App Group, Keychain groups, extra entitlements, unsigned inner code, incorrect signing order, deep signing, missing hardened runtime, app/DMG stapling, macOS floor, designated requirements, outer seal, the Provider profile, DMG inventory, Provider-only entitlements, notarization, and app/DMG Gatekeeper.
 - Real production-entry RED/GREEN proves a physically unsigned three-component bundle fails as `NATIVE_AUTOFILL_INNER_UNSIGNED` with no path in diagnostics.
 - A real ad-hoc signed bundle first failed with the less accurate Team mismatch. The collector was corrected to classify ad-hoc inner code as unsigned before Team evaluation; the real regression now passes.
 - Entitlement-inventory mutation RED proved an extra entitlement was initially accepted; the exact entitlement-key allowlist made it GREEN.
 - Builder RED/GREEN covers the exact inside-out operation plan, credential-reference preflight, no deep signing, sanitized diagnostics, and output-directory symlink ancestry.
-- A new builder/verifier RED/GREEN covers the current raw-Agent restricted-entitlement shape and the macOS-specific profile application-identifier key.
+- Review RED/GREEN covers Team-prefixed group identity, Provider-only profile/effective identifiers, certificate/public-key signer binding, LaunchAgent lifecycle and command surface, product version, all symlinks, unexpected Mach-O/dylib payloads, full bundle-manifest hashing, builder-policy binding, exact Agent/Provider/app/DMG signing order, independent DMG Developer ID/Team validation, static deep-sign rejection, fixed-code sanitization, and atomic output promotion.
 - Native overlay RED/GREEN covers private atomic generation, app-only output, exact native entitlement selection, byte-identical production inputs, and refusal to overwrite production files.
 - Evidence RED/GREEN covers the complete 20-row live matrix, fixed-code-only content, path/credential exclusion, and refusal to record PASS without both artifact hashes, all current/macOS 13 live rows, strict verifier success, and production promotion.
 
@@ -52,9 +52,7 @@ The attempted temporary-Keychain private-key import was rejected before executio
 
 Current external blockers are represented only by fixed codes in the evidence:
 
-- `NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE`
 - `NATIVE_AUTOFILL_SIGNING_IDENTITY_KEYCHAIN_MISSING`
-- `NATIVE_AUTOFILL_APP_PROFILE_MISSING`
 - `NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING`
 - `NATIVE_AUTOFILL_NOTARY_PROFILE_MISSING`
 - `NATIVE_AUTOFILL_SIGNED_ARTIFACT_MISSING`
@@ -70,12 +68,12 @@ The macOS 13 device gate is absent. Because the signed artifact gate, current-ma
 
 ## Verification
 
-- Task 9 verifier/builder/overlay/evidence focused suites: passed.
-- Native Xcode project/build-wrapper contracts: 13 passed.
+- Task 9 verifier/builder/overlay/evidence focused suites: 57 Node tests plus all three shell harnesses passed.
+- Native Xcode project/build-wrapper contracts: 14 passed.
 - Native identity contracts: 19 passed.
-- Full TypeScript: 3,512 passed, 22 skipped across 237 files.
-- Full Rust: 248 passed, 7 ignored.
-- Full Swift/Xcode: 130 passed, 0 failed. The sandboxed first attempt was blocked by the XCTest helper-service sandbox; the approved unrestricted rerun passed.
+- Full TypeScript: 3,513 passed, 22 skipped across 237 files.
+- Full Rust: 252 passed, 7 ignored.
+- Full Swift/Xcode: 131 passed, 0 failed. The sandboxed first attempt was blocked by the XCTest helper-service sandbox; the approved unrestricted rerun passed.
 - Production web build: passed with existing externalization, Tailwind, and chunk-size warnings.
 - `cargo fmt --check`, `cargo check`, shell syntax, plist lint, and `git diff --check`: passed. `cargo check` retains six existing dead-code warnings.
 
@@ -86,5 +84,6 @@ An exploratory `node --test scripts/*.spec.mjs` run is not a Task 9 gate. It exi
 - Release gate: **BLOCKED**
 - Production promoted: **NO**
 - Signed/notarized/stapled artifact: **NO**
-- Architecture remediation selected: **NO; requires design/security review**
-- Commit intent: `build: add native autofill release gate`
+- Architecture remediation selected: **YES; Team-prefixed macOS App Group with Provider-only profile**
+- Production container migration: **NO; old local spike data is not production data and is left untouched**
+- Review-fix commit intent: `fix: harden native autofill release gate`

@@ -138,7 +138,7 @@ test("Xcode resolves exact target identities, entitlements, products, and macOS 
       assert.equal(target.CONFIGURATION, configuration);
       assert.equal(target.DEVELOPMENT_TEAM, "K7LY92JY96", configuration);
       assert.equal(target.MACOSX_DEPLOYMENT_TARGET, "13.0", configuration);
-      assert.equal(target.AUTOFILL_APP_GROUP, "group.com.sommir.barwarden.autofill", configuration);
+      assert.equal(target.AUTOFILL_APP_GROUP, "K7LY92JY96.com.sommir.barwarden.autofill", configuration);
     }
   }
 });
@@ -148,15 +148,26 @@ test("assigns exact entitlements to each native product", () => {
   const provider = readPlist("CredentialProvider/Entitlements.plist");
 
   assert.deepEqual(agent, {
-    "com.apple.security.application-groups": ["group.com.sommir.barwarden.autofill"],
+    "com.apple.security.application-groups": ["K7LY92JY96.com.sommir.barwarden.autofill"],
   });
   assert.deepEqual(provider, {
     "com.apple.developer.authentication-services.autofill-credential-provider": true,
     "com.apple.security.app-sandbox": true,
-    "com.apple.security.application-groups": ["group.com.sommir.barwarden.autofill"],
+    "com.apple.security.application-groups": ["K7LY92JY96.com.sommir.barwarden.autofill"],
   });
   assert.equal("keychain-access-groups" in agent, false);
   assert.equal("keychain-access-groups" in provider, false);
+});
+
+test("LaunchAgent starts at load and restarts only after unsuccessful exit", () => {
+  const launchAgent = readPlist("Agent/com.sommir.barwarden.autofill-agent.plist");
+  assert.deepEqual(launchAgent, {
+    Label: "com.sommir.barwarden.autofill-agent",
+    BundleProgram: "Contents/Helpers/BarwardenAutoFillAgent",
+    RunAtLoad: true,
+    KeepAlive: { SuccessfulExit: false },
+    ThrottleInterval: 30,
+  });
 });
 
 test("declares the macOS AutoFill Credential Provider extension point", () => {

@@ -153,6 +153,9 @@ fn main() {
             global_shortcut::clear_global_shortcut,
             login_item::get_launch_at_login,
             login_item::set_launch_at_login,
+            login_item::autofill_agent_registration_status,
+            login_item::autofill_agent_register,
+            login_item::autofill_agent_unregister,
         ])
         .build(context)
         .unwrap_or_else(|error| panic!("failed to run {}: {error}", brand::PRODUCT_NAME));

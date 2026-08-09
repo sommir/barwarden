@@ -32,7 +32,7 @@ function createFixture(mutator = (value) => value) {
     mutator({
       schemaVersion: 1,
       productVersion: "0.1.2",
-      appGroup: "group.com.sommir.barwarden.autofill",
+      appGroup: "K7LY92JY96.com.sommir.barwarden.autofill",
       teamId: "K7LY92JY96",
       deploymentTarget: "13.0",
       components: {
@@ -56,7 +56,7 @@ test.after(() => {
 
 test("locks the nested bundle identity and macOS floor", () => {
   const contract = loadAutoFillSpikeContract(process.cwd());
-  assert.equal(contract.appGroup, "group.com.sommir.barwarden.autofill");
+  assert.equal(contract.appGroup, "K7LY92JY96.com.sommir.barwarden.autofill");
   assert.equal(contract.deploymentTarget, "13.0");
   assert.deepEqual(
     Object.values(contract.components).map(({ bundleId }) => bundleId),

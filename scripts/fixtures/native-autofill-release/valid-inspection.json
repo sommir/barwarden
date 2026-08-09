@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "productVersion": "0.1.2",
   "teamId": "K7LY92JY96",
-  "appGroup": "group.com.sommir.barwarden.autofill",
+  "appGroup": "K7LY92JY96.com.sommir.barwarden.autofill",
   "minimumMacOS": "13.0",
   "osVersion": "26.6",
   "artifacts": {
@@ -20,12 +20,16 @@
       "designatedRequirementValid": true,
       "hardenedRuntime": true,
       "minimumMacOS": "13.0",
-      "appGroups": ["group.com.sommir.barwarden.autofill"],
+      "appGroups": ["K7LY92JY96.com.sommir.barwarden.autofill"],
       "keychainGroups": [],
       "entitlementKeys": ["com.apple.security.application-groups"],
       "credentialProvider": false,
       "appSandbox": false,
-      "profileApplicationIdentifierKey": "com.apple.application-identifier"
+      "profileApplicationIdentifierKey": null,
+      "applicationIdentifier": null,
+      "developerTeamIdentifier": null,
+      "profileEntitlementKeys": [],
+      "profileCertificateMatchesSigner": null
     },
     {
       "role": "credential-provider",
@@ -37,16 +41,28 @@
       "designatedRequirementValid": true,
       "hardenedRuntime": true,
       "minimumMacOS": "13.0",
-      "appGroups": ["group.com.sommir.barwarden.autofill"],
+      "appGroups": ["K7LY92JY96.com.sommir.barwarden.autofill"],
       "keychainGroups": [],
       "entitlementKeys": [
+        "com.apple.application-identifier",
         "com.apple.developer.authentication-services.autofill-credential-provider",
+        "com.apple.developer.team-identifier",
         "com.apple.security.app-sandbox",
         "com.apple.security.application-groups"
       ],
       "credentialProvider": true,
       "appSandbox": true,
-      "profileApplicationIdentifierKey": "com.apple.application-identifier"
+      "profileApplicationIdentifierKey": "com.apple.application-identifier",
+      "applicationIdentifier": "K7LY92JY96.com.sommir.barwarden.credential-provider",
+      "developerTeamIdentifier": "K7LY92JY96",
+      "profileEntitlementKeys": [
+        "com.apple.application-identifier",
+        "com.apple.developer.authentication-services.autofill-credential-provider",
+        "com.apple.developer.team-identifier",
+        "com.apple.security.app-sandbox",
+        "com.apple.security.application-groups"
+      ],
+      "profileCertificateMatchesSigner": true
     },
     {
       "role": "agent",
@@ -58,20 +74,28 @@
       "designatedRequirementValid": true,
       "hardenedRuntime": true,
       "minimumMacOS": "13.0",
-      "appGroups": ["group.com.sommir.barwarden.autofill"],
+      "appGroups": ["K7LY92JY96.com.sommir.barwarden.autofill"],
       "keychainGroups": [],
       "entitlementKeys": ["com.apple.security.application-groups"],
       "credentialProvider": false,
       "appSandbox": false,
-      "profileApplicationIdentifierKey": null
+      "profileApplicationIdentifierKey": null,
+      "applicationIdentifier": null,
+      "developerTeamIdentifier": null,
+      "profileEntitlementKeys": [],
+      "profileCertificateMatchesSigner": null
     }
   ],
   "unexpectedNestedCode": [],
+  "unexpectedSymlinks": [],
+  "unexpectedMachO": [],
+  "unexpectedDylibs": [],
   "outerSealValid": true,
-  "agentRestrictedEntitlementPackageable": true,
-  "appProfileValid": true,
   "providerProfileValid": true,
+  "launchAgentValid": true,
+  "registrationCommandSurfaceValid": true,
   "dmgInventoryValid": true,
+  "dmgSignatureValid": true,
   "insideOutSigning": true,
   "signingUsedDeep": false,
   "notarized": true,
@@ -79,5 +103,7 @@
   "appStapled": true,
   "dmgStapled": true,
   "appGatekeeperAccepted": true,
-  "dmgGatekeeperAccepted": true
+  "dmgGatekeeperAccepted": true,
+  "attestedAppManifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "builderPolicyHashValid": true
 }

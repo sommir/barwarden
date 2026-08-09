@@ -61,7 +61,7 @@ test("rejects overwriting either production input", () => {
 
 test("native app entitlements expose only the exact App Group", () => {
   const entitlements = readFileSync(nativeEntitlements, "utf8");
-  assert.match(entitlements, /group\.com\.sommir\.barwarden\.autofill/);
+  assert.match(entitlements, /K7LY92JY96\.com\.sommir\.barwarden\.autofill/);
   assert.doesNotMatch(entitlements, /keychain-access-groups/);
   assert.doesNotMatch(entitlements, /autofill-credential-provider/);
   assert.doesNotMatch(entitlements, /app-sandbox/);

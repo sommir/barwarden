@@ -17,7 +17,7 @@ use zeroize::Zeroizing;
 
 pub const MAXIMUM_PAYLOAD_BYTES: usize = 65_536;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
-const APP_GROUP_IDENTIFIER: &str = "group.com.sommir.barwarden.autofill";
+const APP_GROUP_IDENTIFIER: &str = "K7LY92JY96.com.sommir.barwarden.autofill";
 const SOCKET_FILENAME: &str = "agent-v1.sock";
 
 pub struct AgentClient {
@@ -269,6 +269,11 @@ fn map_io_error(error: std::io::Error) -> AgentErrorCode {
     }
 }
 
+pub(crate) fn app_group_container_path(home: &Path) -> PathBuf {
+    home.join("Library/Group Containers")
+        .join(APP_GROUP_IDENTIFIER)
+}
+
 fn default_socket_path() -> Result<PathBuf, AgentErrorCode> {
     if cfg!(debug_assertions) {
         if let Some(path) = std::env::var_os("BARWARDEN_AUTOFILL_SOCKET") {
@@ -279,10 +284,7 @@ fn default_socket_path() -> Result<PathBuf, AgentErrorCode> {
         }
     }
     let home = std::env::var_os("HOME").ok_or(AgentErrorCode::Unavailable)?;
-    Ok(Path::new(&home)
-        .join("Library/Group Containers")
-        .join(APP_GROUP_IDENTIFIER)
-        .join(SOCKET_FILENAME))
+    Ok(app_group_container_path(Path::new(&home)).join(SOCKET_FILENAME))
 }
 
 fn perform_command(operation: AgentOperation) -> AgentCommandOutcome {
@@ -584,6 +586,16 @@ mod tests {
     use std::path::PathBuf;
     use std::thread;
     use std::time::Duration;
+
+    #[test]
+    fn app_group_container_path_uses_the_team_prefixed_macos_identifier() {
+        assert_eq!(
+            app_group_container_path(Path::new("/Users/fixture")),
+            PathBuf::from(
+                "/Users/fixture/Library/Group Containers/K7LY92JY96.com.sommir.barwarden.autofill",
+            ),
+        );
+    }
 
     #[test]
     fn frame_rejects_payload_larger_than_64_kib() {

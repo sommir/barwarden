@@ -1189,9 +1189,7 @@ pub type SystemProjectionManager = ProjectionManager<IpcProjectionAgent>;
 pub fn system_projection_manager(
 ) -> Result<std::sync::Arc<SystemProjectionManager>, ProjectionError> {
     let home = std::env::var_os("HOME").ok_or(ProjectionError::Io)?;
-    let root = Path::new(&home)
-        .join("Library/Group Containers")
-        .join("group.com.sommir.barwarden.autofill");
+    let root = crate::autofill_ipc::app_group_container_path(Path::new(&home));
     let manager = std::sync::Arc::new(ProjectionManager::new(
         root,
         std::sync::Arc::new(IpcProjectionAgent),

@@ -47,6 +47,11 @@ import {
   type NativeAutostartApi,
 } from "./launch-at-login";
 type AutoFillSecretField = "username" | "password" | "totp";
+export type AutoFillAgentRegistrationStatus =
+  | "notRegistered"
+  | "enabled"
+  | "requiresApproval"
+  | "notFound";
 type AccessibilityFallback = "system-autofill" | "unsupported";
 interface AccessibilityStatus {
   readonly permission: "granted" | "denied";
@@ -368,6 +373,18 @@ export class TauriHostService
 
   autofillAgentLock(): Promise<unknown> {
     return this.invoke<unknown>("autofill_agent_lock");
+  }
+
+  autofillAgentRegistrationStatus(): Promise<AutoFillAgentRegistrationStatus> {
+    return this.invoke<AutoFillAgentRegistrationStatus>("autofill_agent_registration_status");
+  }
+
+  autofillAgentRegister(): Promise<AutoFillAgentRegistrationStatus> {
+    return this.invoke<AutoFillAgentRegistrationStatus>("autofill_agent_register");
+  }
+
+  autofillAgentUnregister(): Promise<AutoFillAgentRegistrationStatus> {
+    return this.invoke<AutoFillAgentRegistrationStatus>("autofill_agent_unregister");
   }
 
   async entryContext() {

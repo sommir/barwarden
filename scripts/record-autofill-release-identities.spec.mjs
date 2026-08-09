@@ -26,7 +26,7 @@ function createContractFixture() {
   write(root, "config/autofill-spike-contract.json", {
     schemaVersion: 1,
     productVersion: "0.1.2",
-    appGroup: "group.com.sommir.barwarden.autofill",
+    appGroup: "K7LY92JY96.com.sommir.barwarden.autofill",
     teamId: "K7LY92JY96",
     deploymentTarget: "13.0",
     components: {

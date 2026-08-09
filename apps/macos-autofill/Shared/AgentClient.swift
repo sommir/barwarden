@@ -3,7 +3,7 @@ import Foundation
 import Security
 
 enum AgentSocketLocation {
-    static let appGroupIdentifier = "group.com.sommir.barwarden.autofill"
+    static let appGroupIdentifier = "K7LY92JY96.com.sommir.barwarden.autofill"
     static let socketFilename = "agent-v1.sock"
 
     static func socketURL() throws -> URL {

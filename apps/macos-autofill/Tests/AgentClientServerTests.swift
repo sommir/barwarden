@@ -4,6 +4,13 @@ import Foundation
 import XCTest
 
 final class AgentClientServerTests: XCTestCase {
+    func testAppGroupIdentifierUsesTeamPrefixedMacOSContainer() {
+        XCTAssertEqual(
+            AgentSocketLocation.appGroupIdentifier,
+            "K7LY92JY96.com.sommir.barwarden.autofill"
+        )
+    }
+
     func testOnlyMainApplicationCanIssueAScopedRepromptGrant() throws {
         let fixture = try ProjectionHandlerFixture()
         try performProjectionRequest(

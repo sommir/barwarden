@@ -10,6 +10,7 @@
     "productVersion",
     "teamId",
     "osVersion",
+    "productionPromoted",
     "artifactHashes",
     "codes",
     "liveMatrix"
@@ -20,6 +21,7 @@
     "productVersion": { "const": "0.1.2" },
     "teamId": { "const": "K7LY92JY96" },
     "osVersion": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+){1,2}$" },
+    "productionPromoted": { "type": "boolean" },
     "artifactHashes": {
       "type": "object",
       "additionalProperties": false,
@@ -33,7 +35,7 @@
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "pattern": "^NATIVE_AUTOFILL_[A-Z0-9_]+$" }
+      "items": { "$ref": "#/$defs/fixedCode" }
     },
     "liveMatrix": {
       "type": "object",
@@ -84,7 +86,54 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "PASS" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "artifactHashes": {
+            "properties": {
+              "appSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "dmgSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+            }
+          },
+          "productionPromoted": { "const": true },
+          "codes": {
+            "allOf": [
+              { "contains": { "const": "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS" } },
+              { "contains": { "const": "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS" } },
+              { "contains": { "const": "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS" } },
+              { "contains": { "const": "NATIVE_AUTOFILL_PRODUCTION_PROMOTED" } }
+            ]
+          },
+          "liveMatrix": {
+            "patternProperties": { ".*": { "const": "NATIVE_AUTOFILL_LIVE_PASS" } }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
-    "fixedCode": { "type": "string", "pattern": "^NATIVE_AUTOFILL_[A-Z0-9_]+$" }
+    "fixedCode": {
+      "enum": [
+        "NATIVE_AUTOFILL_TOOLING_IMPLEMENTED",
+        "NATIVE_AUTOFILL_SIGNING_IDENTITY_KEYCHAIN_MISSING",
+        "NATIVE_AUTOFILL_PRIVATE_KEY_IMPORT_NOT_AUTHORIZED",
+        "NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING",
+        "NATIVE_AUTOFILL_XCODE_AUTOMATIC_PROVISIONING_NOT_AUTHORIZED",
+        "NATIVE_AUTOFILL_NOTARY_PROFILE_MISSING",
+        "NATIVE_AUTOFILL_SIGNED_ARTIFACT_MISSING",
+        "NATIVE_AUTOFILL_CURRENT_GUI_SESSION_BLOCKED_LOGINWINDOW",
+        "NATIVE_AUTOFILL_MACOS13_DEVICE_MISSING",
+        "NATIVE_AUTOFILL_PRODUCTION_NOT_PROMOTED",
+        "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS",
+        "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS",
+        "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS",
+        "NATIVE_AUTOFILL_PRODUCTION_PROMOTED",
+        "NATIVE_AUTOFILL_LIVE_MATRIX_PENDING",
+        "NATIVE_AUTOFILL_LIVE_BLOCKED_NO_RELEASE_ARTIFACT",
+        "NATIVE_AUTOFILL_LIVE_PASS"
+      ]
+    }
   }
 }

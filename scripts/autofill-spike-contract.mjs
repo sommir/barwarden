@@ -29,7 +29,7 @@ export function loadAutoFillSpikeContract(root, options = {}) {
   assert.equal(value.productVersion, packageJson.version);
   assert.equal(tauriConfig.identifier, expectedBundleIds.app);
   assert.equal(value.components.app.bundleId, tauriConfig.identifier);
-  assert.equal(value.appGroup, "group.com.sommir.barwarden.autofill");
+  assert.equal(value.appGroup, "K7LY92JY96.com.sommir.barwarden.autofill");
   assert.equal(value.deploymentTarget, "13.0");
   assert.equal(value.deploymentTarget, tauriConfig.bundle.macOS.minimumSystemVersion);
   assert.deepEqual(Object.keys(value.components), Object.keys(expectedBundleIds));

@@ -18,7 +18,7 @@ expected_plan="$(printf '%s\n' \
   embed-credential-provider \
   embed-agent \
   embed-launch-agent \
-  embed-external-profiles \
+  embed-provider-profile \
   sign-agent \
   sign-credential-provider \
   verify-inner-designated-requirements \
@@ -27,6 +27,7 @@ expected_plan="$(printf '%s\n' \
   submit-app-for-notarization \
   staple-app \
   create-dmg \
+  sign-dmg \
   submit-dmg-for-notarization \
   staple-dmg \
   run-strict-release-verifier \
@@ -36,7 +37,6 @@ expected_plan="$(printf '%s\n' \
 preflight_output="$(NATIVE_AUTOFILL_RELEASE_TEST_MODE=1 "$BUILDER" --preflight 2>&1 || true)"
 for code in \
   NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING \
-  NATIVE_AUTOFILL_APP_PROFILE_MISSING \
   NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING \
   NATIVE_AUTOFILL_NOTARY_PROFILE_MISSING
 do
@@ -44,18 +44,16 @@ do
 done
 [[ "$preflight_output" != *'/Users/'* && "$preflight_output" != *'/private/tmp/'* ]] || fail "preflight leaked a path"
 
-: > "$TEST_ROOT/app.provisionprofile"
 : > "$TEST_ROOT/provider.provisionprofile"
 complete_output="$(
   NATIVE_AUTOFILL_RELEASE_TEST_MODE=1 \
   NATIVE_AUTOFILL_SIGNING_IDENTITY=external-reference \
-  NATIVE_AUTOFILL_APP_PROFILE="$TEST_ROOT/app.provisionprofile" \
   NATIVE_AUTOFILL_PROVIDER_PROFILE="$TEST_ROOT/provider.provisionprofile" \
   NATIVE_AUTOFILL_NOTARY_PROFILE=keychain-reference \
-  "$BUILDER" --preflight 2>&1 || true
-)"
-[[ "$complete_output" == 'NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE' ]] || \
-  fail "raw Agent restricted-entitlement shape was not rejected: $complete_output"
+  "$BUILDER" --preflight
+)" || fail "complete external-reference preflight failed"
+[[ "$complete_output" == 'NATIVE_AUTOFILL_RELEASE_PREFLIGHT_PASS' ]] || \
+  fail "unexpected complete preflight output: $complete_output"
 
 /bin/mkdir -p "$TEST_ROOT/real-output-parent"
 /bin/ln -s "$TEST_ROOT/real-output-parent" "$TEST_ROOT/symlink-output-parent"
@@ -66,9 +64,7 @@ unsafe_output="$(
 [[ "$unsafe_output" == NATIVE_AUTOFILL_OUTPUT_DIR_INVALID ]] || \
   fail "symlink ancestor was accepted: $unsafe_output"
 
-deep_lines="$(rg -n '/usr/bin/codesign.*--deep' "$BUILDER" || true)"
-if [[ -n "$deep_lines" && "$deep_lines" != *'--verify --deep'* ]]; then
-  fail "codesign --deep is forbidden outside verification"
-fi
+node --test "$SCRIPT_DIR/native-autofill-builder-policy.spec.mjs" || fail "static codesign policy failed"
+"$SCRIPT_DIR/create-native-autofill-provider-entitlements.test.sh" || fail "Provider entitlement generation failed"
 
 printf 'build-native-autofill-release tests: PASS\n'

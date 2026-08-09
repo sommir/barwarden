@@ -13,7 +13,7 @@ PLAN=(
   embed-credential-provider
   embed-agent
   embed-launch-agent
-  embed-external-profiles
+  embed-provider-profile
   sign-agent
   sign-credential-provider
   verify-inner-designated-requirements
@@ -22,6 +22,7 @@ PLAN=(
   submit-app-for-notarization
   staple-app
   create-dmg
+  sign-dmg
   submit-dmg-for-notarization
   staple-dmg
   run-strict-release-verifier
@@ -29,7 +30,10 @@ PLAN=(
 )
 
 fail() {
-  printf '%s\n' "$1" >&2
+  local sanitized
+  sanitized="$(node "$SCRIPT_DIR/native-autofill-release-codes.mjs" "$1" 2>/dev/null)" || \
+    sanitized=NATIVE_AUTOFILL_INTERNAL_ERROR
+  printf '%s\n' "$sanitized" >&2
   exit 1
 }
 
@@ -46,17 +50,8 @@ reject_symlink_components() {
 
 emit_preflight_codes() {
   local failed=0
-  if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' \
-      "$REPOSITORY_ROOT/apps/macos-autofill/Agent/Entitlements.plist" >/dev/null 2>&1; then
-    printf '%s\n' NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE >&2
-    failed=1
-  fi
   [[ -n "${NATIVE_AUTOFILL_SIGNING_IDENTITY:-}" ]] || {
     printf '%s\n' NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING >&2
-    failed=1
-  }
-  [[ -n "${NATIVE_AUTOFILL_APP_PROFILE:-}" && -f "${NATIVE_AUTOFILL_APP_PROFILE:-}" ]] || {
-    printf '%s\n' NATIVE_AUTOFILL_APP_PROFILE_MISSING >&2
     failed=1
   }
   [[ -n "${NATIVE_AUTOFILL_PROVIDER_PROFILE:-}" && -f "${NATIVE_AUTOFILL_PROVIDER_PROFILE:-}" ]] || {
@@ -69,6 +64,10 @@ emit_preflight_codes() {
   }
   return "$failed"
 }
+
+if ! BUILDER_POLICY_CODE="$(/usr/bin/env node "$SCRIPT_DIR/native-autofill-builder-policy.mjs" "$0" 2>&1)"; then
+  fail "$BUILDER_POLICY_CODE"
+fi
 
 case "${1:-}" in
   --print-plan)
@@ -99,11 +98,9 @@ emit_preflight_codes || exit 1
 OUTPUT_DIR="${NATIVE_AUTOFILL_OUTPUT_DIR:-}"
 [[ "$OUTPUT_DIR" = /* ]] || fail NATIVE_AUTOFILL_OUTPUT_DIR_INVALID
 reject_symlink_components "$OUTPUT_DIR" || fail NATIVE_AUTOFILL_OUTPUT_DIR_INVALID
-/bin/mkdir -p "$OUTPUT_DIR"
-[[ -d "$OUTPUT_DIR" ]] || fail NATIVE_AUTOFILL_OUTPUT_DIR_INVALID
-reject_symlink_components "$OUTPUT_DIR" || fail NATIVE_AUTOFILL_OUTPUT_DIR_INVALID
-[[ -z "$(/usr/bin/find "$OUTPUT_DIR" -mindepth 1 -print -quit 2>/dev/null)" ]] || \
-  fail NATIVE_AUTOFILL_OUTPUT_DIR_NOT_EMPTY
+OUTPUT_PARENT="$(dirname "$OUTPUT_DIR")"
+[[ -d "$OUTPUT_PARENT" && ! -e "$OUTPUT_DIR" ]] || fail NATIVE_AUTOFILL_OUTPUT_DIR_NOT_EMPTY
+reject_symlink_components "$OUTPUT_PARENT" || fail NATIVE_AUTOFILL_OUTPUT_DIR_INVALID
 
 WORK_ROOT="$(/usr/bin/mktemp -d /private/tmp/barwarden-native-release.XXXXXX)"
 OVERLAY_CONFIG="$(/usr/bin/mktemp "$REPOSITORY_ROOT/apps/menubar-tauri/src-tauri/.tauri-native-autofill.XXXXXX.json")"
@@ -155,8 +152,6 @@ run_or_fail NATIVE_AUTOFILL_LAUNCH_AGENT_EMBED_FAILED \
   /usr/bin/ditto --norsrc --noqtn \
   "$REPOSITORY_ROOT/apps/macos-autofill/Agent/com.sommir.barwarden.autofill-agent.plist" \
   "$APP_PATH/Contents/Library/LaunchAgents/com.sommir.barwarden.autofill-agent.plist"
-run_or_fail NATIVE_AUTOFILL_APP_PROFILE_EMBED_FAILED \
-  /usr/bin/ditto --norsrc --noqtn "$NATIVE_AUTOFILL_APP_PROFILE" "$APP_PATH/Contents/embedded.provisionprofile"
 run_or_fail NATIVE_AUTOFILL_PROVIDER_PROFILE_EMBED_FAILED \
   /usr/bin/ditto --norsrc --noqtn "$NATIVE_AUTOFILL_PROVIDER_PROFILE" \
   "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME/Contents/embedded.provisionprofile"
@@ -165,13 +160,16 @@ SIGNING_ARGS=(--force --timestamp --options runtime --sign "$NATIVE_AUTOFILL_SIG
 if [[ -n "${NATIVE_AUTOFILL_SIGNING_KEYCHAIN:-}" ]]; then
   SIGNING_ARGS+=(--keychain "$NATIVE_AUTOFILL_SIGNING_KEYCHAIN")
 fi
+PROVIDER_RELEASE_ENTITLEMENTS="$WORK_ROOT/provider-release-entitlements.plist"
+run_or_fail NATIVE_AUTOFILL_PROVIDER_ENTITLEMENTS_INVALID \
+  "$SCRIPT_DIR/create-native-autofill-provider-entitlements.sh" "$PROVIDER_RELEASE_ENTITLEMENTS"
 run_or_fail NATIVE_AUTOFILL_AGENT_SIGN_FAILED \
   /usr/bin/codesign "${SIGNING_ARGS[@]}" \
   --entitlements "$REPOSITORY_ROOT/apps/macos-autofill/Agent/Entitlements.plist" \
   "$APP_PATH/Contents/Helpers/$AGENT_NAME"
 run_or_fail NATIVE_AUTOFILL_PROVIDER_SIGN_FAILED \
   /usr/bin/codesign "${SIGNING_ARGS[@]}" \
-  --entitlements "$REPOSITORY_ROOT/apps/macos-autofill/CredentialProvider/Entitlements.plist" \
+  --entitlements "$PROVIDER_RELEASE_ENTITLEMENTS" \
   "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME"
 
 run_or_fail NATIVE_AUTOFILL_AGENT_REQUIREMENT_FAILED \
@@ -202,6 +200,10 @@ run_or_fail NATIVE_AUTOFILL_DMG_APP_STAGE_FAILED /usr/bin/ditto --norsrc --noqtn
 DMG_PATH="$WORK_ROOT/Barwarden-0.1.2.dmg"
 run_or_fail NATIVE_AUTOFILL_DMG_CREATE_FAILED \
   /usr/bin/hdiutil create -quiet -fs HFS+ -volname Barwarden -srcfolder "$DMG_STAGE" "$DMG_PATH"
+run_or_fail NATIVE_AUTOFILL_DMG_SIGN_FAILED \
+  /usr/bin/codesign "${SIGNING_ARGS[@]}" "$DMG_PATH"
+run_or_fail NATIVE_AUTOFILL_DMG_SIGNATURE_INVALID \
+  /usr/bin/codesign --verify --strict --verbose=2 "$DMG_PATH"
 run_or_fail NATIVE_AUTOFILL_DMG_NOTARIZATION_FAILED \
   /usr/bin/xcrun notarytool submit "$DMG_PATH" --wait --keychain-profile "$NATIVE_AUTOFILL_NOTARY_PROFILE"
 run_or_fail NATIVE_AUTOFILL_DMG_STAPLE_FAILED /usr/bin/xcrun stapler staple "$DMG_PATH"
@@ -209,28 +211,39 @@ run_or_fail NATIVE_AUTOFILL_DMG_STAPLE_VALIDATE_FAILED /usr/bin/xcrun stapler va
 
 APP_EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP_PATH/Contents/Info.plist" 2>/dev/null)" || \
   fail NATIVE_AUTOFILL_MAIN_EXECUTABLE_METADATA_INVALID
-APP_HASH="$(/usr/bin/shasum -a 256 "$APP_PATH/Contents/MacOS/$APP_EXECUTABLE" | /usr/bin/awk '{print $1}')"
+APP_HASH="$(node "$SCRIPT_DIR/native-autofill-bundle-manifest.mjs" "$APP_PATH" 2>/dev/null)" || \
+  fail NATIVE_AUTOFILL_APP_MANIFEST_INVALID
 DMG_HASH="$(/usr/bin/shasum -a 256 "$DMG_PATH" | /usr/bin/awk '{print $1}')"
+BUILDER_SCRIPT_HASH="$(/usr/bin/shasum -a 256 "$0" | /usr/bin/awk '{print $1}')"
+BUILDER_POLICY_HASH="$(/usr/bin/shasum -a 256 "$SCRIPT_DIR/native-autofill-builder-policy.mjs" | /usr/bin/awk '{print $1}')"
 ATTESTATION="$WORK_ROOT/native-autofill-assembly-attestation.json"
-/usr/bin/env APP_HASH="$APP_HASH" DMG_HASH="$DMG_HASH" node --input-type=module - "$ATTESTATION" <<'NODE'
+/usr/bin/env APP_HASH="$APP_HASH" DMG_HASH="$DMG_HASH" BUILDER_SCRIPT_HASH="$BUILDER_SCRIPT_HASH" \
+  BUILDER_POLICY_HASH="$BUILDER_POLICY_HASH" node --input-type=module - "$ATTESTATION" <<'NODE'
 import { writeFileSync } from "node:fs";
 writeFileSync(process.argv[2], `${JSON.stringify({
   schemaVersion: 1,
   appSha256: process.env.APP_HASH,
+  appHashKind: "bundle-manifest-v1",
   dmgSha256: process.env.DMG_HASH,
+  builderScriptSha256: process.env.BUILDER_SCRIPT_HASH,
+  builderPolicySha256: process.env.BUILDER_POLICY_HASH,
   insideOutSigning: true,
   signingUsedDeep: false,
-  signingOrder: ["agent", "credential-provider", "app"],
+  signingOrder: ["agent", "credential-provider", "app", "dmg"],
 }, null, 2)}\n`, { mode: 0o600 });
 NODE
 
 run_or_fail NATIVE_AUTOFILL_STRICT_VERIFIER_FAILED \
   "$SCRIPT_DIR/verify-native-autofill-bundle.sh" --app "$APP_PATH" --dmg "$DMG_PATH" --attestation "$ATTESTATION"
 
-run_or_fail NATIVE_AUTOFILL_OUTPUT_APP_FAILED /usr/bin/ditto --norsrc --noqtn "$APP_PATH" "$OUTPUT_DIR/$APP_NAME"
-run_or_fail NATIVE_AUTOFILL_OUTPUT_DMG_FAILED /usr/bin/ditto --norsrc --noqtn "$DMG_PATH" "$OUTPUT_DIR/Barwarden-0.1.2.dmg"
+PROMOTION_SOURCE="$WORK_ROOT/promotion"
+/bin/mkdir "$PROMOTION_SOURCE"
+run_or_fail NATIVE_AUTOFILL_OUTPUT_APP_FAILED /usr/bin/ditto --norsrc --noqtn "$APP_PATH" "$PROMOTION_SOURCE/$APP_NAME"
+run_or_fail NATIVE_AUTOFILL_OUTPUT_DMG_FAILED /usr/bin/ditto --norsrc --noqtn "$DMG_PATH" "$PROMOTION_SOURCE/Barwarden-0.1.2.dmg"
 run_or_fail NATIVE_AUTOFILL_OUTPUT_ATTESTATION_FAILED \
-  /usr/bin/ditto --norsrc --noqtn "$ATTESTATION" "$OUTPUT_DIR/native-autofill-assembly-attestation.json"
+  /usr/bin/ditto --norsrc --noqtn "$ATTESTATION" "$PROMOTION_SOURCE/native-autofill-assembly-attestation.json"
+run_or_fail NATIVE_AUTOFILL_PROMOTION_FAILED \
+  node "$SCRIPT_DIR/native-autofill-atomic-promotion.mjs" "$PROMOTION_SOURCE" "$OUTPUT_DIR"
 run_or_fail NATIVE_AUTOFILL_EVIDENCE_FAILED \
   /usr/bin/env NATIVE_AUTOFILL_APP_SHA256="$APP_HASH" NATIVE_AUTOFILL_DMG_SHA256="$DMG_HASH" \
   NATIVE_AUTOFILL_OS_VERSION="$(/usr/bin/sw_vers -productVersion)" \
