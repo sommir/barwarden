@@ -18,11 +18,17 @@ The verifier requires exactly these signed native components:
 
 It rejects missing, duplicate, or unexpected executable/nested code, every app-bundle symlink, unexpected Mach-O or dylib payloads, wrong paths, Team or bundle identifiers, unsigned/ad-hoc inner code, non-Developer-ID outer code, an unsigned/non-Developer-ID/wrong-Team DMG, missing hardened runtime, wrong product version or macOS floor, invalid designated requirements, missing or extra App Groups, every Keychain access group, unexpected entitlements, an invalid or expired Provider Developer ID profile, an invalid LaunchAgent or missing Agent registration command surface, an unsealed outer app, a non-exact DMG inventory, mismatched DMG/app contents, absent app or DMG tickets, missing notarized Gatekeeper source, and failed app/DMG Gatekeeper assessment.
 
-The accepted macOS remediation changes the shared group everywhere to Team-prefixed `K7LY92JY96.com.sommir.barwarden.autofill`. The app and raw Agent carry only that App Group and no application/team identifier or profile. Only the Provider carries App Sandbox and the AutoFill Credential Provider capability; its generated effective signing entitlements additionally require exact `com.apple.application-identifier=K7LY92JY96.com.sommir.barwarden.credential-provider` and `com.apple.developer.team-identifier=K7LY92JY96`. The Provider profile must contain exactly that entitlement set, be unexpired and Team-scoped, and contain the exact signing leaf certificate/public key extracted from the Provider signature. Extra capabilities are rejected.
+The accepted macOS remediation changes the shared group everywhere to Team-prefixed `K7LY92JY96.com.sommir.barwarden.autofill`. The app and raw Agent carry only that App Group and no application/team identifier or profile. Only the Provider carries App Sandbox and the AutoFill Credential Provider capability; its generated effective signed-code entitlements additionally require exact `com.apple.application-identifier=K7LY92JY96.com.sommir.barwarden.credential-provider` and `com.apple.developer.team-identifier=K7LY92JY96`. Profile validation applies authorization semantics rather than signed-code equality: exact or Team-wildcard application identifiers authorize the Provider, the App Group may be absent/exact/Team-wildcard, and only safe Apple-standard extras such as Team/application identifiers, Team-scoped Keychain authorization, and `get-task-allow=false` are accepted. Unknown or dangerous restricted capabilities are rejected. The profile must also be an unexpired Team-scoped Developer ID distribution profile whose embedded signing certificate/public key exactly matches the Provider signer. These rules are proven by fixtures only; no real Provider profile has been presented or claimed valid.
 
 This is a pre-production spike identity correction, not a production data migration. Production native configuration has never been promoted, so no formal migration of the old local spike group container is performed; any old local spike container is intentionally left untouched.
 
-The builder creates a hash-bound assembly attestation containing the complete bundle-manifest hash (root and relative paths, type, mode, and every file hash), DMG hash, exact Agent → Provider → app → DMG signing sequence, `signingUsedDeep: false`, and the release-builder policy hash. The verifier independently recalculates all hashes, derives app/inner/DMG signature and seal state from the artifacts, requires that exact sequence in the current builder policy, and checks the current builder-policy hash before accepting the attestation. Final output is staged as an exact three-item set and promoted with one directory rename.
+The builder creates a hash-bound assembly attestation containing the complete bundle-manifest hash (root and relative paths, type, mode, and every file hash), DMG hash, exact Agent → Provider → app → DMG signing sequence, `signingUsedDeep: false`, and the release-builder policy hash. The verifier independently recalculates all hashes, derives app/inner/DMG signature and seal state from the artifacts, requires that exact sequence in the current builder policy, and checks the current builder-policy hash before accepting the attestation. Sanitized JSON and Markdown evidence are written into the private build stage before promotion. The exact five-item app/DMG/attestation/evidence set is copied into a private sibling stage and becomes visible through one directory rename; failed evidence generation leaves no release directory.
+
+## Product setup lifecycle
+
+Native Agent registration is now connected to the product path. The first dedicated `autofill-menu`, `autofill-shortcut`, or `autofill-floating` entry persists an explicit enabled flag and awaits `status → register-if-needed → probe` before opening the shared picker. Ordinary vault/tray entry does not opt in. `requiresApproval` enters the existing repair state with fixed `System Settings > General > Login Items` guidance and performs no target-context, Agent-session, candidate, or secret query. On later startup an enabled feature repeats status/recovery/probe so update and restart can recover the embedded Agent.
+
+`AutoFillSetupService.disable()` is the callable disable path. It clears the enabled flag first, then fail-closed locks the Agent, clears the current account projection, and unregisters the Agent, attempting every cleanup even when one operation fails.
 
 ## TDD evidence
 
@@ -35,6 +41,9 @@ The builder creates a hash-bound assembly attestation containing the complete bu
 - Review RED/GREEN covers Team-prefixed group identity, Provider-only profile/effective identifiers, certificate/public-key signer binding, LaunchAgent lifecycle and command surface, product version, all symlinks, unexpected Mach-O/dylib payloads, full bundle-manifest hashing, builder-policy binding, exact Agent/Provider/app/DMG signing order, independent DMG Developer ID/Team validation, static deep-sign rejection, fixed-code sanitization, and atomic output promotion.
 - Native overlay RED/GREEN covers private atomic generation, app-only output, exact native entitlement selection, byte-identical production inputs, and refusal to overwrite production files.
 - Evidence RED/GREEN covers the complete 20-row live matrix, fixed-code-only content, path/credential exclusion, and refusal to record PASS without both artifact hashes, all current/macOS 13 live rows, strict verifier success, and production promotion.
+- Product setup RED/GREEN covers fresh install, update/restart recovery, persisted opt-in, status/register/probe ordering, `requiresApproval` query suppression and fixed Login Items guidance, and disable lock/clear/unregister cleanup.
+- Profile authorization RED/GREEN covers absent/exact/Team-wildcard App Group authorization, exact/Team-wildcard application identifiers, safe Apple-standard extras, and rejection of wrong Team/app/capability/certificate/expiry or dangerous restricted entitlements. No real profile validation is claimed.
+- PASS-evidence mutation RED/GREEN proves both runtime and JSON Schema reject an otherwise-valid PASS record containing any code outside the exact four-code positive set.
 
 ## Real partial build evidence
 
@@ -52,7 +61,7 @@ The attempted temporary-Keychain private-key import was rejected before executio
 
 Current external blockers are represented only by fixed codes in the evidence:
 
-- `NATIVE_AUTOFILL_SIGNING_IDENTITY_KEYCHAIN_MISSING`
+- `NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING`
 - `NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING`
 - `NATIVE_AUTOFILL_NOTARY_PROFILE_MISSING`
 - `NATIVE_AUTOFILL_SIGNED_ARTIFACT_MISSING`
@@ -68,14 +77,15 @@ The macOS 13 device gate is absent. Because the signed artifact gate, current-ma
 
 ## Verification
 
-- Task 9 verifier/builder/overlay/evidence focused suites: 57 Node tests plus all three shell harnesses passed.
+- Setup/App/Picker/Tauri-host focused suites: 140 passed.
+- Task 9 verifier/builder/overlay/evidence focused suites: 25 Node tests plus all three shell harnesses passed.
 - Native Xcode project/build-wrapper contracts: 14 passed.
 - Native identity contracts: 19 passed.
-- Full TypeScript: 3,513 passed, 22 skipped across 237 files.
+- Full TypeScript: passed after updating the exact recovery-manifest hash for the intentional Tauri host command change.
 - Full Rust: 252 passed, 7 ignored.
 - Full Swift/Xcode: 131 passed, 0 failed. The sandboxed first attempt was blocked by the XCTest helper-service sandbox; the approved unrestricted rerun passed.
 - Production web build: passed with existing externalization, Tailwind, and chunk-size warnings.
-- `cargo fmt --check`, `cargo check`, shell syntax, plist lint, and `git diff --check`: passed. `cargo check` retains six existing dead-code warnings.
+- Shell syntax and `git diff --check`: passed.
 
 An exploratory `node --test scripts/*.spec.mjs` run is not a Task 9 gate. It exited nonzero on unrelated M13/M16 pinned evidence/clean-artifact preconditions and native-project cases invoked without the required full-Xcode environment. Every applicable Task 9 file was rerun independently with the correct environment and passed.
 
@@ -87,3 +97,4 @@ An exploratory `node --test scripts/*.spec.mjs` run is not a Task 9 gate. It exi
 - Architecture remediation selected: **YES; Team-prefixed macOS App Group with Provider-only profile**
 - Production container migration: **NO; old local spike data is not production data and is left untouched**
 - Review-fix commit intent: `fix: harden native autofill release gate`
+- Follow-up commit intent: `fix: complete native autofill release setup gate`

@@ -15,6 +15,8 @@ test("promotes the complete exact release set in one directory rename", () => {
     writeFileSync(join(source, "Barwarden.app", "marker"), "app");
     writeFileSync(join(source, "Barwarden-0.1.2.dmg"), "dmg");
     writeFileSync(join(source, "native-autofill-assembly-attestation.json"), "attestation");
+    writeFileSync(join(source, "native-autofill-evidence.json"), "{}");
+    writeFileSync(join(source, "native-autofill-evidence.md"), "evidence");
 
     promoteNativeAutoFillRelease({ sourceDirectory: source, outputDirectory: output });
 
@@ -22,6 +24,8 @@ test("promotes the complete exact release set in one directory rename", () => {
       "Barwarden-0.1.2.dmg",
       "Barwarden.app",
       "native-autofill-assembly-attestation.json",
+      "native-autofill-evidence.json",
+      "native-autofill-evidence.md",
     ]);
     assert.equal(readFileSync(join(output, "Barwarden.app", "marker"), "utf8"), "app");
   } finally {
@@ -36,6 +40,25 @@ test("missing source artifact leaves no partial output", () => {
     const output = join(root, "release");
     mkdirSync(join(source, "Barwarden.app"), { recursive: true });
     writeFileSync(join(source, "Barwarden-0.1.2.dmg"), "dmg");
+
+    assert.throws(
+      () => promoteNativeAutoFillRelease({ sourceDirectory: source, outputDirectory: output }),
+      /NATIVE_AUTOFILL_PROMOTION_INVALID/,
+    );
+    assert.equal(existsSync(output), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("evidence generation failure leaves no release directory", () => {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-promotion-evidence-failure-"));
+  try {
+    const source = join(root, "private-stage");
+    const output = join(root, "release");
+    mkdirSync(join(source, "Barwarden.app"), { recursive: true });
+    writeFileSync(join(source, "Barwarden-0.1.2.dmg"), "dmg");
+    writeFileSync(join(source, "native-autofill-assembly-attestation.json"), "attestation");
 
     assert.throws(
       () => promoteNativeAutoFillRelease({ sourceDirectory: source, outputDirectory: output }),

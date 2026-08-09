@@ -54,14 +54,53 @@ test("accepts an exact unexpired Provider profile whose leaf certificate and pub
   }
 });
 
-test("rejects extra profile capabilities and a signer not present in DeveloperCertificates", () => {
+test("accepts absent, exact, or Team-wildcard App Group authorization", () => {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-profile-groups-"));
+  try {
+    const signer = certificate(root, "signer");
+    const absent = profile(signer);
+    delete absent.Entitlements["com.apple.security.application-groups"];
+    const wildcard = profile(signer);
+    wildcard.Entitlements["com.apple.security.application-groups"] = ["K7LY92JY96.*"];
+    assert.doesNotThrow(() => validateNativeAutoFillProviderProfile(absent, signer));
+    assert.doesNotThrow(() => validateNativeAutoFillProviderProfile(profile(signer), signer));
+    assert.doesNotThrow(() => validateNativeAutoFillProviderProfile(wildcard, signer));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("accepts wildcard app authorization and safe Apple-standard profile extras", () => {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-profile-standard-"));
+  try {
+    const signer = certificate(root, "signer");
+    const value = profile(signer);
+    value.Entitlements["com.apple.application-identifier"] = "K7LY92JY96.*";
+    value.Entitlements["keychain-access-groups"] = ["K7LY92JY96.*"];
+    value.Entitlements["get-task-allow"] = false;
+    assert.doesNotThrow(() => validateNativeAutoFillProviderProfile(value, signer));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects wrong team, app, capability, expiry, dangerous entitlement, and signer", () => {
   const root = mkdtempSync(join(tmpdir(), "barwarden-profile-reject-"));
   try {
     const signer = certificate(root, "signer");
     const other = certificate(root, "other");
-    const extra = profile(signer);
-    extra.Entitlements["get-task-allow"] = false;
-    assert.throws(() => validateNativeAutoFillProviderProfile(extra, signer), /NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID/);
+    const mutations = [
+      (value) => { value.TeamIdentifier = ["OTHERTEAM1"]; },
+      (value) => { value.Entitlements["com.apple.application-identifier"] = "K7LY92JY96.com.example.other"; },
+      (value) => { value.Entitlements["com.apple.developer.authentication-services.autofill-credential-provider"] = false; },
+      (value) => { value.ExpirationDate = new Date(Date.now() - 1_000).toISOString(); },
+      (value) => { value.Entitlements["com.apple.developer.networking.networkextension"] = ["packet-tunnel-provider"]; },
+    ];
+    for (const mutate of mutations) {
+      const value = profile(signer);
+      mutate(value);
+      assert.throws(() => validateNativeAutoFillProviderProfile(value, signer), /NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID/);
+    }
     assert.throws(() => validateNativeAutoFillProviderProfile(profile(other), signer), /NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID/);
   } finally {
     rmSync(root, { recursive: true, force: true });

@@ -72,7 +72,9 @@ assert_rejected "$(mutate provider_profile 'fixture.providerProfileValid = false
 assert_rejected "$(mutate provider_profile_key 'fixture.inventory[1].profileApplicationIdentifierKey = "application-identifier";')" NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID
 assert_rejected "$(mutate provider_app_id 'fixture.inventory[1].applicationIdentifier = "K7LY92JY96.com.example.provider";')" NATIVE_AUTOFILL_PROVIDER_ENTITLEMENT_INVALID
 assert_rejected "$(mutate provider_team_id 'fixture.inventory[1].developerTeamIdentifier = "OTHERTEAM1";')" NATIVE_AUTOFILL_PROVIDER_ENTITLEMENT_INVALID
-assert_rejected "$(mutate provider_profile_extra 'fixture.inventory[1].profileEntitlementKeys.push("get-task-allow");')" NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID
+assert_passes "$(mutate provider_profile_group_absent 'fixture.inventory[1].profileEntitlementKeys = fixture.inventory[1].profileEntitlementKeys.filter((key) => key !== "com.apple.security.application-groups");')"
+assert_passes "$(mutate provider_profile_standard_extras 'fixture.inventory[1].profileEntitlementKeys.push("get-task-allow", "keychain-access-groups"); fixture.inventory[1].profileEntitlementKeys.sort();')"
+assert_rejected "$(mutate provider_profile_dangerous 'fixture.inventory[1].profileEntitlementKeys.push("com.apple.developer.networking.networkextension");')" NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID
 assert_rejected "$(mutate provider_profile_cert 'fixture.inventory[1].profileCertificateMatchesSigner = false;')" NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID
 assert_rejected "$(mutate app_id_on_main 'fixture.inventory[0].applicationIdentifier = "K7LY92JY96.com.sommir.barwarden"; fixture.inventory[0].entitlementKeys.push("com.apple.application-identifier");')" NATIVE_AUTOFILL_ENTITLEMENT_INVENTORY_INVALID
 assert_rejected "$(mutate launch_agent 'fixture.launchAgentValid = false;')" NATIVE_AUTOFILL_LAUNCH_AGENT_INVALID

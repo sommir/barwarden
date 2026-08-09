@@ -6,6 +6,8 @@ const EXPECTED = [
   "Barwarden-0.1.2.dmg",
   "Barwarden.app",
   "native-autofill-assembly-attestation.json",
+  "native-autofill-evidence.json",
+  "native-autofill-evidence.md",
 ];
 
 export function promoteNativeAutoFillRelease({ sourceDirectory, outputDirectory }) {

@@ -387,6 +387,10 @@ export class TauriHostService
     return this.invoke<AutoFillAgentRegistrationStatus>("autofill_agent_unregister");
   }
 
+  autofillClearProjection(accountId: string): Promise<void> {
+    return this.invoke<void>("autofill_clear_projection", { accountId });
+  }
+
   async entryContext() {
     return decodeEntryContext(await this.invoke<unknown>("autofill_entry_context"));
   }

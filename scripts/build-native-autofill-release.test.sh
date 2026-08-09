@@ -31,7 +31,8 @@ expected_plan="$(printf '%s\n' \
   submit-dmg-for-notarization \
   staple-dmg \
   run-strict-release-verifier \
-  write-sanitized-evidence)"
+  write-sanitized-evidence \
+  promote-complete-release)"
 [[ "$plan" == "$expected_plan" ]] || fail "inside-out release plan changed"
 
 preflight_output="$(NATIVE_AUTOFILL_RELEASE_TEST_MODE=1 "$BUILDER" --preflight 2>&1 || true)"
@@ -66,5 +67,10 @@ unsafe_output="$(
 
 node --test "$SCRIPT_DIR/native-autofill-builder-policy.spec.mjs" || fail "static codesign policy failed"
 "$SCRIPT_DIR/create-native-autofill-provider-entitlements.test.sh" || fail "Provider entitlement generation failed"
+
+evidence_line="$(rg -n 'record-native-autofill-evidence\.mjs.*ARTIFACT_PASS' "$BUILDER" | cut -d: -f1)"
+promotion_line="$(rg -n 'native-autofill-atomic-promotion\.mjs' "$BUILDER" | tail -1 | cut -d: -f1)"
+[[ -n "$evidence_line" && -n "$promotion_line" && "$evidence_line" -lt "$promotion_line" ]] || \
+  fail "evidence must be staged before the single release promotion"
 
 printf 'build-native-autofill-release tests: PASS\n'

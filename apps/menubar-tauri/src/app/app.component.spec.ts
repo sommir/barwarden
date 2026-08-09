@@ -31,6 +31,7 @@ import type {
 } from "../host/host-api";
 import { ReplaySubject } from "rxjs";
 import * as bitwardenApiModule from "../bitwarden-api/bitwarden-api";
+import { AutoFillSetupService } from "./autofill/autofill-setup.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -133,6 +134,36 @@ describe("AppComponent", () => {
       component.ngOnDestroy();
     },
   );
+
+  it("awaits native AutoFill enablement before opening a dedicated entry", async () => {
+    const store = new PopupStateStore();
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    let finishEnable: (() => void) | undefined;
+    const enableFromEntry = vi.fn(() => new Promise<"ready">((resolve) => {
+      finishEnable = () => resolve("ready");
+    }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { enableFromEntry },
+    ]) as AppComponent;
+
+    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+      detail: { entrySource: "autofill-shortcut" },
+    }));
+    await vi.waitFor(() => expect(enableFromEntry).toHaveBeenCalledOnce());
+    expect(navigateByUrl).not.toHaveBeenCalled();
+
+    finishEnable?.();
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+      "/autofill-picker",
+      { replaceUrl: true },
+    ));
+    component.ngOnDestroy();
+  });
 
   it("does not route away while login temporarily hides a synchronized candidate state", async () => {
     const store = new PopupStateStore();

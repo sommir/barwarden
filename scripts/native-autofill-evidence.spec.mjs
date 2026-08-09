@@ -106,6 +106,10 @@ test("PASS requires the explicit productionPromoted boolean in both runtime and 
   evidence.productionPromoted = true;
   assert.doesNotThrow(() => assertNativeAutoFillEvidence(evidence));
   assert.equal(validate(evidence), true, JSON.stringify(validate.errors));
+
+  evidence.codes.push("NATIVE_AUTOFILL_TOOLING_IMPLEMENTED");
+  assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_PASS_INVALID/);
+  assert.equal(validate(evidence), false, "PASS must reject any code outside the exact positive set");
 });
 
 test("writer emits JSON and Markdown without paths or credential references", () => {

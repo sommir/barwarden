@@ -63,6 +63,7 @@ import { PopupWindowSizeService } from "./window-size/popup-window-size.service"
 import { translateOfficialMessage } from "./official-ui/official-i18n.service";
 import { LocaleRouteRefreshService } from "./platform/locale-route-refresh.service";
 import { VaultFacade } from "./vault/vault.facade";
+import { AutoFillSetupService } from "./autofill/autofill-setup.service";
 
 const startupNavigationErrorMessage = () =>
   translateOfficialMessage("i18nStartupNavigationFailed");
@@ -208,6 +209,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly localeRouteRefresh: LocaleRouteRefreshService | null = null,
     @Optional()
     private readonly vault: VaultFacade | null = null,
+    @Optional()
+    private readonly autoFillSetup: AutoFillSetupService | null = null,
   ) {
     // The root owns the singleton so every live route is refreshed when the
     // user changes language, including secondary Settings routes.
@@ -323,6 +326,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!route) throw new Error("Settings evidence provider is unavailable");
         await this.router.navigateByUrl(route, { replaceUrl: true });
         return;
+      }
+
+      if (this.autoFillSetup) {
+        await this.autoFillSetup.recoverAtStartup().catch(() => undefined);
       }
 
       try {
@@ -618,6 +625,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.routeCache?.clear();
     try {
+      await this.autoFillSetup?.enableFromEntry();
       await this.router.navigateByUrl("/autofill-picker", { replaceUrl: true });
     } catch {
       // Keep the existing popup route usable when picker navigation cannot settle.

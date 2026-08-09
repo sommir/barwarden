@@ -5,13 +5,17 @@ import { fileURLToPath } from "node:url";
 const TEAM_ID = "K7LY92JY96";
 const APP_GROUP = "K7LY92JY96.com.sommir.barwarden.autofill";
 const BUNDLE_ID = "com.sommir.barwarden.credential-provider";
-const ENTITLEMENT_KEYS = [
+const REQUIRED_ENTITLEMENT_KEYS = [
   "com.apple.application-identifier",
   "com.apple.developer.authentication-services.autofill-credential-provider",
   "com.apple.developer.team-identifier",
   "com.apple.security.app-sandbox",
-  "com.apple.security.application-groups",
 ];
+const OPTIONAL_STANDARD_ENTITLEMENT_KEYS = new Set([
+  "com.apple.security.application-groups",
+  "get-task-allow",
+  "keychain-access-groups",
+]);
 
 function reject() {
   throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
@@ -19,6 +23,19 @@ function reject() {
 
 function exactArray(value, expected) {
   return Array.isArray(value) && value.length === expected.length && value.every((item, index) => item === expected[index]);
+}
+
+function authorizesTeamValue(value, exact) {
+  return value === exact || value === `${TEAM_ID}.*`;
+}
+
+function authorizedGroupList(value) {
+  return value === undefined || exactArray(value, [APP_GROUP]) || exactArray(value, [`${TEAM_ID}.*`]);
+}
+
+function authorizedKeychainGroups(value) {
+  return value === undefined || (Array.isArray(value) && value.length > 0
+    && value.every((item) => typeof item === "string" && authorizesTeamValue(item, `${TEAM_ID}.${BUNDLE_ID}`)));
 }
 
 function publicKeyHash(certificate) {
@@ -31,16 +48,20 @@ export function validateNativeAutoFillProviderProfile(profile, signerCertificate
   try {
     const entitlements = profile?.Entitlements;
     const keys = Object.keys(entitlements ?? {}).sort();
+    const entitlementInventoryValid = REQUIRED_ENTITLEMENT_KEYS.every((key) => keys.includes(key))
+      && keys.every((key) => REQUIRED_ENTITLEMENT_KEYS.includes(key) || OPTIONAL_STANDARD_ENTITLEMENT_KEYS.has(key));
     if (
       !exactArray(profile?.TeamIdentifier, [TEAM_ID]) ||
       profile?.ProvisionsAllDevices !== true ||
       !(Date.parse(profile?.ExpirationDate) > Date.now()) ||
-      !exactArray(keys, ENTITLEMENT_KEYS) ||
-      entitlements["com.apple.application-identifier"] !== `${TEAM_ID}.${BUNDLE_ID}` ||
+      !entitlementInventoryValid ||
+      !authorizesTeamValue(entitlements["com.apple.application-identifier"], `${TEAM_ID}.${BUNDLE_ID}`) ||
       entitlements["com.apple.developer.team-identifier"] !== TEAM_ID ||
       entitlements["com.apple.developer.authentication-services.autofill-credential-provider"] !== true ||
       entitlements["com.apple.security.app-sandbox"] !== true ||
-      !exactArray(entitlements["com.apple.security.application-groups"], [APP_GROUP]) ||
+      !authorizedGroupList(entitlements["com.apple.security.application-groups"]) ||
+      !authorizedKeychainGroups(entitlements["keychain-access-groups"]) ||
+      ("get-task-allow" in entitlements && entitlements["get-task-allow"] !== false) ||
       !Array.isArray(profile?.DeveloperCertificates) ||
       profile.DeveloperCertificates.length === 0
     ) {
@@ -52,7 +73,8 @@ export function validateNativeAutoFillProviderProfile(profile, signerCertificate
     const now = Date.now();
     if (
       !(Date.parse(signer.validFrom) <= now && Date.parse(signer.validTo) > now) ||
-      !new RegExp(`(?:^|\\n)OU=${TEAM_ID}(?:$|\\n)`, "u").test(signer.subject)
+      !new RegExp(`(?:^|\\n)OU=${TEAM_ID}(?:$|\\n)`, "u").test(signer.subject) ||
+      !/(?:^|\n)CN=Developer ID Application:/u.test(signer.subject)
     ) {
       reject();
     }

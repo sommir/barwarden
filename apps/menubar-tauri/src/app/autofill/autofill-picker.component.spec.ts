@@ -22,6 +22,7 @@ import {
   type AutoFillNativeHost,
 } from "./autofill-native.host";
 import { AutoFillPickerComponent } from "./autofill-picker.component";
+import { AutoFillSetupService } from "./autofill-setup.service";
 
 beforeAll(() => {
   try {
@@ -111,6 +112,22 @@ describe("AutoFillPickerComponent", () => {
     expect(fixture.nativeElement.querySelector('[data-testid="autofill-group-exact"]')).not.toBeNull();
     expect(fixture.nativeElement.textContent).toContain("Exact matches");
     expect(JSON.stringify(candidateHost.queryCandidates.mock.calls)).not.toMatch(/one-secret/);
+  });
+
+  it("shows fixed Login Items repair guidance and performs no query while approval is required", async () => {
+    TestBed.overrideProvider(AutoFillSetupService, {
+      useValue: { blockReason: () => "requiresApproval" },
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("repair"));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain("System Settings > General > Login Items");
+    expect(nativeHost.entryContext).not.toHaveBeenCalled();
+    expect(nativeHost.agentSession).not.toHaveBeenCalled();
+    expect(candidateHost.queryCandidates).not.toHaveBeenCalled();
   });
 
   it("selects with the keyboard without releasing or pasting a secret", async () => {

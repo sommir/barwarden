@@ -27,6 +27,7 @@ PLAN=(
   staple-dmg
   run-strict-release-verifier
   write-sanitized-evidence
+  promote-complete-release
 )
 
 fail() {
@@ -242,11 +243,13 @@ run_or_fail NATIVE_AUTOFILL_OUTPUT_APP_FAILED /usr/bin/ditto --norsrc --noqtn "$
 run_or_fail NATIVE_AUTOFILL_OUTPUT_DMG_FAILED /usr/bin/ditto --norsrc --noqtn "$DMG_PATH" "$PROMOTION_SOURCE/Barwarden-0.1.2.dmg"
 run_or_fail NATIVE_AUTOFILL_OUTPUT_ATTESTATION_FAILED \
   /usr/bin/ditto --norsrc --noqtn "$ATTESTATION" "$PROMOTION_SOURCE/native-autofill-assembly-attestation.json"
-run_or_fail NATIVE_AUTOFILL_PROMOTION_FAILED \
-  node "$SCRIPT_DIR/native-autofill-atomic-promotion.mjs" "$PROMOTION_SOURCE" "$OUTPUT_DIR"
 run_or_fail NATIVE_AUTOFILL_EVIDENCE_FAILED \
   /usr/bin/env NATIVE_AUTOFILL_APP_SHA256="$APP_HASH" NATIVE_AUTOFILL_DMG_SHA256="$DMG_HASH" \
   NATIVE_AUTOFILL_OS_VERSION="$(/usr/bin/sw_vers -productVersion)" \
-  node "$SCRIPT_DIR/record-native-autofill-evidence.mjs" ARTIFACT_PASS
+  node "$SCRIPT_DIR/record-native-autofill-evidence.mjs" ARTIFACT_PASS \
+  "$PROMOTION_SOURCE/native-autofill-evidence.json" \
+  "$PROMOTION_SOURCE/native-autofill-evidence.md"
+run_or_fail NATIVE_AUTOFILL_PROMOTION_FAILED \
+  node "$SCRIPT_DIR/native-autofill-atomic-promotion.mjs" "$PROMOTION_SOURCE" "$OUTPUT_DIR"
 
 printf '%s\n' NATIVE_AUTOFILL_RELEASE_BUILD_PASS

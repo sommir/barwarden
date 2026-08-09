@@ -99,12 +99,15 @@
           },
           "productionPromoted": { "const": true },
           "codes": {
-            "allOf": [
-              { "contains": { "const": "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS" } },
-              { "contains": { "const": "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS" } },
-              { "contains": { "const": "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS" } },
-              { "contains": { "const": "NATIVE_AUTOFILL_PRODUCTION_PROMOTED" } }
-            ]
+            "minItems": 4,
+            "maxItems": 4,
+            "prefixItems": [
+              { "const": "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS" },
+              { "const": "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS" },
+              { "const": "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS" },
+              { "const": "NATIVE_AUTOFILL_PRODUCTION_PROMOTED" }
+            ],
+            "items": false
           },
           "liveMatrix": {
             "patternProperties": { ".*": { "const": "NATIVE_AUTOFILL_LIVE_PASS" } }
@@ -117,7 +120,7 @@
     "fixedCode": {
       "enum": [
         "NATIVE_AUTOFILL_TOOLING_IMPLEMENTED",
-        "NATIVE_AUTOFILL_SIGNING_IDENTITY_KEYCHAIN_MISSING",
+        "NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING",
         "NATIVE_AUTOFILL_PRIVATE_KEY_IMPORT_NOT_AUTHORIZED",
         "NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING",
         "NATIVE_AUTOFILL_XCODE_AUTOMATIC_PROVISIONING_NOT_AUTHORIZED",

@@ -37,6 +37,7 @@ describe("TauriHostService", () => {
     const invoke = vi.fn<TauriInvoke>(async (command) => {
       if (command === "autofill_agent_registration_status") return "notRegistered" as never;
       if (command === "autofill_agent_register") return "requiresApproval" as never;
+      if (command === "autofill_clear_projection") return undefined as never;
       return "notRegistered" as never;
     });
     const host = new TauriHostService(invoke);
@@ -44,9 +45,11 @@ describe("TauriHostService", () => {
     await expect(host.autofillAgentRegistrationStatus()).resolves.toBe("notRegistered");
     await expect(host.autofillAgentRegister()).resolves.toBe("requiresApproval");
     await expect(host.autofillAgentUnregister()).resolves.toBe("notRegistered");
+    await expect(host.autofillClearProjection("account-a")).resolves.toBeUndefined();
     expect(invoke).toHaveBeenNthCalledWith(1, "autofill_agent_registration_status");
     expect(invoke).toHaveBeenNthCalledWith(2, "autofill_agent_register");
     expect(invoke).toHaveBeenNthCalledWith(3, "autofill_agent_unregister");
+    expect(invoke).toHaveBeenNthCalledWith(4, "autofill_clear_projection", { accountId: "account-a" });
   });
 
   it("maps conservative Accessibility fallback calls to exact native commands", async () => {

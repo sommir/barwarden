@@ -56,6 +56,24 @@ const EXPECTED_ENTITLEMENT_KEYS = new Map([
   ],
   ["agent", ["com.apple.security.application-groups"]],
 ]);
+const REQUIRED_PROFILE_ENTITLEMENT_KEYS = [
+  "com.apple.application-identifier",
+  "com.apple.developer.authentication-services.autofill-credential-provider",
+  "com.apple.developer.team-identifier",
+  "com.apple.security.app-sandbox",
+];
+const ALLOWED_PROFILE_ENTITLEMENT_KEYS = new Set([
+  ...REQUIRED_PROFILE_ENTITLEMENT_KEYS,
+  "com.apple.security.application-groups",
+  "get-task-allow",
+  "keychain-access-groups",
+]);
+
+function validProfileEntitlementInventory(value) {
+  return Array.isArray(value) && new Set(value).size === value.length
+    && REQUIRED_PROFILE_ENTITLEMENT_KEYS.every((key) => value.includes(key))
+    && value.every((key) => ALLOWED_PROFILE_ENTITLEMENT_KEYS.has(key));
+}
 
 export function verifyNativeAutoFillInspection(inspection) {
   if (!inspection || inspection.schemaVersion !== 1 || !Array.isArray(inspection.inventory)) {
@@ -186,7 +204,7 @@ export function verifyNativeAutoFillInspection(inspection) {
     reject("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
   }
   if (
-    !exactStringArray(provider.profileEntitlementKeys, EXPECTED_ENTITLEMENT_KEYS.get("credential-provider")) ||
+    !validProfileEntitlementInventory(provider.profileEntitlementKeys) ||
     provider.profileCertificateMatchesSigner !== true
   ) {
     reject("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");

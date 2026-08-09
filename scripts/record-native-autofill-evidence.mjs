@@ -1,5 +1,5 @@
 import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { NATIVE_AUTOFILL_RELEASE_CODES } from "./native-autofill-release-codes.mjs";
@@ -28,6 +28,12 @@ const LIVE_KEYS = [
 ];
 const CODE = /^NATIVE_AUTOFILL_[A-Z0-9_]+$/u;
 const HASH = /^[a-f0-9]{64}$/u;
+const PASS_CODES = [
+  "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS",
+  "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS",
+  "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS",
+  "NATIVE_AUTOFILL_PRODUCTION_PROMOTED",
+];
 
 export function createBlockedNativeAutoFillEvidence({ osVersion }) {
   return {
@@ -40,7 +46,7 @@ export function createBlockedNativeAutoFillEvidence({ osVersion }) {
     artifactHashes: { appSha256: null, dmgSha256: null },
     codes: [
       "NATIVE_AUTOFILL_TOOLING_IMPLEMENTED",
-      "NATIVE_AUTOFILL_SIGNING_IDENTITY_KEYCHAIN_MISSING",
+      "NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING",
       "NATIVE_AUTOFILL_PRIVATE_KEY_IMPORT_NOT_AUTHORIZED",
       "NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING",
       "NATIVE_AUTOFILL_XCODE_AUTOMATIC_PROVISIONING_NOT_AUTHORIZED",
@@ -79,17 +85,11 @@ export function assertNativeAutoFillEvidence(evidence) {
   if (appHash !== null && !HASH.test(appHash)) throw new Error("NATIVE_AUTOFILL_EVIDENCE_INVALID");
   if (dmgHash !== null && !HASH.test(dmgHash)) throw new Error("NATIVE_AUTOFILL_EVIDENCE_INVALID");
   if (evidence.status === "PASS") {
-    const required = [
-      "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS",
-      "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS",
-      "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS",
-      "NATIVE_AUTOFILL_PRODUCTION_PROMOTED",
-    ];
     if (
       !HASH.test(appHash ?? "") ||
       !HASH.test(dmgHash ?? "") ||
       evidence.productionPromoted !== true ||
-      required.some((code) => !evidence.codes.includes(code)) ||
+      JSON.stringify(evidence.codes) !== JSON.stringify(PASS_CODES) ||
       Object.values(evidence.liveMatrix).some((code) => code !== "NATIVE_AUTOFILL_LIVE_PASS")
     ) {
       throw new Error("NATIVE_AUTOFILL_EVIDENCE_PASS_INVALID");
@@ -146,13 +146,17 @@ export function writeNativeAutoFillEvidence({ evidence, jsonPath, markdownPath }
 
 function main() {
   const mode = process.argv[2];
-  if (mode !== "ARTIFACT_PASS") {
+  const jsonPath = process.argv[3];
+  const markdownPath = process.argv[4];
+  if (
+    mode !== "ARTIFACT_PASS" || process.argv.length !== 5 ||
+    !isAbsolute(jsonPath ?? "") || !isAbsolute(markdownPath ?? "") ||
+    dirname(jsonPath) !== dirname(markdownPath)
+  ) {
     console.error("NATIVE_AUTOFILL_EVIDENCE_MODE_INVALID");
     process.exitCode = 1;
     return;
   }
-  const scriptDirectory = dirname(fileURLToPath(import.meta.url));
-  const root = resolve(scriptDirectory, "..");
   try {
     const evidence = createBlockedNativeAutoFillEvidence({
       osVersion: process.env.NATIVE_AUTOFILL_OS_VERSION ?? "0.0",
@@ -170,8 +174,8 @@ function main() {
     ];
     writeNativeAutoFillEvidence({
       evidence,
-      jsonPath: resolve(root, "docs/autofill/native-autofill-evidence.json"),
-      markdownPath: resolve(root, "docs/autofill/native-autofill-evidence.md"),
+      jsonPath,
+      markdownPath,
     });
     console.log("NATIVE_AUTOFILL_EVIDENCE_RECORDED_BLOCKED");
   } catch {

@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Optional } from "@angular/core";
 import { Router } from "@angular/router";
 
 import { PasteError } from "../../host/host-api";
@@ -20,6 +20,7 @@ import {
   type AutoFillNativeHost,
   type AutoFillRepromptScope,
 } from "./autofill-native.host";
+import { AutoFillSetupService } from "./autofill-setup.service";
 
 type PickerMode =
   | "loading"
@@ -93,7 +94,12 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
         </section>
       } @else if (mode === "repair") {
         <section data-testid="autofill-repair">
-          <h2>AutoFill needs attention</h2><p>Repair or refresh the native AutoFill data, then try again.</p>
+          <h2>AutoFill needs attention</h2>
+          @if (setupRequiresApproval) {
+            <p>Open System Settings &gt; General &gt; Login Items and allow Barwarden AutoFill Agent, then try again.</p>
+          } @else {
+            <p>Repair or refresh the native AutoFill data, then try again.</p>
+          }
           <button type="button" (click)="initialize()">Retry</button>
         </section>
       } @else if (mode === "context-unavailable") {
@@ -199,6 +205,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   selected: RankedAutoFillCandidate | null = null;
   highlightedIndex = 0;
   statusMessage = "";
+  setupRequiresApproval = false;
   pendingMismatch: { action: SecretAction; field: AutoFillSecretField } | null = null;
   pendingProtected: PendingProtectedAction | null = null;
   masterPasswordMode = false;
@@ -219,6 +226,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     private readonly router: Router,
     private readonly reprompt: VaultRepromptService,
     private readonly changeDetector: ChangeDetectorRef,
+    @Optional() private readonly setup: AutoFillSetupService | null = null,
   ) {
     if (!this.store.snapshot().isUnlocked) {
       this.mode = "locked";
@@ -250,6 +258,13 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const state = this.store.snapshot();
     if (!state.isUnlocked) {
       this.mode = "locked";
+      this.markIfAlive();
+      return;
+    }
+    const setupState = this.setup?.blockReason();
+    if (setupState === "requiresApproval" || setupState === "unavailable") {
+      this.setupRequiresApproval = setupState === "requiresApproval";
+      this.mode = "repair";
       this.markIfAlive();
       return;
     }
