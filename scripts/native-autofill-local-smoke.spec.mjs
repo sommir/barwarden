@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { basename, join } from "node:path";
+import { execFile, spawnSync } from "node:child_process";
+import { promisify } from "node:util";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url).pathname.replace(/\/$/u, "");
 const builder = join(root, "scripts/build-native-autofill-local-smoke.sh");
 const policy = join(root, "scripts/native-autofill-local-smoke-policy.mjs");
 const smoke = join(root, "scripts/run-native-autofill-local-smoke.sh");
+const execFileAsync = promisify(execFile);
 
 function run(command, args, env = {}) {
   return spawnSync(command, args, {
@@ -63,6 +65,9 @@ test("static local policy cannot be confused with release or deep signing", () =
       ["gate", source.replace('NATIVE_AUTOFILL_LOCAL_SMOKE_ONLY:-0}" == 1', 'NATIVE_AUTOFILL_LOCAL_SMOKE_ONLY:-0}" == 0'), "NATIVE_AUTOFILL_LOCAL_SMOKE_GATE_INVALID"],
       ["release-name", source.replace('LOCAL_APP_NAME="Barwarden Local Smoke.app"', 'LOCAL_APP_NAME="Barwarden.app"'), "NATIVE_AUTOFILL_LOCAL_OUTPUT_CONTRACT_INVALID"],
       ["output-verify", source.replace('/usr/bin/codesign --verify --deep --strict --verbose=2 "$OUTPUT_APP"', '# output verification removed'), "NATIVE_AUTOFILL_LOCAL_OUTPUT_VERIFY_MISSING"],
+      ["temp-template", source.replace('.tauri-native-autofill-local.json.XXXXXX', '.tauri-native-autofill-local.XXXXXX.json'), "NATIVE_AUTOFILL_LOCAL_TEMP_CONTRACT_INVALID"],
+      ["temp-failure", source.replace('2>/dev/null)" || fail NATIVE_AUTOFILL_LOCAL_TEMP_CREATE_FAILED', ')"'), "NATIVE_AUTOFILL_LOCAL_TEMP_CONTRACT_INVALID"],
+      ["agent-identifier", source.replace('--identifier "com.sommir.barwarden.autofill-agent"', ''), "NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID"],
     ];
     for (const [name, mutation, code] of mutations) {
       const path = join(directory, `${name}.sh`);
@@ -71,6 +76,46 @@ test("static local policy cannot be confused with release or deep signing", () =
       assert.equal(result.status, 1, name);
       assert.equal(result.stderr.trim(), code, name);
     }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("trailing-X overlay template is collision-safe with stale and concurrent files", async () => {
+  const directory = mkdtempSync("/private/tmp/barwarden-local-overlay-");
+  const template = join(directory, ".tauri-native-autofill-local.json.XXXXXX");
+  try {
+    const stale = (await execFileAsync("/usr/bin/mktemp", [template])).stdout.trim();
+    const created = await Promise.all(
+      Array.from({ length: 8 }, () => execFileAsync("/usr/bin/mktemp", [template])),
+    );
+    const paths = [stale, ...created.map(({ stdout }) => stdout.trim())];
+    assert.equal(new Set(paths).size, paths.length);
+    for (const path of paths) {
+      assert.equal(existsSync(path), true);
+      assert.match(basename(path), /^\.tauri-native-autofill-local\.json\.[A-Za-z0-9]{6}$/u);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("raw Agent signing needs an explicit stable identifier", () => {
+  const directory = mkdtempSync("/private/tmp/barwarden-agent-identifier-");
+  const agent = join(directory, "BarwardenAutoFillAgent");
+  copyFileSync("/usr/bin/true", agent);
+  try {
+    const inferredSign = run("/usr/bin/codesign", ["--force", "--sign", "-", agent]);
+    assert.equal(inferredSign.status, 0, inferredSign.stderr);
+    const inferred = run("/usr/bin/codesign", ["-d", "--verbose=4", agent]);
+    assert.doesNotMatch(inferred.stderr, /^Identifier=com\.sommir\.barwarden\.autofill-agent$/mu);
+
+    const explicitSign = run("/usr/bin/codesign", [
+      "--force", "--sign", "-", "--identifier", "com.sommir.barwarden.autofill-agent", agent,
+    ]);
+    assert.equal(explicitSign.status, 0, explicitSign.stderr);
+    const explicit = run("/usr/bin/codesign", ["-d", "--verbose=4", agent]);
+    assert.match(explicit.stderr, /^Identifier=com\.sommir\.barwarden\.autofill-agent$/mu);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

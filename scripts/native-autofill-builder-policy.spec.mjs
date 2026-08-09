@@ -45,7 +45,7 @@ test("release builder policy requires exactly Agent then Provider then app then 
   const command = (code, target) =>
     `run_or_fail ${code} ${String.fromCharCode(92, 10)}` +
     `    /usr/bin/codesign "\${SIGNING_ARGS[@]}" ${target}`;
-  const agent = command("NATIVE_AUTOFILL_AGENT_SIGN_FAILED", '"$APP/Contents/Helpers/$AGENT"');
+  const agent = command("NATIVE_AUTOFILL_AGENT_SIGN_FAILED", '--identifier "com.sommir.barwarden.autofill-agent" "$APP/Contents/Helpers/$AGENT"');
   const provider = command("NATIVE_AUTOFILL_PROVIDER_SIGN_FAILED", '"$APP/Contents/PlugIns/$PROVIDER"');
   const app = command("NATIVE_AUTOFILL_MAIN_APP_SIGN_FAILED", '"$APP"');
   const dmg = command("NATIVE_AUTOFILL_DMG_SIGN_FAILED", '"$DMG"');
@@ -56,6 +56,26 @@ test("release builder policy requires exactly Agent then Provider then app then 
   assert.throws(
     () => verifyNativeAutoFillBuilderPolicy([signingArguments, provider, agent, app, dmg].join("\n")),
     /NATIVE_AUTOFILL_SIGN_ORDER_INVALID/,
+  );
+  assert.throws(
+    () => verifyNativeAutoFillBuilderPolicy([
+      signingArguments,
+      agent.replace('--identifier "com.sommir.barwarden.autofill-agent" ', ""),
+      provider,
+      app,
+      dmg,
+    ].join("\n")),
+    /NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID/,
+  );
+  assert.throws(
+    () => verifyNativeAutoFillBuilderPolicy([
+      signingArguments,
+      agent,
+      provider.replace('"$APP', '--identifier "com.sommir.wrong" "$APP'),
+      app,
+      dmg,
+    ].join("\n")),
+    /NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID/,
   );
   assert.throws(
     () => verifyNativeAutoFillBuilderPolicy([signingArguments, agent, provider, app, dmg, agent].join("\n")),
@@ -77,7 +97,7 @@ test("release builder policy requires exactly Agent then Provider then app then 
 test("release builder policy requires both notarization submissions to use the isolated Keychain", () => {
   const source = `
     SIGNING_ARGS=(--force --options runtime --sign "$IDENTITY")
-    run_or_fail NATIVE_AUTOFILL_AGENT_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" "$AGENT"
+    run_or_fail NATIVE_AUTOFILL_AGENT_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" --identifier "com.sommir.barwarden.autofill-agent" "$AGENT"
     run_or_fail NATIVE_AUTOFILL_PROVIDER_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" "$PROVIDER"
     run_or_fail NATIVE_AUTOFILL_MAIN_APP_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" "$APP"
     run_or_fail NATIVE_AUTOFILL_DMG_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" "$DMG"

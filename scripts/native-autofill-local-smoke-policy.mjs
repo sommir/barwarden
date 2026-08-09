@@ -12,6 +12,12 @@ export function verifyNativeAutoFillLocalSmokePolicy(source) {
   if (!source.includes('LOCAL_APP_NAME="Barwarden Local Smoke.app"')) {
     throw new Error("NATIVE_AUTOFILL_LOCAL_OUTPUT_CONTRACT_INVALID");
   }
+  if (
+    !source.includes('.tauri-native-autofill-local.json.XXXXXX" 2>/dev/null)" || fail NATIVE_AUTOFILL_LOCAL_TEMP_CREATE_FAILED') ||
+    !source.includes('/private/tmp/barwarden-native-local-smoke.XXXXXX 2>/dev/null)" || fail NATIVE_AUTOFILL_LOCAL_TEMP_CREATE_FAILED')
+  ) {
+    throw new Error("NATIVE_AUTOFILL_LOCAL_TEMP_CONTRACT_INVALID");
+  }
 
   const forbiddenReleaseOperations = [
     /(?:^|\s)(?:\/usr\/bin\/)?xcrun\s+(?:notarytool|stapler)(?:\s|$)/mu,
@@ -49,6 +55,12 @@ export function verifyNativeAutoFillLocalSmokePolicy(source) {
       !line.includes('"${SIGNING_ARGS[@]}"') || !line.includes(order[index]))
   ) {
     throw new Error("NATIVE_AUTOFILL_SIGN_ORDER_INVALID");
+  }
+  if (
+    !signingLines[0].includes('--identifier "com.sommir.barwarden.autofill-agent"') ||
+    signingLines.slice(1).some((line) => /(?:^|\s)--identifier(?:\s|$)/u.test(line))
+  ) {
+    throw new Error("NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID");
   }
   if (
     !source.includes('/usr/bin/codesign --verify --strict --verbose=2 "$OUTPUT_APP"') ||

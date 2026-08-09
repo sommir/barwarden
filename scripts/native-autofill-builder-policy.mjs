@@ -50,6 +50,12 @@ export function verifyNativeAutoFillBuilderPolicy(source) {
     throw new Error("NATIVE_AUTOFILL_SIGN_ORDER_INVALID");
   }
   if (
+    !signingLines[0].includes('--identifier "com.sommir.barwarden.autofill-agent"') ||
+    signingLines.slice(1).some((line) => /(?:^|\s)--identifier(?:\s|$)/u.test(line))
+  ) {
+    throw new Error("NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID");
+  }
+  if (
     notarySubmissions.length > 0 && (
       notaryArguments.length !== 1 ||
       !/(?:^|[\s(])--keychain-profile(?:\s|$)/u.test(notaryArguments[0]) ||

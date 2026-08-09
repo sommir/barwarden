@@ -85,18 +85,20 @@ esac
 
 validate_preflight
 
-WORK_ROOT="$(/usr/bin/mktemp -d /private/tmp/barwarden-native-local-smoke.XXXXXX)"
-OVERLAY_CONFIG="$(/usr/bin/mktemp "$REPOSITORY_ROOT/apps/menubar-tauri/src-tauri/.tauri-native-autofill-local.XXXXXX.json")"
+WORK_ROOT=""
+OVERLAY_CONFIG=""
 OUTPUT_APP="$NATIVE_AUTOFILL_LOCAL_OUTPUT_DIR/$LOCAL_APP_NAME"
 BUILD_COMPLETE=0
 cleanup() {
-  /bin/rm -f "$OVERLAY_CONFIG" >/dev/null 2>&1 || true
-  /bin/rm -rf "$WORK_ROOT" >/dev/null 2>&1 || true
+  [[ -z "$OVERLAY_CONFIG" ]] || /bin/rm -f "$OVERLAY_CONFIG" >/dev/null 2>&1 || true
+  [[ -z "$WORK_ROOT" ]] || /bin/rm -rf "$WORK_ROOT" >/dev/null 2>&1 || true
   if [[ "$BUILD_COMPLETE" -ne 1 && -n "${OUTPUT_APP:-}" ]]; then
     /bin/rm -rf "$OUTPUT_APP" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
+WORK_ROOT="$(/usr/bin/mktemp -d /private/tmp/barwarden-native-local-smoke.XXXXXX 2>/dev/null)" || fail NATIVE_AUTOFILL_LOCAL_TEMP_CREATE_FAILED
+OVERLAY_CONFIG="$(/usr/bin/mktemp "$REPOSITORY_ROOT/apps/menubar-tauri/src-tauri/.tauri-native-autofill-local.json.XXXXXX" 2>/dev/null)" || fail NATIVE_AUTOFILL_LOCAL_TEMP_CREATE_FAILED
 
 run_or_fail() {
   local code="$1"
@@ -164,6 +166,7 @@ run_or_fail NATIVE_AUTOFILL_PROVIDER_ENTITLEMENTS_INVALID \
   "$SCRIPT_DIR/create-native-autofill-provider-entitlements.sh" "$PROVIDER_ENTITLEMENTS"
 run_or_fail NATIVE_AUTOFILL_LOCAL_AGENT_SIGN_FAILED \
   /usr/bin/codesign "${SIGNING_ARGS[@]}" \
+  --identifier "com.sommir.barwarden.autofill-agent" \
   --entitlements "$REPOSITORY_ROOT/apps/macos-autofill/Agent/Entitlements.plist" \
   "$APP_PATH/Contents/Helpers/$AGENT_NAME"
 run_or_fail NATIVE_AUTOFILL_LOCAL_PROVIDER_SIGN_FAILED \

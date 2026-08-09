@@ -168,6 +168,7 @@ run_or_fail NATIVE_AUTOFILL_PROVIDER_ENTITLEMENTS_INVALID \
   "$SCRIPT_DIR/create-native-autofill-provider-entitlements.sh" "$PROVIDER_RELEASE_ENTITLEMENTS"
 run_or_fail NATIVE_AUTOFILL_AGENT_SIGN_FAILED \
   /usr/bin/codesign "${SIGNING_ARGS[@]}" \
+  --identifier "com.sommir.barwarden.autofill-agent" \
   --entitlements "$REPOSITORY_ROOT/apps/macos-autofill/Agent/Entitlements.plist" \
   "$APP_PATH/Contents/Helpers/$AGENT_NAME"
 run_or_fail NATIVE_AUTOFILL_PROVIDER_SIGN_FAILED \
