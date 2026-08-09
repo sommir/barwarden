@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "productVersion": "0.1.2",
+  "teamId": "K7LY92JY96",
+  "appGroup": "group.com.sommir.barwarden.autofill",
+  "minimumMacOS": "13.0",
+  "osVersion": "26.6",
+  "artifacts": {
+    "appSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "dmgSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "inventory": [
+    {
+      "role": "app",
+      "relativePath": ".",
+      "bundleId": "com.sommir.barwarden",
+      "teamId": "K7LY92JY96",
+      "signatureKind": "developer-id",
+      "signatureValid": true,
+      "designatedRequirementValid": true,
+      "hardenedRuntime": true,
+      "minimumMacOS": "13.0",
+      "appGroups": ["group.com.sommir.barwarden.autofill"],
+      "keychainGroups": [],
+      "entitlementKeys": ["com.apple.security.application-groups"],
+      "credentialProvider": false,
+      "appSandbox": false,
+      "profileApplicationIdentifierKey": "com.apple.application-identifier"
+    },
+    {
+      "role": "credential-provider",
+      "relativePath": "Contents/PlugIns/BarwardenCredentialProvider.appex",
+      "bundleId": "com.sommir.barwarden.credential-provider",
+      "teamId": "K7LY92JY96",
+      "signatureKind": "developer-id",
+      "signatureValid": true,
+      "designatedRequirementValid": true,
+      "hardenedRuntime": true,
+      "minimumMacOS": "13.0",
+      "appGroups": ["group.com.sommir.barwarden.autofill"],
+      "keychainGroups": [],
+      "entitlementKeys": [
+        "com.apple.developer.authentication-services.autofill-credential-provider",
+        "com.apple.security.app-sandbox",
+        "com.apple.security.application-groups"
+      ],
+      "credentialProvider": true,
+      "appSandbox": true,
+      "profileApplicationIdentifierKey": "com.apple.application-identifier"
+    },
+    {
+      "role": "agent",
+      "relativePath": "Contents/Helpers/BarwardenAutoFillAgent",
+      "bundleId": "com.sommir.barwarden.autofill-agent",
+      "teamId": "K7LY92JY96",
+      "signatureKind": "developer-id",
+      "signatureValid": true,
+      "designatedRequirementValid": true,
+      "hardenedRuntime": true,
+      "minimumMacOS": "13.0",
+      "appGroups": ["group.com.sommir.barwarden.autofill"],
+      "keychainGroups": [],
+      "entitlementKeys": ["com.apple.security.application-groups"],
+      "credentialProvider": false,
+      "appSandbox": false,
+      "profileApplicationIdentifierKey": null
+    }
+  ],
+  "unexpectedNestedCode": [],
+  "outerSealValid": true,
+  "agentRestrictedEntitlementPackageable": true,
+  "appProfileValid": true,
+  "providerProfileValid": true,
+  "dmgInventoryValid": true,
+  "insideOutSigning": true,
+  "signingUsedDeep": false,
+  "notarized": true,
+  "dmgNotarized": true,
+  "appStapled": true,
+  "dmgStapled": true,
+  "appGatekeeperAccepted": true,
+  "dmgGatekeeperAccepted": true
+}

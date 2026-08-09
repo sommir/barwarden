@@ -3,7 +3,7 @@
 - Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
-- Status: Task 8 review hardening complete; review-fix commit pending
+- Status: Task 9 tooling complete; external signing, notarization, and live release gates blocked
 - Baseline contract tests: 7 passed, 1 browser-release skip.
 - Baseline full regression: 3462 passed, 22 skipped (from prior Task 1 gate; only design/plan docs changed afterward).
 
@@ -104,7 +104,7 @@
 
 ## Task 8
 
-- Implementation: `3d909e79 feat: add native autofill floating action`; review hardening is the current change set. The conservative macOS 13 Accessibility action remains behind the explicit `unsupported` system-AutoFill fallback gate. Default/system-available state stops AX observation and hides the panel; menu and shortcut entry remain independent of Accessibility.
+- Implementation: `3d909e79 feat: add native autofill floating action`; review hardening: `3a9303c3 fix: harden native autofill floating action`. The conservative macOS 13 Accessibility action remains behind the explicit `unsupported` system-AutoFill fallback gate. Default/system-available state stops AX observation and hides the panel; menu and shortcut entry remain independent of Accessibility.
 - The native reader permits only role, subrole, settable/editability, position, size, window validity, and exact application identity. It never copies AX value, selected text, placeholder, title, description, identifier, or any other field content. Diagnostics contain a fixed reason and optional bounded bundle ID only.
 - A worker-thread AX observer owns its CFRunLoop registration and removes every focus/move/resize/destroy notification before releasing element/observer references. Workspace activation/termination, permission loss, application identity changes, invalid elements/windows, stale snapshots, and unreliable geometry invalidate a generation and hide immediately; 50 ms throttling coalesces event bursts.
 - The main-thread borderless nonactivating `NSPanel` uses the Barwarden template icon, never requests key/main status, and opens Task 7's same `autofill-floating` picker entry without releasing or filling a secret. AX top-left coordinates convert to AppKit coordinates; placement prefers the trailing exterior, falls back to the leading exterior, clamps vertically to visible work area, and otherwise hides.
@@ -112,3 +112,14 @@
 - Live read-only permission smoke: a fresh standalone helper returned denied without calling the prompt API; the already-authorized Rust test process passed the granted permission probe without prompting. Actual external fixture observer/panel smoke is blocked in this execution environment because the GUI session always reports `com.apple.loginwindow` as frontmost and never activates the local AppKit fixture. No observer snapshot or live panel-show success is claimed.
 - Review hardening closes synchronous generation invalidation/exact visible-target consumption, observer registration fault handling and lost-event revalidation, process-lifetime one-shot/inflight prompting, strict diagnostic bundle validation, pre-cast CF/AX type checks, same-app observer reuse, and explicit template-image appearance. Review verification: Rust 248 passed/7 ignored; TypeScript 3,512 passed/22 skipped; Swift/Xcode 130 passed; native project/IPC contracts 17 passed; identity contracts 19 passed; production web build passed. The granted read-only smoke passed again without prompting; denied evidence and the bounded live fixture blocker remain unchanged and accurately reported.
 - Production Tauri configuration, native entitlements, browser behavior, and Task 9 packaging/signing scope remain unchanged.
+- Review: approved with 0 Critical, 0 Important, and 0 Minor after exact target click binding, fail-closed observer registration, one-shot prompting, production bundle validation, CF type checks, observer reuse, and template-image fixes.
+
+## Task 9
+
+- Reusable native overlay, inside-out release builder, strict bundle verifier, fixture tests, evidence schema/recorder, and a complete fixed-code live matrix are implemented. The verifier requires the exact app + Credential Provider + Agent inventory, Team `K7LY92JY96`, exact bundle IDs/App Group/entitlements, no Keychain groups, Developer ID profiles and signatures, hardened runtime, macOS 13.0, designated requirements, sealed DMG contents, notarization, stapling, and Gatekeeper.
+- TDD fixture and real-artifact coverage rejects missing/duplicate/unexpected components, wrong identity/entitlements/floor, unsigned and ad-hoc inner code, wrong order/deep signing, invalid profiles, unstapled/unnotarized artifacts, and failed Gatekeeper with fixed codes only. Builder, overlay, evidence, native project, and identity focused suites pass.
+- A real unsigned Release overlay built the main app and both native sidecars, assembled their exact final paths, and was rejected by the real collector as `NATIVE_AUTOFILL_INNER_UNSIGNED`. Production `tauri.conf.json` and `Entitlements.plist` remained byte-identical.
+- Full verification: TypeScript 3,512 passed/22 skipped; Rust 248 passed/7 ignored; Swift/Xcode 130 passed; native project 13 passed; identity contracts 19 passed; production web build passed; format/check/syntax/plist/diff checks passed.
+- External state remains blocked: no login-Keychain signing identity, app/Provider profile, or notary profile; private-key import and Apple Portal automatic provisioning were rejected before execution as not authorized. No external credential or account state changed.
+- Apple TN3125 makes the current command-line-tool Agent plus restricted App Group entitlement structurally unpackageable because a standalone executable cannot embed the required provisioning profile. Builder/verifier fail closed with `NATIVE_AUTOFILL_AGENT_RESTRICTED_ENTITLEMENT_UNPACKAGEABLE`; a profile-bearing helper app/XPC or a no-restricted-entitlement Agent redesign requires separate design/security review and neither was selected here.
+- No signed/notarized/stapled product exists. Current-machine and macOS 13 fresh/update/provider/fill/matching/AX/lifecycle live gates are fixed-code blocked, and the prior GUI session remains `loginwindow`-bound. Production configuration was not promoted. Task 9 remains unchecked and the evidence status is `BLOCKED`.

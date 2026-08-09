@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://barwarden.example/schemas/native-autofill-evidence.schema.json",
+  "title": "Barwarden native AutoFill release evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "productVersion",
+    "teamId",
+    "osVersion",
+    "artifactHashes",
+    "codes",
+    "liveMatrix"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "enum": ["PASS", "BLOCKED"] },
+    "productVersion": { "const": "0.1.2" },
+    "teamId": { "const": "K7LY92JY96" },
+    "osVersion": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+){1,2}$" },
+    "artifactHashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appSha256", "dmgSha256"],
+      "properties": {
+        "appSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "dmgSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "codes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^NATIVE_AUTOFILL_[A-Z0-9_]+$" }
+    },
+    "liveMatrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshInstallCurrent",
+        "updateCurrent",
+        "freshInstallMacOS13",
+        "updateMacOS13",
+        "providerEnablement",
+        "supportedField",
+        "unsupportedField",
+        "exactMatch",
+        "fuzzyMatch",
+        "fullSearch",
+        "axDenied",
+        "axGranted",
+        "lock",
+        "reprompt",
+        "accountSwitch",
+        "logout",
+        "appRestart",
+        "agentRestart",
+        "offline",
+        "staleGeneration"
+      ],
+      "properties": {
+        "freshInstallCurrent": { "$ref": "#/$defs/fixedCode" },
+        "updateCurrent": { "$ref": "#/$defs/fixedCode" },
+        "freshInstallMacOS13": { "$ref": "#/$defs/fixedCode" },
+        "updateMacOS13": { "$ref": "#/$defs/fixedCode" },
+        "providerEnablement": { "$ref": "#/$defs/fixedCode" },
+        "supportedField": { "$ref": "#/$defs/fixedCode" },
+        "unsupportedField": { "$ref": "#/$defs/fixedCode" },
+        "exactMatch": { "$ref": "#/$defs/fixedCode" },
+        "fuzzyMatch": { "$ref": "#/$defs/fixedCode" },
+        "fullSearch": { "$ref": "#/$defs/fixedCode" },
+        "axDenied": { "$ref": "#/$defs/fixedCode" },
+        "axGranted": { "$ref": "#/$defs/fixedCode" },
+        "lock": { "$ref": "#/$defs/fixedCode" },
+        "reprompt": { "$ref": "#/$defs/fixedCode" },
+        "accountSwitch": { "$ref": "#/$defs/fixedCode" },
+        "logout": { "$ref": "#/$defs/fixedCode" },
+        "appRestart": { "$ref": "#/$defs/fixedCode" },
+        "agentRestart": { "$ref": "#/$defs/fixedCode" },
+        "offline": { "$ref": "#/$defs/fixedCode" },
+        "staleGeneration": { "$ref": "#/$defs/fixedCode" }
+      }
+    }
+  },
+  "$defs": {
+    "fixedCode": { "type": "string", "pattern": "^NATIVE_AUTOFILL_[A-Z0-9_]+$" }
+  }
+}
