@@ -28,6 +28,10 @@ export function verifyNativeAutoFillBuilderPolicy(source) {
       !/(?:^|\s)--verify(?:\s|$)/u.test(line) &&
       !/(?:^|\s)-R(?:\s|$)/u.test(line),
   );
+  const notaryArguments = logicalLines.filter((line) =>
+    /(?:^|\s)NOTARY_ARGS=\(/u.test(line));
+  const notarySubmissions = logicalLines.filter((line) =>
+    /(?:^|\s)\/usr\/bin\/xcrun\s+notarytool\s+submit(?:\s|$)/u.test(line));
   const expectedOrder = [
     "NATIVE_AUTOFILL_AGENT_SIGN_FAILED",
     "NATIVE_AUTOFILL_PROVIDER_SIGN_FAILED",
@@ -44,6 +48,17 @@ export function verifyNativeAutoFillBuilderPolicy(source) {
     )
   ) {
     throw new Error("NATIVE_AUTOFILL_SIGN_ORDER_INVALID");
+  }
+  if (
+    notarySubmissions.length > 0 && (
+      notaryArguments.length !== 1 ||
+      !/(?:^|[\s(])--keychain-profile(?:\s|$)/u.test(notaryArguments[0]) ||
+      !/(?:^|[\s(])--keychain(?:\s|$)/u.test(notaryArguments[0]) ||
+      notarySubmissions.length !== 2 ||
+      notarySubmissions.some((line) => !line.includes('"${NOTARY_ARGS[@]}"'))
+    )
+  ) {
+    throw new Error("NATIVE_AUTOFILL_NOTARY_KEYCHAIN_MISSING");
   }
   return true;
 }

@@ -7,8 +7,6 @@ import { NATIVE_AUTOFILL_RELEASE_CODES } from "./native-autofill-release-codes.m
 const LIVE_KEYS = [
   "freshInstallCurrent",
   "updateCurrent",
-  "freshInstallMacOS13",
-  "updateMacOS13",
   "providerEnablement",
   "supportedField",
   "unsupportedField",
@@ -31,13 +29,12 @@ const HASH = /^[a-f0-9]{64}$/u;
 const PASS_CODES = [
   "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS",
   "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS",
-  "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS",
   "NATIVE_AUTOFILL_PRODUCTION_PROMOTED",
 ];
 
 export function createBlockedNativeAutoFillEvidence({ osVersion }) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     status: "BLOCKED",
     productVersion: "0.1.2",
     teamId: "K7LY92JY96",
@@ -47,15 +44,13 @@ export function createBlockedNativeAutoFillEvidence({ osVersion }) {
     codes: [
       "NATIVE_AUTOFILL_TOOLING_IMPLEMENTED",
       "NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING",
-      "NATIVE_AUTOFILL_PRIVATE_KEY_IMPORT_NOT_AUTHORIZED",
       "NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING",
-      "NATIVE_AUTOFILL_XCODE_AUTOMATIC_PROVISIONING_NOT_AUTHORIZED",
       "NATIVE_AUTOFILL_NOTARY_PROFILE_MISSING",
       "NATIVE_AUTOFILL_SIGNED_ARTIFACT_MISSING",
       "NATIVE_AUTOFILL_CURRENT_GUI_SESSION_BLOCKED_LOGINWINDOW",
-      "NATIVE_AUTOFILL_MACOS13_DEVICE_MISSING",
       "NATIVE_AUTOFILL_PRODUCTION_NOT_PROMOTED",
     ],
+    lowerOsRuntime: "NATIVE_AUTOFILL_LOWER_OS_RUNTIME_UNVERIFIED",
     liveMatrix: Object.fromEntries(
       LIVE_KEYS.map((key) => [key, "NATIVE_AUTOFILL_LIVE_BLOCKED_NO_RELEASE_ARTIFACT"]),
     ),
@@ -64,7 +59,7 @@ export function createBlockedNativeAutoFillEvidence({ osVersion }) {
 
 export function assertNativeAutoFillEvidence(evidence) {
   const invalid =
-    evidence?.schemaVersion !== 1 ||
+    evidence?.schemaVersion !== 2 ||
     !["PASS", "BLOCKED"].includes(evidence?.status) ||
     evidence?.productVersion !== "0.1.2" ||
     evidence?.teamId !== "K7LY92JY96" ||
@@ -74,6 +69,7 @@ export function assertNativeAutoFillEvidence(evidence) {
     evidence.codes.length === 0 ||
     new Set(evidence.codes).size !== evidence.codes.length ||
     evidence.codes.some((code) => !CODE.test(code) || !NATIVE_AUTOFILL_RELEASE_CODES.has(code)) ||
+    evidence?.lowerOsRuntime !== "NATIVE_AUTOFILL_LOWER_OS_RUNTIME_UNVERIFIED" ||
     JSON.stringify(Object.keys(evidence?.liveMatrix ?? {})) !== JSON.stringify(LIVE_KEYS) ||
     Object.values(evidence.liveMatrix).some(
       (code) => !CODE.test(code) || !NATIVE_AUTOFILL_RELEASE_CODES.has(code),
@@ -112,6 +108,7 @@ Status: ${evidence.status}
 - Team ID: \`${evidence.teamId}\`
 - Production promoted: \`${evidence.productionPromoted}\`
 - Test OS: \`${evidence.osVersion}\`
+- macOS 13–25 runtime: \`${evidence.lowerOsRuntime}\`
 - App SHA-256: ${hash(evidence.artifactHashes.appSha256)}
 - DMG SHA-256: ${hash(evidence.artifactHashes.dmgSha256)}
 
@@ -169,7 +166,6 @@ function main() {
       "NATIVE_AUTOFILL_TOOLING_IMPLEMENTED",
       "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS",
       "NATIVE_AUTOFILL_LIVE_MATRIX_PENDING",
-      "NATIVE_AUTOFILL_MACOS13_DEVICE_MISSING",
       "NATIVE_AUTOFILL_PRODUCTION_NOT_PROMOTED",
     ];
     writeNativeAutoFillEvidence({

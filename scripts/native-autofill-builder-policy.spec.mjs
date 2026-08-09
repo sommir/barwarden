@@ -73,3 +73,21 @@ test("release builder policy requires exactly Agent then Provider then app then 
     /NATIVE_AUTOFILL_SIGN_ORDER_INVALID/,
   );
 });
+
+test("release builder policy requires both notarization submissions to use the isolated Keychain", () => {
+  const source = `
+    SIGNING_ARGS=(--force --options runtime --sign "$IDENTITY")
+    run_or_fail NATIVE_AUTOFILL_AGENT_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" "$AGENT"
+    run_or_fail NATIVE_AUTOFILL_PROVIDER_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" "$PROVIDER"
+    run_or_fail NATIVE_AUTOFILL_MAIN_APP_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" "$APP"
+    run_or_fail NATIVE_AUTOFILL_DMG_SIGN_FAILED /usr/bin/codesign "\${SIGNING_ARGS[@]}" "$DMG"
+    NOTARY_ARGS=(--keychain-profile "$PROFILE" --keychain "$KEYCHAIN")
+    run_or_fail NATIVE_AUTOFILL_APP_NOTARIZATION_FAILED /usr/bin/xcrun notarytool submit "$ZIP" --wait "\${NOTARY_ARGS[@]}"
+    run_or_fail NATIVE_AUTOFILL_DMG_NOTARIZATION_FAILED /usr/bin/xcrun notarytool submit "$DMG" --wait "\${NOTARY_ARGS[@]}"
+  `;
+  assert.doesNotThrow(() => verifyNativeAutoFillBuilderPolicy(source));
+  assert.throws(
+    () => verifyNativeAutoFillBuilderPolicy(source.replace(' --keychain "$KEYCHAIN"', "")),
+    /NATIVE_AUTOFILL_NOTARY_KEYCHAIN_MISSING/,
+  );
+});

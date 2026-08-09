@@ -38,6 +38,7 @@ expected_plan="$(printf '%s\n' \
 preflight_output="$(NATIVE_AUTOFILL_RELEASE_TEST_MODE=1 "$BUILDER" --preflight 2>&1 || true)"
 for code in \
   NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING \
+  NATIVE_AUTOFILL_SIGNING_KEYCHAIN_MISSING \
   NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING \
   NATIVE_AUTOFILL_NOTARY_PROFILE_MISSING
 do
@@ -46,9 +47,11 @@ done
 [[ "$preflight_output" != *'/Users/'* && "$preflight_output" != *'/private/tmp/'* ]] || fail "preflight leaked a path"
 
 : > "$TEST_ROOT/provider.provisionprofile"
+: > "$TEST_ROOT/signing.keychain-db"
 complete_output="$(
   NATIVE_AUTOFILL_RELEASE_TEST_MODE=1 \
   NATIVE_AUTOFILL_SIGNING_IDENTITY=external-reference \
+  NATIVE_AUTOFILL_SIGNING_KEYCHAIN="$TEST_ROOT/signing.keychain-db" \
   NATIVE_AUTOFILL_PROVIDER_PROFILE="$TEST_ROOT/provider.provisionprofile" \
   NATIVE_AUTOFILL_NOTARY_PROFILE=keychain-reference \
   "$BUILDER" --preflight

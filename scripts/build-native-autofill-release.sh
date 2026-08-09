@@ -55,6 +55,10 @@ emit_preflight_codes() {
     printf '%s\n' NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING >&2
     failed=1
   }
+  [[ -n "${NATIVE_AUTOFILL_SIGNING_KEYCHAIN:-}" && -f "${NATIVE_AUTOFILL_SIGNING_KEYCHAIN:-}" ]] || {
+    printf '%s\n' NATIVE_AUTOFILL_SIGNING_KEYCHAIN_MISSING >&2
+    failed=1
+  }
   [[ -n "${NATIVE_AUTOFILL_PROVIDER_PROFILE:-}" && -f "${NATIVE_AUTOFILL_PROVIDER_PROFILE:-}" ]] || {
     printf '%s\n' NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING >&2
     failed=1
@@ -157,10 +161,8 @@ run_or_fail NATIVE_AUTOFILL_PROVIDER_PROFILE_EMBED_FAILED \
   /usr/bin/ditto --norsrc --noqtn "$NATIVE_AUTOFILL_PROVIDER_PROFILE" \
   "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME/Contents/embedded.provisionprofile"
 
-SIGNING_ARGS=(--force --timestamp --options runtime --sign "$NATIVE_AUTOFILL_SIGNING_IDENTITY")
-if [[ -n "${NATIVE_AUTOFILL_SIGNING_KEYCHAIN:-}" ]]; then
-  SIGNING_ARGS+=(--keychain "$NATIVE_AUTOFILL_SIGNING_KEYCHAIN")
-fi
+SIGNING_ARGS=(--force --timestamp --options runtime --sign "$NATIVE_AUTOFILL_SIGNING_IDENTITY" --keychain "$NATIVE_AUTOFILL_SIGNING_KEYCHAIN")
+NOTARY_ARGS=(--keychain-profile "$NATIVE_AUTOFILL_NOTARY_PROFILE" --keychain "$NATIVE_AUTOFILL_SIGNING_KEYCHAIN")
 PROVIDER_RELEASE_ENTITLEMENTS="$WORK_ROOT/provider-release-entitlements.plist"
 run_or_fail NATIVE_AUTOFILL_PROVIDER_ENTITLEMENTS_INVALID \
   "$SCRIPT_DIR/create-native-autofill-provider-entitlements.sh" "$PROVIDER_RELEASE_ENTITLEMENTS"
@@ -190,7 +192,7 @@ run_or_fail NATIVE_AUTOFILL_OUTER_DEEP_VERIFY_FAILED /usr/bin/codesign --verify 
 APP_ZIP="$WORK_ROOT/$APP_NAME.zip"
 run_or_fail NATIVE_AUTOFILL_APP_ARCHIVE_FAILED /usr/bin/ditto -c -k --keepParent "$APP_PATH" "$APP_ZIP"
 run_or_fail NATIVE_AUTOFILL_APP_NOTARIZATION_FAILED \
-  /usr/bin/xcrun notarytool submit "$APP_ZIP" --wait --keychain-profile "$NATIVE_AUTOFILL_NOTARY_PROFILE"
+  /usr/bin/xcrun notarytool submit "$APP_ZIP" --wait "${NOTARY_ARGS[@]}"
 run_or_fail NATIVE_AUTOFILL_APP_STAPLE_FAILED /usr/bin/xcrun stapler staple "$APP_PATH"
 run_or_fail NATIVE_AUTOFILL_APP_STAPLE_VALIDATE_FAILED /usr/bin/xcrun stapler validate "$APP_PATH"
 
@@ -206,7 +208,7 @@ run_or_fail NATIVE_AUTOFILL_DMG_SIGN_FAILED \
 run_or_fail NATIVE_AUTOFILL_DMG_SIGNATURE_INVALID \
   /usr/bin/codesign --verify --strict --verbose=2 "$DMG_PATH"
 run_or_fail NATIVE_AUTOFILL_DMG_NOTARIZATION_FAILED \
-  /usr/bin/xcrun notarytool submit "$DMG_PATH" --wait --keychain-profile "$NATIVE_AUTOFILL_NOTARY_PROFILE"
+  /usr/bin/xcrun notarytool submit "$DMG_PATH" --wait "${NOTARY_ARGS[@]}"
 run_or_fail NATIVE_AUTOFILL_DMG_STAPLE_FAILED /usr/bin/xcrun stapler staple "$DMG_PATH"
 run_or_fail NATIVE_AUTOFILL_DMG_STAPLE_VALIDATE_FAILED /usr/bin/xcrun stapler validate "$DMG_PATH"
 

@@ -42,11 +42,11 @@ The repair `Retry` control now awaits setup recovery (`status → register-if-ne
 - Builder RED/GREEN covers the exact inside-out operation plan, credential-reference preflight, no deep signing, sanitized diagnostics, and output-directory symlink ancestry.
 - Review RED/GREEN covers Team-prefixed group identity, Provider-only profile/effective identifiers, certificate/public-key signer binding, LaunchAgent lifecycle and command surface, product version, all symlinks, unexpected Mach-O/dylib payloads, full bundle-manifest hashing, builder-policy binding, exact Agent/Provider/app/DMG signing order, independent DMG Developer ID/Team validation, static deep-sign rejection, fixed-code sanitization, and atomic output promotion.
 - Native overlay RED/GREEN covers private atomic generation, app-only output, exact native entitlement selection, byte-identical production inputs, and refusal to overwrite production files.
-- Evidence RED/GREEN covers the complete 20-row live matrix, fixed-code-only content, path/credential exclusion, and refusal to record PASS without both artifact hashes, all current/macOS 13 live rows, strict verifier success, and production promotion.
+- Evidence RED/GREEN now covers the revised 18-row current-macOS live matrix, fixed-code-only content, path/credential exclusion, and refusal to record PASS without both artifact hashes, all current-machine live rows, strict verifier success, and production promotion. Schema v2 requires macOS 13–25 runtime to remain explicitly `NATIVE_AUTOFILL_LOWER_OS_RUNTIME_UNVERIFIED`; it is not a promotion blocker, while deployment target 13.0, compile/API availability, and binary minimum-floor verification remain strict gates.
 - Product setup RED/GREEN covers fresh install, update/restart recovery, persisted opt-in, status/register/probe ordering, `requiresApproval` query suppression and fixed Login Items guidance, and disable lock/clear/unregister cleanup.
 - Final lifecycle RED/GREEN covers visible normal/repair Turn Off controls, awaited fixed-state success/failure, persisted original-account cleanup target, lock/clear/unregister best-effort ordering across failures, cold/locked and account-switch startup cleanup without current-owner substitution, missing-target retention, and Retry query suppression until setup is ready.
 - Profile authorization RED/GREEN covers absent/exact/Team-wildcard App Group authorization, exact/Team-wildcard application identifiers, safe Apple-standard extras, and rejection of wrong Team/app/capability/certificate/expiry or dangerous restricted entitlements. No real profile validation is claimed.
-- PASS-evidence mutation RED/GREEN proves both runtime and JSON Schema reject an otherwise-valid PASS record containing any code outside the exact four-code positive set.
+- PASS-evidence mutation RED/GREEN proves both runtime and JSON Schema reject an otherwise-valid PASS record containing any code outside the exact three-code positive set or claiming a lower-OS runtime result.
 
 ## Real partial build evidence
 
@@ -56,33 +56,38 @@ No signed app or DMG exists, so artifact hashes remain `null`. The checked-in ev
 
 ## Credential and external gate status
 
-Read-only discovery found no valid code-signing identity in the login Keychain, no installed provisioning profile in either standard Xcode profile store, and no notarytool Keychain profile metadata. A valid public Developer ID certificate for Team `K7LY92JY96` is externally available, but no certificate or key material was copied, read into repository tooling, or recorded.
+Read-only discovery found no valid code-signing identity in the login Keychain, no installed provisioning profile in either standard Xcode profile store, Xcode account metadata but no Team `K7LY92JY96` metadata, and no notarytool Keychain profile metadata. The external public Developer ID certificate is a currently valid Developer ID Application certificate for Team `K7LY92JY96`, expiring in 2031. The authorized external private-key and API-key files were identified by reference only; no private content was output, copied into the repository, or recorded. The API Key ID is discoverable from its filename, but the required notary/API Issuer ID is not present in any discovered non-secret metadata and cannot be derived from the key.
 
 Developer ID release identity is the only release certificate class considered. Absence of a Mac Development identity is not treated as a release blocker.
 
-The attempted temporary-Keychain private-key import was rejected before execution by the safety authority and is recorded as `NATIVE_AUTOFILL_PRIVATE_KEY_IMPORT_NOT_AUTHORIZED`. The requested Xcode `-allowProvisioningUpdates` portal attempt was likewise rejected before execution because the current trusted user message does not directly authorize Apple-account side effects; it is recorded as `NATIVE_AUTOFILL_XCODE_AUTOMATIC_PROVISIONING_NOT_AUTHORIZED`, not as a failed provisioning attempt. No Keychain, certificate, profile, or Apple Developer Portal state was changed.
+The controller's direct-user-authorized run imported the external certificate/key into an isolated temporary Keychain, verified a usable Team `K7LY92JY96` Developer ID Application identity, and destroyed the temporary Keychain. Evidence records only `NATIVE_AUTOFILL_TEMP_KEYCHAIN_IDENTITY_PASS`; it contains no credential path, value, or Keychain detail.
 
-Current external blockers are represented only by fixed codes in the evidence:
+The authorized Xcode automatic-provisioning run reached profile resolution but requested a Mac App Development profile and failed because no profile exists for the Credential Provider bundle ID. This does not satisfy or prove the required Developer ID Provider profile, and no App Store profile was created or selected. The correct release profile therefore remains `NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING`. Notary setup remains blocked before credential validation because the API Issuer ID is genuinely undiscoverable from available non-secret metadata.
 
-- `NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING`
+The builder now requires an explicit isolated signing Keychain and passes that same Keychain explicitly to both notarytool submissions. Static policy and shell tests reject any builder that omits the notarization Keychain, preventing an ephemeral notary profile from silently falling back to the login Keychain.
+
+Current external state is represented only by fixed codes in the evidence:
+
+- `NATIVE_AUTOFILL_TEMP_KEYCHAIN_IDENTITY_PASS`
 - `NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING`
 - `NATIVE_AUTOFILL_NOTARY_PROFILE_MISSING`
+- `NATIVE_AUTOFILL_NOTARY_ISSUER_ID_MISSING`
 - `NATIVE_AUTOFILL_SIGNED_ARTIFACT_MISSING`
 - `NATIVE_AUTOFILL_CURRENT_GUI_SESSION_BLOCKED_LOGINWINDOW`
-- `NATIVE_AUTOFILL_MACOS13_DEVICE_MISSING`
 - `NATIVE_AUTOFILL_PRODUCTION_NOT_PROMOTED`
 
 ## Live matrix and production promotion
 
-All 20 fresh/update/current/macOS 13, Provider, field, matching/search, AX, lock/reprompt/account/logout/restart/offline/stale-generation rows remain `NATIVE_AUTOFILL_LIVE_BLOCKED_NO_RELEASE_ARTIFACT`. Without a signed/notarized/stapled artifact, no installation into `/Applications`, Provider enablement, update, or live secret-release test was safe or meaningful. The prior GUI environment also remains unable to activate the bounded external fixture and reports `loginwindow` as frontmost; this is not presented as live success.
+All 18 current-machine fresh/update, Provider, field, matching/search, AX, lock/reprompt/account/logout/restart/offline/stale-generation rows remain `NATIVE_AUTOFILL_LIVE_BLOCKED_NO_RELEASE_ARTIFACT`. Without a signed/notarized/stapled artifact, no installation into `/Applications`, Provider enablement, update, or live secret-release test was safe or meaningful. The prior GUI environment also remains unable to activate the bounded external fixture and reports `loginwindow` as frontmost; this is not presented as live success.
 
-The macOS 13 device gate is absent. Because the signed artifact gate, current-machine live matrix, and macOS 13 live matrix did not pass, production native config and entitlements were deliberately not promoted.
+Under the revised acceptance, macOS 13–25 runtime testing is explicitly best-effort/unverified and does not block promotion. Deployment target 13.0 and compile/API/binary-floor checks still pass. Production native config and entitlements remain unpromoted because the signed artifact and current-machine live matrix gates have not passed.
 
 ## Verification
 
 - Setup/App/Picker/Tauri-host focused suites: 140 passed.
 - Final lifecycle App/Setup/Picker focused suites: 86 passed.
 - Task 9 verifier/builder/overlay/evidence focused suites: 25 Node tests plus all three shell harnesses passed.
+- Revised evidence/builder/provider/project focused run: 35/35 Node tests passed with the full Xcode environment; evidence/builder policy rerun passed 12/12, and both release-builder and strict-verifier shell harnesses passed.
 - Native Xcode project/build-wrapper contracts: 14 passed.
 - Native identity contracts: 19 passed.
 - Full TypeScript: 3,531 passed and 22 skipped.

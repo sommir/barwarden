@@ -22,10 +22,17 @@ test("checked-in evidence is blocked, fixed-code-only, and schema-shaped", () =>
   assert.equal(evidence.status, "BLOCKED");
   assert.equal(evidence.teamId, "K7LY92JY96");
   assert.equal(evidence.productVersion, "0.1.2");
+  assert.equal(evidence.schemaVersion, 2);
   assert.equal(evidence.artifactHashes.appSha256, null);
   assert.equal(evidence.artifactHashes.dmgSha256, null);
   assert.equal(evidence.productionPromoted, false);
+  assert.equal(evidence.lowerOsRuntime, "NATIVE_AUTOFILL_LOWER_OS_RUNTIME_UNVERIFIED");
   assert.ok(evidence.codes.includes("NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING"));
+  assert.ok(evidence.codes.includes("NATIVE_AUTOFILL_NOTARY_ISSUER_ID_MISSING"));
+  assert.ok(evidence.codes.includes("NATIVE_AUTOFILL_TEMP_KEYCHAIN_IDENTITY_PASS"));
+  assert.ok(!evidence.codes.includes("NATIVE_AUTOFILL_SIGNING_IDENTITY_MISSING"));
+  assert.ok(!evidence.codes.includes("NATIVE_AUTOFILL_PRIVATE_KEY_IMPORT_NOT_AUTHORIZED"));
+  assert.ok(!evidence.codes.includes("NATIVE_AUTOFILL_XCODE_AUTOMATIC_PROVISIONING_NOT_AUTHORIZED"));
   assertNativeAutoFillEvidence(evidence);
   for (const code of [...evidence.codes, ...Object.values(evidence.liveMatrix)]) {
     assert.match(code, /^NATIVE_AUTOFILL_[A-Z0-9_]+$/);
@@ -35,13 +42,11 @@ test("checked-in evidence is blocked, fixed-code-only, and schema-shaped", () =>
   assert.doesNotMatch(serialized, /\.p8|\.pem|-----BEGIN|password|credentialPath/i);
 });
 
-test("blocked evidence names every current and macOS 13 live matrix gate", () => {
+test("blocked evidence names only the current-mac runtime gates and records lower OS as unverified", () => {
   const evidence = createBlockedNativeAutoFillEvidence({ osVersion: "26.6" });
   assert.deepEqual(Object.keys(evidence.liveMatrix), [
     "freshInstallCurrent",
     "updateCurrent",
-    "freshInstallMacOS13",
-    "updateMacOS13",
     "providerEnablement",
     "supportedField",
     "unsupportedField",
@@ -59,6 +64,7 @@ test("blocked evidence names every current and macOS 13 live matrix gate", () =>
     "offline",
     "staleGeneration",
   ]);
+  assert.equal(evidence.lowerOsRuntime, "NATIVE_AUTOFILL_LOWER_OS_RUNTIME_UNVERIFIED");
   assert.ok(Object.values(evidence.liveMatrix).every((code) => code === "NATIVE_AUTOFILL_LIVE_BLOCKED_NO_RELEASE_ARTIFACT"));
 });
 
@@ -94,7 +100,6 @@ test("PASS requires the explicit productionPromoted boolean in both runtime and 
   evidence.codes = [
     "NATIVE_AUTOFILL_RELEASE_VERIFIER_PASS",
     "NATIVE_AUTOFILL_CURRENT_LIVE_MATRIX_PASS",
-    "NATIVE_AUTOFILL_MACOS13_LIVE_MATRIX_PASS",
     "NATIVE_AUTOFILL_PRODUCTION_PROMOTED",
   ];
   evidence.liveMatrix = Object.fromEntries(
@@ -106,6 +111,11 @@ test("PASS requires the explicit productionPromoted boolean in both runtime and 
   evidence.productionPromoted = true;
   assert.doesNotThrow(() => assertNativeAutoFillEvidence(evidence));
   assert.equal(validate(evidence), true, JSON.stringify(validate.errors));
+
+  evidence.lowerOsRuntime = "NATIVE_AUTOFILL_LIVE_PASS";
+  assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_INVALID/);
+  assert.equal(validate(evidence), false, "lower OS runtime must remain explicitly unverified");
+  evidence.lowerOsRuntime = "NATIVE_AUTOFILL_LOWER_OS_RUNTIME_UNVERIFIED";
 
   evidence.codes.push("NATIVE_AUTOFILL_TOOLING_IMPLEMENTED");
   assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_PASS_INVALID/);
