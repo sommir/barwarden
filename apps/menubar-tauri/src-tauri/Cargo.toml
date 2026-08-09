@@ -37,7 +37,7 @@ core-foundation = "=0.10.1"
 core-graphics = { version = "=0.25.0", features = ["elcapitan"] }
 objc2 = "=0.6.4"
 objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSButton", "NSColor", "NSControl", "NSGraphics", "NSImage", "NSPanel", "NSResponder", "NSRunningApplication", "NSScreen", "NSView", "NSWindow", "NSWorkspace", "libc", "objc2-quartz-core"] }
-objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSError", "NSGeometry", "NSNotification", "NSObject", "NSOperation", "NSString", "NSValue", "block2"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSError", "NSFileManager", "NSGeometry", "NSNotification", "NSObject", "NSOperation", "NSString", "NSURL", "NSValue", "block2"] }
 objc2-local-authentication = { version = "=0.3.2", default-features = false, features = ["std", "block2", "LABase", "LAContext", "LAError"] }
 objc2-quartz-core = { version = "=0.3.2", default-features = false, features = ["std", "CALayer", "objc2-core-foundation"] }
 objc2-service-management = { version = "=0.3.2", default-features = false, features = ["std", "SMAppService", "objc2", "objc2-foundation"] }

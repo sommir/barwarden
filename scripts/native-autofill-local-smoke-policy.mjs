@@ -45,6 +45,8 @@ export function verifyNativeAutoFillLocalSmokePolicy(source) {
     (line) =>
       /(?:^|\s)\/usr\/bin\/codesign(?:\s|$)/u.test(line) &&
       !/(?:^|\s)--verify(?:\s|$)/u.test(line) &&
+      !/(?:^|\s)--display(?:\s|$)/u.test(line) &&
+      !/(?:^|\s)-d(?:\s|$)/u.test(line) &&
       !/(?:^|\s)-R(?:\s|$)/u.test(line),
   );
   const order = [
@@ -69,9 +71,55 @@ export function verifyNativeAutoFillLocalSmokePolicy(source) {
   ) {
     throw new Error("NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID");
   }
+  const stripShellComment = (line) => {
+    let singleQuoted = false;
+    let doubleQuoted = false;
+    let escaped = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (character === "\\" && !singleQuoted) {
+        escaped = true;
+        continue;
+      }
+      if (character === "'" && !doubleQuoted) {
+        singleQuoted = !singleQuoted;
+        continue;
+      }
+      if (character === '"' && !singleQuoted) {
+        doubleQuoted = !doubleQuoted;
+        continue;
+      }
+      if (character === "#" && !singleQuoted && !doubleQuoted && (index === 0 || /\s/u.test(line[index - 1]))) {
+        return line.slice(0, index).trim();
+      }
+    }
+    return line.trim();
+  };
+  const activeLogicalLines = logicalLines.map(stripShellComment).filter(Boolean);
+  const hasActiveLine = (required) => activeLogicalLines.some((line) => line.includes(required));
   if (
     !source.includes('/usr/bin/codesign --verify --strict --verbose=2 "$OUTPUT_APP"') ||
-    !source.includes('/usr/bin/codesign --verify --deep --strict --verbose=2 "$OUTPUT_APP"')
+    !source.includes('/usr/bin/codesign --verify --deep --strict --verbose=2 "$OUTPUT_APP"') ||
+    !hasActiveLine("security find-certificate -a -Z") ||
+    !hasActiveLine("SHA-1 hash: 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635") ||
+    !hasActiveLine('AUTHORITY_COUNT="$(/usr/bin/grep -c') ||
+    !hasActiveLine('LEAF_AUTHORITY="$(/usr/bin/awk') ||
+    !hasActiveLine("EXPECTED_AUTHORITY_TAIL='Authority=Developer ID Certification Authority") ||
+    !hasActiveLine("Authority=Developer ID Certification Authority") ||
+    !hasActiveLine("Authority=Apple Root CA'") ||
+    !hasActiveLine('[[ "$AUTHORITY_COUNT" == 3 ]]') ||
+    !hasActiveLine('[[ "$LEAF_AUTHORITY" == \'Authority=Developer ID Application: \'*" ($TEAM_ID)" ]]') ||
+    !hasActiveLine('[[ "$AUTHORITY_TAIL" == "$EXPECTED_AUTHORITY_TAIL" ]]') ||
+    !hasActiveLine('/usr/bin/codesign -d --extract-certificates="$SIGNER_PREFIX" "$OUTPUT_APP"') ||
+    !hasActiveLine('[[ -f "${SIGNER_PREFIX}0" && -f "${SIGNER_PREFIX}1" && -f "${SIGNER_PREFIX}2" && ! -e "${SIGNER_PREFIX}3" ]]') ||
+    !hasActiveLine('/usr/bin/openssl x509 -inform DER -in "${SIGNER_PREFIX}1"') ||
+    !hasActiveLine('[[ "$INTERMEDIATE_SHA1" == 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635 ]]') ||
+    !hasActiveLine('/usr/bin/openssl x509 -inform DER -in "${SIGNER_PREFIX}2"') ||
+    !hasActiveLine('[[ "$ROOT_SHA1" == 611E5B662C593A08FF58D14AE22452D198DF6C60 ]]')
   ) {
     throw new Error("NATIVE_AUTOFILL_LOCAL_OUTPUT_VERIFY_MISSING");
   }

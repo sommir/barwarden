@@ -10,10 +10,13 @@ use crate::autofill_reprompt::{
 use serde::{Deserialize, Serialize};
 use std::io::{ErrorKind, Read, Write};
 use std::os::unix::net::UnixStream;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use zeroize::Zeroizing;
+
+#[cfg(target_os = "macos")]
+use objc2_foundation::{NSFileManager, NSString};
 
 pub const MAXIMUM_PAYLOAD_BYTES: usize = 65_536;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
@@ -269,9 +272,26 @@ fn map_io_error(error: std::io::Error) -> AgentErrorCode {
     }
 }
 
-pub(crate) fn app_group_container_path(home: &Path) -> PathBuf {
-    home.join("Library/Group Containers")
-        .join(APP_GROUP_IDENTIFIER)
+fn resolve_app_group_container_path(
+    resolver: impl FnOnce(&str) -> Option<PathBuf>,
+) -> Result<PathBuf, AgentErrorCode> {
+    resolver(APP_GROUP_IDENTIFIER).ok_or(AgentErrorCode::Unavailable)
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn system_app_group_container_path() -> Result<PathBuf, AgentErrorCode> {
+    resolve_app_group_container_path(|identifier| {
+        let manager = NSFileManager::defaultManager();
+        let identifier = NSString::from_str(identifier);
+        let container = manager.containerURLForSecurityApplicationGroupIdentifier(&identifier)?;
+        let path = container.path()?;
+        Some(PathBuf::from(path.to_string()))
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn system_app_group_container_path() -> Result<PathBuf, AgentErrorCode> {
+    Err(AgentErrorCode::Unavailable)
 }
 
 fn default_socket_path() -> Result<PathBuf, AgentErrorCode> {
@@ -283,8 +303,7 @@ fn default_socket_path() -> Result<PathBuf, AgentErrorCode> {
             }
         }
     }
-    let home = std::env::var_os("HOME").ok_or(AgentErrorCode::Unavailable)?;
-    Ok(app_group_container_path(Path::new(&home)).join(SOCKET_FILENAME))
+    Ok(system_app_group_container_path()?.join(SOCKET_FILENAME))
 }
 
 fn perform_command(operation: AgentOperation) -> AgentCommandOutcome {
@@ -588,12 +607,28 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn app_group_container_path_uses_the_team_prefixed_macos_identifier() {
+    fn app_group_container_path_uses_the_authorized_system_container_lookup() {
+        let mut requested_identifier = None;
+        let resolved = resolve_app_group_container_path(|identifier: &str| {
+            requested_identifier = Some(identifier.to_owned());
+            Some(PathBuf::from("/private/authorized-group-container"))
+        });
+
         assert_eq!(
-            app_group_container_path(Path::new("/Users/fixture")),
-            PathBuf::from(
-                "/Users/fixture/Library/Group Containers/K7LY92JY96.com.sommir.barwarden.autofill",
-            ),
+            requested_identifier.as_deref(),
+            Some("K7LY92JY96.com.sommir.barwarden.autofill")
+        );
+        assert_eq!(
+            resolved,
+            Ok(PathBuf::from("/private/authorized-group-container"))
+        );
+    }
+
+    #[test]
+    fn app_group_container_path_fails_closed_when_the_entitlement_is_unavailable() {
+        assert_eq!(
+            resolve_app_group_container_path(|_| None),
+            Err(AgentErrorCode::Unavailable)
         );
     }
 

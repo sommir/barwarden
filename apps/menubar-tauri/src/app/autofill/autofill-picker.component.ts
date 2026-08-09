@@ -1,12 +1,20 @@
 import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Optional } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Inject, OnDestroy, OnInit, Optional, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 
 import { PasteError } from "../../host/host-api";
+import {
+  formatMacShortcut,
+  type GlobalShortcutHost,
+} from "../../host/global-shortcut";
+import { TauriHostService } from "../../host/tauri-host.service";
 import { AuthFacade } from "../auth/auth.facade";
 import { PopupHeaderComponent } from "../layout/popup-header.component";
 import { PopupPageComponent } from "../layout/popup-page.component";
+import { I18nPipe } from "../official-ui/official-ui-common";
+import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { PopupStateStore } from "../popup-state";
+import { GLOBAL_SHORTCUT_SETTINGS_HOST } from "../settings/global-shortcut-settings.service";
 import { VaultRepromptService } from "../vault/vault-reprompt.service";
 import {
   AutoFillCandidateService,
@@ -51,152 +59,254 @@ interface PickerOperation {
 const FIELD_ORDER: readonly AutoFillSecretField[] = ["username", "password", "totp"];
 const GROUP_ORDER: readonly AutoFillCandidateGroup[] = ["exact", "relevant", "other"];
 const GROUP_LABELS: Record<AutoFillCandidateGroup, string> = {
-  exact: "Exact matches",
-  relevant: "Relevant matches",
-  other: "Other logins",
+  exact: "i18nAutofillExactMatches",
+  relevant: "i18nAutofillRelevantAccounts",
+  other: "i18nAutofillOtherAccounts",
 };
 const REASON_LABELS: Readonly<Record<string, string>> = {
-  user_binding: "Chosen for this app",
-  service_identifier: "Matches this service",
-  app_preset: "Matches this app",
-  vault_uri_rule: "Matches a saved URI rule",
-  host_or_domain: "Matches a related domain",
-  fuzzy_name: "Similar app or login name",
-  selection_history: "Used here before",
-  favorite: "Favorite login",
-  recent: "Recently used",
-  other: "Other login",
+  user_binding: "i18nAutofillReasonBinding",
+  service_identifier: "i18nAutofillReasonService",
+  app_preset: "i18nAutofillReasonPreset",
+  vault_uri_rule: "i18nAutofillReasonUriRule",
+  host_or_domain: "i18nAutofillReasonDomain",
+  fuzzy_name: "i18nAutofillReasonSimilar",
+  selection_history: "i18nAutofillReasonHistory",
+  favorite: "i18nAutofillReasonFavorite",
+  recent: "i18nAutofillReasonRecent",
+  other: "i18nAutofillReasonOther",
 };
 
 @Component({
   selector: "bw-autofill-picker",
   standalone: true,
-  imports: [CommonModule, PopupHeaderComponent, PopupPageComponent],
+  imports: [CommonModule, I18nPipe, PopupHeaderComponent, PopupPageComponent],
   host: { class: "macos-page macos-page--secondary macos-page--autofill-picker" },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [`
-    [role="option"].autofill-picker__option--highlighted {
-      background-color: rgba(0, 122, 255, 0.12);
-      outline: 2px solid Highlight;
-      outline-offset: -2px;
-    }
-  `],
+  styleUrl: "./autofill-picker.component.css",
   template: `
-    <popup-page>
-      <popup-header slot="header" [pageTitle]="'AutoFill'" showBackButton [backAction]="backAction" />
-      <main class="autofill-picker" (keydown)="onListKeydown($event)">
-      @if (appName) { <p id="autofill-target-app">{{ appName }}</p> }
+    <popup-page class="macos-page macos-page--autofill-picker">
+      <popup-header slot="header" [pageTitle]="'i18nAutofillPickerTitle' | i18n" showBackButton [backAction]="backAction" />
+      <main class="autofill-picker">
+      <div
+        class="autofill-picker__content"
+        [attr.inert]="dialogOpen ? '' : null"
+        [attr.aria-hidden]="dialogOpen ? 'true' : null"
+      >
+      @if (appName) {
+        <div class="autofill-picker__target" id="autofill-target-app">
+          <span class="autofill-picker__target-icon" aria-hidden="true"><i class="bwi bwi-desktop"></i></span>
+          <span class="autofill-picker__target-copy">
+            <strong>{{ appName }}</strong>
+            <small>{{ "i18nAutofillCurrentApp" | i18n }}</small>
+          </span>
+          @if (shortcutLabel) {
+            <kbd data-testid="autofill-shortcut">{{ shortcutLabel }}</kbd>
+          }
+          @if (shortcutUnavailable) {
+            <span
+              class="autofill-picker__shortcut-warning"
+              data-testid="autofill-shortcut-unavailable"
+              role="status"
+              [attr.aria-label]="'i18nAutofillShortcutUnavailable' | i18n"
+              [title]="'i18nAutofillShortcutUnavailable' | i18n"
+            ><i class="bwi bwi-exclamation-triangle" aria-hidden="true"></i></span>
+          }
+          <button
+            class="autofill-picker__turn-off"
+            data-testid="autofill-turn-off"
+            type="button"
+            [disabled]="setupActionPending"
+            [attr.aria-label]="'i18nAutofillTurnOff' | i18n"
+            [title]="'i18nAutofillTurnOff' | i18n"
+            (click)="turnOffAutoFill()"
+          ><i class="bwi bwi-close" aria-hidden="true"></i></button>
+        </div>
+      }
 
       @if (mode === "locked") {
-        <section data-testid="autofill-locked">
-          <h2>Vault locked</h2><p>Unlock Barwarden to view login matches.</p>
-          <button type="button" (click)="unlock()">Unlock</button>
+        <section class="autofill-picker__state" data-testid="autofill-locked">
+          <span class="autofill-picker__state-icon" aria-hidden="true"><i class="bwi bwi-lock"></i></span>
+          <h2>{{ "i18nAutofillVaultLocked" | i18n }}</h2>
+          <p>{{ "i18nAutofillUnlockDescription" | i18n }}</p>
+          <button class="autofill-picker__primary" type="button" (click)="unlock()">{{ "unlock" | i18n }}</button>
         </section>
       } @else if (mode === "repair") {
-        <section data-testid="autofill-repair">
-          <h2>AutoFill needs attention</h2>
+        <section class="autofill-picker__state" data-testid="autofill-repair">
+          <span class="autofill-picker__state-icon" aria-hidden="true"><i class="bwi bwi-exclamation-triangle"></i></span>
+          <h2>{{ "i18nAutofillNeedsAttention" | i18n }}</h2>
           @if (setupRequiresApproval) {
-            <p>Open System Settings &gt; General &gt; Login Items and allow Barwarden AutoFill Agent, then try again.</p>
+            <p>{{ "i18nAutofillApprovalDescription" | i18n }}</p>
           } @else {
-            <p>Repair or refresh the native AutoFill data, then try again.</p>
+            <p>{{ "i18nAutofillRepairDescription" | i18n }}</p>
           }
-          <button data-testid="autofill-retry" type="button" [disabled]="setupActionPending" (click)="retrySetup()">Retry</button>
-          <button data-testid="autofill-turn-off" type="button" [disabled]="setupActionPending" (click)="turnOffAutoFill()">Turn Off AutoFill</button>
+          <div class="autofill-picker__state-actions">
+            <button class="autofill-picker__primary" data-testid="autofill-retry" type="button" [disabled]="setupActionPending" (click)="retrySetup()">{{ "i18nRetry" | i18n }}</button>
+            <button class="autofill-picker__secondary" data-testid="autofill-turn-off" type="button" [disabled]="setupActionPending" (click)="turnOffAutoFill()">{{ "i18nAutofillTurnOff" | i18n }}</button>
+          </div>
         </section>
       } @else if (mode === "context-unavailable") {
-        <section data-testid="autofill-context-unavailable">
-          <h2>Target app unavailable</h2><p>Return to the app you want to fill, then reopen AutoFill.</p>
+        <section class="autofill-picker__state" data-testid="autofill-context-unavailable">
+          <span class="autofill-picker__state-icon" aria-hidden="true"><i class="bwi bwi-desktop"></i></span>
+          <h2>{{ "i18nAutofillTargetUnavailable" | i18n }}</h2>
+          <p>{{ "i18nAutofillTargetUnavailableDescription" | i18n }}</p>
+          <button class="autofill-picker__primary" data-testid="autofill-back-vault" type="button" (click)="backToVault()">{{ "i18nBackToVault" | i18n }}</button>
         </section>
       } @else if (mode === "account-override") {
-        <section data-testid="autofill-account-override">
-          <h2>Choose the projected account</h2><p>Matches are never combined across accounts.</p>
-          <button type="button" (click)="useProjectedAccount()">Use this account</button>
+        <section class="autofill-picker__state" data-testid="autofill-account-override">
+          <span class="autofill-picker__state-icon" aria-hidden="true"><i class="bwi bwi-users"></i></span>
+          <h2>{{ "i18nAutofillChooseAccount" | i18n }}</h2>
+          <p>{{ "i18nAutofillAccountDescription" | i18n }}</p>
+          <button class="autofill-picker__primary" type="button" (click)="useProjectedAccount()">{{ "i18nAutofillUseAccount" | i18n }}</button>
         </section>
       } @else if (mode === "loading") {
-        <section data-testid="autofill-loading">Finding logins…</section>
+        <section class="autofill-picker__state autofill-picker__state--loading" data-testid="autofill-loading">
+          <span class="autofill-picker__spinner" aria-hidden="true"></span>
+          <p>{{ "i18nAutofillFindingAccounts" | i18n }}</p>
+        </section>
       } @else {
+        <div class="autofill-picker__field-switcher" role="group" [attr.aria-label]="'i18nAutofillChooseField' | i18n">
+          @for (field of fieldOrder; track field) {
+            <button
+              type="button"
+              [attr.data-testid]="'autofill-field-' + field"
+              [attr.aria-pressed]="selectedField === field"
+              [class.autofill-picker__field--selected]="selectedField === field"
+              (click)="selectField(field)"
+            >
+              <i class="bwi" [class.bwi-user]="field === 'username'" [class.bwi-lock]="field === 'password'" [class.bwi-clock]="field === 'totp'" aria-hidden="true"></i>
+              <span>{{ fieldLabel(field) }}</span>
+            </button>
+          }
+        </div>
+
         <label class="autofill-picker__search">
-          <span>Search all logins</span>
-          <input type="search" [value]="query" (input)="search(inputValue($event))" />
+          <i class="bwi bwi-search" aria-hidden="true"></i>
+          <span class="tw-sr-only">{{ "i18nAutofillSearchAccounts" | i18n }}</span>
+          <input type="search" [placeholder]="'i18nAutofillSearchAccounts' | i18n" [value]="query" (input)="search(inputValue($event))" />
         </label>
 
         @if (mode === "empty") {
-          <section data-testid="autofill-empty"><h2>No matching logins</h2><p>Try another search.</p></section>
+          <section class="autofill-picker__state" data-testid="autofill-empty">
+            <span class="autofill-picker__state-icon" aria-hidden="true"><i class="bwi bwi-search"></i></span>
+            <h2>{{ "i18nAutofillNoMatches" | i18n }}</h2>
+            <p>{{ "i18nAutofillNoMatchesDescription" | i18n }}</p>
+          </section>
         } @else {
           <div
+            class="autofill-picker__groups"
             role="listbox"
             tabindex="0"
             aria-labelledby="autofill-target-app"
             [attr.aria-activedescendant]="highlightedCandidate ? optionId(highlightedCandidate) : null"
+            (keydown)="onListKeydown($event)"
           >
             @for (group of groupOrder; track group) {
               @if (candidatesFor(group).length) {
                 <section [attr.data-testid]="'autofill-group-' + group">
                   <h2>{{ groupLabel(group) }}</h2>
+                  <div class="autofill-picker__group-list">
                   @for (candidate of candidatesFor(group); track candidate.cipherId) {
                     <button
+                      class="autofill-picker__candidate"
                       type="button"
                       role="option"
                       [id]="optionId(candidate)"
+                      [attr.data-testid]="'autofill-fill-candidate-' + candidate.cipherId"
                       [class.autofill-picker__option--highlighted]="highlightedCandidate?.cipherId === candidate.cipherId"
                       [attr.aria-selected]="selected?.cipherId === candidate.cipherId"
-                      (click)="selectCandidate(candidate)"
+                      [attr.aria-label]="fillCandidateLabel(candidate)"
+                      (mouseenter)="highlightCandidate(candidate)"
+                      (focus)="highlightCandidate(candidate)"
+                      (click)="activateCandidate(candidate)"
                     >
-                      <strong>{{ candidate.displayName }}</strong>
-                      <span>{{ candidate.username }}</span>
-                      <small>{{ reasonLabel(candidate.reason) }}</small>
+                      <span class="autofill-picker__candidate-icon" aria-hidden="true"><i class="bwi bwi-globe"></i></span>
+                      <span class="autofill-picker__candidate-copy">
+                        <strong>{{ candidate.displayName }}</strong>
+                        <small>{{ candidate.username }} · {{ reasonLabel(candidate.reason) }}</small>
+                      </span>
+                      <span class="autofill-picker__fill-label">{{ "i18nAutofillFill" | i18n }}</span>
                     </button>
                   }
+                  </div>
                 </section>
               }
             }
           </div>
 
-          @if (selected) {
-            <section class="autofill-picker__actions" aria-labelledby="autofill-actions-title">
-              <h2 id="autofill-actions-title">{{ selected.displayName }}</h2>
-              <button data-testid="fill-username" type="button" (click)="perform('fill', 'username')">Fill username</button>
-              <button data-testid="fill-password" type="button" (click)="perform('fill', 'password')">Fill password</button>
-              <button data-testid="fill-totp" type="button" (click)="perform('fill', 'totp')">Fill TOTP</button>
-              <button data-testid="copy-username" type="button" (click)="perform('copy', 'username')">Copy username</button>
-              <button data-testid="copy-password" type="button" (click)="perform('copy', 'password')">Copy password</button>
-              <button data-testid="copy-totp" type="button" (click)="perform('copy', 'totp')">Copy TOTP</button>
-            </section>
+          @if (highlightedCandidate) {
+            <footer class="autofill-picker__copy-bar">
+              <button data-testid="autofill-copy-only" type="button" (click)="copyHighlighted()">
+                <i class="bwi bwi-clone" aria-hidden="true"></i>
+                <strong>{{ "i18nAutofillCopyOnly" | i18n }}</strong>
+              </button>
+              <span>{{ copyDescription() }}</span>
+            </footer>
           }
-
-          @if (pendingMismatch) {
-            <section role="alertdialog" aria-labelledby="autofill-mismatch-title">
-              <p id="autofill-mismatch-title">This login does not match the target app. Fill it anyway?</p>
-              <button type="button" (click)="confirmMismatch()">Fill anyway</button>
-              <button type="button" (click)="cancelMismatch()">Cancel</button>
-            </section>
-          }
-
-          @if (pendingProtected) {
-            <section aria-labelledby="autofill-verify-title">
-              <p id="autofill-verify-title">Verify before releasing this protected field.</p>
-              <button type="button" (click)="verifyWithTouchId()">Use Touch ID</button>
-              <button type="button" (click)="showMasterPasswordReprompt()">Use master password</button>
-              @if (masterPasswordMode) {
-                <form (submit)="verifyWithMasterPassword($event)">
-                  <label>Master password <input type="password" autocomplete="current-password" [value]="masterPassword" (input)="masterPassword = inputValue($event)" /></label>
-                  <button type="submit">Verify</button>
-                </form>
-              }
-              <button type="button" (click)="cancelProtectedAction()">Cancel</button>
-            </section>
-          }
-
-          <button data-testid="autofill-turn-off" type="button" [disabled]="setupActionPending" (click)="turnOffAutoFill()">Turn Off AutoFill</button>
         }
       }
 
       @if (statusMessage) { <p role="status">{{ statusMessage }}</p> }
+      </div>
+
+          @if (pendingMismatch) {
+            <div class="autofill-picker__modal-backdrop">
+            <section
+              #activeDialog
+              class="autofill-picker__modal"
+              data-testid="autofill-mismatch-dialog"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="autofill-mismatch-title"
+              tabindex="-1"
+              (keydown)="onDialogKeydown($event)"
+            >
+              <p id="autofill-mismatch-title">{{ "i18nAutofillMismatchDescription" | i18n }}</p>
+              <div class="autofill-picker__modal-actions">
+                <button data-autofill-dialog-primary type="button" (click)="confirmMismatch()">{{ "i18nAutofillFillAnyway" | i18n }}</button>
+                <button data-autofill-dialog-cancel type="button" (click)="cancelMismatch()">{{ "cancel" | i18n }}</button>
+              </div>
+            </section>
+            </div>
+          }
+
+          @if (pendingProtected) {
+            <div class="autofill-picker__modal-backdrop">
+            <section
+              #activeDialog
+              class="autofill-picker__modal"
+              data-testid="autofill-verify-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="autofill-verify-title"
+              tabindex="-1"
+              (keydown)="onDialogKeydown($event)"
+            >
+              <p id="autofill-verify-title">{{ "i18nAutofillVerifyDescription" | i18n }}</p>
+              <button data-autofill-dialog-primary type="button" (click)="verifyWithTouchId()">{{ "i18nUseTouchId" | i18n }}</button>
+              <button type="button" (click)="showMasterPasswordReprompt()">{{ "i18nUseMasterPassword" | i18n }}</button>
+              @if (masterPasswordMode) {
+                <form (submit)="verifyWithMasterPassword($event)">
+                  <label>{{ "masterPass" | i18n }} <input type="password" autocomplete="current-password" [value]="masterPassword" (input)="masterPassword = inputValue($event)" /></label>
+                  <button type="submit">{{ "i18nVerify" | i18n }}</button>
+                </form>
+              }
+              <button data-autofill-dialog-cancel type="button" (click)="cancelProtectedAction()">{{ "cancel" | i18n }}</button>
+            </section>
+            </div>
+          }
       </main>
     </popup-page>
   `,
 })
 export class AutoFillPickerComponent implements OnInit, OnDestroy {
+  @ViewChild("activeDialog")
+  set activeDialog(element: ElementRef<HTMLElement> | undefined) {
+    if (!element) return;
+    queueMicrotask(() => {
+      if (!this.componentAlive || !this.dialogOpen || !element.nativeElement.isConnected) return;
+      element.nativeElement.querySelector<HTMLElement>("[data-autofill-dialog-primary]")?.focus();
+    });
+  }
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () => {
     this.cancelPicker();
     return this.router.navigateByUrl("/tabs/vault");
@@ -208,19 +318,26 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   selected: RankedAutoFillCandidate | null = null;
   highlightedIndex = 0;
   statusMessage = "";
+  selectedField: AutoFillSecretField = "password";
+  shortcutLabel = "";
+  shortcutUnavailable = false;
   setupRequiresApproval = false;
   setupActionPending = false;
   pendingMismatch: { action: SecretAction; field: AutoFillSecretField } | null = null;
   pendingProtected: PendingProtectedAction | null = null;
   masterPasswordMode = false;
   masterPassword = "";
+  readonly fieldOrder = FIELD_ORDER;
   readonly groupOrder = GROUP_ORDER;
   private bundleId = "";
+  private candidatesByField = new Map<AutoFillSecretField, readonly RankedAutoFillCandidate[]>();
   private agentSession: Extract<AutoFillAgentSessionOutcome, { status: "success" }> | null = null;
   private operationEpoch = 0;
   private initializeTimer: number | undefined;
   private componentAlive = true;
   private activeReceipt: { readonly scope: AutoFillRepromptScope; readonly receipt: string } | null = null;
+  private dialogReturnFocus: HTMLElement | null = null;
+  private readonly shortcutHost: GlobalShortcutHost;
 
   constructor(
     private readonly store: PopupStateStore,
@@ -231,7 +348,9 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     private readonly reprompt: VaultRepromptService,
     private readonly changeDetector: ChangeDetectorRef,
     @Optional() private readonly setup: AutoFillSetupService | null = null,
+    @Optional() @Inject(GLOBAL_SHORTCUT_SETTINGS_HOST) shortcutHost: GlobalShortcutHost | null = null,
   ) {
+    this.shortcutHost = shortcutHost ?? new TauriHostService();
     if (!this.store.snapshot().isUnlocked) {
       this.mode = "locked";
     }
@@ -284,6 +403,11 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
         this.bundleId = context.bundleId;
         this.appName = context.appName;
       })) return;
+      const shortcut = await this.shortcutHost.getGlobalShortcut().catch(() => null);
+      if (!this.commit(epoch, () => {
+        this.shortcutLabel = shortcut?.shortcut ? formatMacShortcut(shortcut.shortcut) : "";
+        this.shortcutUnavailable = shortcut?.availability === "unavailable";
+      })) return;
       const session = await this.native.agentSession();
       if (!this.commit(epoch, () => {})) return;
       if (session.status !== "success") {
@@ -309,7 +433,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   async retrySetup(): Promise<void> {
     if (!this.setup || this.setupActionPending) return;
     this.setupActionPending = true;
-    this.statusMessage = "Checking AutoFill…";
+    this.statusMessage = translateOfficialMessage("i18nAutofillChecking");
     this.markIfAlive();
     try {
       const setupState = await this.setup.enableFromEntry();
@@ -317,7 +441,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       if (setupState !== "ready") {
         this.setupRequiresApproval = setupState === "requiresApproval";
         this.mode = "repair";
-        this.statusMessage = "AutoFill still needs attention.";
+        this.statusMessage = translateOfficialMessage("i18nAutofillStillNeedsAttention");
         return;
       }
       this.setupRequiresApproval = false;
@@ -327,7 +451,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       if (!this.componentAlive) return;
       this.setupRequiresApproval = false;
       this.mode = "repair";
-      this.statusMessage = "AutoFill recovery could not complete. Try again.";
+      this.statusMessage = translateOfficialMessage("i18nAutofillRecoveryFailed");
     } finally {
       this.setupActionPending = false;
       this.markIfAlive();
@@ -342,15 +466,15 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.setupActionPending = true;
     this.mode = "repair";
     this.setupRequiresApproval = false;
-    this.statusMessage = "Turning off AutoFill…";
+    this.statusMessage = translateOfficialMessage("i18nAutofillTurningOff");
     this.markIfAlive();
     try {
       await this.setup.disable();
       if (!this.componentAlive) return;
-      this.statusMessage = "AutoFill is off.";
+      this.statusMessage = translateOfficialMessage("i18nAutofillIsOff");
     } catch {
       if (!this.componentAlive) return;
-      this.statusMessage = "AutoFill could not be turned off. Try again.";
+      this.statusMessage = translateOfficialMessage("i18nAutofillTurnOffFailed");
     } finally {
       this.setupActionPending = false;
       this.markIfAlive();
@@ -373,11 +497,69 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   }
 
   groupLabel(group: AutoFillCandidateGroup): string {
-    return GROUP_LABELS[group];
+    return translateOfficialMessage(GROUP_LABELS[group]);
   }
 
   reasonLabel(reason: string): string {
-    return REASON_LABELS[reason] ?? REASON_LABELS["other"];
+    return translateOfficialMessage(REASON_LABELS[reason] ?? REASON_LABELS["other"]);
+  }
+
+  fieldLabel(field: AutoFillSecretField): string {
+    return translateOfficialMessage({
+      username: "i18nAutofillFieldUsername",
+      password: "i18nAutofillFieldPassword",
+      totp: "i18nAutofillFieldTotp",
+    }[field]);
+  }
+
+  selectField(field: AutoFillSecretField): void {
+    if (field === this.selectedField) return;
+    this.startOperation();
+    this.selectedField = field;
+    this.candidates = this.candidatesByField.get(field) ?? [];
+    this.highlightedIndex = 0;
+    this.selected = null;
+    this.statusMessage = "";
+    this.mode = this.candidates.length ? "ready" : "empty";
+    this.markIfAlive();
+  }
+
+  highlightCandidate(candidate: RankedAutoFillCandidate): void {
+    const index = this.candidates.findIndex((item) => item.cipherId === candidate.cipherId);
+    if (index < 0 || index === this.highlightedIndex) return;
+    this.highlightedIndex = index;
+    this.markIfAlive();
+  }
+
+  activateCandidate(candidate: RankedAutoFillCandidate): void {
+    this.selectCandidate(candidate);
+    void this.perform("fill", this.selectedField);
+  }
+
+  copyHighlighted(): void {
+    const candidate = this.highlightedCandidate;
+    if (!candidate) return;
+    this.selectCandidate(candidate);
+    void this.perform("copy", this.selectedField);
+  }
+
+  fillCandidateLabel(candidate: RankedAutoFillCandidate): string {
+    return translateOfficialMessage(
+      "i18nAutofillFillCandidate",
+      this.fieldLabel(this.selectedField),
+      candidate.displayName,
+    );
+  }
+
+  copyDescription(): string {
+    const candidate = this.highlightedCandidate;
+    return candidate
+      ? translateOfficialMessage(
+        "i18nAutofillCopyDescription",
+        candidate.displayName,
+        this.fieldLabel(this.selectedField),
+      )
+      : "";
   }
 
   selectIndex(index: number): void {
@@ -399,6 +581,36 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     return this.candidates[this.highlightedIndex] ?? null;
   }
 
+  get dialogOpen(): boolean {
+    return Boolean(this.pendingMismatch || this.pendingProtected);
+  }
+
+  onDialogKeydown(event: KeyboardEvent): void {
+    const dialog = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    if (!dialog) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      if (this.pendingMismatch) this.cancelMismatch();
+      else this.cancelProtectedAction();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [...dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => !element.hasAttribute("hidden"));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   optionId(candidate: RankedAutoFillCandidate): string {
     return `autofill-option-${candidate.cipherId.replace(/[^A-Za-z0-9_-]/g, "-")}`;
   }
@@ -415,7 +627,8 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       this.markIfAlive();
     } else if (event.key === "Enter") {
       event.preventDefault();
-      this.selectIndex(this.highlightedIndex);
+      const candidate = this.highlightedCandidate;
+      if (candidate) this.activateCandidate(candidate);
     }
   }
 
@@ -426,6 +639,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const epoch = this.startOperation();
     const operation = this.operation(epoch, selected, session);
     if (selected.requiresMismatchConfirmation && !mismatchConfirmed) {
+      this.captureDialogReturnFocus();
       this.pendingMismatch = { action, field };
       this.markIfAlive();
       return;
@@ -438,7 +652,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       const current = response.candidates.find((candidate) => candidate.cipherId === selected.cipherId);
       if (!current) {
         this.commitOperation(operation, () => {
-          this.statusMessage = "This field is not available for the selected login.";
+          this.statusMessage = translateOfficialMessage("i18nAutofillFieldUnavailable");
         });
         return;
       }
@@ -470,6 +684,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
           return;
         }
         this.activeReceipt = { scope, receipt: receipt.receipt };
+        this.captureDialogReturnFocus();
         this.commitOperation(operation, () => {
           this.pendingProtected = { action, scope, mismatchConfirmed, receipt: receipt.receipt };
         });
@@ -478,7 +693,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       await this.releaseAndDeliver(operation, action, scope, mismatchConfirmed);
     } catch {
       this.commitOperation(operation, () => {
-        this.statusMessage = "AutoFill could not complete this field action.";
+        this.statusMessage = translateOfficialMessage("i18nAutofillActionFailed");
       });
     }
   }
@@ -487,12 +702,14 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const pending = this.pendingMismatch;
     if (!pending) return;
     this.pendingMismatch = null;
+    this.restoreDialogFocus();
     await this.perform(pending.action, pending.field, true);
   }
 
   cancelMismatch(): void {
     this.startOperation();
     this.pendingMismatch = null;
+    this.restoreDialogFocus();
     this.markIfAlive();
   }
 
@@ -501,6 +718,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.pendingProtected = null;
     this.masterPasswordMode = false;
     this.masterPassword = "";
+    this.restoreDialogFocus();
     this.markIfAlive();
   }
 
@@ -513,6 +731,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const epoch = this.startOperation(false);
     const operation = this.operation(epoch, selected, session);
     this.pendingProtected = null;
+    this.restoreDialogFocus();
     this.markIfAlive();
     const outcome = await this.native.biometricReprompt(pending.scope.accountId, pending.receipt)
       .catch(() => "failed" as const);
@@ -523,9 +742,9 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     if (outcome !== "success") {
       this.abandonReceipt(pending.receipt);
       this.commitOperation(operation, () => {
-        this.statusMessage = outcome === "cancelled"
-          ? "Touch ID verification was cancelled."
-          : "Touch ID verification failed.";
+        this.statusMessage = translateOfficialMessage(outcome === "cancelled"
+          ? "i18nAutofillTouchIdCancelled"
+          : "i18nAutofillTouchIdFailed");
       });
       return;
     }
@@ -558,15 +777,31 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.markIfAlive();
     const epoch = this.store.beginProtectedOperation();
     let verified = false;
+    let verificationFailed = false;
     try {
       verified = await this.reprompt.verify(password, epoch, pending.receipt);
     } catch {
+      verificationFailed = true;
       this.commitOperation(operation, () => {
-        this.statusMessage = "Master password verification failed.";
+        this.statusMessage = translateOfficialMessage("i18nAutofillMasterPasswordFailed");
       });
+    }
+    if (verificationFailed) {
+      this.abandonReceipt(pending.receipt);
+      this.commitOperation(operation, () => {
+        this.pendingProtected = null;
+        this.masterPasswordMode = false;
+      });
+      this.restoreDialogFocus();
+      return;
     }
     if (!verified || !this.store.isCurrentProtectedOperation(epoch)) {
       this.abandonReceipt(pending.receipt);
+      this.commitOperation(operation, () => {
+        this.pendingProtected = null;
+        this.masterPasswordMode = false;
+      });
+      this.restoreDialogFocus();
       return;
     }
     if (!await this.targetIsCurrent(operation)) {
@@ -580,6 +815,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       this.abandonReceipt(pending.receipt);
       return;
     }
+    this.restoreDialogFocus();
     await this.releaseAndDeliver(
         operation,
         pending.action,
@@ -602,7 +838,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     } catch {
       this.commit(epoch, () => {
         this.mode = "account-override";
-        this.statusMessage = "Unable to switch accounts.";
+        this.statusMessage = translateOfficialMessage("i18nAutofillSwitchAccountFailed");
       });
     }
   }
@@ -634,19 +870,22 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       || context.status !== "available"
       || context.bundleId !== bundleId
       || context.appName !== appName) return;
-    const candidates = new Map<string, RankedAutoFillCandidate>();
-    for (const result of results) {
+    const byField = new Map<AutoFillSecretField, readonly RankedAutoFillCandidate[]>();
+    for (const [index, result] of results.entries()) {
+      const candidates = new Map<string, RankedAutoFillCandidate>();
       for (const candidate of result.candidates) {
         const existing = candidates.get(candidate.cipherId);
         if (!existing || GROUP_ORDER.indexOf(candidate.group) < GROUP_ORDER.indexOf(existing.group)) {
           candidates.set(candidate.cipherId, candidate);
         }
       }
+      byField.set(FIELD_ORDER[index], [...candidates.values()].sort((left, right) =>
+        GROUP_ORDER.indexOf(left.group) - GROUP_ORDER.indexOf(right.group),
+      ));
     }
     this.commit(epoch, () => {
-      this.candidates = [...candidates.values()].sort((left, right) =>
-        GROUP_ORDER.indexOf(left.group) - GROUP_ORDER.indexOf(right.group),
-      );
+      this.candidatesByField = byField;
+      this.candidates = byField.get(this.selectedField) ?? [];
       this.highlightedIndex = 0;
       this.mode = this.candidates.length ? "ready" : "empty";
     });
@@ -686,7 +925,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       if (!this.operationIsCurrent(operation)) return;
       if (released.status !== "success" || released.field !== scope.field) {
         this.commitOperation(operation, () => {
-          this.statusMessage = "AutoFill could not release this field.";
+          this.statusMessage = translateOfficialMessage("i18nAutofillReleaseFailed");
         });
         return;
       }
@@ -694,16 +933,20 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       if (!await this.targetIsCurrent(operation)) return;
       if (action === "copy") {
         await this.native.copyText(value, 30);
-        this.commitOperation(operation, () => { this.statusMessage = "Copied."; });
+        this.commitOperation(operation, () => {
+          this.statusMessage = translateOfficialMessage("i18nAutofillCopied");
+        });
       } else {
         try {
           await this.native.pasteText(value, 30);
-          this.commitOperation(operation, () => { this.statusMessage = "Filled."; });
+          this.commitOperation(operation, () => {
+            this.statusMessage = translateOfficialMessage("i18nAutofillFilled");
+          });
         } catch (error) {
           this.commitOperation(operation, () => {
-            this.statusMessage = error instanceof PasteError && error.valueCopied
-              ? "Copied. Paste into the target app manually."
-              : "AutoFill could not paste this field.";
+            this.statusMessage = translateOfficialMessage(error instanceof PasteError && error.valueCopied
+              ? "i18nAutofillPasteFallback"
+              : "i18nAutofillPasteFailed");
           });
         }
       }
@@ -717,12 +960,18 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
 
   private clearPickerState(): void {
     this.candidates = [];
+    this.candidatesByField.clear();
     this.selected = null;
     this.pendingMismatch = null;
     this.pendingProtected = null;
     this.masterPasswordMode = false;
     this.masterPassword = "";
     this.statusMessage = "";
+    this.selectedField = "password";
+    this.appName = "";
+    this.bundleId = "";
+    this.shortcutLabel = "";
+    this.shortcutUnavailable = false;
     this.agentSession = null;
   }
 
@@ -814,6 +1063,21 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
 
   private abandonReceipt(receipt: string): void {
     if (this.activeReceipt?.receipt === receipt) this.cancelActiveReceipt();
+  }
+
+  private captureDialogReturnFocus(): void {
+    this.dialogReturnFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+  }
+
+  private restoreDialogFocus(): void {
+    const target = this.dialogReturnFocus;
+    this.dialogReturnFocus = null;
+    if (!target) return;
+    queueMicrotask(() => {
+      if (this.componentAlive && target.isConnected) target.focus();
+    });
   }
 
   private cancelPicker(): void {

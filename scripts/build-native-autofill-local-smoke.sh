@@ -115,6 +115,15 @@ IDENTITY_LIST="$(/usr/bin/security find-identity -v -p codesigning \
   fail NATIVE_AUTOFILL_LOCAL_SIGNING_IDENTITY_INVALID
 unset IDENTITY_LIST
 
+SIGNING_CERTIFICATES="$WORK_ROOT/signing-certificates.txt"
+/usr/bin/security find-certificate -a -Z "$NATIVE_AUTOFILL_SIGNING_KEYCHAIN" \
+  >"$SIGNING_CERTIFICATES" 2>/dev/null || \
+  fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+/usr/bin/grep -Fq \
+  'SHA-1 hash: 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635' \
+  "$SIGNING_CERTIFICATES" || fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+/bin/rm -f "$SIGNING_CERTIFICATES"
+
 if [[ -z "${DEVELOPER_DIR:-}" ]]; then
   DEVELOPER_DIR="$(/usr/bin/xcode-select -p 2>/dev/null)" || fail NATIVE_AUTOFILL_XCODE_UNAVAILABLE
 fi
@@ -160,6 +169,11 @@ if [[ -n "${NATIVE_AUTOFILL_PROVIDER_PROFILE:-}" ]]; then
     "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME/Contents/embedded.provisionprofile"
 fi
 
+run_or_fail NATIVE_AUTOFILL_LOCAL_BUILD_FAILED \
+  /usr/bin/ditto --norsrc --noqtn "$APP_PATH" "$OUTPUT_APP"
+[[ -d "$OUTPUT_APP" && ! -L "$OUTPUT_APP" ]] || fail NATIVE_AUTOFILL_LOCAL_BUILD_FAILED
+APP_PATH="$OUTPUT_APP"
+
 SIGNING_ARGS=(--force --timestamp --options runtime --sign "$NATIVE_AUTOFILL_SIGNING_IDENTITY" --keychain "$NATIVE_AUTOFILL_SIGNING_KEYCHAIN")
 PROVIDER_ENTITLEMENTS="$WORK_ROOT/provider-entitlements.plist"
 run_or_fail NATIVE_AUTOFILL_PROVIDER_ENTITLEMENTS_INVALID \
@@ -193,8 +207,6 @@ run_or_fail NATIVE_AUTOFILL_LOCAL_STRICT_VERIFY_FAILED \
 run_or_fail NATIVE_AUTOFILL_LOCAL_DEEP_VERIFY_FAILED \
   /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
-run_or_fail NATIVE_AUTOFILL_LOCAL_BUILD_FAILED \
-  /usr/bin/ditto --norsrc --noqtn "$APP_PATH" "$OUTPUT_APP"
 [[ -d "$OUTPUT_APP" && ! -L "$OUTPUT_APP" ]] || fail NATIVE_AUTOFILL_LOCAL_BUILD_FAILED
 [[ "$(/usr/bin/find "$NATIVE_AUTOFILL_LOCAL_OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print | /usr/bin/wc -l | /usr/bin/tr -d ' ')" == 1 ]] || \
   fail NATIVE_AUTOFILL_LOCAL_BUILD_FAILED
@@ -205,5 +217,35 @@ run_or_fail NATIVE_AUTOFILL_LOCAL_STRICT_VERIFY_FAILED \
   /usr/bin/codesign --verify --strict --verbose=2 "$OUTPUT_APP"
 run_or_fail NATIVE_AUTOFILL_LOCAL_DEEP_VERIFY_FAILED \
   /usr/bin/codesign --verify --deep --strict --verbose=2 "$OUTPUT_APP"
+SIGNATURE_DETAILS="$WORK_ROOT/output-signature.txt"
+/usr/bin/codesign --display --verbose=4 "$OUTPUT_APP" >"$SIGNATURE_DETAILS" 2>&1 || \
+  fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+AUTHORITY_COUNT="$(/usr/bin/grep -c '^Authority=' "$SIGNATURE_DETAILS")"
+LEAF_AUTHORITY="$(/usr/bin/awk '/^Authority=/{print; exit}' "$SIGNATURE_DETAILS")"
+AUTHORITY_TAIL="$(/usr/bin/awk '/^Authority=/{if (++count > 1) print}' "$SIGNATURE_DETAILS")"
+EXPECTED_AUTHORITY_TAIL='Authority=Developer ID Certification Authority
+Authority=Apple Root CA'
+[[ "$AUTHORITY_COUNT" == 3 ]] || fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+[[ "$LEAF_AUTHORITY" == 'Authority=Developer ID Application: '*" ($TEAM_ID)" ]] || \
+  fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+[[ "$AUTHORITY_TAIL" == "$EXPECTED_AUTHORITY_TAIL" ]] || \
+  fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+unset AUTHORITY_COUNT LEAF_AUTHORITY AUTHORITY_TAIL EXPECTED_AUTHORITY_TAIL
+/bin/rm -f "$SIGNATURE_DETAILS"
+
+SIGNER_PREFIX="$WORK_ROOT/output-signer-"
+/usr/bin/codesign -d --extract-certificates="$SIGNER_PREFIX" "$OUTPUT_APP" >/dev/null 2>&1 || \
+  fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+[[ -f "${SIGNER_PREFIX}0" && -f "${SIGNER_PREFIX}1" && -f "${SIGNER_PREFIX}2" && ! -e "${SIGNER_PREFIX}3" ]] || \
+  fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+INTERMEDIATE_SHA1="$(/usr/bin/openssl x509 -inform DER -in "${SIGNER_PREFIX}1" \
+  -noout -fingerprint -sha1 2>/dev/null | /usr/bin/awk -F= 'NF == 2 { print $2 }' | /usr/bin/tr -d ':')"
+[[ "$INTERMEDIATE_SHA1" == 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635 ]] || \
+  fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+ROOT_SHA1="$(/usr/bin/openssl x509 -inform DER -in "${SIGNER_PREFIX}2" \
+  -noout -fingerprint -sha1 2>/dev/null | /usr/bin/awk -F= 'NF == 2 { print $2 }' | /usr/bin/tr -d ':')"
+[[ "$ROOT_SHA1" == 611E5B662C593A08FF58D14AE22452D198DF6C60 ]] || \
+  fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
+unset INTERMEDIATE_SHA1 ROOT_SHA1 SIGNER_PREFIX
 BUILD_COMPLETE=1
 printf '%s\n' NATIVE_AUTOFILL_LOCAL_SMOKE_BUILD_PASS

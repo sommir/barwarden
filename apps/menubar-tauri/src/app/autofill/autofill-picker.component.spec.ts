@@ -23,6 +23,7 @@ import {
 } from "./autofill-native.host";
 import { AutoFillPickerComponent } from "./autofill-picker.component";
 import { AutoFillSetupService } from "./autofill-setup.service";
+import { GLOBAL_SHORTCUT_SETTINGS_HOST } from "../settings/global-shortcut-settings.service";
 
 beforeAll(() => {
   try {
@@ -92,6 +93,15 @@ describe("AutoFillPickerComponent", () => {
         { provide: AUTOFILL_NATIVE_HOST, useValue: nativeHost },
         { provide: AuthFacade, useValue: { switchAccount } },
         { provide: VaultRepromptService, useValue: { verify: verifyReprompt } },
+        {
+          provide: GLOBAL_SHORTCUT_SETTINGS_HOST,
+          useValue: {
+            getGlobalShortcut: vi.fn(async () => ({
+              shortcut: { modifiers: ["option"], code: "KeyB" },
+              availability: "active",
+            })),
+          },
+        },
       ],
     });
   });
@@ -110,8 +120,131 @@ describe("AutoFillPickerComponent", () => {
       context: expect.objectContaining({ bundleId: "com.example.App" }),
     }));
     expect(fixture.nativeElement.querySelector('[data-testid="autofill-group-exact"]')).not.toBeNull();
-    expect(fixture.nativeElement.textContent).toContain("Exact matches");
+    expect(fixture.nativeElement.textContent).toContain("精确匹配");
     expect(JSON.stringify(candidateHost.queryCandidates.mock.calls)).not.toMatch(/one-secret/);
+  });
+
+  it("shows the registered shortcut and reports when another instance owns it", async () => {
+    TestBed.overrideProvider(GLOBAL_SHORTCUT_SETTINGS_HOST, {
+      useValue: {
+        getGlobalShortcut: vi.fn(async () => ({
+          shortcut: { modifiers: ["command", "shift"], code: "KeyP" },
+          availability: "unavailable",
+        })),
+      },
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="autofill-shortcut"]')?.textContent).toContain("⇧⌘ P");
+    expect(fixture.nativeElement.querySelector('[data-testid="autofill-shortcut-unavailable"]')).not.toBeNull();
+  });
+
+  it("uses the selected field when activating a candidate row", async () => {
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    const usernameField = fixture.nativeElement.querySelector(
+      '[data-testid="autofill-field-username"]',
+    ) as HTMLButtonElement;
+    const candidateAction = fixture.nativeElement.querySelector(
+      '[data-testid^="autofill-fill-candidate-"]',
+    ) as HTMLButtonElement;
+
+    expect(usernameField).not.toBeNull();
+    expect(candidateAction).not.toBeNull();
+    usernameField.click();
+    fixture.detectChanges();
+    expect(usernameField.getAttribute("aria-pressed")).toBe("true");
+
+    candidateAction.click();
+    await vi.waitFor(() => expect(nativeHost.releaseSecret).toHaveBeenCalledOnce());
+
+    expect(nativeHost.releaseSecret).toHaveBeenCalledWith(expect.objectContaining({
+      scope: expect.objectContaining({ field: "username" }),
+    }));
+    expect(nativeHost.pasteText).toHaveBeenCalledWith("one-secret", 30);
+    expect(nativeHost.copyText).not.toHaveBeenCalled();
+  });
+
+  it("shows only accounts that actually contain the selected field", async () => {
+    const usernameOnly = {
+      cipherId: "username-only",
+      displayName: "Username Only",
+      username: "username@example.test",
+      group: "relevant" as const,
+      reason: "host_or_domain",
+      requiresMismatchConfirmation: false,
+    };
+    const passwordOnly = candidateHostCandidate();
+    candidateHost.queryCandidates.mockImplementation(async (request) => ({
+      contextToken: crypto.randomUUID(),
+      candidates: request.field === "username"
+        ? [usernameOnly]
+        : request.field === "password"
+          ? [passwordOnly]
+          : [],
+    }));
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(passwordOnly.displayName);
+    expect(fixture.nativeElement.textContent).not.toContain(usernameOnly.displayName);
+
+    (fixture.nativeElement.querySelector('[data-testid="autofill-field-username"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(usernameOnly.displayName);
+    expect(fixture.nativeElement.textContent).not.toContain(passwordOnly.displayName);
+  });
+
+  it("copies the highlighted field without invoking paste", async () => {
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    const copyOnly = fixture.nativeElement.querySelector(
+      '[data-testid="autofill-copy-only"]',
+    ) as HTMLButtonElement;
+    expect(copyOnly).not.toBeNull();
+
+    copyOnly.click();
+    await vi.waitFor(() => expect(nativeHost.releaseSecret).toHaveBeenCalledOnce());
+
+    expect(nativeHost.releaseSecret).toHaveBeenCalledWith(expect.objectContaining({
+      scope: expect.objectContaining({ field: "password" }),
+    }));
+    expect(nativeHost.copyText).toHaveBeenCalledWith("one-secret", 30);
+    expect(nativeHost.pasteText).not.toHaveBeenCalled();
+  });
+
+  it("renders a fully localized, actionable unavailable-target state", async () => {
+    await TestBed.inject(OfficialI18nService).setLocale("zh-CN");
+    nativeHost.entryContext.mockResolvedValue({ status: "unavailable" });
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("context-unavailable"));
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain("未检测到可填入的输入框");
+    expect(text).toContain("返回目标应用并聚焦输入框后，按 ⌥B 再试一次");
+    expect(text).not.toContain("Target app unavailable");
+    const back = fixture.nativeElement.querySelector(
+      '[data-testid="autofill-back-vault"]',
+    ) as HTMLButtonElement;
+    expect(back).not.toBeNull();
+    back.click();
+    expect(navigate).toHaveBeenCalledWith("/tabs/vault", { replaceUrl: true });
   });
 
   it("shows fixed Login Items repair guidance and performs no query while approval is required", async () => {
@@ -124,7 +257,7 @@ describe("AutoFillPickerComponent", () => {
     await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("repair"));
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain("System Settings > General > Login Items");
+    expect(fixture.nativeElement.textContent).toContain("系统设置 > 通用 > 登录项");
     expect(fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]')).not.toBeNull();
     expect(nativeHost.entryContext).not.toHaveBeenCalled();
     expect(nativeHost.agentSession).not.toHaveBeenCalled();
@@ -194,10 +327,10 @@ describe("AutoFillPickerComponent", () => {
 
     (fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain("Turning off AutoFill");
+    expect(fixture.nativeElement.textContent).toContain("正在关闭自动填充");
 
     finishDisable?.();
-    await vi.waitFor(() => expect(fixture.nativeElement.textContent).toContain("AutoFill is off."));
+    await vi.waitFor(() => expect(fixture.nativeElement.textContent).toContain("自动填充已关闭。"));
     expect(disable).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.mode).toBe("repair");
   });
@@ -216,13 +349,13 @@ describe("AutoFillPickerComponent", () => {
     fixture.detectChanges();
 
     (fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]') as HTMLButtonElement).click();
-    await vi.waitFor(() => expect(fixture.nativeElement.textContent).toContain("AutoFill could not be turned off. Try again."));
+    await vi.waitFor(() => expect(fixture.nativeElement.textContent).toContain("无法关闭自动填充，请重试。"));
 
     expect(fixture.nativeElement.textContent).not.toContain("private native detail");
     expect(fixture.componentInstance.mode).toBe("repair");
   });
 
-  it("selects with the keyboard without releasing or pasting a secret", async () => {
+  it("fills the selected field when Enter activates the highlighted account", async () => {
     const fixture = TestBed.createComponent(AutoFillPickerComponent);
     fixture.changeDetectorRef.detectChanges();
     await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
@@ -230,14 +363,30 @@ describe("AutoFillPickerComponent", () => {
     fixture.changeDetectorRef.detectChanges();
 
     fixture.componentInstance.onListKeydown(new KeyboardEvent("keydown", { key: "Enter" }));
-    fixture.changeDetectorRef.detectChanges();
+    await vi.waitFor(() => expect(nativeHost.releaseSecret).toHaveBeenCalledOnce());
 
-    expect(fixture.nativeElement.querySelector('[data-testid="fill-password"]')).not.toBeNull();
+    expect(nativeHost.releaseSecret).toHaveBeenCalledWith(expect.objectContaining({
+      scope: expect.objectContaining({ field: "password" }),
+    }));
+    expect(nativeHost.pasteText).toHaveBeenCalledWith("one-secret", 30);
+  });
+
+  it("does not fill an account when Enter is pressed in search", async () => {
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    const search = fixture.nativeElement.querySelector('input[type="search"]') as HTMLInputElement;
+    search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
     expect(nativeHost.pasteText).not.toHaveBeenCalled();
   });
 
-  it("moves a visible active option with arrows and selects only on Enter", async () => {
+  it("moves a visible active option with arrows without releasing a secret", async () => {
     const second = {
       cipherId: "cipher-second",
       displayName: "Second Login",
@@ -265,11 +414,8 @@ describe("AutoFillPickerComponent", () => {
     expect(listbox.getAttribute("tabindex")).toBe("0");
     expect(listbox.getAttribute("aria-activedescendant")).toBe(options[1].id);
     expect(fixture.componentInstance.selected).toBeNull();
-
-    fixture.componentInstance.onListKeydown(new KeyboardEvent("keydown", { key: "Enter" }));
-    fixture.detectChanges();
-    expect(options[1].getAttribute("aria-selected")).toBe("true");
-    expect(fixture.componentInstance.selected?.cipherId).toBe("cipher-second");
+    expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
+    expect(nativeHost.pasteText).not.toHaveBeenCalled();
   });
 
   it("releases and guarded-pastes exactly one field only after its explicit Fill action", async () => {
@@ -347,7 +493,7 @@ describe("AutoFillPickerComponent", () => {
       "receipt-a",
     );
     expect(nativeHost.pasteText).not.toHaveBeenCalled();
-    expect(fixture.componentInstance.statusMessage).toBe("AutoFill could not release this field.");
+    expect(fixture.componentInstance.statusMessage).toBe("无法读取这个字段。");
   });
 
   it("does not paste a delayed release after the picker is destroyed", async () => {
@@ -430,6 +576,109 @@ describe("AutoFillPickerComponent", () => {
     await operation;
 
     expect(nativeHost.cancelReprompt).toHaveBeenCalledWith(expect.anything(), "receipt-a");
+    expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
+    expect(nativeHost.pasteText).not.toHaveBeenCalled();
+  });
+
+  it("closes a failed master-password prompt and starts a fresh reprompt on retry", async () => {
+    store.setItems([{ ...demoVaultItems[0], reprompt: true }], [], new Date(), "account-a");
+    verifyReprompt.mockRejectedValueOnce(new Error("incorrect password"));
+    nativeHost.beginReprompt
+      .mockResolvedValueOnce({ status: "pending", receipt: "receipt-a" })
+      .mockResolvedValueOnce({ status: "pending", receipt: "receipt-b" });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+    const candidate = fixture.nativeElement.querySelector('[data-testid^="autofill-fill-candidate-"]') as HTMLButtonElement;
+    candidate.focus();
+    fixture.componentInstance.selectIndex(0);
+    await fixture.componentInstance.perform("fill", "password");
+    fixture.componentInstance.showMasterPasswordReprompt();
+    fixture.componentInstance.masterPassword = "wrong";
+
+    await fixture.componentInstance.verifyWithMasterPassword(new Event("submit"));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(nativeHost.cancelReprompt).toHaveBeenCalledWith(expect.anything(), "receipt-a");
+    expect(fixture.componentInstance.pendingProtected).toBeNull();
+    expect(fixture.componentInstance.masterPasswordMode).toBe(false);
+    expect(document.activeElement).toBe(candidate);
+    await fixture.componentInstance.perform("fill", "password");
+    expect(nativeHost.beginReprompt).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.pendingProtected?.receipt).toBe("receipt-b");
+  });
+
+  it("opens mismatch as a keyboard-contained modal, closes with Escape, and restores focus", async () => {
+    candidateHost.queryCandidates.mockResolvedValue({
+      contextToken: crypto.randomUUID(),
+      candidates: [{ ...candidateHostCandidate(), requiresMismatchConfirmation: true }],
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+    const candidate = fixture.nativeElement.querySelector('[data-testid^="autofill-fill-candidate-"]') as HTMLButtonElement;
+    candidate.focus();
+    candidate.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const dialog = fixture.nativeElement.querySelector('[data-testid="autofill-mismatch-dialog"]') as HTMLElement;
+    const primary = dialog.querySelector('[data-autofill-dialog-primary]') as HTMLButtonElement;
+    const cancel = dialog.querySelector('[data-autofill-dialog-cancel]') as HTMLButtonElement;
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(primary);
+    cancel.focus();
+    cancel.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    expect(document.activeElement).toBe(primary);
+    dialog.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('[data-testid="autofill-mismatch-dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(candidate);
+    expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
+  });
+
+  it("restores the candidate focus when mismatch is confirmed", async () => {
+    candidateHost.queryCandidates.mockResolvedValue({
+      contextToken: crypto.randomUUID(),
+      candidates: [{ ...candidateHostCandidate(), requiresMismatchConfirmation: true }],
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+    const candidate = fixture.nativeElement.querySelector('[data-testid^="autofill-fill-candidate-"]') as HTMLButtonElement;
+    candidate.focus();
+    candidate.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const primary = fixture.nativeElement.querySelector("[data-autofill-dialog-primary]") as HTMLButtonElement;
+    primary.click();
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(nativeHost.releaseSecret).toHaveBeenCalledOnce());
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="autofill-mismatch-dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(candidate);
+  });
+
+  it("rejects release when the target app changes before delivery", async () => {
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.componentInstance.selectIndex(0);
+    nativeHost.entryContext.mockResolvedValue({
+      status: "available",
+      bundleId: "com.example.Other",
+      appName: "Other",
+    });
+
+    await fixture.componentInstance.perform("fill", "password");
+
     expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
     expect(nativeHost.pasteText).not.toHaveBeenCalled();
   });

@@ -37,7 +37,7 @@ run_bounded() {
 }
 
 launch_app() {
-  run_bounded "$OPEN_COMMAND" -n "$APP_PATH" || return 1
+  run_bounded "$OPEN_COMMAND" "$APP_PATH" || return 1
   local attempt
   for attempt in 1 2 3 4 5; do
     if run_bounded "$PGREP_COMMAND" -f "$APP_EXECUTABLE"; then

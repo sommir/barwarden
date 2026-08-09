@@ -56,6 +56,28 @@ test("static local policy cannot be confused with release or deep signing", () =
     /(NATIVE_AUTOFILL_LOCAL_PROVIDER_SIGN_FAILED[\s\S]*?\/usr\/bin\/codesign "\$\{SIGNING_ARGS\[@\]\}")/u,
     "$1 --identifier=com.sommir.wrong",
   );
+  const inlineCommentBypass = source
+    .replace(/^SIGNING_CERTIFICATES=.*?^\/bin\/rm -f "\$SIGNING_CERTIFICATES"\n/msu, "")
+    .replace(/^SIGNATURE_DETAILS=.*?^unset AUTHORITY_COUNT LEAF_AUTHORITY AUTHORITY_TAIL EXPECTED_AUTHORITY_TAIL\n/msu, "")
+    .replace(/^SIGNER_PREFIX=.*?^unset INTERMEDIATE_SHA1 ROOT_SHA1 SIGNER_PREFIX\n/msu, "")
+    .concat(`
+: # security find-certificate -a -Z
+: # SHA-1 hash: 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635
+: # AUTHORITY_COUNT="$(/usr/bin/grep -c
+: # LEAF_AUTHORITY="$(/usr/bin/awk
+: # EXPECTED_AUTHORITY_TAIL='Authority=Developer ID Certification Authority
+: # Authority=Developer ID Certification Authority
+: # Authority=Apple Root CA'
+: # [[ "$AUTHORITY_COUNT" == 3 ]]
+: # [[ "$LEAF_AUTHORITY" == 'Authority=Developer ID Application: '*" ($TEAM_ID)" ]]
+: # [[ "$AUTHORITY_TAIL" == "$EXPECTED_AUTHORITY_TAIL" ]]
+: # /usr/bin/codesign -d --extract-certificates="$SIGNER_PREFIX" "$OUTPUT_APP"
+: # [[ -f "\${SIGNER_PREFIX}0" && -f "\${SIGNER_PREFIX}1" && -f "\${SIGNER_PREFIX}2" && ! -e "\${SIGNER_PREFIX}3" ]]
+: # /usr/bin/openssl x509 -inform DER -in "\${SIGNER_PREFIX}1"
+: # [[ "$INTERMEDIATE_SHA1" == 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635 ]]
+: # /usr/bin/openssl x509 -inform DER -in "\${SIGNER_PREFIX}2"
+: # [[ "$ROOT_SHA1" == 611E5B662C593A08FF58D14AE22452D198DF6C60 ]]
+`);
   const valid = run(process.execPath, [policy, builder]);
   assert.equal(valid.status, 0, valid.stderr);
   assert.equal(valid.stdout.trim(), "NATIVE_AUTOFILL_LOCAL_SMOKE_POLICY_PASS");
@@ -69,6 +91,16 @@ test("static local policy cannot be confused with release or deep signing", () =
       ["gate", source.replace('NATIVE_AUTOFILL_LOCAL_SMOKE_ONLY:-0}" == 1', 'NATIVE_AUTOFILL_LOCAL_SMOKE_ONLY:-0}" == 0'), "NATIVE_AUTOFILL_LOCAL_SMOKE_GATE_INVALID"],
       ["release-name", source.replace('LOCAL_APP_NAME="Barwarden Local Smoke.app"', 'LOCAL_APP_NAME="Barwarden.app"'), "NATIVE_AUTOFILL_LOCAL_OUTPUT_CONTRACT_INVALID"],
       ["output-verify", source.replace('/usr/bin/codesign --verify --deep --strict --verbose=2 "$OUTPUT_APP"', '# output verification removed'), "NATIVE_AUTOFILL_LOCAL_OUTPUT_VERIFY_MISSING"],
+      ["signing-chain", source.replace('Authority=Developer ID Certification Authority', 'Authority=Missing Intermediate'), "NATIVE_AUTOFILL_LOCAL_OUTPUT_VERIFY_MISSING"],
+      ["root-fingerprint", source.replace('611E5B662C593A08FF58D14AE22452D198DF6C60', '0000000000000000000000000000000000000000'), "NATIVE_AUTOFILL_LOCAL_OUTPUT_VERIFY_MISSING"],
+      [
+        "comment-only-signing-chain",
+        source
+          .replace(/^SIGNING_CERTIFICATES=.*?^\/bin\/rm -f "\$SIGNING_CERTIFICATES"\n/msu, '# SHA-1 hash: 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635\n')
+          .replace(/^SIGNATURE_DETAILS=.*?^\/bin\/rm -f "\$SIGNATURE_DETAILS"\n/msu, '# Authority=Developer ID Certification Authority\n'),
+        "NATIVE_AUTOFILL_LOCAL_OUTPUT_VERIFY_MISSING",
+      ],
+      ["inline-comment-signing-chain", inlineCommentBypass, "NATIVE_AUTOFILL_LOCAL_OUTPUT_VERIFY_MISSING"],
       ["temp-template", source.replace('.tauri-native-autofill-local.json.XXXXXX', '.tauri-native-autofill-local.XXXXXX.json'), "NATIVE_AUTOFILL_LOCAL_TEMP_CONTRACT_INVALID"],
       ["temp-failure", source.replace('2>/dev/null)" || fail NATIVE_AUTOFILL_LOCAL_TEMP_CREATE_FAILED', ')"'), "NATIVE_AUTOFILL_LOCAL_TEMP_CONTRACT_INVALID"],
       ["agent-identifier", source.replace('--identifier "com.sommir.barwarden.autofill-agent"', ''), "NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID"],
@@ -198,6 +230,12 @@ test("bounded current-mac helper emits fixed codes only and probes no secret", (
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("bounded helper never forces a second local app instance", () => {
+  const source = readFileSync(smoke, "utf8");
+  assert.doesNotMatch(source, /"[$]OPEN_COMMAND"\s+-n\s+"[$]APP_PATH"/u);
+  assert.match(source, /"[$]OPEN_COMMAND"\s+"[$]APP_PATH"/u);
 });
 
 test("profileless provider rejection remains a fixed local-only incomplete result", () => {
