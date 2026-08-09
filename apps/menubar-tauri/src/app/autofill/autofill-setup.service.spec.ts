@@ -11,15 +11,19 @@ import {
 function harness(
   initialEnabled = false,
   status: "notRegistered" | "enabled" | "requiresApproval" | "notFound" = "notRegistered",
-  initialCleanupPending = false,
+  initialCleanupTarget: { readonly accountId: string | null } | null = null,
+  initialOwnerAccountId: string | null = "account-a",
 ) {
   let enabled = initialEnabled;
-  let cleanupPending = initialCleanupPending;
+  let cleanupTarget = initialCleanupTarget;
+  let ownerAccountId = initialOwnerAccountId;
   const storage = {
     readEnabled: vi.fn(() => enabled),
     writeEnabled: vi.fn((value) => { enabled = value; }),
-    readCleanupPending: vi.fn(() => cleanupPending),
-    writeCleanupPending: vi.fn((value: boolean) => { cleanupPending = value; }),
+    readCleanupTarget: vi.fn(() => cleanupTarget),
+    writeCleanupTarget: vi.fn((value: { readonly accountId: string | null } | null) => {
+      cleanupTarget = value;
+    }),
   };
   const host: AutoFillSetupHost = {
     autofillAgentRegistrationStatus: vi.fn(async () => status),
@@ -29,11 +33,12 @@ function harness(
     autofillAgentLock: vi.fn(async () => undefined),
     autofillClearProjection: vi.fn(async () => undefined),
   };
-  const store = { snapshot: () => ({ vaultOwnerAccountId: "account-a" }) };
+  const store = { snapshot: () => ({ vaultOwnerAccountId: ownerAccountId }) };
   return {
     service: new AutoFillSetupService(host, storage as AutoFillSetupStorage, store as never),
     host,
     storage,
+    setOwnerAccountId: (accountId: string | null) => { ownerAccountId = accountId; },
   };
 }
 
@@ -88,6 +93,14 @@ describe("AutoFillSetupService", () => {
     await service.disable();
 
     expect(storage.writeEnabled).toHaveBeenCalledWith(false);
+    expect(storage.writeCleanupTarget).toHaveBeenNthCalledWith(1, { accountId: "account-a" });
+    expect(storage.writeEnabled.mock.invocationCallOrder[0]).toBeLessThan(
+      storage.writeCleanupTarget.mock.invocationCallOrder[0],
+    );
+    expect(storage.writeCleanupTarget.mock.invocationCallOrder[0]).toBeLessThan(
+      host.autofillAgentLock.mock.invocationCallOrder[0],
+    );
+    expect(storage.writeCleanupTarget).toHaveBeenLastCalledWith(null);
     expect(host.autofillAgentLock).toHaveBeenCalledOnce();
     expect(host.autofillClearProjection).toHaveBeenCalledWith("account-a");
     expect(host.autofillAgentUnregister).toHaveBeenCalledOnce();
@@ -133,22 +146,57 @@ describe("AutoFillSetupService", () => {
     await expect(service.disable()).rejects.toThrow("AUTOFILL_CLEANUP_PENDING");
 
     expect(storage.writeEnabled).toHaveBeenCalledWith(false);
-    expect(storage.writeCleanupPending).toHaveBeenCalledWith(true);
-    expect(storage.writeCleanupPending).not.toHaveBeenCalledWith(false);
+    expect(storage.writeCleanupTarget).toHaveBeenCalledWith({ accountId: "account-a" });
+    expect(storage.writeCleanupTarget).not.toHaveBeenCalledWith(null);
     expect(host.autofillAgentLock).toHaveBeenCalledOnce();
     expect(host.autofillAgentUnregister).toHaveBeenCalledOnce();
   });
 
   it("retries pending lock-clear-unregister cleanup at startup before doing any registration", async () => {
-    const { service, host, storage } = harness(false, "notRegistered", true);
+    const { service, host, storage } = harness(
+      false,
+      "notRegistered",
+      { accountId: "account-a" },
+      null,
+    );
 
     await expect(service.recoverAtStartup()).resolves.toBe("disabled");
 
     expect(host.autofillAgentLock).toHaveBeenCalledOnce();
     expect(host.autofillClearProjection).toHaveBeenCalledWith("account-a");
     expect(host.autofillAgentUnregister).toHaveBeenCalledOnce();
-    expect(storage.writeCleanupPending).toHaveBeenLastCalledWith(false);
+    expect(storage.writeCleanupTarget).toHaveBeenLastCalledWith(null);
     expect(host.autofillAgentRegistrationStatus).not.toHaveBeenCalled();
     expect(host.autofillAgentProbe).not.toHaveBeenCalled();
+  });
+
+  it("retries the persisted original target after failure even when another account becomes current", async () => {
+    const { service, host, storage, setOwnerAccountId } = harness(true, "enabled");
+    host.autofillClearProjection.mockRejectedValueOnce(new Error("private native detail"));
+
+    await expect(service.disable()).rejects.toThrow("AUTOFILL_CLEANUP_PENDING");
+    setOwnerAccountId("account-b");
+    await expect(service.recoverAtStartup()).resolves.toBe("disabled");
+
+    expect(host.autofillClearProjection).toHaveBeenNthCalledWith(1, "account-a");
+    expect(host.autofillClearProjection).toHaveBeenNthCalledWith(2, "account-a");
+    expect(host.autofillClearProjection).not.toHaveBeenCalledWith("account-b");
+    expect(storage.writeCleanupTarget).toHaveBeenLastCalledWith(null);
+  });
+
+  it("keeps an incomplete marker fail-closed when its target account is missing", async () => {
+    const { service, host, storage } = harness(
+      false,
+      "notRegistered",
+      { accountId: null },
+      "account-b",
+    );
+
+    await expect(service.recoverAtStartup()).resolves.toBe("unavailable");
+
+    expect(host.autofillAgentLock).toHaveBeenCalledOnce();
+    expect(host.autofillClearProjection).not.toHaveBeenCalled();
+    expect(host.autofillAgentUnregister).toHaveBeenCalledOnce();
+    expect(storage.writeCleanupTarget).not.toHaveBeenCalledWith(null);
   });
 });

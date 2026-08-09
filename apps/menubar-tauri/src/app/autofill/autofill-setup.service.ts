@@ -17,8 +17,12 @@ export interface AutoFillSetupHost {
 export interface AutoFillSetupStorage {
   readEnabled(): boolean;
   writeEnabled(enabled: boolean): void;
-  readCleanupPending(): boolean;
-  writeCleanupPending(pending: boolean): void;
+  readCleanupTarget(): AutoFillCleanupTarget | null;
+  writeCleanupTarget(target: AutoFillCleanupTarget | null): void;
+}
+
+export interface AutoFillCleanupTarget {
+  readonly accountId: string | null;
 }
 
 const AUTOFILL_ENABLED_KEY = "barwarden.autofill.enabled.v1";
@@ -35,10 +39,13 @@ export const AUTOFILL_SETUP_STORAGE = new InjectionToken<AutoFillSetupStorage>(
         if (enabled) globalThis.localStorage?.setItem(AUTOFILL_ENABLED_KEY, "true");
         else globalThis.localStorage?.removeItem(AUTOFILL_ENABLED_KEY);
       },
-      readCleanupPending: () =>
-        globalThis.localStorage?.getItem(AUTOFILL_CLEANUP_PENDING_KEY) === "true",
-      writeCleanupPending: (pending) => {
-        if (pending) globalThis.localStorage?.setItem(AUTOFILL_CLEANUP_PENDING_KEY, "true");
+      readCleanupTarget: () => readCleanupTarget(
+        globalThis.localStorage?.getItem(AUTOFILL_CLEANUP_PENDING_KEY) ?? null,
+      ),
+      writeCleanupTarget: (target) => {
+        if (target) {
+          globalThis.localStorage?.setItem(AUTOFILL_CLEANUP_PENDING_KEY, JSON.stringify(target));
+        }
         else globalThis.localStorage?.removeItem(AUTOFILL_CLEANUP_PENDING_KEY);
       },
     }),
@@ -63,14 +70,16 @@ export class AutoFillSetupService {
 
   async enableFromEntry(): Promise<AutoFillSetupState> {
     this.storage.writeEnabled(true);
-    if (this.storage.readCleanupPending() && !await this.finishPendingCleanup()) {
+    const cleanupTarget = this.storage.readCleanupTarget();
+    if (cleanupTarget && !await this.finishPendingCleanup(cleanupTarget)) {
       return this.setState("unavailable");
     }
     return this.reconcile();
   }
 
   async recoverAtStartup(): Promise<AutoFillSetupState> {
-    if (this.storage.readCleanupPending() && !await this.finishPendingCleanup()) {
+    const cleanupTarget = this.storage.readCleanupTarget();
+    if (cleanupTarget && !await this.finishPendingCleanup(cleanupTarget)) {
       return this.setState("unavailable");
     }
     if (!this.storage.readEnabled()) {
@@ -82,36 +91,48 @@ export class AutoFillSetupService {
 
   async disable(): Promise<void> {
     this.storage.writeEnabled(false);
-    this.storage.writeCleanupPending(true);
     this.disabling = true;
     this.state = "disabled";
+    const cleanupTarget: AutoFillCleanupTarget = {
+      accountId: this.store.snapshot().vaultOwnerAccountId,
+    };
+    try {
+      this.storage.writeCleanupTarget(cleanupTarget);
+    } catch {
+      this.disabling = false;
+      throw new Error("AUTOFILL_CLEANUP_PENDING");
+    }
     if (this.operation) await this.operation.catch(() => undefined);
-    const complete = await this.performCleanup();
+    const complete = await this.performCleanup(cleanupTarget);
     this.disabling = false;
     this.state = "disabled";
     if (!complete) throw new Error("AUTOFILL_CLEANUP_PENDING");
-    this.storage.writeCleanupPending(false);
+    try {
+      this.storage.writeCleanupTarget(null);
+    } catch {
+      throw new Error("AUTOFILL_CLEANUP_PENDING");
+    }
   }
 
-  private async finishPendingCleanup(): Promise<boolean> {
-    const complete = await this.performCleanup();
+  private async finishPendingCleanup(target: AutoFillCleanupTarget): Promise<boolean> {
+    const complete = await this.performCleanup(target);
     if (!complete) return false;
     try {
-      this.storage.writeCleanupPending(false);
+      this.storage.writeCleanupTarget(null);
       return true;
     } catch {
       return false;
     }
   }
 
-  private async performCleanup(): Promise<boolean> {
-    const accountId = this.store.snapshot().vaultOwnerAccountId;
+  private async performCleanup(target: AutoFillCleanupTarget): Promise<boolean> {
+    const accountId = target.accountId;
     const operations: Array<() => Promise<unknown>> = [
       () => this.host.autofillAgentLock(),
       ...(accountId ? [() => this.host.autofillClearProjection(accountId)] : []),
       () => this.host.autofillAgentUnregister(),
     ];
-    let failed = false;
+    let failed = accountId === null;
     for (const operation of operations) {
       try {
         await operation();
@@ -160,4 +181,19 @@ export class AutoFillSetupService {
 function isSuccessfulProbe(value: unknown): boolean {
   return typeof value === "object" && value !== null && "status" in value
     && (value as { status?: unknown }).status === "success";
+}
+
+function readCleanupTarget(raw: string | null): AutoFillCleanupTarget | null {
+  if (raw === null) return null;
+  try {
+    const value = JSON.parse(raw) as { accountId?: unknown };
+    const accountId = value && typeof value.accountId === "string"
+      && value.accountId.length > 0 && value.accountId.length <= 256
+      && !/[\u0000-\u001f\u007f]/u.test(value.accountId)
+      ? value.accountId
+      : null;
+    return { accountId };
+  } catch {
+    return { accountId: null };
+  }
 }

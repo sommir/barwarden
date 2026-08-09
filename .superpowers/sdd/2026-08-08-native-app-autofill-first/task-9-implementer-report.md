@@ -28,7 +28,7 @@ The builder creates a hash-bound assembly attestation containing the complete bu
 
 Native Agent registration is now connected to the product path. The first dedicated `autofill-menu`, `autofill-shortcut`, or `autofill-floating` entry persists an explicit enabled flag and awaits `status → register-if-needed → probe` before opening the shared picker. Ordinary vault/tray entry does not opt in. `requiresApproval` enters the existing repair state with fixed `System Settings > General > Login Items` guidance and performs no target-context, Agent-session, candidate, or secret query. On later startup an enabled feature repeats status/recovery/probe so update and restart can recover the embedded Agent.
 
-`AutoFillSetupService.disable()` is the callable disable path. A visible `Turn Off AutoFill` control reaches it from both the normal picker and repair state. It clears the enabled flag first, persists cleanup-pending, then fail-closed locks the Agent, clears the current account projection, and unregisters the Agent in that order, attempting every cleanup even when one operation fails. Cleanup-pending clears only after all three operations succeed; otherwise the UI reports one fixed failure without native or secret details, and a later startup retries cleanup after account restoration.
+`AutoFillSetupService.disable()` is the callable disable path. A visible `Turn Off AutoFill` control reaches it from both the normal picker and repair state. It clears the enabled flag first, atomically persists a structured cleanup marker containing the original target account, then fail-closed locks the Agent, clears exactly that target projection, and unregisters the Agent in that order, attempting every cleanup even when one operation fails. The marker clears only after all three operations succeed; otherwise the UI reports one fixed failure without native or secret details, and a later startup retries from the persisted target even when the cold/locked store has no owner or a different account is now current. A missing or malformed marker target remains fail-closed and is never replaced with the current account.
 
 The repair `Retry` control now awaits setup recovery (`status → register-if-needed → probe`) rather than merely rerunning picker initialization. Target context, Agent session, and candidate queries begin only when recovery returns `ready`; `requiresApproval` and other recovery failures remain in repair with zero queries and fixed guidance/status text.
 
@@ -44,7 +44,7 @@ The repair `Retry` control now awaits setup recovery (`status → register-if-ne
 - Native overlay RED/GREEN covers private atomic generation, app-only output, exact native entitlement selection, byte-identical production inputs, and refusal to overwrite production files.
 - Evidence RED/GREEN covers the complete 20-row live matrix, fixed-code-only content, path/credential exclusion, and refusal to record PASS without both artifact hashes, all current/macOS 13 live rows, strict verifier success, and production promotion.
 - Product setup RED/GREEN covers fresh install, update/restart recovery, persisted opt-in, status/register/probe ordering, `requiresApproval` query suppression and fixed Login Items guidance, and disable lock/clear/unregister cleanup.
-- Final lifecycle RED/GREEN covers visible normal/repair Turn Off controls, awaited fixed-state success/failure, persisted cleanup-pending, lock/clear/unregister best-effort ordering across failures, post-account-restore startup cleanup, and Retry query suppression until setup is ready.
+- Final lifecycle RED/GREEN covers visible normal/repair Turn Off controls, awaited fixed-state success/failure, persisted original-account cleanup target, lock/clear/unregister best-effort ordering across failures, cold/locked and account-switch startup cleanup without current-owner substitution, missing-target retention, and Retry query suppression until setup is ready.
 - Profile authorization RED/GREEN covers absent/exact/Team-wildcard App Group authorization, exact/Team-wildcard application identifiers, safe Apple-standard extras, and rejection of wrong Team/app/capability/certificate/expiry or dangerous restricted entitlements. No real profile validation is claimed.
 - PASS-evidence mutation RED/GREEN proves both runtime and JSON Schema reject an otherwise-valid PASS record containing any code outside the exact four-code positive set.
 
@@ -81,11 +81,11 @@ The macOS 13 device gate is absent. Because the signed artifact gate, current-ma
 ## Verification
 
 - Setup/App/Picker/Tauri-host focused suites: 140 passed.
-- Final lifecycle App/Setup/Picker focused suites: 84 passed.
+- Final lifecycle App/Setup/Picker focused suites: 86 passed.
 - Task 9 verifier/builder/overlay/evidence focused suites: 25 Node tests plus all three shell harnesses passed.
 - Native Xcode project/build-wrapper contracts: 14 passed.
 - Native identity contracts: 19 passed.
-- Full TypeScript: 3,529 passed and 22 skipped.
+- Full TypeScript: 3,531 passed and 22 skipped.
 - Full Rust: 252 passed, 7 ignored.
 - Full Swift/Xcode: 131 passed, 0 failed. The sandboxed first attempt was blocked by the XCTest helper-service sandbox; the approved unrestricted rerun passed.
 - Production web build: passed with existing externalization, Tailwind, and chunk-size warnings.

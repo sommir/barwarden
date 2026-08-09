@@ -165,12 +165,9 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
-  it("retries pending AutoFill cleanup only after startup restores the current account", async () => {
+  it("retries pending AutoFill cleanup after a cold locked restore with no vault owner", async () => {
     const store = new PopupStateStore();
-    const restoreStartup = vi.fn(async () => {
-      store.setItems([], [], new Date(), "account-a");
-      return "unlocked" as const;
-    });
+    const restoreStartup = vi.fn(async () => "locked" as const);
     const recoverAtStartup = vi.fn(async () => "disabled" as const);
     const component = Reflect.construct(AppComponent, [
       { restoreStartup },
@@ -186,7 +183,7 @@ describe("AppComponent", () => {
     expect(restoreStartup.mock.invocationCallOrder[0]).toBeLessThan(
       recoverAtStartup.mock.invocationCallOrder[0],
     );
-    expect(store.snapshot().vaultOwnerAccountId).toBe("account-a");
+    expect(store.snapshot().vaultOwnerAccountId).toBeNull();
     component.ngOnDestroy();
   });
 
