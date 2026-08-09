@@ -47,6 +47,67 @@ import {
   type NativeAutostartApi,
 } from "./launch-at-login";
 type AutoFillSecretField = "username" | "password" | "totp";
+type AccessibilityFallback = "system-autofill" | "unsupported";
+interface AccessibilityStatus {
+  readonly permission: "granted" | "denied";
+  readonly observation: "stopped" | "hidden" | "visible";
+  readonly diagnostic?: { readonly reason: string; readonly bundleId?: string };
+}
+const ACCESSIBILITY_DIAGNOSTIC_REASONS = new Set([
+  "permission-denied",
+  "system-autofill-preferred",
+  "invalid-application",
+  "owned-application",
+  "application-terminated",
+  "application-unavailable",
+  "application-changed",
+  "stale-element",
+  "stale-window",
+  "stale-observation",
+  "unsupported-role",
+  "not-editable",
+  "missing-frame",
+  "unreliable-geometry",
+  "offscreen",
+]);
+
+function decodeAccessibilityStatus(value: unknown): AccessibilityStatus {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("invalid accessibility status");
+  }
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).some((key) => !["permission", "observation", "diagnostic"].includes(key))
+      || (record.permission !== "granted" && record.permission !== "denied")
+      || (record.observation !== "stopped"
+        && record.observation !== "hidden"
+        && record.observation !== "visible")) {
+    throw new Error("invalid accessibility status");
+  }
+  const status: AccessibilityStatus = {
+    permission: record.permission,
+    observation: record.observation,
+  };
+  if (record.diagnostic === undefined) return status;
+  if (!record.diagnostic || typeof record.diagnostic !== "object"
+      || Array.isArray(record.diagnostic)) {
+    throw new Error("invalid accessibility status");
+  }
+  const diagnostic = record.diagnostic as Record<string, unknown>;
+  if (Object.keys(diagnostic).some((key) => !["reason", "bundleId"].includes(key))
+      || typeof diagnostic.reason !== "string"
+      || !ACCESSIBILITY_DIAGNOSTIC_REASONS.has(diagnostic.reason)
+      || (diagnostic.bundleId !== undefined
+        && (typeof diagnostic.bundleId !== "string" || !diagnostic.bundleId))) {
+    throw new Error("invalid accessibility status");
+  }
+  return {
+    ...status,
+    diagnostic: {
+      reason: diagnostic.reason,
+      ...(diagnostic.bundleId === undefined ? {} : { bundleId: diagnostic.bundleId as string }),
+    },
+  };
+}
 interface AutoFillCandidateQueryContract {
   readonly accountId: string;
   readonly lockGeneration: string;
@@ -104,6 +165,20 @@ export class TauriHostService
 
   showPopup(): Promise<void> {
     return this.invoke("show_popup");
+  }
+
+  async status(): Promise<AccessibilityStatus> {
+    return decodeAccessibilityStatus(await this.invoke<unknown>("autofill_accessibility_status"));
+  }
+
+  async setFallback(fallback: AccessibilityFallback): Promise<void> {
+    await this.invoke("autofill_set_accessibility_fallback", { fallback });
+  }
+
+  async requestPermission(): Promise<AccessibilityStatus> {
+    return decodeAccessibilityStatus(
+      await this.invoke<unknown>("autofill_request_accessibility_permission"),
+    );
   }
 
   hidePopup(): Promise<void> {

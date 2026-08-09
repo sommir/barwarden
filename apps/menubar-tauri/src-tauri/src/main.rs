@@ -1,4 +1,6 @@
+mod accessibility_focus;
 mod autofill_contract;
+mod autofill_floating;
 mod autofill_ipc;
 mod autofill_projection;
 mod autofill_reprompt;
@@ -61,6 +63,7 @@ fn main() {
         .manage(clipboard::ClipboardGeneration::default())
         .manage(window::PopupVisibilityHold::default())
         .manage(window::PopupPresentationState::default())
+        .manage(autofill_floating::AutoFillFloatingController::default())
         .manage(session_broker::SessionBroker::new(
             uuid::Uuid::new_v4().to_string(),
         ))
@@ -93,6 +96,11 @@ fn main() {
             app.manage(shortcut_state);
             #[cfg(target_os = "macos")]
             window::configure_native_popup_window(app.handle())?;
+            let floating = app
+                .state::<autofill_floating::AutoFillFloatingController>()
+                .inner()
+                .clone();
+            autofill_floating::start_native_observer(app.handle().clone(), floating);
             tray::setup_tray(app.handle())?;
             Ok(())
         })
@@ -104,6 +112,9 @@ fn main() {
             window::pop_out,
             window::set_popup_height,
             frontmost::autofill_entry_context,
+            autofill_floating::autofill_accessibility_status,
+            autofill_floating::autofill_set_accessibility_fallback,
+            autofill_floating::autofill_request_accessibility_permission,
             biometric::biometric_status,
             biometric::biometric_enable,
             biometric::biometric_unlock,

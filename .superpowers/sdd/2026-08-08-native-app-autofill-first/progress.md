@@ -3,7 +3,7 @@
 - Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
-- Status: Task 7 implementation complete; review pending
+- Status: Task 8 implementation complete; review pending
 - Baseline contract tests: 7 passed, 1 browser-release skip.
 - Baseline full regression: 3462 passed, 22 skipped (from prior Task 1 gate; only design/plan docs changed afterward).
 
@@ -16,7 +16,7 @@
 - [x] Task 5 — Rank native application candidates and support all-Login search
 - [x] Task 6 — Implement macOS system password AutoFill
 - [x] Task 7 — Add the main-app AutoFill picker and explicit field actions
-- [ ] Task 8 — Add conservative Accessibility floating action
+- [x] Task 8 — Add conservative Accessibility floating action
 - [ ] Task 9 — Pass the native packaging, signing, and installation gate
 
 ## Task 1
@@ -92,10 +92,22 @@
 
 ## Task 7
 
-- Implementation is the current change set (`feat: add native autofill picker`).
+- Implementation: `bbaff96f feat: add native autofill picker`; review hardening: `2edca614 fix: harden native autofill picker lifecycle`.
 - The dedicated native tray menu entry and current global shortcut capture the previous exact live external application and open one shared picker state machine; ordinary tray clicks continue opening the vault.
 - Candidate selection remains metadata-only. Explicit username/password/TOTP Fill or Copy actions re-query one field and request one Agent secret. Guarded paste preserves copied-manually fallback and never synthesizes Tab/Enter/Return, fills multiple fields, or submits.
 - Locked, repair, empty, unavailable-context, and explicit account-override states fail closed; no candidate query or account mixing occurs before the user selects the projected account.
 - Master-password and Touch ID reprompt produce a native verified, 30-second, single-use full-scope receipt. Only the authenticated main-app Agent peer may exchange it for the immediately consumed field-bound grant; UI unlock alone cannot authorize release.
 - Final verification: full TypeScript 3,493 passed/22 skipped; Rust 215 passed/4 ignored; Swift/Xcode 126 passed; native project/build/IPC contracts 28 passed; production web build passed.
 - Production Tauri configuration/native entitlements remain unchanged. Task 8 Accessibility floating UI and browser behavior are not implemented; signed live installation remains Task 9.
+- Final review verification: TypeScript 3,504 passed/22 skipped; Rust 222 passed/4 ignored; Swift/Xcode 130 passed; native contracts 36 passed; production web build passed.
+- Review: approved with 0 Critical, 0 Important, and 0 Minor after async-operation invalidation, receipt lifecycle, strict wire/zeroization, OnPush, and keyboard-accessibility fixes.
+
+## Task 8
+
+- Implementation pending commit: conservative macOS 13 Accessibility floating action behind the explicit `unsupported` system-AutoFill fallback gate. Default/system-available state stops AX observation and hides the panel; menu and shortcut entry remain independent of Accessibility.
+- The native reader permits only role, subrole, settable/editability, position, size, window validity, and exact application identity. It never copies AX value, selected text, placeholder, title, description, identifier, or any other field content. Diagnostics contain a fixed reason and optional bounded bundle ID only.
+- A worker-thread AX observer owns its CFRunLoop registration and removes every focus/move/resize/destroy notification before releasing element/observer references. Workspace activation/termination, permission loss, application identity changes, invalid elements/windows, stale snapshots, and unreliable geometry invalidate a generation and hide immediately; 50 ms throttling coalesces event bursts.
+- The main-thread borderless nonactivating `NSPanel` uses the Barwarden template icon, never requests key/main status, and opens Task 7's same `autofill-floating` picker entry without releasing or filling a secret. AX top-left coordinates convert to AppKit coordinates; placement prefers the trailing exterior, falls back to the leading exterior, clamps vertically to visible work area, and otherwise hides.
+- Final automated verification: Rust 239 passed/7 ignored; TypeScript 3,510 passed/22 skipped; Swift/Xcode 130 passed; native project/build-wrapper 17 passed plus identity contracts 19 passed; production web build passed; `cargo fmt --check` and `git diff --check` passed.
+- Live read-only permission smoke: a fresh standalone helper returned denied without calling the prompt API; the already-authorized Rust test process passed the granted permission probe without prompting. Actual external fixture observer/panel smoke is blocked in this execution environment because the GUI session always reports `com.apple.loginwindow` as frontmost and never activates the local AppKit fixture. No observer snapshot or live panel-show success is claimed.
+- Production Tauri configuration, native entitlements, browser behavior, and Task 9 packaging/signing scope remain unchanged.

@@ -105,7 +105,7 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
-  it.each(["autofill-menu", "autofill-shortcut"])(
+  it.each(["autofill-menu", "autofill-shortcut", "autofill-floating"])(
     "routes the dedicated %s entry to the shared picker without resetting the vault route",
     async (entrySource) => {
       const store = new PopupStateStore();

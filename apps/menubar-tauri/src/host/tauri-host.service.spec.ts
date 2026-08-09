@@ -33,6 +33,21 @@ function brokerSnapshot() {
 }
 
 describe("TauriHostService", () => {
+  it("maps conservative Accessibility fallback calls to exact native commands", async () => {
+    const status = { permission: "denied", observation: "hidden" };
+    const invoke = vi.fn<TauriInvoke>(async () => status as never);
+    const host = new TauriHostService(invoke);
+
+    await expect(host.status()).resolves.toEqual(status);
+    await host.setFallback("unsupported");
+    await expect(host.requestPermission()).resolves.toEqual(status);
+
+    expect(invoke).toHaveBeenNthCalledWith(1, "autofill_accessibility_status");
+    expect(invoke).toHaveBeenNthCalledWith(2, "autofill_set_accessibility_fallback", {
+      fallback: "unsupported",
+    });
+    expect(invoke).toHaveBeenNthCalledWith(3, "autofill_request_accessibility_permission");
+  });
   it("reads and confirms the native launch-at-login state", async () => {
     let enabled = false;
     const autostart: NativeAutostartApi = {

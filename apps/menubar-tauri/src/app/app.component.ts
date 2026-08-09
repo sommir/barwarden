@@ -596,9 +596,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     const detail = (event as CustomEvent<{
       reset?: boolean;
-      entrySource?: "vault" | "autofill-menu" | "autofill-shortcut";
+      entrySource?: "vault" | "autofill-menu" | "autofill-shortcut" | "autofill-floating";
     }>).detail;
-    if (detail?.entrySource === "autofill-menu" || detail?.entrySource === "autofill-shortcut") {
+    if (detail?.entrySource === "autofill-menu"
+        || detail?.entrySource === "autofill-shortcut"
+        || detail?.entrySource === "autofill-floating") {
       void this.openAutoFillPicker();
       return;
     }

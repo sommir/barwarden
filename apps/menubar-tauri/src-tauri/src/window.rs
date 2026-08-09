@@ -37,6 +37,7 @@ pub enum PopupEntrySource {
     Vault,
     AutoFillMenu,
     AutoFillShortcut,
+    AutoFillFloating,
 }
 
 impl PopupEntrySource {
@@ -45,6 +46,7 @@ impl PopupEntrySource {
             Self::Vault => "vault",
             Self::AutoFillMenu => "autofill-menu",
             Self::AutoFillShortcut => "autofill-shortcut",
+            Self::AutoFillFloating => "autofill-floating",
         }
     }
 }
@@ -1373,6 +1375,8 @@ mod tests {
 
         assert!(menu.contains("entrySource: \"autofill-menu\""));
         assert!(shortcut.contains("entrySource: \"autofill-shortcut\""));
+        let floating = popup_render_recovery_script(false, PopupEntrySource::AutoFillFloating);
+        assert!(floating.contains("entrySource: \"autofill-floating\""));
     }
 
     #[test]

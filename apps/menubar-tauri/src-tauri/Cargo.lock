@@ -282,6 +282,7 @@ dependencies = [
  "base64 0.22.1",
  "block2",
  "chacha20poly1305",
+ "core-foundation",
  "core-graphics",
  "keyring",
  "libc",

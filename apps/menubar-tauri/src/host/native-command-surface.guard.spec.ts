@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const allowedCommands = [
+  "autofill_accessibility_status",
   "autofill_agent_lock",
   "autofill_agent_probe",
   "autofill_agent_session",
@@ -18,6 +19,8 @@ const allowedCommands = [
   "autofill_query_candidates",
   "autofill_release_secret",
   "autofill_replace_projection",
+  "autofill_request_accessibility_permission",
+  "autofill_set_accessibility_fallback",
   "biometric_disable",
   "biometric_enable",
   "biometric_status",
