@@ -89,6 +89,7 @@
       "if": { "properties": { "status": { "const": "PASS" } }, "required": ["status"] },
       "then": {
         "properties": {
+          "osVersion": { "type": "string", "pattern": "^26(?:\\.[0-9]+){1,2}$" },
           "artifactHashes": {
             "properties": {
               "appSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },

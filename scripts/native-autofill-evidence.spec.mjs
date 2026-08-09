@@ -112,6 +112,13 @@ test("PASS requires the explicit productionPromoted boolean in both runtime and 
   assert.doesNotThrow(() => assertNativeAutoFillEvidence(evidence));
   assert.equal(validate(evidence), true, JSON.stringify(validate.errors));
 
+  evidence.osVersion = "25.9.1";
+  assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_PASS_INVALID/);
+  assert.equal(validate(evidence), false, "PASS must be bound to the tested macOS 26 major");
+  evidence.osVersion = "26.0";
+  assert.doesNotThrow(() => assertNativeAutoFillEvidence(evidence));
+  assert.equal(validate(evidence), true, JSON.stringify(validate.errors));
+
   evidence.lowerOsRuntime = "NATIVE_AUTOFILL_LIVE_PASS";
   assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_INVALID/);
   assert.equal(validate(evidence), false, "lower OS runtime must remain explicitly unverified");
@@ -120,6 +127,16 @@ test("PASS requires the explicit productionPromoted boolean in both runtime and 
   evidence.codes.push("NATIVE_AUTOFILL_TOOLING_IMPLEMENTED");
   assert.throws(() => assertNativeAutoFillEvidence(evidence), /NATIVE_AUTOFILL_EVIDENCE_PASS_INVALID/);
   assert.equal(validate(evidence), false, "PASS must reject any code outside the exact positive set");
+});
+
+test("BLOCKED evidence may honestly record an OS outside macOS 26", () => {
+  const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
+  const validate = new Ajv2020({ strict: false }).compile(schema);
+  const evidence = createBlockedNativeAutoFillEvidence({ osVersion: "25.9.1" });
+
+  assert.doesNotThrow(() => assertNativeAutoFillEvidence(evidence));
+  assert.equal(validate(evidence), true, JSON.stringify(validate.errors));
+  assert.equal(evidence.lowerOsRuntime, "NATIVE_AUTOFILL_LOWER_OS_RUNTIME_UNVERIFIED");
 });
 
 test("writer emits JSON and Markdown without paths or credential references", () => {

@@ -84,6 +84,7 @@ export function assertNativeAutoFillEvidence(evidence) {
     if (
       !HASH.test(appHash ?? "") ||
       !HASH.test(dmgHash ?? "") ||
+      !/^26(?:\.[0-9]+){1,2}$/u.test(evidence.osVersion) ||
       evidence.productionPromoted !== true ||
       JSON.stringify(evidence.codes) !== JSON.stringify(PASS_CODES) ||
       Object.values(evidence.liveMatrix).some((code) => code !== "NATIVE_AUTOFILL_LIVE_PASS")
