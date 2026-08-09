@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
   verifyCodesignCommandPolicy,
+  verifyCodesignRequirementPolicy,
   verifyNativeAutoFillBuilderPolicy,
 } from "./native-autofill-builder-policy.mjs";
 import { sanitizeNativeAutoFillCode } from "./native-autofill-release-codes.mjs";
@@ -69,6 +72,16 @@ test("release builder policy requires exactly Agent then Provider then app then 
   );
   assert.throws(
     () => verifyNativeAutoFillBuilderPolicy([
+      signingArguments.replace("(--force", '(--identifier "com.sommir.shared" --force'),
+      agent,
+      provider,
+      app,
+      dmg,
+    ].join("\n")),
+    /NATIVE_AUTOFILL_SIGNING_ARGS_IDENTIFIER_FORBIDDEN/,
+  );
+  assert.throws(
+    () => verifyNativeAutoFillBuilderPolicy([
       signingArguments,
       agent,
       provider.replace('"$APP', '--identifier "com.sommir.wrong" "$APP'),
@@ -92,6 +105,32 @@ test("release builder policy requires exactly Agent then Provider then app then 
     ].join("\n")),
     /NATIVE_AUTOFILL_SIGN_ORDER_INVALID/,
   );
+});
+
+test("designated requirements use verification action and one -R expression argument", () => {
+  const valid = `
+    /usr/bin/codesign --verify -R='anchor apple generic and identifier "com.sommir.app"' "$APP"
+    /usr/bin/codesign --verify -R='anchor apple generic and identifier "com.sommir.provider"' "$PROVIDER"
+  `;
+  assert.doesNotThrow(() => verifyCodesignRequirementPolicy(valid, 2));
+  assert.throws(
+    () => verifyCodesignRequirementPolicy(valid.replace("--verify -R=", "-R "), 2),
+    /NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_COMMAND_INVALID/,
+  );
+  assert.throws(
+    () => verifyCodesignRequirementPolicy(valid.replace("anchor apple generic", "=designated => anchor apple generic"), 2),
+    /NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_COMMAND_INVALID/,
+  );
+  assert.throws(
+    () => verifyCodesignRequirementPolicy(valid.split("\n").slice(0, -2).join("\n"), 2),
+    /NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_COMMAND_INVALID/,
+  );
+
+  const root = new URL("../", import.meta.url).pathname.replace(/\/$/u, "");
+  assert.doesNotThrow(() => verifyCodesignRequirementPolicy(
+    readFileSync(join(root, "scripts/verify-native-autofill-bundle.sh"), "utf8"),
+    3,
+  ));
 });
 
 test("release builder policy requires both notarization submissions to use the isolated Keychain", () => {

@@ -15,6 +15,28 @@ export function verifyCodesignCommandPolicy(source) {
   return true;
 }
 
+export function verifyCodesignRequirementPolicy(source, expectedCount) {
+  const logicalLines = source.replace(/\\\r?\n/gu, " ").split(/\r?\n|;/u);
+  const requirementLines = logicalLines.filter(
+    (line) =>
+      /(?:^|\s)\/usr\/bin\/codesign(?:\s|$)/u.test(line) &&
+      (/(?:^|\s)-R(?:=|\s)/u.test(line) || line.includes("designated =>")),
+  );
+  if (
+    !Number.isInteger(expectedCount) ||
+    requirementLines.length !== expectedCount ||
+    requirementLines.some(
+      (line) =>
+        !/(?:^|\s)--verify(?:\s|$)/u.test(line) ||
+        !/(?:^|\s)-R=/u.test(line) ||
+        line.includes("=designated =>"),
+    )
+  ) {
+    throw new Error("NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_COMMAND_INVALID");
+  }
+  return true;
+}
+
 export function verifyNativeAutoFillBuilderPolicy(source) {
   verifyCodesignCommandPolicy(source);
   const logicalLines = source.replace(/\\\r?\n/gu, " ").split(/\r?\n|;/u);
@@ -49,6 +71,9 @@ export function verifyNativeAutoFillBuilderPolicy(source) {
   ) {
     throw new Error("NATIVE_AUTOFILL_SIGN_ORDER_INVALID");
   }
+  if (/(?:^|[\s(])--identifier(?:\s|$)/u.test(signingArguments[0])) {
+    throw new Error("NATIVE_AUTOFILL_SIGNING_ARGS_IDENTIFIER_FORBIDDEN");
+  }
   if (
     !signingLines[0].includes('--identifier "com.sommir.barwarden.autofill-agent"') ||
     signingLines.slice(1).some((line) => /(?:^|\s)--identifier(?:\s|$)/u.test(line))
@@ -72,7 +97,9 @@ export function verifyNativeAutoFillBuilderPolicy(source) {
 if (process.argv[1] && resolve(process.argv[1]) === import.meta.filename) {
   try {
     if (process.argv.length !== 3) throw new Error("NATIVE_AUTOFILL_ARGUMENT_INVALID");
-    verifyNativeAutoFillBuilderPolicy(readFileSync(process.argv[2], "utf8"));
+    const source = readFileSync(process.argv[2], "utf8");
+    verifyNativeAutoFillBuilderPolicy(source);
+    verifyCodesignRequirementPolicy(source, 2);
     console.log("NATIVE_AUTOFILL_BUILDER_POLICY_PASS");
   } catch (error) {
     console.error(error?.message?.startsWith("NATIVE_AUTOFILL_") ? error.message : "NATIVE_AUTOFILL_BUILDER_POLICY_INVALID");

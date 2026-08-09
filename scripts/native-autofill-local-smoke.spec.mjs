@@ -68,6 +68,8 @@ test("static local policy cannot be confused with release or deep signing", () =
       ["temp-template", source.replace('.tauri-native-autofill-local.json.XXXXXX', '.tauri-native-autofill-local.XXXXXX.json'), "NATIVE_AUTOFILL_LOCAL_TEMP_CONTRACT_INVALID"],
       ["temp-failure", source.replace('2>/dev/null)" || fail NATIVE_AUTOFILL_LOCAL_TEMP_CREATE_FAILED', ')"'), "NATIVE_AUTOFILL_LOCAL_TEMP_CONTRACT_INVALID"],
       ["agent-identifier", source.replace('--identifier "com.sommir.barwarden.autofill-agent"', ''), "NATIVE_AUTOFILL_AGENT_IDENTIFIER_INVALID"],
+      ["shared-identifier", source.replace('SIGNING_ARGS=(--force', 'SIGNING_ARGS=(--identifier "com.sommir.shared" --force'), "NATIVE_AUTOFILL_SIGNING_ARGS_IDENTIFIER_FORBIDDEN"],
+      ["requirement-command", source.replace('/usr/bin/codesign --verify -R="anchor apple generic', '/usr/bin/codesign -R "=designated => anchor apple generic'), "NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_COMMAND_INVALID"],
     ];
     for (const [name, mutation, code] of mutations) {
       const path = join(directory, `${name}.sh`);
@@ -116,6 +118,15 @@ test("raw Agent signing needs an explicit stable identifier", () => {
     assert.equal(explicitSign.status, 0, explicitSign.stderr);
     const explicit = run("/usr/bin/codesign", ["-d", "--verbose=4", agent]);
     assert.match(explicit.stderr, /^Identifier=com\.sommir\.barwarden\.autofill-agent$/mu);
+
+    const incorrectRequirement = run("/usr/bin/codesign", [
+      "-R", '=designated => identifier "com.sommir.barwarden.autofill-agent"', agent,
+    ]);
+    assert.notEqual(incorrectRequirement.status, 0);
+    const correctRequirement = run("/usr/bin/codesign", [
+      "--verify", '-R=identifier "com.sommir.barwarden.autofill-agent"', agent,
+    ]);
+    assert.equal(correctRequirement.status, 0, correctRequirement.stderr);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

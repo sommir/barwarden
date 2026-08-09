@@ -1,10 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { verifyCodesignCommandPolicy } from "./native-autofill-builder-policy.mjs";
+import {
+  verifyCodesignCommandPolicy,
+  verifyCodesignRequirementPolicy,
+} from "./native-autofill-builder-policy.mjs";
 
 export function verifyNativeAutoFillLocalSmokePolicy(source) {
   verifyCodesignCommandPolicy(source);
+  verifyCodesignRequirementPolicy(source, 4);
 
   if (!source.includes('[[ "${NATIVE_AUTOFILL_LOCAL_SMOKE_ONLY:-0}" == 1 ]]')) {
     throw new Error("NATIVE_AUTOFILL_LOCAL_SMOKE_GATE_INVALID");
@@ -55,6 +59,9 @@ export function verifyNativeAutoFillLocalSmokePolicy(source) {
       !line.includes('"${SIGNING_ARGS[@]}"') || !line.includes(order[index]))
   ) {
     throw new Error("NATIVE_AUTOFILL_SIGN_ORDER_INVALID");
+  }
+  if (/(?:^|[\s(])--identifier(?:\s|$)/u.test(signingArguments[0])) {
+    throw new Error("NATIVE_AUTOFILL_SIGNING_ARGS_IDENTIFIER_FORBIDDEN");
   }
   if (
     !signingLines[0].includes('--identifier "com.sommir.barwarden.autofill-agent"') ||

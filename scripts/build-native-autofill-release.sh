@@ -177,10 +177,10 @@ run_or_fail NATIVE_AUTOFILL_PROVIDER_SIGN_FAILED \
   "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME"
 
 run_or_fail NATIVE_AUTOFILL_AGENT_REQUIREMENT_FAILED \
-  /usr/bin/codesign -R "=designated => anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden.autofill-agent\"" \
+  /usr/bin/codesign --verify -R="anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden.autofill-agent\"" \
   "$APP_PATH/Contents/Helpers/$AGENT_NAME"
 run_or_fail NATIVE_AUTOFILL_PROVIDER_REQUIREMENT_FAILED \
-  /usr/bin/codesign -R "=designated => anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden.credential-provider\"" \
+  /usr/bin/codesign --verify -R="anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden.credential-provider\"" \
   "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME"
 
 run_or_fail NATIVE_AUTOFILL_MAIN_APP_SIGN_FAILED \

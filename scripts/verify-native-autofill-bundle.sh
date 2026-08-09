@@ -197,11 +197,11 @@ done
 /usr/bin/codesign --verify --strict --verbose=2 "$DMG_PATH" >"$TEMP_ROOT/dmg-signature-verify" 2>&1 || \
   fail NATIVE_AUTOFILL_DMG_SIGNATURE_INVALID
 
-/usr/bin/codesign -R '=designated => anchor apple generic and certificate leaf[subject.OU] = "K7LY92JY96" and identifier "com.sommir.barwarden"' "$APP_PATH" >/dev/null 2>&1 || \
+/usr/bin/codesign --verify -R='anchor apple generic and certificate leaf[subject.OU] = "K7LY92JY96" and identifier "com.sommir.barwarden"' "$APP_PATH" >/dev/null 2>&1 || \
   fail NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_INVALID
-/usr/bin/codesign -R '=designated => anchor apple generic and certificate leaf[subject.OU] = "K7LY92JY96" and identifier "com.sommir.barwarden.credential-provider"' "$PROVIDER_PATH" >/dev/null 2>&1 || \
+/usr/bin/codesign --verify -R='anchor apple generic and certificate leaf[subject.OU] = "K7LY92JY96" and identifier "com.sommir.barwarden.credential-provider"' "$PROVIDER_PATH" >/dev/null 2>&1 || \
   fail NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_INVALID
-/usr/bin/codesign -R '=designated => anchor apple generic and certificate leaf[subject.OU] = "K7LY92JY96" and identifier "com.sommir.barwarden.autofill-agent"' "$AGENT_PATH" >/dev/null 2>&1 || \
+/usr/bin/codesign --verify -R='anchor apple generic and certificate leaf[subject.OU] = "K7LY92JY96" and identifier "com.sommir.barwarden.autofill-agent"' "$AGENT_PATH" >/dev/null 2>&1 || \
   fail NATIVE_AUTOFILL_DESIGNATED_REQUIREMENT_INVALID
 
 APP_ENTITLEMENTS="$TEMP_ROOT/app-entitlements.plist"

@@ -175,10 +175,10 @@ run_or_fail NATIVE_AUTOFILL_LOCAL_PROVIDER_SIGN_FAILED \
   "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME"
 
 run_or_fail NATIVE_AUTOFILL_LOCAL_AGENT_REQUIREMENT_FAILED \
-  /usr/bin/codesign -R "=designated => anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden.autofill-agent\"" \
+  /usr/bin/codesign --verify -R="anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden.autofill-agent\"" \
   "$APP_PATH/Contents/Helpers/$AGENT_NAME"
 run_or_fail NATIVE_AUTOFILL_LOCAL_PROVIDER_REQUIREMENT_FAILED \
-  /usr/bin/codesign -R "=designated => anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden.credential-provider\"" \
+  /usr/bin/codesign --verify -R="anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden.credential-provider\"" \
   "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME"
 
 run_or_fail NATIVE_AUTOFILL_LOCAL_APP_SIGN_FAILED \
@@ -186,7 +186,7 @@ run_or_fail NATIVE_AUTOFILL_LOCAL_APP_SIGN_FAILED \
   --entitlements "$REPOSITORY_ROOT/apps/menubar-tauri/src-tauri/Entitlements.native-autofill.plist" \
   "$APP_PATH"
 run_or_fail NATIVE_AUTOFILL_LOCAL_APP_REQUIREMENT_FAILED \
-  /usr/bin/codesign -R "=designated => anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden\"" \
+  /usr/bin/codesign --verify -R="anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden\"" \
   "$APP_PATH"
 run_or_fail NATIVE_AUTOFILL_LOCAL_STRICT_VERIFY_FAILED \
   /usr/bin/codesign --verify --strict --verbose=2 "$APP_PATH"
@@ -199,7 +199,7 @@ run_or_fail NATIVE_AUTOFILL_LOCAL_BUILD_FAILED \
 [[ "$(/usr/bin/find "$NATIVE_AUTOFILL_LOCAL_OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print | /usr/bin/wc -l | /usr/bin/tr -d ' ')" == 1 ]] || \
   fail NATIVE_AUTOFILL_LOCAL_BUILD_FAILED
 run_or_fail NATIVE_AUTOFILL_LOCAL_APP_REQUIREMENT_FAILED \
-  /usr/bin/codesign -R "=designated => anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden\"" \
+  /usr/bin/codesign --verify -R="anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and identifier \"com.sommir.barwarden\"" \
   "$OUTPUT_APP"
 run_or_fail NATIVE_AUTOFILL_LOCAL_STRICT_VERIFY_FAILED \
   /usr/bin/codesign --verify --strict --verbose=2 "$OUTPUT_APP"
