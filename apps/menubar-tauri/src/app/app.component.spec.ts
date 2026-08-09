@@ -165,6 +165,31 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
+  it("retries pending AutoFill cleanup only after startup restores the current account", async () => {
+    const store = new PopupStateStore();
+    const restoreStartup = vi.fn(async () => {
+      store.setItems([], [], new Date(), "account-a");
+      return "unlocked" as const;
+    });
+    const recoverAtStartup = vi.fn(async () => "disabled" as const);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup },
+      { navigateByUrl: vi.fn().mockResolvedValue(true), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup },
+    ]) as AppComponent;
+
+    await component.ngOnInit();
+
+    expect(restoreStartup.mock.invocationCallOrder[0]).toBeLessThan(
+      recoverAtStartup.mock.invocationCallOrder[0],
+    );
+    expect(store.snapshot().vaultOwnerAccountId).toBe("account-a");
+    component.ngOnDestroy();
+  });
+
   it("does not route away while login temporarily hides a synchronized candidate state", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");

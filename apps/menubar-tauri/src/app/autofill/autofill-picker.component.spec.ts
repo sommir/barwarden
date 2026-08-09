@@ -125,9 +125,101 @@ describe("AutoFillPickerComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain("System Settings > General > Login Items");
+    expect(fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]')).not.toBeNull();
     expect(nativeHost.entryContext).not.toHaveBeenCalled();
     expect(nativeHost.agentSession).not.toHaveBeenCalled();
     expect(candidateHost.queryCandidates).not.toHaveBeenCalled();
+  });
+
+  it("Retry performs setup recovery and queries only after the Agent becomes ready", async () => {
+    let setupState = "requiresApproval";
+    let finishEnable: (() => void) | undefined;
+    const enableFromEntry = vi.fn(() => new Promise<"ready">((resolve) => {
+      finishEnable = () => {
+        setupState = "ready";
+        resolve("ready");
+      };
+    }));
+    TestBed.overrideProvider(AutoFillSetupService, {
+      useValue: { blockReason: () => setupState, enableFromEntry, disable: vi.fn() },
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("repair"));
+
+    (fixture.nativeElement.querySelector('[data-testid="autofill-retry"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    await vi.waitFor(() => expect(enableFromEntry).toHaveBeenCalledOnce());
+    expect(nativeHost.entryContext).not.toHaveBeenCalled();
+    expect(nativeHost.agentSession).not.toHaveBeenCalled();
+    expect(candidateHost.queryCandidates).not.toHaveBeenCalled();
+    finishEnable?.();
+
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    expect(enableFromEntry).toHaveBeenCalledOnce();
+    expect(nativeHost.entryContext).toHaveBeenCalledTimes(2);
+    expect(nativeHost.agentSession).toHaveBeenCalledOnce();
+    expect(candidateHost.queryCandidates).toHaveBeenCalled();
+  });
+
+  it("Retry remains query-free while Login Items approval is still required", async () => {
+    const enableFromEntry = vi.fn(async () => "requiresApproval");
+    TestBed.overrideProvider(AutoFillSetupService, {
+      useValue: { blockReason: () => "requiresApproval", enableFromEntry, disable: vi.fn() },
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("repair"));
+
+    (fixture.nativeElement.querySelector('[data-testid="autofill-retry"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(enableFromEntry).toHaveBeenCalledOnce());
+
+    expect(fixture.componentInstance.mode).toBe("repair");
+    expect(nativeHost.entryContext).not.toHaveBeenCalled();
+    expect(nativeHost.agentSession).not.toHaveBeenCalled();
+    expect(candidateHost.queryCandidates).not.toHaveBeenCalled();
+  });
+
+  it("awaits Turn Off AutoFill from the normal picker and shows a fixed success state", async () => {
+    let finishDisable: (() => void) | undefined;
+    const disable = vi.fn(() => new Promise<void>((resolve) => { finishDisable = resolve; }));
+    TestBed.overrideProvider(AutoFillSetupService, {
+      useValue: { blockReason: () => "ready", enableFromEntry: vi.fn(), disable },
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain("Turning off AutoFill");
+
+    finishDisable?.();
+    await vi.waitFor(() => expect(fixture.nativeElement.textContent).toContain("AutoFill is off."));
+    expect(disable).toHaveBeenCalledOnce();
+    expect(fixture.componentInstance.mode).toBe("repair");
+  });
+
+  it("shows a fixed Turn Off failure without native error details", async () => {
+    TestBed.overrideProvider(AutoFillSetupService, {
+      useValue: {
+        blockReason: () => "ready",
+        enableFromEntry: vi.fn(),
+        disable: vi.fn(async () => { throw new Error("private native detail"); }),
+      },
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(fixture.nativeElement.textContent).toContain("AutoFill could not be turned off. Try again."));
+
+    expect(fixture.nativeElement.textContent).not.toContain("private native detail");
+    expect(fixture.componentInstance.mode).toBe("repair");
   });
 
   it("selects with the keyboard without releasing or pasting a secret", async () => {

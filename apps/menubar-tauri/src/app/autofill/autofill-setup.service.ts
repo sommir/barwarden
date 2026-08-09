@@ -17,9 +17,12 @@ export interface AutoFillSetupHost {
 export interface AutoFillSetupStorage {
   readEnabled(): boolean;
   writeEnabled(enabled: boolean): void;
+  readCleanupPending(): boolean;
+  writeCleanupPending(pending: boolean): void;
 }
 
 const AUTOFILL_ENABLED_KEY = "barwarden.autofill.enabled.v1";
+const AUTOFILL_CLEANUP_PENDING_KEY = "barwarden.autofill.cleanup-pending.v1";
 
 export const AUTOFILL_SETUP_HOST = new InjectionToken<AutoFillSetupHost>("AUTOFILL_SETUP_HOST");
 export const AUTOFILL_SETUP_STORAGE = new InjectionToken<AutoFillSetupStorage>(
@@ -31,6 +34,12 @@ export const AUTOFILL_SETUP_STORAGE = new InjectionToken<AutoFillSetupStorage>(
       writeEnabled: (enabled) => {
         if (enabled) globalThis.localStorage?.setItem(AUTOFILL_ENABLED_KEY, "true");
         else globalThis.localStorage?.removeItem(AUTOFILL_ENABLED_KEY);
+      },
+      readCleanupPending: () =>
+        globalThis.localStorage?.getItem(AUTOFILL_CLEANUP_PENDING_KEY) === "true",
+      writeCleanupPending: (pending) => {
+        if (pending) globalThis.localStorage?.setItem(AUTOFILL_CLEANUP_PENDING_KEY, "true");
+        else globalThis.localStorage?.removeItem(AUTOFILL_CLEANUP_PENDING_KEY);
       },
     }),
   },
@@ -52,41 +61,65 @@ export class AutoFillSetupService {
     return this.state;
   }
 
-  enableFromEntry(): Promise<AutoFillSetupState> {
+  async enableFromEntry(): Promise<AutoFillSetupState> {
     this.storage.writeEnabled(true);
+    if (this.storage.readCleanupPending() && !await this.finishPendingCleanup()) {
+      return this.setState("unavailable");
+    }
     return this.reconcile();
   }
 
-  recoverAtStartup(): Promise<AutoFillSetupState> {
+  async recoverAtStartup(): Promise<AutoFillSetupState> {
+    if (this.storage.readCleanupPending() && !await this.finishPendingCleanup()) {
+      return this.setState("unavailable");
+    }
     if (!this.storage.readEnabled()) {
       this.state = "disabled";
-      return Promise.resolve(this.state);
+      return this.state;
     }
     return this.reconcile();
   }
 
   async disable(): Promise<void> {
     this.storage.writeEnabled(false);
+    this.storage.writeCleanupPending(true);
     this.disabling = true;
     this.state = "disabled";
     if (this.operation) await this.operation.catch(() => undefined);
+    const complete = await this.performCleanup();
+    this.disabling = false;
+    this.state = "disabled";
+    if (!complete) throw new Error("AUTOFILL_CLEANUP_PENDING");
+    this.storage.writeCleanupPending(false);
+  }
+
+  private async finishPendingCleanup(): Promise<boolean> {
+    const complete = await this.performCleanup();
+    if (!complete) return false;
+    try {
+      this.storage.writeCleanupPending(false);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async performCleanup(): Promise<boolean> {
     const accountId = this.store.snapshot().vaultOwnerAccountId;
     const operations: Array<() => Promise<unknown>> = [
       () => this.host.autofillAgentLock(),
       ...(accountId ? [() => this.host.autofillClearProjection(accountId)] : []),
       () => this.host.autofillAgentUnregister(),
     ];
-    let firstFailure: unknown;
+    let failed = false;
     for (const operation of operations) {
       try {
         await operation();
-      } catch (error) {
-        firstFailure ??= error;
+      } catch {
+        failed = true;
       }
     }
-    this.disabling = false;
-    this.state = "disabled";
-    if (firstFailure) throw firstFailure;
+    return !failed;
   }
 
   private reconcile(): Promise<AutoFillSetupState> {

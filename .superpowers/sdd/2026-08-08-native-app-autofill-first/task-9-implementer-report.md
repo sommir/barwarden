@@ -28,7 +28,9 @@ The builder creates a hash-bound assembly attestation containing the complete bu
 
 Native Agent registration is now connected to the product path. The first dedicated `autofill-menu`, `autofill-shortcut`, or `autofill-floating` entry persists an explicit enabled flag and awaits `status → register-if-needed → probe` before opening the shared picker. Ordinary vault/tray entry does not opt in. `requiresApproval` enters the existing repair state with fixed `System Settings > General > Login Items` guidance and performs no target-context, Agent-session, candidate, or secret query. On later startup an enabled feature repeats status/recovery/probe so update and restart can recover the embedded Agent.
 
-`AutoFillSetupService.disable()` is the callable disable path. It clears the enabled flag first, then fail-closed locks the Agent, clears the current account projection, and unregisters the Agent, attempting every cleanup even when one operation fails.
+`AutoFillSetupService.disable()` is the callable disable path. A visible `Turn Off AutoFill` control reaches it from both the normal picker and repair state. It clears the enabled flag first, persists cleanup-pending, then fail-closed locks the Agent, clears the current account projection, and unregisters the Agent in that order, attempting every cleanup even when one operation fails. Cleanup-pending clears only after all three operations succeed; otherwise the UI reports one fixed failure without native or secret details, and a later startup retries cleanup after account restoration.
+
+The repair `Retry` control now awaits setup recovery (`status → register-if-needed → probe`) rather than merely rerunning picker initialization. Target context, Agent session, and candidate queries begin only when recovery returns `ready`; `requiresApproval` and other recovery failures remain in repair with zero queries and fixed guidance/status text.
 
 ## TDD evidence
 
@@ -42,6 +44,7 @@ Native Agent registration is now connected to the product path. The first dedica
 - Native overlay RED/GREEN covers private atomic generation, app-only output, exact native entitlement selection, byte-identical production inputs, and refusal to overwrite production files.
 - Evidence RED/GREEN covers the complete 20-row live matrix, fixed-code-only content, path/credential exclusion, and refusal to record PASS without both artifact hashes, all current/macOS 13 live rows, strict verifier success, and production promotion.
 - Product setup RED/GREEN covers fresh install, update/restart recovery, persisted opt-in, status/register/probe ordering, `requiresApproval` query suppression and fixed Login Items guidance, and disable lock/clear/unregister cleanup.
+- Final lifecycle RED/GREEN covers visible normal/repair Turn Off controls, awaited fixed-state success/failure, persisted cleanup-pending, lock/clear/unregister best-effort ordering across failures, post-account-restore startup cleanup, and Retry query suppression until setup is ready.
 - Profile authorization RED/GREEN covers absent/exact/Team-wildcard App Group authorization, exact/Team-wildcard application identifiers, safe Apple-standard extras, and rejection of wrong Team/app/capability/certificate/expiry or dangerous restricted entitlements. No real profile validation is claimed.
 - PASS-evidence mutation RED/GREEN proves both runtime and JSON Schema reject an otherwise-valid PASS record containing any code outside the exact four-code positive set.
 
@@ -78,13 +81,15 @@ The macOS 13 device gate is absent. Because the signed artifact gate, current-ma
 ## Verification
 
 - Setup/App/Picker/Tauri-host focused suites: 140 passed.
+- Final lifecycle App/Setup/Picker focused suites: 84 passed.
 - Task 9 verifier/builder/overlay/evidence focused suites: 25 Node tests plus all three shell harnesses passed.
 - Native Xcode project/build-wrapper contracts: 14 passed.
 - Native identity contracts: 19 passed.
-- Full TypeScript: passed after updating the exact recovery-manifest hash for the intentional Tauri host command change.
+- Full TypeScript: 3,529 passed and 22 skipped.
 - Full Rust: 252 passed, 7 ignored.
 - Full Swift/Xcode: 131 passed, 0 failed. The sandboxed first attempt was blocked by the XCTest helper-service sandbox; the approved unrestricted rerun passed.
 - Production web build: passed with existing externalization, Tailwind, and chunk-size warnings.
+- Rust/native release code was unchanged by the final lifecycle fix, so its previously passing 252/7 and 131/0 results remain the recorded native evidence rather than being rerun.
 - Shell syntax and `git diff --check`: passed.
 
 An exploratory `node --test scripts/*.spec.mjs` run is not a Task 9 gate. It exited nonzero on unrelated M13/M16 pinned evidence/clean-artifact preconditions and native-project cases invoked without the required full-Xcode environment. Every applicable Task 9 file was rerun independently with the correct environment and passed.

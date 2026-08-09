@@ -328,10 +328,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
-      if (this.autoFillSetup) {
-        await this.autoFillSetup.recoverAtStartup().catch(() => undefined);
-      }
-
       try {
         let result: AuthStartupResult;
         const windowLayout =
@@ -365,6 +361,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         } catch (error) {
           await this.handleStartupRestoreFailure(error);
           return;
+        }
+        if (this.autoFillSetup) {
+          await this.autoFillSetup.recoverAtStartup().catch(() => undefined);
         }
         if (attachedProcessSnapshot) {
           this.startProcessReconciliation(attachedProcessSnapshot);

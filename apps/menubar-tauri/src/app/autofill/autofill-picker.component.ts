@@ -100,7 +100,8 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
           } @else {
             <p>Repair or refresh the native AutoFill data, then try again.</p>
           }
-          <button type="button" (click)="initialize()">Retry</button>
+          <button data-testid="autofill-retry" type="button" [disabled]="setupActionPending" (click)="retrySetup()">Retry</button>
+          <button data-testid="autofill-turn-off" type="button" [disabled]="setupActionPending" (click)="turnOffAutoFill()">Turn Off AutoFill</button>
         </section>
       } @else if (mode === "context-unavailable") {
         <section data-testid="autofill-context-unavailable">
@@ -185,6 +186,8 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
               <button type="button" (click)="cancelProtectedAction()">Cancel</button>
             </section>
           }
+
+          <button data-testid="autofill-turn-off" type="button" [disabled]="setupActionPending" (click)="turnOffAutoFill()">Turn Off AutoFill</button>
         }
       }
 
@@ -206,6 +209,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   highlightedIndex = 0;
   statusMessage = "";
   setupRequiresApproval = false;
+  setupActionPending = false;
   pendingMismatch: { action: SecretAction; field: AutoFillSecretField } | null = null;
   pendingProtected: PendingProtectedAction | null = null;
   masterPasswordMode = false;
@@ -299,6 +303,57 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       await this.refreshCandidates(epoch);
     } catch {
       this.commit(epoch, () => { this.mode = "repair"; });
+    }
+  }
+
+  async retrySetup(): Promise<void> {
+    if (!this.setup || this.setupActionPending) return;
+    this.setupActionPending = true;
+    this.statusMessage = "Checking AutoFill…";
+    this.markIfAlive();
+    try {
+      const setupState = await this.setup.enableFromEntry();
+      if (!this.componentAlive) return;
+      if (setupState !== "ready") {
+        this.setupRequiresApproval = setupState === "requiresApproval";
+        this.mode = "repair";
+        this.statusMessage = "AutoFill still needs attention.";
+        return;
+      }
+      this.setupRequiresApproval = false;
+      this.setupActionPending = false;
+      await this.initialize();
+    } catch {
+      if (!this.componentAlive) return;
+      this.setupRequiresApproval = false;
+      this.mode = "repair";
+      this.statusMessage = "AutoFill recovery could not complete. Try again.";
+    } finally {
+      this.setupActionPending = false;
+      this.markIfAlive();
+    }
+  }
+
+  async turnOffAutoFill(): Promise<void> {
+    if (!this.setup || this.setupActionPending) return;
+    this.startOperation();
+    this.store.cancelProtectedOperations();
+    this.clearPickerState();
+    this.setupActionPending = true;
+    this.mode = "repair";
+    this.setupRequiresApproval = false;
+    this.statusMessage = "Turning off AutoFill…";
+    this.markIfAlive();
+    try {
+      await this.setup.disable();
+      if (!this.componentAlive) return;
+      this.statusMessage = "AutoFill is off.";
+    } catch {
+      if (!this.componentAlive) return;
+      this.statusMessage = "AutoFill could not be turned off. Try again.";
+    } finally {
+      this.setupActionPending = false;
+      this.markIfAlive();
     }
   }
 
