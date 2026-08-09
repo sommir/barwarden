@@ -217,13 +217,25 @@ pub fn classify_focused_field(
     })
 }
 
-fn valid_bundle_id(bundle_id: &str) -> bool {
+pub(crate) fn valid_bundle_id(bundle_id: &str) -> bool {
     !bundle_id.is_empty()
         && bundle_id.len() <= 255
-        && bundle_id.contains('.')
-        && bundle_id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'))
+        && bundle_id.is_ascii()
+        && bundle_id.split('.').count() >= 2
+        && bundle_id.split('.').all(|segment| {
+            !segment.is_empty()
+                && segment
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+                && segment
+                    .as_bytes()
+                    .first()
+                    .is_some_and(u8::is_ascii_alphanumeric)
+                && segment
+                    .as_bytes()
+                    .last()
+                    .is_some_and(u8::is_ascii_alphanumeric)
+        })
 }
 
 #[cfg(test)]
@@ -444,5 +456,21 @@ mod tests {
             serde_json::to_value(diagnostic).unwrap(),
             serde_json::json!({ "reason": "offscreen", "bundleId": "com.example.editor" }),
         );
+
+        for invalid in [
+            "com.example\nsecret",
+            "com.example\u{0}secret",
+            "com.example.编辑器",
+            "com..example",
+            ".com.example",
+            "com.example-",
+            &"a".repeat(256),
+        ] {
+            assert_eq!(
+                FocusDiagnostic::new(FocusRejectReason::Offscreen, Some(invalid)).bundle_id,
+                None,
+                "invalid diagnostic bundle id: {invalid:?}",
+            );
+        }
     }
 }

@@ -1,5 +1,7 @@
 use crate::accessibility_focus::AxFrame;
 use serde::{Deserialize, Serialize};
+use std::ffi::c_void;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
@@ -50,6 +52,95 @@ const fn workspace_notification_plan() -> [WorkspaceNotification; 2] {
         WorkspaceNotification::Activated,
         WorkspaceNotification::Terminated,
     ]
+}
+
+fn observer_creation_succeeded(status: i32, observer_nonnull: bool) -> bool {
+    status == 0 && observer_nonnull
+}
+
+fn install_notifications(
+    plan: &[(ObserverScope, ObserverNotification)],
+    mut add: impl FnMut(ObserverScope, ObserverNotification) -> bool,
+) -> bool {
+    plan.iter()
+        .copied()
+        .all(|(scope, notification)| add(scope, notification))
+}
+
+#[cfg(test)]
+fn install_required_notifications(
+    add: impl FnMut(ObserverScope, ObserverNotification) -> bool,
+) -> bool {
+    install_notifications(&observer_notification_plan(), add)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ObserverRegistrationDecision {
+    Create,
+    Reuse,
+    Replace,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ObserverWork {
+    Idle,
+    LivenessOnly,
+    Refresh,
+}
+
+fn observer_work(notified: bool, lifecycle_due: bool) -> ObserverWork {
+    match (notified, lifecycle_due) {
+        (true, _) => ObserverWork::Refresh,
+        (false, true) => ObserverWork::LivenessOnly,
+        (false, false) => ObserverWork::Idle,
+    }
+}
+
+fn observer_registration_decision(
+    registered_pid: Option<i32>,
+    target_pid: i32,
+) -> ObserverRegistrationDecision {
+    match registered_pid {
+        None => ObserverRegistrationDecision::Create,
+        Some(pid) if pid == target_pid => ObserverRegistrationDecision::Reuse,
+        Some(_) => ObserverRegistrationDecision::Replace,
+    }
+}
+
+fn validate_copied_type_with(
+    value: *const c_void,
+    expected_type: usize,
+    type_id: impl FnOnce(*const c_void) -> usize,
+    release: impl FnOnce(*const c_void),
+) -> Option<*const c_void> {
+    if value.is_null() {
+        return None;
+    }
+    if type_id(value) == expected_type {
+        Some(value)
+    } else {
+        release(value);
+        None
+    }
+}
+
+fn validate_ax_value_with(
+    value: *const c_void,
+    expected_cf_type: usize,
+    expected_ax_type: i32,
+    type_id: impl FnOnce(*const c_void) -> usize,
+    ax_value_type: impl FnOnce(*const c_void) -> i32,
+    release: impl FnOnce(*const c_void),
+) -> Option<*const c_void> {
+    if value.is_null() {
+        return None;
+    }
+    if type_id(value) == expected_cf_type && ax_value_type(value) == expected_ax_type {
+        Some(value)
+    } else {
+        release(value);
+        None
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -229,13 +320,34 @@ pub struct AccessibilityStatus {
     diagnostic: Option<AccessibilityDiagnostic>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct FloatingClickContext {
+    generation: u64,
+    target: crate::frontmost::FrontmostApp,
+}
+
+#[derive(Clone)]
+struct VisibleTarget {
+    generation: u64,
+    target: crate::frontmost::FrontmostApp,
+}
+
 struct ControllerState {
     fallback: AccessibilityFallback,
     permission: AccessibilityPermission,
     observation: AccessibilityObservation,
     diagnostic: Option<AccessibilityDiagnostic>,
-    active_bundle_id: Option<String>,
+    visible_target: Option<VisibleTarget>,
     lifecycle: FloatingLifecycle,
+    permission_prompt: PermissionPromptState,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum PermissionPromptState {
+    #[default]
+    Available,
+    InFlight,
+    Consumed,
 }
 
 impl Default for ControllerState {
@@ -245,8 +357,9 @@ impl Default for ControllerState {
             permission: AccessibilityPermission::Denied,
             observation: AccessibilityObservation::Stopped,
             diagnostic: None,
-            active_bundle_id: None,
+            visible_target: None,
             lifecycle: FloatingLifecycle::default(),
+            permission_prompt: PermissionPromptState::Available,
         }
     }
 }
@@ -254,6 +367,43 @@ impl Default for ControllerState {
 #[derive(Clone, Default)]
 pub struct AutoFillFloatingController {
     state: Arc<Mutex<ControllerState>>,
+}
+
+struct ObserverInvalidationSignal {
+    controller: AutoFillFloatingController,
+    dirty: AtomicBool,
+    schedule_hide: Arc<dyn Fn() + Send + Sync>,
+}
+
+impl ObserverInvalidationSignal {
+    fn new(
+        controller: AutoFillFloatingController,
+        schedule_hide: impl Fn() + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            controller,
+            dirty: AtomicBool::new(false),
+            schedule_hide: Arc::new(schedule_hide),
+        }
+    }
+
+    fn invalidate(&self) {
+        self.controller.observer_invalidated();
+        (self.schedule_hide)();
+        self.dirty.store(true, Ordering::Release);
+    }
+
+    fn mark_dirty(&self) {
+        self.dirty.store(true, Ordering::Release);
+    }
+
+    fn take_dirty(&self) -> bool {
+        self.dirty.swap(false, Ordering::AcqRel)
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.dirty.load(Ordering::Acquire)
+    }
 }
 
 impl AutoFillFloatingController {
@@ -276,7 +426,7 @@ impl AutoFillFloatingController {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.fallback = fallback;
         state.lifecycle.invalidate();
-        state.active_bundle_id = None;
+        state.visible_target = None;
         state.diagnostic = None;
         state.observation = match fallback {
             AccessibilityFallback::SystemAutoFill => AccessibilityObservation::Stopped,
@@ -299,19 +449,25 @@ impl AutoFillFloatingController {
             .generation
     }
 
+    #[cfg(test)]
     fn begin_refresh(&self) -> u64 {
         let mut state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let generation = state.lifecycle.begin_observation();
-        state.active_bundle_id = None;
+        state.visible_target = None;
         state.observation = AccessibilityObservation::Hidden;
         state.diagnostic = None;
         generation
     }
 
-    fn publish_visible(&self, generation: u64, bundle_id: String, frame: AppKitFrame) -> bool {
+    fn publish_visible(
+        &self,
+        generation: u64,
+        target: crate::frontmost::FrontmostApp,
+        frame: AppKitFrame,
+    ) -> bool {
         let mut state = self
             .state
             .lock()
@@ -324,7 +480,7 @@ impl AutoFillFloatingController {
         state.lifecycle.accept(generation, frame);
         state.permission = AccessibilityPermission::Granted;
         state.observation = AccessibilityObservation::Visible;
-        state.active_bundle_id = Some(bundle_id);
+        state.visible_target = Some(VisibleTarget { generation, target });
         state.diagnostic = None;
         true
     }
@@ -345,18 +501,46 @@ impl AutoFillFloatingController {
         }
         state.permission = permission;
         state.observation = AccessibilityObservation::Hidden;
-        state.active_bundle_id = None;
-        state.diagnostic = Some(AccessibilityDiagnostic { reason, bundle_id });
+        state.visible_target = None;
+        state.diagnostic = Some(AccessibilityDiagnostic {
+            reason,
+            bundle_id: sanitized_diagnostic_bundle_id(bundle_id),
+        });
     }
 
-    fn picker_opened(&self) {
+    fn consume_visible_target(
+        &self,
+        context: &FloatingClickContext,
+    ) -> Option<crate::frontmost::FrontmostApp> {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let target = state.visible_target.as_ref().and_then(|visible| {
+            (state.observation == AccessibilityObservation::Visible
+                && state.lifecycle.generation == context.generation
+                && visible.generation == context.generation
+                && visible.target == context.target)
+                .then(|| visible.target.clone())
+        })?;
+        state.lifecycle.invalidate();
+        state.visible_target = None;
+        state.observation = AccessibilityObservation::Hidden;
+        state.diagnostic = None;
+        Some(target)
+    }
+
+    fn observer_invalidated(&self) {
         let mut state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.lifecycle.invalidate();
-        state.active_bundle_id = None;
-        state.observation = AccessibilityObservation::Hidden;
+        state.visible_target = None;
+        state.observation = match state.fallback {
+            AccessibilityFallback::SystemAutoFill => AccessibilityObservation::Stopped,
+            AccessibilityFallback::Unsupported => AccessibilityObservation::Hidden,
+        };
         state.diagnostic = None;
     }
 
@@ -383,13 +567,50 @@ impl AutoFillFloatingController {
         }
     }
 
+    fn begin_permission_prompt(&self) -> bool {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.permission_prompt != PermissionPromptState::Available {
+            return false;
+        }
+        state.permission_prompt = PermissionPromptState::InFlight;
+        true
+    }
+
+    fn finish_permission_prompt(&self, trusted: bool) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.permission_prompt = PermissionPromptState::Consumed;
+        state.permission = if trusted {
+            AccessibilityPermission::Granted
+        } else {
+            AccessibilityPermission::Denied
+        };
+        if trusted {
+            state.diagnostic = None;
+        } else {
+            state.lifecycle.invalidate();
+            state.visible_target = None;
+            state.observation = AccessibilityObservation::Hidden;
+            state.diagnostic = Some(AccessibilityDiagnostic {
+                reason: "permission-denied",
+                bundle_id: None,
+            });
+        }
+    }
+
+    #[cfg(test)]
     pub fn application_changed(&self) {
         let mut state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.lifecycle.invalidate();
-        state.active_bundle_id = None;
+        state.visible_target = None;
         state.observation = AccessibilityObservation::Hidden;
         state.diagnostic = Some(AccessibilityDiagnostic {
             reason: "application-changed",
@@ -397,16 +618,22 @@ impl AutoFillFloatingController {
         });
     }
 
-    pub fn hide_with_reason(&self, permission: AccessibilityPermission, reason: &'static str) {
+    fn hide_with_reason(&self, permission: AccessibilityPermission, reason: &'static str) {
         let mut state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let bundle_id = state.active_bundle_id.take();
+        let bundle_id = state
+            .visible_target
+            .take()
+            .map(|visible| visible.target.bundle_id);
         state.lifecycle.invalidate();
         state.permission = permission;
         state.observation = AccessibilityObservation::Hidden;
-        state.diagnostic = Some(AccessibilityDiagnostic { reason, bundle_id });
+        state.diagnostic = Some(AccessibilityDiagnostic {
+            reason,
+            bundle_id: sanitized_diagnostic_bundle_id(bundle_id),
+        });
     }
 
     #[cfg(test)]
@@ -427,9 +654,25 @@ impl AutoFillFloatingController {
         );
         state.permission = AccessibilityPermission::Granted;
         state.observation = AccessibilityObservation::Visible;
-        state.active_bundle_id = Some(bundle_id.to_owned());
+        state.visible_target = Some(VisibleTarget {
+            generation,
+            target: crate::frontmost::test_frontmost_app(bundle_id, 42, generation),
+        });
         state.diagnostic = None;
     }
+
+    #[cfg(test)]
+    fn has_visible_target_for_test(&self) -> bool {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .visible_target
+            .is_some()
+    }
+}
+
+fn sanitized_diagnostic_bundle_id(bundle_id: Option<String>) -> Option<String> {
+    bundle_id.filter(|value| crate::accessibility_focus::valid_bundle_id(value))
 }
 
 trait AccessibilityPermissionPort {
@@ -441,8 +684,26 @@ fn accessibility_status_with(port: &impl AccessibilityPermissionPort) -> bool {
     port.trusted()
 }
 
+#[cfg(test)]
 fn request_accessibility_permission_with(port: &impl AccessibilityPermissionPort) -> bool {
     port.prompt()
+}
+
+fn request_accessibility_permission_once_with(
+    controller: &AutoFillFloatingController,
+    port: &(impl AccessibilityPermissionPort + ?Sized),
+) -> bool {
+    if port.trusted() {
+        controller.permission_observed(true);
+        return true;
+    }
+    if !controller.begin_permission_prompt() {
+        controller.permission_lost();
+        return false;
+    }
+    let trusted = port.prompt();
+    controller.finish_permission_prompt(trusted);
+    trusted
 }
 
 #[tauri::command]
@@ -479,8 +740,8 @@ pub fn autofill_request_accessibility_permission(
     controller: tauri::State<'_, AutoFillFloatingController>,
 ) -> Result<AccessibilityStatus, String> {
     require_main_window(&window)?;
-    let trusted = request_accessibility_permission_with(&SystemAccessibilityPermission);
-    controller.permission_observed(trusted);
+    let trusted =
+        request_accessibility_permission_once_with(&controller, &SystemAccessibilityPermission);
     if !trusted {
         schedule_panel_hide(window.app_handle());
     }
@@ -525,7 +786,7 @@ mod macos {
     };
     use crate::{frontmost, window};
     use block2::RcBlock;
-    use core_foundation::base::{CFRelease, TCFType};
+    use core_foundation::base::{CFGetTypeID, CFRelease, CFTypeID, TCFType};
     use core_foundation::boolean::CFBoolean;
     use core_foundation::dictionary::CFDictionary;
     use core_foundation::runloop::{
@@ -548,10 +809,8 @@ mod macos {
         MainThreadMarker, NSData, NSNotification, NSObject, NSPoint, NSRect, NSSize, NSString,
     };
     use std::cell::OnceCell;
-    use std::ffi::c_void;
     use std::ptr;
     use std::ptr::NonNull;
-    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, OnceLock};
     use std::thread;
     use std::time::{Duration, Instant};
@@ -573,6 +832,7 @@ mod macos {
         fn AXIsProcessTrusted() -> bool;
         fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
         fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
+        fn AXUIElementGetTypeID() -> CFTypeID;
         fn AXUIElementCopyAttributeValue(
             element: AXUIElementRef,
             attribute: CFStringRef,
@@ -584,6 +844,8 @@ mod macos {
             settable: *mut bool,
         ) -> AXError;
         fn AXValueGetValue(value: AXValueRef, value_type: i32, output: *mut c_void) -> bool;
+        fn AXValueGetTypeID() -> CFTypeID;
+        fn AXValueGetType(value: AXValueRef) -> i32;
         fn AXObserverCreate(
             pid: i32,
             callback: unsafe extern "C" fn(AXObserverRef, AXUIElementRef, CFStringRef, *mut c_void),
@@ -607,6 +869,7 @@ mod macos {
     #[derive(Default)]
     struct FloatingTargetIvars {
         app: OnceCell<tauri::AppHandle>,
+        context: Mutex<Option<FloatingClickContext>>,
     }
 
     define_class!(
@@ -621,13 +884,37 @@ mod macos {
             #[unsafe(method(openAutoFill:))]
             fn open_autofill(&self, _sender: Option<&AnyObject>) {
                 let Some(app) = self.ivars().app.get() else { return; };
-                if let Some(controller) = app.try_state::<AutoFillFloatingController>() {
-                    controller.picker_opened();
-                }
+                let Some(context) = self
+                    .ivars()
+                    .context
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take()
+                else {
+                    hide_panel();
+                    return;
+                };
+                let Some(controller) = app.try_state::<AutoFillFloatingController>() else {
+                    hide_panel();
+                    return;
+                };
+                let Some(target) = controller.consume_visible_target(&context) else {
+                    hide_panel();
+                    return;
+                };
                 hide_panel();
-                let _ = window::show_autofill_picker_window(
+                let still_exact_frontmost = frontmost::target_is_running(&target)
+                    && frontmost::current_frontmost_app()
+                        .ok()
+                        .flatten()
+                        .is_some_and(|current| current == target);
+                if !still_exact_frontmost {
+                    return;
+                }
+                let _ = window::show_autofill_picker_window_for_target(
                     app,
                     window::PopupEntrySource::AutoFillFloating,
+                    target,
                 );
             }
         }
@@ -660,6 +947,14 @@ mod macos {
             let _ = target.ivars().app.set(app);
             target
         }
+
+        fn set_context(&self, context: FloatingClickContext) {
+            *self
+                .ivars()
+                .context
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(context);
+        }
     }
 
     static PANEL: OnceLock<usize> = OnceLock::new();
@@ -682,16 +977,21 @@ mod macos {
         app: tauri::AppHandle,
         controller: AutoFillFloatingController,
     ) {
-        let dirty = Arc::new(AtomicBool::new(true));
-        let dirty_for_workspace = Arc::clone(&dirty);
-        let _ = app.run_on_main_thread(move || install_workspace_observers(dirty_for_workspace));
+        let app_for_hide = app.clone();
+        let signal = Arc::new(ObserverInvalidationSignal::new(
+            controller.clone(),
+            move || schedule_panel_hide(&app_for_hide),
+        ));
+        signal.mark_dirty();
+        let signal_for_workspace = Arc::clone(&signal);
+        let _ = app.run_on_main_thread(move || install_workspace_observers(signal_for_workspace));
         thread::Builder::new()
             .name("barwarden-ax-focus".to_owned())
-            .spawn(move || observe_loop(app, controller, dirty))
+            .spawn(move || observe_loop(app, controller, signal))
             .expect("failed to start Accessibility observer");
     }
 
-    fn install_workspace_observers(dirty: Arc<AtomicBool>) {
+    fn install_workspace_observers(signal: Arc<ObserverInvalidationSignal>) {
         WORKSPACE_TOKENS.get_or_init(|| {
             debug_assert_eq!(
                 workspace_notification_plan(),
@@ -701,12 +1001,12 @@ mod macos {
                 ]
             );
             let center = NSWorkspace::sharedWorkspace().notificationCenter();
-            let activated_dirty = Arc::clone(&dirty);
+            let activated_signal = Arc::clone(&signal);
             let activated = RcBlock::new(move |_notification: NonNull<NSNotification>| {
-                activated_dirty.store(true, Ordering::Release);
+                activated_signal.invalidate();
             });
             let terminated = RcBlock::new(move |_notification: NonNull<NSNotification>| {
-                dirty.store(true, Ordering::Release);
+                signal.invalidate();
             });
             let activated_token = unsafe {
                 center.addObserverForName_object_queue_usingBlock(
@@ -734,20 +1034,37 @@ mod macos {
     fn observe_loop(
         app: tauri::AppHandle,
         controller: AutoFillFloatingController,
-        dirty: Arc<AtomicBool>,
+        signal: Arc<ObserverInvalidationSignal>,
     ) {
         let mut last_app: Option<(String, i32)> = None;
         let mut registration: Option<AxObserverRegistration> = None;
         let mut throttle = ObservationThrottle::new(50);
         let started = Instant::now();
         let mut last_lifecycle_check = Instant::now() - Duration::from_secs(1);
+        let mut observing = false;
         loop {
             if controller.fallback() != AccessibilityFallback::Unsupported {
+                observing = false;
                 last_app = None;
                 registration = None;
                 CFRunLoop::run_in_mode(
                     unsafe { kCFRunLoopDefaultMode },
                     Duration::from_millis(100),
+                    true,
+                );
+                continue;
+            }
+            if !observing {
+                observing = true;
+                signal.mark_dirty();
+            }
+            let lifecycle_due = last_lifecycle_check.elapsed() >= Duration::from_millis(250);
+            let notified = signal.take_dirty();
+            let work = observer_work(notified, lifecycle_due);
+            if work == ObserverWork::Idle {
+                CFRunLoop::run_in_mode(
+                    unsafe { kCFRunLoopDefaultMode },
+                    Duration::from_millis(50),
                     true,
                 );
                 continue;
@@ -757,29 +1074,23 @@ mod macos {
                 schedule_panel_hide(&app);
                 last_app = None;
                 registration = None;
-                CFRunLoop::run_in_mode(
-                    unsafe { kCFRunLoopDefaultMode },
-                    Duration::from_millis(100),
-                    true,
-                );
+                last_lifecycle_check = Instant::now();
                 continue;
-            }
-            let lifecycle_due = last_lifecycle_check.elapsed() >= Duration::from_millis(250);
-            let notified = dirty.swap(false, Ordering::AcqRel);
-            if !notified && !lifecycle_due {
-                CFRunLoop::run_in_mode(
-                    unsafe { kCFRunLoopDefaultMode },
-                    Duration::from_millis(50),
-                    true,
-                );
-                continue;
-            }
-            if notified {
-                registration = None;
-                controller.begin_refresh();
-                schedule_panel_hide(&app);
             }
             last_lifecycle_check = Instant::now();
+            if work == ObserverWork::LivenessOnly {
+                let current = frontmost::current_frontmost_app().ok().flatten();
+                let same_live_app = current.as_ref().is_some_and(|target| {
+                    frontmost::target_is_running(target)
+                        && last_app.as_ref().is_some_and(|(bundle_id, pid)| {
+                            bundle_id == &target.bundle_id && *pid == target.process_id
+                        })
+                });
+                if !same_live_app {
+                    signal.invalidate();
+                }
+                continue;
+            }
             let generation = controller.generation();
             let now_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
             match throttle.schedule(generation, now_ms) {
@@ -790,7 +1101,7 @@ mod macos {
                         Duration::from_millis(deadline - now_ms),
                         true,
                     );
-                    dirty.store(true, Ordering::Release);
+                    signal.mark_dirty();
                     continue;
                 }
                 _ => {}
@@ -808,27 +1119,50 @@ mod macos {
                 continue;
             };
             let identity = (target.bundle_id.clone(), target.process_id);
-            if last_app
-                .as_ref()
-                .is_some_and(|previous| previous != &identity)
-            {
-                controller.application_changed();
-                schedule_panel_hide(&app);
-                registration = None;
-            }
             last_app = Some(identity);
+            match observer_registration_decision(
+                registration.as_ref().map(AxObserverRegistration::pid),
+                target.process_id,
+            ) {
+                ObserverRegistrationDecision::Reuse => {}
+                ObserverRegistrationDecision::Create | ObserverRegistrationDecision::Replace => {
+                    registration =
+                        AxObserverRegistration::new(target.process_id, Arc::clone(&signal));
+                }
+            }
             let generation = controller.generation();
-            match read_focused_field(&target, controller.fallback().focus_eligibility()) {
+            let Some(observer) = registration.as_mut() else {
+                controller.publish_hidden(
+                    generation,
+                    AccessibilityPermission::Granted,
+                    "observer-unavailable",
+                    Some(target.bundle_id.clone()),
+                );
+                schedule_panel_hide(&app);
+                continue;
+            };
+            if !observer.bind_focused_elements()
+                || signal.is_dirty()
+                || controller.generation() != generation
+            {
+                controller.publish_hidden(
+                    generation,
+                    AccessibilityPermission::Granted,
+                    "observer-unavailable",
+                    Some(target.bundle_id.clone()),
+                );
+                schedule_panel_hide(&app);
+                continue;
+            }
+            let result = read_focused_field(&target, controller.fallback().focus_eligibility());
+            if signal.is_dirty() || controller.generation() != generation {
+                continue;
+            }
+            match result {
                 Ok(snapshot) => {
-                    if registration.is_none() {
-                        registration =
-                            AxObserverRegistration::new(target.process_id, Arc::clone(&dirty));
-                    }
-                    schedule_panel_show(&app, &controller, generation, snapshot)
+                    schedule_panel_show(&app, &controller, generation, snapshot, target)
                 }
                 Err(reason) => {
-                    registration =
-                        AxObserverRegistration::new(target.process_id, Arc::clone(&dirty));
                     controller.publish_hidden(
                         generation,
                         AccessibilityPermission::Granted,
@@ -847,95 +1181,167 @@ mod macos {
     }
 
     struct AxObserverRegistration {
+        pid: i32,
         observer: AXObserverRef,
         application: AXUIElementRef,
         focused: Option<AXUIElementRef>,
         window: Option<AXUIElementRef>,
         run_loop: CFRunLoopRef,
-        _dirty: Arc<AtomicBool>,
+        source_installed: bool,
+        installed: Vec<(ObserverScope, ObserverNotification)>,
+        _signal: Arc<ObserverInvalidationSignal>,
     }
 
     impl AxObserverRegistration {
-        fn new(pid: i32, dirty: Arc<AtomicBool>) -> Option<Self> {
+        fn new(pid: i32, signal: Arc<ObserverInvalidationSignal>) -> Option<Self> {
             let application = unsafe { AXUIElementCreateApplication(pid) };
             if application.is_null() {
                 return None;
             }
             let mut observer = ptr::null();
-            if unsafe { AXObserverCreate(pid, ax_observer_callback, &mut observer) }
-                != AX_ERROR_SUCCESS
-                || observer.is_null()
-            {
-                unsafe { CFRelease(application.cast()) };
+            let create_status =
+                unsafe { AXObserverCreate(pid, ax_observer_callback, &mut observer) };
+            if !observer_creation_succeeded(create_status, !observer.is_null()) {
+                unsafe {
+                    if !observer.is_null() {
+                        CFRelease(observer.cast());
+                    }
+                    CFRelease(application.cast());
+                }
                 return None;
             }
-            let focused = copy_named_attribute(application, "AXFocusedUIElement")
-                .ok()
-                .map(|value| value as AXUIElementRef);
-            let window = focused.and_then(|element| {
-                copy_named_attribute(element, "AXWindow")
-                    .ok()
-                    .map(|value| value as AXUIElementRef)
-            });
-            let refcon = Arc::as_ptr(&dirty).cast_mut().cast::<c_void>();
-            for (scope, notification) in observer_notification_plan() {
+            let run_loop = CFRunLoop::get_current().as_concrete_TypeRef();
+            let mut registration = Self {
+                pid,
+                observer,
+                application,
+                focused: None,
+                window: None,
+                run_loop,
+                source_installed: false,
+                installed: Vec::new(),
+                _signal: signal,
+            };
+            if !install_notifications(&observer_notification_plan()[..1], |scope, notification| {
+                registration.add_notification(scope, notification)
+            }) {
+                return None;
+            }
+            let source = unsafe { AXObserverGetRunLoopSource(observer) };
+            if source.is_null() {
+                return None;
+            }
+            unsafe { CFRunLoopAddSource(run_loop, source, kCFRunLoopDefaultMode) };
+            registration.source_installed = true;
+            Some(registration)
+        }
+
+        fn pid(&self) -> i32 {
+            self.pid
+        }
+
+        fn add_notification(
+            &mut self,
+            scope: ObserverScope,
+            notification: ObserverNotification,
+        ) -> bool {
+            let element = match scope {
+                ObserverScope::Application => Some(self.application),
+                ObserverScope::FocusedElement => self.focused,
+                ObserverScope::Window => self.window,
+            };
+            let Some(element) = element else {
+                return false;
+            };
+            let refcon = Arc::as_ptr(&self._signal).cast_mut().cast::<c_void>();
+            let status = unsafe {
+                AXObserverAddNotification(
+                    self.observer,
+                    element,
+                    native_observer_notification(notification).as_concrete_TypeRef(),
+                    refcon,
+                )
+            };
+            if status == AX_ERROR_SUCCESS {
+                self.installed.push((scope, notification));
+                true
+            } else {
+                false
+            }
+        }
+
+        fn bind_focused_elements(&mut self) -> bool {
+            self.clear_element_bindings();
+            let Ok(focused) = copy_ui_element_attribute(self.application, "AXFocusedUIElement")
+            else {
+                return false;
+            };
+            self.focused = Some(focused);
+            let Ok(window) = copy_ui_element_attribute(focused, "AXWindow") else {
+                self.clear_element_bindings();
+                return false;
+            };
+            self.window = Some(window);
+            let installed =
+                install_notifications(&observer_notification_plan()[1..], |scope, notification| {
+                    self.add_notification(scope, notification)
+                });
+            if !installed {
+                self.clear_element_bindings();
+            }
+            installed
+        }
+
+        fn clear_element_bindings(&mut self) {
+            let mut retained = Vec::with_capacity(1);
+            for (scope, notification) in self.installed.drain(..) {
+                if scope == ObserverScope::Application {
+                    retained.push((scope, notification));
+                    continue;
+                }
                 let element = match scope {
-                    ObserverScope::Application => Some(application),
-                    ObserverScope::FocusedElement => focused,
-                    ObserverScope::Window => window,
+                    ObserverScope::FocusedElement => self.focused,
+                    ObserverScope::Window => self.window,
+                    ObserverScope::Application => None,
                 };
                 if let Some(element) = element {
                     let _ = unsafe {
-                        AXObserverAddNotification(
-                            observer,
+                        AXObserverRemoveNotification(
+                            self.observer,
                             element,
                             native_observer_notification(notification).as_concrete_TypeRef(),
-                            refcon,
                         )
                     };
                 }
             }
-            let source = unsafe { AXObserverGetRunLoopSource(observer) };
-            let run_loop = CFRunLoop::get_current().as_concrete_TypeRef();
-            unsafe { CFRunLoopAddSource(run_loop, source, kCFRunLoopDefaultMode) };
-            Some(Self {
-                observer,
-                application,
-                focused,
-                window,
-                run_loop,
-                _dirty: dirty,
-            })
+            self.installed = retained;
+            if let Some(focused) = self.focused.take() {
+                unsafe { CFRelease(focused.cast()) };
+            }
+            if let Some(window) = self.window.take() {
+                unsafe { CFRelease(window.cast()) };
+            }
         }
     }
 
     impl Drop for AxObserverRegistration {
         fn drop(&mut self) {
+            self.clear_element_bindings();
             unsafe {
-                CFRunLoopRemoveSource(
-                    self.run_loop,
-                    AXObserverGetRunLoopSource(self.observer),
-                    kCFRunLoopDefaultMode,
-                );
-                for (scope, notification) in observer_notification_plan() {
-                    let element = match scope {
-                        ObserverScope::Application => Some(self.application),
-                        ObserverScope::FocusedElement => self.focused,
-                        ObserverScope::Window => self.window,
-                    };
-                    if let Some(element) = element {
-                        let _ = AXObserverRemoveNotification(
-                            self.observer,
-                            element,
-                            native_observer_notification(notification).as_concrete_TypeRef(),
-                        );
-                    }
+                if self.source_installed {
+                    CFRunLoopRemoveSource(
+                        self.run_loop,
+                        AXObserverGetRunLoopSource(self.observer),
+                        kCFRunLoopDefaultMode,
+                    );
                 }
-                if let Some(focused) = self.focused {
-                    CFRelease(focused.cast());
-                }
-                if let Some(window) = self.window {
-                    CFRelease(window.cast());
+                for (scope, notification) in self.installed.drain(..) {
+                    debug_assert_eq!(scope, ObserverScope::Application);
+                    let _ = AXObserverRemoveNotification(
+                        self.observer,
+                        self.application,
+                        native_observer_notification(notification).as_concrete_TypeRef(),
+                    );
                 }
                 CFRelease(self.application.cast());
                 CFRelease(self.observer.cast());
@@ -960,8 +1366,8 @@ mod macos {
         _notification: CFStringRef,
         refcon: *mut c_void,
     ) {
-        if let Some(dirty) = unsafe { refcon.cast::<AtomicBool>().as_ref() } {
-            dirty.store(true, Ordering::Release);
+        if let Some(signal) = unsafe { refcon.cast::<ObserverInvalidationSignal>().as_ref() } {
+            signal.invalidate();
         }
     }
 
@@ -978,13 +1384,12 @@ mod macos {
             return Err(FocusRejectReason::StaleElement);
         }
         let result = (|| {
-            let focused =
-                copy_named_attribute(app_element, "AXFocusedUIElement")? as AXUIElementRef;
+            let focused = copy_ui_element_attribute(app_element, "AXFocusedUIElement")?;
             let role = copy_string_attribute(focused, "AXRole");
             let subrole = copy_optional_string_attribute(focused, "AXSubrole");
             let position = copy_point_attribute(focused, "AXPosition");
             let size = copy_size_attribute(focused, "AXSize");
-            let window = copy_named_attribute(focused, "AXWindow");
+            let window = copy_ui_element_attribute(focused, "AXWindow");
             let mut editable = false;
             // Privacy boundary: query whether AXValue is settable, but never copy/read AXValue.
             let value_attribute = CFString::from_static_string("AXValue");
@@ -1054,6 +1459,23 @@ mod macos {
         copy_attribute(element, attribute.as_concrete_TypeRef())
     }
 
+    fn copy_ui_element_attribute(
+        element: AXUIElementRef,
+        attribute: &'static str,
+    ) -> Result<AXUIElementRef, FocusRejectReason> {
+        let value = copy_named_attribute(element, attribute)?;
+        unsafe {
+            validate_copied_type_with(
+                value,
+                AXUIElementGetTypeID(),
+                |value| CFGetTypeID(value.cast()),
+                |value| CFRelease(value.cast()),
+            )
+            .map(|value| value.cast())
+            .ok_or(FocusRejectReason::StaleElement)
+        }
+    }
+
     fn copy_string_attribute(element: AXUIElementRef, attribute: &'static str) -> Option<String> {
         copy_optional_string_attribute(element, attribute)
     }
@@ -1063,12 +1485,30 @@ mod macos {
         attribute: &'static str,
     ) -> Option<String> {
         let value = copy_named_attribute(element, attribute).ok()?;
+        let value = unsafe {
+            validate_copied_type_with(
+                value,
+                CFString::type_id(),
+                |value| CFGetTypeID(value.cast()),
+                |value| CFRelease(value.cast()),
+            )?
+        };
         let string = unsafe { CFString::wrap_under_create_rule(value.cast()) }.to_string();
         (!string.is_empty()).then_some(string)
     }
 
     fn copy_point_attribute(element: AXUIElementRef, attribute: &'static str) -> Option<CGPoint> {
         let value = copy_named_attribute(element, attribute).ok()?;
+        let value = unsafe {
+            validate_ax_value_with(
+                value,
+                AXValueGetTypeID(),
+                AX_VALUE_CGPOINT,
+                |value| CFGetTypeID(value.cast()),
+                |value| AXValueGetType(value.cast()),
+                |value| CFRelease(value.cast()),
+            )?
+        };
         let mut point = CGPoint::new(0.0, 0.0);
         let copied = unsafe {
             AXValueGetValue(
@@ -1083,6 +1523,16 @@ mod macos {
 
     fn copy_size_attribute(element: AXUIElementRef, attribute: &'static str) -> Option<CGSize> {
         let value = copy_named_attribute(element, attribute).ok()?;
+        let value = unsafe {
+            validate_ax_value_with(
+                value,
+                AXValueGetTypeID(),
+                AX_VALUE_CGSIZE,
+                |value| CFGetTypeID(value.cast()),
+                |value| AXValueGetType(value.cast()),
+                |value| CFRelease(value.cast()),
+            )?
+        };
         let mut size = CGSize::new(0.0, 0.0);
         let copied = unsafe {
             AXValueGetValue(
@@ -1115,6 +1565,7 @@ mod macos {
         controller: &AutoFillFloatingController,
         generation: u64,
         snapshot: crate::accessibility_focus::FocusedFieldSnapshot,
+        target: frontmost::FrontmostApp,
     ) {
         let app_for_panel = app.clone();
         let controller = controller.clone();
@@ -1145,8 +1596,13 @@ mod macos {
                 hide_panel();
                 return;
             };
-            if controller.publish_visible(generation, bundle_id, panel_frame) {
-                show_panel(&app_for_panel, panel_frame, mtm);
+            if controller.publish_visible(generation, target.clone(), panel_frame) {
+                show_panel(
+                    &app_for_panel,
+                    panel_frame,
+                    FloatingClickContext { generation, target },
+                    mtm,
+                );
             }
         });
     }
@@ -1183,8 +1639,14 @@ mod macos {
         })
     }
 
-    fn show_panel(app: &tauri::AppHandle, frame: AppKitFrame, mtm: MainThreadMarker) {
+    fn show_panel(
+        app: &tauri::AppHandle,
+        frame: AppKitFrame,
+        context: FloatingClickContext,
+        mtm: MainThreadMarker,
+    ) {
         let panel = panel(app, mtm);
+        panel_target().set_context(context);
         panel.setFrame_display(
             NSRect::new(
                 NSPoint::new(frame.x, frame.y),
@@ -1203,6 +1665,7 @@ mod macos {
             };
             let image = NSImage::initWithData(NSImage::alloc(), &data)
                 .expect("floating icon asset is valid");
+            image.setTemplate(true);
             let button = unsafe {
                 NSButton::buttonWithImage_target_action(
                     &image,
@@ -1249,6 +1712,13 @@ mod macos {
             Retained::into_raw(panel) as usize
         });
         unsafe { &*(address as *const NSPanel) }
+    }
+
+    fn panel_target() -> &'static FloatingTarget {
+        let address = *TARGET
+            .get()
+            .expect("floating target initialized with panel");
+        unsafe { &*(address as *const FloatingTarget) }
     }
 
     fn hide_panel() {
@@ -1298,23 +1768,24 @@ mod macos {
             assert!(snapshot.reliable);
             assert!(snapshot.secure);
 
-            let dirty = Arc::new(AtomicBool::new(false));
-            let _registration = AxObserverRegistration::new(target.process_id, Arc::clone(&dirty))
+            let controller = AutoFillFloatingController::default();
+            controller.set_fallback(AccessibilityFallback::Unsupported);
+            let signal = Arc::new(ObserverInvalidationSignal::new(controller, || {}));
+            let _registration = AxObserverRegistration::new(target.process_id, Arc::clone(&signal))
                 .expect("AX observer registration");
+            let mut observed = false;
             for _ in 0..30 {
                 CFRunLoop::run_in_mode(
                     unsafe { kCFRunLoopDefaultMode },
                     Duration::from_millis(100),
                     true,
                 );
-                if dirty.load(Ordering::Acquire) {
+                if signal.take_dirty() {
+                    observed = true;
                     break;
                 }
             }
-            assert!(
-                dirty.load(Ordering::Acquire),
-                "move/resize/termination notification"
-            );
+            assert!(observed, "move/resize/termination notification");
         }
     }
 }
@@ -1515,6 +1986,84 @@ mod tests {
     }
 
     #[test]
+    fn observer_callback_synchronously_invalidates_visible_snapshot_before_scheduling_hide() {
+        let controller = AutoFillFloatingController::default();
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.example.editor", 41, 7);
+        let generation = controller.begin_refresh();
+        assert!(controller.publish_visible(
+            generation,
+            target,
+            AppKitFrame {
+                x: 5.0,
+                y: 6.0,
+                width: PANEL_SIZE,
+                height: PANEL_SIZE,
+            },
+        ));
+        let hides = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let hides_for_signal = Arc::clone(&hides);
+        let signal = ObserverInvalidationSignal::new(controller.clone(), move || {
+            hides_for_signal.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        });
+
+        signal.invalidate();
+
+        assert!(controller.generation() > generation);
+        assert_eq!(
+            controller.status().observation,
+            AccessibilityObservation::Hidden
+        );
+        assert!(!controller.has_visible_target_for_test());
+        assert_eq!(hides.load(std::sync::atomic::Ordering::Acquire), 1);
+        assert!(signal.take_dirty());
+    }
+
+    #[test]
+    fn panel_click_atomically_consumes_only_the_exact_visible_generation_and_app_instance() {
+        let controller = AutoFillFloatingController::default();
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.example.editor", 41, 7);
+        let generation = controller.begin_refresh();
+        assert!(controller.publish_visible(
+            generation,
+            target.clone(),
+            AppKitFrame {
+                x: 5.0,
+                y: 6.0,
+                width: PANEL_SIZE,
+                height: PANEL_SIZE,
+            },
+        ));
+        let context = FloatingClickContext {
+            generation,
+            target: target.clone(),
+        };
+
+        assert_eq!(controller.consume_visible_target(&context), Some(target));
+        assert_eq!(controller.consume_visible_target(&context), None);
+        assert_eq!(
+            controller.status().observation,
+            AccessibilityObservation::Hidden
+        );
+
+        let replacement = crate::frontmost::test_frontmost_app("com.example.editor", 41, 8);
+        let next_generation = controller.begin_refresh();
+        assert!(controller.publish_visible(
+            next_generation,
+            replacement,
+            AppKitFrame {
+                x: 5.0,
+                y: 6.0,
+                width: PANEL_SIZE,
+                height: PANEL_SIZE,
+            },
+        ));
+        assert_eq!(controller.consume_visible_target(&context), None);
+        assert!(controller.has_visible_target_for_test());
+    }
+
+    #[test]
     fn throttle_coalesces_bursts_without_accepting_an_old_generation() {
         let mut throttle = ObservationThrottle::new(50);
         let generation = 7;
@@ -1585,6 +2134,73 @@ mod tests {
     }
 
     #[test]
+    fn explicit_permission_prompt_is_process_lifetime_one_shot_and_skips_prompt_when_trusted() {
+        let controller = AutoFillFloatingController::default();
+        let denied = RecordingPermission::default();
+        assert!(!request_accessibility_permission_once_with(
+            &controller,
+            &denied
+        ));
+        assert!(!request_accessibility_permission_once_with(
+            &controller,
+            &denied
+        ));
+        assert_eq!(denied.prompts(), 1);
+        assert_eq!(
+            controller.status(),
+            AccessibilityStatus {
+                permission: AccessibilityPermission::Denied,
+                observation: AccessibilityObservation::Hidden,
+                diagnostic: Some(AccessibilityDiagnostic {
+                    reason: "permission-denied",
+                    bundle_id: None,
+                }),
+            }
+        );
+
+        let trusted = TrustedRecordingPermission::default();
+        let trusted_controller = AutoFillFloatingController::default();
+        assert!(request_accessibility_permission_once_with(
+            &trusted_controller,
+            &trusted
+        ));
+        assert_eq!(trusted.prompts(), 0);
+    }
+
+    #[test]
+    fn concurrent_explicit_permission_requests_never_prompt_twice() {
+        let controller = AutoFillFloatingController::default();
+        let permission = Arc::new(BlockingPermission::default());
+        let first_controller = controller.clone();
+        let first_permission = Arc::clone(&permission);
+        let first = std::thread::spawn(move || {
+            request_accessibility_permission_once_with(&first_controller, first_permission.as_ref())
+        });
+        permission.wait_until_prompting();
+
+        let second_controller = controller.clone();
+        let second_permission = Arc::clone(&permission);
+        let second = std::thread::spawn(move || {
+            request_accessibility_permission_once_with(
+                &second_controller,
+                second_permission.as_ref(),
+            )
+        });
+        assert!(!second.join().expect("second request"));
+        assert_eq!(permission.prompts(), 1);
+        assert_eq!(
+            controller.status().diagnostic,
+            Some(AccessibilityDiagnostic {
+                reason: "permission-denied",
+                bundle_id: None,
+            })
+        );
+        permission.release_prompt();
+        assert!(!first.join().expect("first request"));
+        assert_eq!(permission.prompts(), 1);
+    }
+
+    #[test]
     fn read_only_permission_probe_updates_granted_status_without_starting_observation() {
         let controller = AutoFillFloatingController::default();
         controller.permission_observed(true);
@@ -1596,6 +2212,75 @@ mod tests {
                 diagnostic: None,
             }
         );
+    }
+
+    #[test]
+    fn runtime_diagnostics_redact_invalid_bundle_ids() {
+        for invalid in [
+            "com.example\nsecret",
+            "com.example\u{0}secret",
+            "com.example.编辑器",
+            "com..example",
+            ".com.example",
+            "com.example-",
+            &"a".repeat(256),
+        ] {
+            let controller = AutoFillFloatingController::default();
+            controller.set_fallback(AccessibilityFallback::Unsupported);
+            let generation = controller.begin_refresh();
+            controller.publish_hidden(
+                generation,
+                AccessibilityPermission::Granted,
+                "offscreen",
+                Some(invalid.to_owned()),
+            );
+            assert_eq!(
+                controller.status().diagnostic.unwrap().bundle_id,
+                None,
+                "invalid diagnostic bundle id: {invalid:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn copied_ax_values_reject_wrong_cf_or_ax_types_and_release_exactly_once() {
+        use std::ffi::c_void;
+
+        let value = 1usize as *const c_void;
+        let releases = std::cell::Cell::new(0);
+        assert_eq!(
+            validate_copied_type_with(value, 7, |_| 9, |_| releases.set(releases.get() + 1),),
+            None,
+        );
+        assert_eq!(releases.get(), 1);
+
+        let releases = std::cell::Cell::new(0);
+        assert_eq!(
+            validate_ax_value_with(
+                value,
+                7,
+                2,
+                |_| 7,
+                |_| 1,
+                |_| releases.set(releases.get() + 1),
+            ),
+            None,
+        );
+        assert_eq!(releases.get(), 1);
+
+        let releases = std::cell::Cell::new(0);
+        assert_eq!(
+            validate_ax_value_with(
+                value,
+                7,
+                2,
+                |_| 7,
+                |_| 2,
+                |_| releases.set(releases.get() + 1),
+            ),
+            Some(value),
+        );
+        assert_eq!(releases.get(), 0);
     }
 
     #[test]
@@ -1627,6 +2312,65 @@ mod tests {
         );
     }
 
+    #[test]
+    fn observer_creation_and_every_required_notification_fail_closed_under_fault_injection() {
+        assert!(!observer_creation_succeeded(1, true));
+        assert!(!observer_creation_succeeded(0, false));
+        assert!(observer_creation_succeeded(0, true));
+
+        for failed_index in 0..observer_notification_plan().len() {
+            let mut calls = 0;
+            assert!(!install_required_notifications(|scope, notification| {
+                assert_eq!((scope, notification), observer_notification_plan()[calls]);
+                let succeeds = calls != failed_index;
+                calls += 1;
+                succeeds
+            }));
+            assert_eq!(calls, failed_index + 1);
+        }
+        let mut calls = 0;
+        assert!(install_required_notifications(|scope, notification| {
+            assert_eq!((scope, notification), observer_notification_plan()[calls]);
+            calls += 1;
+            true
+        }));
+        assert_eq!(calls, observer_notification_plan().len());
+    }
+
+    #[test]
+    fn same_application_reuses_observer_across_rejected_focus_and_periodic_liveness_checks() {
+        assert_eq!(
+            observer_registration_decision(Some(41), 41),
+            ObserverRegistrationDecision::Reuse
+        );
+        assert_eq!(
+            observer_registration_decision(None, 41),
+            ObserverRegistrationDecision::Create
+        );
+        assert_eq!(
+            observer_registration_decision(Some(41), 42),
+            ObserverRegistrationDecision::Replace
+        );
+        let mut observer_builds = 1;
+        let mut ax_refreshes = 0;
+        for _ in 0..100 {
+            if observer_registration_decision(Some(41), 41) != ObserverRegistrationDecision::Reuse {
+                observer_builds += 1;
+            }
+            if observer_work(false, true) == ObserverWork::Refresh {
+                ax_refreshes += 1;
+            }
+        }
+        assert_eq!(observer_builds, 1);
+        assert_eq!(ax_refreshes, 0);
+    }
+
+    #[test]
+    fn native_panel_uses_a_template_image_for_current_system_appearance() {
+        let source = include_str!("autofill_floating.rs");
+        assert_eq!(source.matches("image.setTemplate(true);").count(), 2);
+    }
+
     #[derive(Default)]
     struct RecordingPermission(std::sync::atomic::AtomicUsize);
 
@@ -1642,6 +2386,69 @@ mod tests {
         }
         fn prompt(&self) -> bool {
             self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+            false
+        }
+    }
+
+    #[derive(Default)]
+    struct TrustedRecordingPermission(std::sync::atomic::AtomicUsize);
+
+    impl TrustedRecordingPermission {
+        fn prompts(&self) -> usize {
+            self.0.load(std::sync::atomic::Ordering::Acquire)
+        }
+    }
+
+    impl AccessibilityPermissionPort for TrustedRecordingPermission {
+        fn trusted(&self) -> bool {
+            true
+        }
+
+        fn prompt(&self) -> bool {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+            true
+        }
+    }
+
+    #[derive(Default)]
+    struct BlockingPermission {
+        prompts: std::sync::atomic::AtomicUsize,
+        entered: (std::sync::Mutex<bool>, std::sync::Condvar),
+        release: (std::sync::Mutex<bool>, std::sync::Condvar),
+    }
+
+    impl BlockingPermission {
+        fn prompts(&self) -> usize {
+            self.prompts.load(std::sync::atomic::Ordering::Acquire)
+        }
+
+        fn wait_until_prompting(&self) {
+            let (lock, ready) = &self.entered;
+            let entered = lock.lock().unwrap();
+            drop(ready.wait_while(entered, |entered| !*entered).unwrap());
+        }
+
+        fn release_prompt(&self) {
+            let (lock, released) = &self.release;
+            *lock.lock().unwrap() = true;
+            released.notify_all();
+        }
+    }
+
+    impl AccessibilityPermissionPort for BlockingPermission {
+        fn trusted(&self) -> bool {
+            false
+        }
+
+        fn prompt(&self) -> bool {
+            self.prompts
+                .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+            let (entered_lock, entered_ready) = &self.entered;
+            *entered_lock.lock().unwrap() = true;
+            entered_ready.notify_all();
+            let (release_lock, released) = &self.release;
+            let release = release_lock.lock().unwrap();
+            drop(released.wait_while(release, |released| !*released).unwrap());
             false
         }
     }

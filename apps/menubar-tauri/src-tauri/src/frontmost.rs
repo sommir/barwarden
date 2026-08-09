@@ -104,6 +104,10 @@ pub(crate) fn last_target_app() -> Option<FrontmostApp> {
     target_app_store().current()
 }
 
+pub(crate) fn replace_target_app(target: FrontmostApp) {
+    target_app_store().replace(Some(target));
+}
+
 #[tauri::command]
 pub fn autofill_entry_context() -> AutoFillEntryContextOutcome {
     autofill_context_with(last_target_app(), Instant::now(), target_is_running)

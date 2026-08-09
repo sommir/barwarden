@@ -313,13 +313,30 @@ pub fn show_autofill_picker_window(
     show_popup_window_for_entry(app, None, source)
 }
 
+pub fn show_autofill_picker_window_for_target(
+    app: &tauri::AppHandle,
+    source: PopupEntrySource,
+    target: crate::frontmost::FrontmostApp,
+) -> Result<(), String> {
+    debug_assert!(source != PopupEntrySource::Vault);
+    frontmost::replace_target_app(target);
+    show_popup_window_after_target_capture(app, None, source)
+}
+
 fn show_popup_window_for_entry(
     app: &tauri::AppHandle,
     event_tray_rect: Option<Rect>,
     entry_source: PopupEntrySource,
 ) -> Result<(), String> {
     frontmost::capture_current_target_app();
+    show_popup_window_after_target_capture(app, event_tray_rect, entry_source)
+}
 
+fn show_popup_window_after_target_capture(
+    app: &tauri::AppHandle,
+    event_tray_rect: Option<Rect>,
+    entry_source: PopupEntrySource,
+) -> Result<(), String> {
     let context = resolve_popup_geometry(app, event_tray_rect)?;
     let current_popup_size = context
         .window

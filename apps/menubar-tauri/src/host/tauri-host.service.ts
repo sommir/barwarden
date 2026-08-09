@@ -61,6 +61,7 @@ const ACCESSIBILITY_DIAGNOSTIC_REASONS = new Set([
   "application-terminated",
   "application-unavailable",
   "application-changed",
+  "observer-unavailable",
   "stale-element",
   "stale-window",
   "stale-observation",
@@ -97,7 +98,8 @@ function decodeAccessibilityStatus(value: unknown): AccessibilityStatus {
       || typeof diagnostic.reason !== "string"
       || !ACCESSIBILITY_DIAGNOSTIC_REASONS.has(diagnostic.reason)
       || (diagnostic.bundleId !== undefined
-        && (typeof diagnostic.bundleId !== "string" || !diagnostic.bundleId))) {
+        && (typeof diagnostic.bundleId !== "string"
+          || !validAccessibilityBundleId(diagnostic.bundleId)))) {
     throw new Error("invalid accessibility status");
   }
   return {
@@ -107,6 +109,17 @@ function decodeAccessibilityStatus(value: unknown): AccessibilityStatus {
       ...(diagnostic.bundleId === undefined ? {} : { bundleId: diagnostic.bundleId as string }),
     },
   };
+}
+
+function validAccessibilityBundleId(value: string): boolean {
+  return value.length > 0
+    && value.length <= 255
+    && /^[\x00-\x7F]+$/.test(value)
+    && value.split(".").length >= 2
+    && value.split(".").every((segment) => (
+      segment.length > 0
+      && /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(segment)
+    ));
 }
 interface AutoFillCandidateQueryContract {
   readonly accountId: string;

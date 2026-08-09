@@ -3,7 +3,7 @@
 - Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
-- Status: Task 8 implementation complete; review pending
+- Status: Task 8 review hardening complete; review-fix commit pending
 - Baseline contract tests: 7 passed, 1 browser-release skip.
 - Baseline full regression: 3462 passed, 22 skipped (from prior Task 1 gate; only design/plan docs changed afterward).
 
@@ -104,10 +104,11 @@
 
 ## Task 8
 
-- Implementation pending commit: conservative macOS 13 Accessibility floating action behind the explicit `unsupported` system-AutoFill fallback gate. Default/system-available state stops AX observation and hides the panel; menu and shortcut entry remain independent of Accessibility.
+- Implementation: `3d909e79 feat: add native autofill floating action`; review hardening is the current change set. The conservative macOS 13 Accessibility action remains behind the explicit `unsupported` system-AutoFill fallback gate. Default/system-available state stops AX observation and hides the panel; menu and shortcut entry remain independent of Accessibility.
 - The native reader permits only role, subrole, settable/editability, position, size, window validity, and exact application identity. It never copies AX value, selected text, placeholder, title, description, identifier, or any other field content. Diagnostics contain a fixed reason and optional bounded bundle ID only.
 - A worker-thread AX observer owns its CFRunLoop registration and removes every focus/move/resize/destroy notification before releasing element/observer references. Workspace activation/termination, permission loss, application identity changes, invalid elements/windows, stale snapshots, and unreliable geometry invalidate a generation and hide immediately; 50 ms throttling coalesces event bursts.
 - The main-thread borderless nonactivating `NSPanel` uses the Barwarden template icon, never requests key/main status, and opens Task 7's same `autofill-floating` picker entry without releasing or filling a secret. AX top-left coordinates convert to AppKit coordinates; placement prefers the trailing exterior, falls back to the leading exterior, clamps vertically to visible work area, and otherwise hides.
 - Final automated verification: Rust 239 passed/7 ignored; TypeScript 3,510 passed/22 skipped; Swift/Xcode 130 passed; native project/build-wrapper 17 passed plus identity contracts 19 passed; production web build passed; `cargo fmt --check` and `git diff --check` passed.
 - Live read-only permission smoke: a fresh standalone helper returned denied without calling the prompt API; the already-authorized Rust test process passed the granted permission probe without prompting. Actual external fixture observer/panel smoke is blocked in this execution environment because the GUI session always reports `com.apple.loginwindow` as frontmost and never activates the local AppKit fixture. No observer snapshot or live panel-show success is claimed.
+- Review hardening closes synchronous generation invalidation/exact visible-target consumption, observer registration fault handling and lost-event revalidation, process-lifetime one-shot/inflight prompting, strict diagnostic bundle validation, pre-cast CF/AX type checks, same-app observer reuse, and explicit template-image appearance. Review verification: Rust 248 passed/7 ignored; TypeScript 3,512 passed/22 skipped; Swift/Xcode 130 passed; native project/IPC contracts 17 passed; identity contracts 19 passed; production web build passed. The granted read-only smoke passed again without prompting; denied evidence and the bounded live fixture blocker remain unchanged and accurately reported.
 - Production Tauri configuration, native entitlements, browser behavior, and Task 9 packaging/signing scope remain unchanged.

@@ -66,4 +66,23 @@ describe("AutoFillAccessibilityService", () => {
       diagnostic: { reason: "permission-denied", bundleId: "com.example.editor" },
     });
   });
+
+  it("rejects malformed, non-ASCII, control-containing, and oversized bundle IDs", () => {
+    for (const bundleId of [
+      "com.example\nsecret",
+      "com.example\0secret",
+      "com.example.\uD800",
+      "com.example.编辑器",
+      "com..example",
+      ".com.example",
+      "com.example-",
+      "a".repeat(256),
+    ]) {
+      expect(() => decodeAccessibilityStatus({
+        permission: "granted",
+        observation: "hidden",
+        diagnostic: { reason: "offscreen", bundleId },
+      })).toThrow("invalid accessibility status");
+    }
+  });
 });

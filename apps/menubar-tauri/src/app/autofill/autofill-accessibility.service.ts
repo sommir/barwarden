@@ -13,6 +13,7 @@ const DIAGNOSTIC_REASONS = new Set([
   "application-terminated",
   "application-unavailable",
   "application-changed",
+  "observer-unavailable",
   "stale-element",
   "stale-window",
   "stale-observation",
@@ -91,7 +92,7 @@ export function decodeAccessibilityStatus(value: unknown): AccessibilityStatus {
       throw new Error("invalid accessibility status");
     }
     if (diagnostic.bundleId !== undefined
-        && (typeof diagnostic.bundleId !== "string" || !diagnostic.bundleId)) {
+        && (typeof diagnostic.bundleId !== "string" || !validBundleId(diagnostic.bundleId))) {
       throw new Error("invalid accessibility status");
     }
     return {
@@ -103,6 +104,17 @@ export function decodeAccessibilityStatus(value: unknown): AccessibilityStatus {
     };
   }
   return status;
+}
+
+function validBundleId(value: string): boolean {
+  return value.length > 0
+    && value.length <= 255
+    && /^[\x00-\x7F]+$/.test(value)
+    && value.split(".").length >= 2
+    && value.split(".").every((segment) => (
+      segment.length > 0
+      && /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(segment)
+    ));
 }
 
 function exactRecord(value: unknown, allowed: readonly string[]): Record<string, unknown> {

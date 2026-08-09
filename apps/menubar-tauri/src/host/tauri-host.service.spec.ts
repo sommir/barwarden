@@ -48,6 +48,28 @@ describe("TauriHostService", () => {
     });
     expect(invoke).toHaveBeenNthCalledWith(3, "autofill_request_accessibility_permission");
   });
+
+  it("rejects malicious native Accessibility diagnostic bundle identifiers", async () => {
+    for (const bundleId of [
+      "com.example\nsecret",
+      "com.example\0secret",
+      "com.example.\uD800",
+      "com.example.编辑器",
+      "com..example",
+      ".com.example",
+      "com.example-",
+      "a".repeat(256),
+    ]) {
+      const invoke = vi.fn<TauriInvoke>(async () => ({
+        permission: "granted",
+        observation: "hidden",
+        diagnostic: { reason: "offscreen", bundleId },
+      }) as never);
+      const host = new TauriHostService(invoke);
+
+      await expect(host.status()).rejects.toThrow("invalid accessibility status");
+    }
+  });
   it("reads and confirms the native launch-at-login state", async () => {
     let enabled = false;
     const autostart: NativeAutostartApi = {
