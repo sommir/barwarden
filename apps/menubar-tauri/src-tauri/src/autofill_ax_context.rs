@@ -993,7 +993,26 @@ impl<P: SecureClipboardPort> Drop for ClipboardRestorationGuard<'_, P> {
 }
 
 static CLIPBOARD_TRANSACTION_LOCK: Mutex<()> = Mutex::new(());
-const PASTE_EVENT_COMPLETION_DEADLINE: Duration = Duration::from_millis(250);
+const PASTE_EVENT_ENQUEUE_DEADLINE: Duration = Duration::from_millis(250);
+const PASTE_POST_ENQUEUE_GRACE: Duration = Duration::from_millis(250);
+
+trait PasteClockWaitPort {
+    fn now(&mut self) -> Instant;
+    fn wait_for(&mut self, duration: Duration) -> Result<(), ()>;
+}
+
+struct SystemPasteClockWait;
+
+impl PasteClockWaitPort for SystemPasteClockWait {
+    fn now(&mut self) -> Instant {
+        Instant::now()
+    }
+
+    fn wait_for(&mut self, duration: Duration) -> Result<(), ()> {
+        std::thread::sleep(duration);
+        Ok(())
+    }
+}
 
 fn exact_paste_event_with(
     deadline: Instant,
@@ -1020,16 +1039,37 @@ fn guarded_paste_transaction<P: SecureClipboardPort>(
     value: &str,
     focus_revalidate_and_post: impl FnMut(Instant) -> Result<(), ()>,
 ) -> Result<(), ()> {
-    guarded_paste_transaction_with_clock(clipboard, value, focus_revalidate_and_post, Instant::now)
+    guarded_paste_transaction_with_wait(
+        clipboard,
+        value,
+        focus_revalidate_and_post,
+        &mut SystemPasteClockWait,
+    )
 }
 
-fn guarded_paste_transaction_with_clock<P: SecureClipboardPort>(
+fn guarded_paste_transaction_with_wait<P: SecureClipboardPort, W: PasteClockWaitPort>(
+    clipboard: &mut P,
+    value: &str,
+    focus_revalidate_and_post: impl FnMut(Instant) -> Result<(), ()>,
+    clock_wait: &mut W,
+) -> Result<(), ()> {
+    guarded_paste_transaction_with_wait_and_lock(
+        clipboard,
+        value,
+        focus_revalidate_and_post,
+        clock_wait,
+        &CLIPBOARD_TRANSACTION_LOCK,
+    )
+}
+
+fn guarded_paste_transaction_with_wait_and_lock<P: SecureClipboardPort, W: PasteClockWaitPort>(
     clipboard: &mut P,
     value: &str,
     mut focus_revalidate_and_post: impl FnMut(Instant) -> Result<(), ()>,
-    mut now: impl FnMut() -> Instant,
+    clock_wait: &mut W,
+    transaction_lock: &Mutex<()>,
 ) -> Result<(), ()> {
-    let _serialized = CLIPBOARD_TRANSACTION_LOCK
+    let _serialized = transaction_lock
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let snapshot = clipboard.snapshot_all()?;
@@ -1046,8 +1086,28 @@ fn guarded_paste_transaction_with_clock<P: SecureClipboardPort>(
             return Err(());
         }
     };
-    let deadline = now() + PASTE_EVENT_COMPLETION_DEADLINE;
-    if focus_revalidate_and_post(deadline).is_err() || now() > deadline {
+    let event_started = clock_wait.now();
+    let deadline = event_started
+        .checked_add(PASTE_EVENT_ENQUEUE_DEADLINE)
+        .ok_or(())?;
+    if focus_revalidate_and_post(deadline).is_err() {
+        return Err(());
+    }
+    let enqueued_at = clock_wait.now();
+    if enqueued_at.checked_duration_since(event_started).is_none() || enqueued_at > deadline {
+        return Err(());
+    }
+    // CGEventPostToPid has no target-consumption acknowledgement. Keep the concealed transient
+    // pasteboard value owned for this bounded grace after enqueue, then restore through the guard.
+    if clock_wait.wait_for(PASTE_POST_ENQUEUE_GRACE).is_err() {
+        return Err(());
+    }
+    let grace_completed_at = clock_wait.now();
+    if grace_completed_at
+        .checked_duration_since(enqueued_at)
+        .filter(|elapsed| *elapsed >= PASTE_POST_ENQUEUE_GRACE)
+        .is_none()
+    {
         return Err(());
     }
     guard.cleanup()
@@ -2271,6 +2331,27 @@ mod tests {
         }
     }
 
+    struct ScriptedPasteClockWait {
+        now_values: std::collections::VecDeque<Instant>,
+        wait_result: Result<(), ()>,
+        during_wait: Option<Box<dyn FnMut(Duration)>>,
+    }
+
+    impl PasteClockWaitPort for ScriptedPasteClockWait {
+        fn now(&mut self) -> Instant {
+            self.now_values
+                .pop_front()
+                .expect("test must provide every observed time")
+        }
+
+        fn wait_for(&mut self, duration: Duration) -> Result<(), ()> {
+            if let Some(during_wait) = &mut self.during_wait {
+                during_wait(duration);
+            }
+            self.wait_result
+        }
+    }
+
     #[derive(Clone, Debug, Eq, Hash, PartialEq)]
     struct Element(u16);
 
@@ -3335,27 +3416,192 @@ mod tests {
             external_on_untouched_failure: false,
         };
         let started = Instant::now();
-        let calls = Cell::new(0);
+        let mut clock_wait = ScriptedPasteClockWait {
+            now_values: [
+                started,
+                started + PASTE_EVENT_ENQUEUE_DEADLINE + Duration::from_millis(1),
+            ]
+            .into(),
+            wait_result: Ok(()),
+            during_wait: Some(Box::new(|_| {
+                panic!("an event that missed its enqueue deadline must not dwell")
+            })),
+        };
 
         assert_eq!(
-            guarded_paste_transaction_with_clock(
+            guarded_paste_transaction_with_wait(
                 &mut clipboard,
                 "owned-secret",
                 |_| Ok(()),
-                || {
-                    let call = calls.get();
-                    calls.set(call + 1);
-                    started
-                        + if call == 0 {
-                            Duration::ZERO
-                        } else {
-                            PASTE_EVENT_COMPLETION_DEADLINE + Duration::from_millis(1)
-                        }
-                },
+                &mut clock_wait,
             ),
             Err(())
         );
         assert_eq!(state.lock().unwrap().items, original);
+    }
+
+    #[test]
+    fn guarded_paste_keeps_secret_for_full_post_enqueue_grace_then_restores() {
+        let original = vec![vec![("public.png".to_owned(), vec![4, 5, 6])]];
+        let state = Arc::new(Mutex::new(FakeClipboardState {
+            items: original.clone(),
+            generation: 31,
+            clears: 0,
+        }));
+        let mut clipboard = FakeSecureClipboard {
+            state: Arc::clone(&state),
+            fail_restore: false,
+            fail_write: None,
+            external_on_untouched_failure: false,
+        };
+        let started = Instant::now();
+        let saw_secret_through_full_grace = Arc::new(Mutex::new(false));
+        let observed = Arc::clone(&saw_secret_through_full_grace);
+        let waiting_state = Arc::clone(&state);
+        let mut clock_wait = ScriptedPasteClockWait {
+            now_values: [started, started, started + Duration::from_millis(250)].into(),
+            wait_result: Ok(()),
+            during_wait: Some(Box::new(move |duration| {
+                let state = waiting_state.lock().unwrap();
+                let secret_is_still_owned = state.items.len() == 1
+                    && state.items[0].iter().any(|(flavor, data)| {
+                        flavor == "public.utf8-plain-text" && data.as_slice() == b"owned-secret"
+                    });
+                *observed.lock().unwrap() =
+                    duration == Duration::from_millis(250) && secret_is_still_owned;
+            })),
+        };
+
+        assert_eq!(
+            guarded_paste_transaction_with_wait(
+                &mut clipboard,
+                "owned-secret",
+                |_| Ok(()),
+                &mut clock_wait,
+            ),
+            Ok(())
+        );
+        assert!(*saw_secret_through_full_grace.lock().unwrap());
+        assert_eq!(state.lock().unwrap().items, original);
+    }
+
+    #[test]
+    fn guarded_paste_event_failure_skips_grace_and_cleans_immediately() {
+        let original = vec![vec![("public.png".to_owned(), vec![7, 8, 9])]];
+        let state = Arc::new(Mutex::new(FakeClipboardState {
+            items: original.clone(),
+            generation: 32,
+            clears: 0,
+        }));
+        let mut clipboard = FakeSecureClipboard {
+            state: Arc::clone(&state),
+            fail_restore: false,
+            fail_write: None,
+            external_on_untouched_failure: false,
+        };
+        let started = Instant::now();
+        let mut clock_wait = ScriptedPasteClockWait {
+            now_values: [started].into(),
+            wait_result: Ok(()),
+            during_wait: Some(Box::new(|_| panic!("event failure must not dwell"))),
+        };
+
+        assert_eq!(
+            guarded_paste_transaction_with_wait(
+                &mut clipboard,
+                "owned-secret",
+                |_| Err(()),
+                &mut clock_wait,
+            ),
+            Err(())
+        );
+        assert_eq!(state.lock().unwrap().items, original);
+    }
+
+    #[test]
+    fn guarded_paste_preserves_external_mutation_during_post_enqueue_grace() {
+        let original = vec![vec![("public.png".to_owned(), vec![1, 3, 5])]];
+        let external = vec![vec![("com.example.external".to_owned(), vec![2, 4, 6])]];
+        let state = Arc::new(Mutex::new(FakeClipboardState {
+            items: original,
+            generation: 33,
+            clears: 0,
+        }));
+        let mut clipboard = FakeSecureClipboard {
+            state: Arc::clone(&state),
+            fail_restore: false,
+            fail_write: None,
+            external_on_untouched_failure: false,
+        };
+        let started = Instant::now();
+        let waiting_state = Arc::clone(&state);
+        let external_during_wait = external.clone();
+        let mut clock_wait = ScriptedPasteClockWait {
+            now_values: [started, started, started + Duration::from_millis(250)].into(),
+            wait_result: Ok(()),
+            during_wait: Some(Box::new(move |_| {
+                let mut state = waiting_state.lock().unwrap();
+                state.generation += 1;
+                state.items = external_during_wait.clone();
+            })),
+        };
+
+        assert_eq!(
+            guarded_paste_transaction_with_wait(
+                &mut clipboard,
+                "owned-secret",
+                |_| Ok(()),
+                &mut clock_wait,
+            ),
+            Ok(())
+        );
+        assert_eq!(state.lock().unwrap().items, external);
+    }
+
+    #[test]
+    fn guarded_paste_clock_anomaly_or_interruption_fails_closed_without_lock_leak() {
+        let started = Instant::now();
+        for (wait_result, completed_at) in [
+            (Err(()), None),
+            (Ok(()), Some(started - Duration::from_millis(1))),
+            (Ok(()), Some(started + Duration::from_millis(249))),
+        ] {
+            let original = vec![vec![("public.png".to_owned(), vec![8, 6, 4])]];
+            let state = Arc::new(Mutex::new(FakeClipboardState {
+                items: original.clone(),
+                generation: 34,
+                clears: 0,
+            }));
+            let mut clipboard = FakeSecureClipboard {
+                state: Arc::clone(&state),
+                fail_restore: false,
+                fail_write: None,
+                external_on_untouched_failure: false,
+            };
+            let mut now_values = std::collections::VecDeque::from([started, started]);
+            if let Some(completed_at) = completed_at {
+                now_values.push_back(completed_at);
+            }
+            let mut clock_wait = ScriptedPasteClockWait {
+                now_values,
+                wait_result,
+                during_wait: None,
+            };
+            let transaction_lock = Mutex::new(());
+
+            assert_eq!(
+                guarded_paste_transaction_with_wait_and_lock(
+                    &mut clipboard,
+                    "owned-secret",
+                    |_| Ok(()),
+                    &mut clock_wait,
+                    &transaction_lock,
+                ),
+                Err(())
+            );
+            assert_eq!(state.lock().unwrap().items, original);
+            assert!(transaction_lock.try_lock().is_ok());
+        }
     }
 
     #[test]
