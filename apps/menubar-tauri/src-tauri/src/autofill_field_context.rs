@@ -14,6 +14,7 @@ const HIGH_SCORE: u16 = 80;
 const HIGH_MARGIN: u16 = 25;
 const MEDIUM_SCORE: u16 = 55;
 const MEDIUM_MARGIN: u16 = 15;
+const MAX_EVIDENCE_SCALARS: usize = 255;
 
 const USERNAME: usize = 0;
 const EMAIL: usize = 1;
@@ -284,28 +285,33 @@ fn safe_form_action(group: &[&DetectedField]) -> Option<DetectedAction> {
     {
         return None;
     }
+    if group
+        .iter()
+        .any(|field| field.secret_field.is_some() && field.confidence == FieldConfidence::Low)
+    {
+        return None;
+    }
     if group.iter().any(|field| !valid_frame(field.frame)) {
         return None;
     }
 
-    let usable = group
+    let secrets = group
         .iter()
-        .filter(|field| field.confidence != FieldConfidence::Low)
         .filter_map(|field| field.secret_field)
         .collect::<Vec<_>>();
-    let usernames = usable
+    let usernames = secrets
         .iter()
         .filter(|field| **field == AutoFillSecretField::Username)
         .count();
-    let passwords = usable
+    let passwords = secrets
         .iter()
         .filter(|field| **field == AutoFillSecretField::Password)
         .count();
-    let totps = usable
+    let totps = secrets
         .iter()
         .filter(|field| **field == AutoFillSecretField::Totp)
         .count();
-    if usernames != 1 || passwords != 1 || totps > 1 {
+    if usernames > 1 || passwords != 1 || totps > 1 {
         return None;
     }
     if !group.iter().any(|field| {
@@ -314,7 +320,11 @@ fn safe_form_action(group: &[&DetectedField]) -> Option<DetectedAction> {
         return None;
     }
 
-    let mut fields = vec![AutoFillSecretField::Username, AutoFillSecretField::Password];
+    let mut fields = Vec::new();
+    if usernames == 1 {
+        fields.push(AutoFillSecretField::Username);
+    }
+    fields.push(AutoFillSecretField::Password);
     if totps == 1 {
         fields.push(AutoFillSecretField::Totp);
     }
@@ -368,6 +378,9 @@ fn add_combined_text_evidence<const N: usize>(
     let mut matches = [false; KIND_COUNT];
     let mut ambiguous = [false; KIND_COUNT];
     for text in texts.into_iter().flatten() {
+        if !within_evidence_limit(text) {
+            continue;
+        }
         let normalized = normalize(text);
         let field_matches = classify_text(&normalized);
         for kind in 0..KIND_COUNT {
@@ -398,6 +411,10 @@ fn add_score_to_scored_kinds(scores: &mut [u16; KIND_COUNT], score: u16) {
 
 fn has_any_score(scores: &[u16; KIND_COUNT]) -> bool {
     scores.iter().any(|score| *score > 0)
+}
+
+fn within_evidence_limit(text: &str) -> bool {
+    text.chars().count() <= MAX_EVIDENCE_SCALARS
 }
 
 fn normalize(text: &str) -> String {
@@ -502,6 +519,7 @@ fn has_password_conflict(observation: &SemanticFieldObservation) -> bool {
     ]
     .into_iter()
     .flatten()
+    .filter(|text| within_evidence_limit(text))
     .map(normalize)
     .any(|text| {
         matches_phrase(
@@ -898,6 +916,97 @@ mod tests {
             DetectedAction::Field {
                 field: AutoFillSecretField::Username
             }
+        );
+    }
+
+    #[test]
+    fn detects_password_only_and_password_totp_forms() {
+        let password_only = vec![field("AXSecureTextField").focused().build()];
+        let password_with_totp = vec![
+            field("AXSecureTextField").focused().build(),
+            field("AXTextField").linked_title("one time code").build(),
+        ];
+
+        assert_eq!(
+            detect_action(&classify_fields(&password_only)),
+            DetectedAction::Form {
+                fields: vec![AutoFillSecretField::Password]
+            }
+        );
+        assert_eq!(
+            detect_action(&classify_fields(&password_with_totp)),
+            DetectedAction::Form {
+                fields: vec![AutoFillSecretField::Password, AutoFillSecretField::Totp]
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_low_confidence_same_container_competitors() {
+        let duplicate_password = vec![
+            field("AXTextField")
+                .placeholder("username")
+                .focused()
+                .build(),
+            field("AXSecureTextField").build(),
+            field("AXTextField")
+                .help("password")
+                .frame(500.0, 10.0, 200.0, 24.0)
+                .build(),
+        ];
+        let duplicate_username = vec![
+            field("AXTextField")
+                .placeholder("username")
+                .focused()
+                .build(),
+            field("AXSecureTextField").build(),
+            field("AXTextField")
+                .help("account")
+                .frame(500.0, 10.0, 200.0, 24.0)
+                .build(),
+        ];
+        let duplicate_totp = vec![
+            field("AXTextField")
+                .placeholder("username")
+                .focused()
+                .build(),
+            field("AXSecureTextField").build(),
+            field("AXTextField")
+                .help("one time code")
+                .frame(500.0, 10.0, 200.0, 24.0)
+                .build(),
+        ];
+
+        for input in [duplicate_password, duplicate_username, duplicate_totp] {
+            assert_eq!(
+                detect_action(&classify_fields(&input)),
+                DetectedAction::Choose
+            );
+        }
+    }
+
+    #[test]
+    fn caps_each_evidence_source_at_255_unicode_scalars_before_normalization() {
+        let at_limit = format!("{} email", "界".repeat(249));
+        let beyond_limit = format!("{} email", "界".repeat(250));
+        assert_eq!(at_limit.chars().count(), 255);
+        assert_eq!(beyond_limit.chars().count(), 256);
+
+        let detected = classify_fields(&[
+            field("AXTextField").placeholder(&at_limit).build(),
+            field("AXTextField")
+                .placeholder(&beyond_limit)
+                .container(2)
+                .build(),
+        ]);
+
+        assert_eq!(
+            (detected[0].kind, detected[0].score),
+            (DetectedFieldKind::Email, 70)
+        );
+        assert_eq!(
+            (detected[1].kind, detected[1].score),
+            (DetectedFieldKind::Unknown, 0)
         );
     }
 }
