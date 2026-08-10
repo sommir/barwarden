@@ -5,8 +5,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
-const PANEL_SIZE: f64 = 28.0;
-const PANEL_GAP: f64 = 6.0;
+const PILL_WIDTH: f64 = 34.0;
+const PILL_HEIGHT: f64 = 30.0;
+const PILL_GAP: f64 = 8.0;
+const PILL_RADIUS: f64 = 9.0;
+const PILL_SIZE: (f64, f64) = (PILL_WIDTH, PILL_HEIGHT);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ObserverScope {
@@ -131,6 +134,10 @@ pub struct PanelContract {
     pub nonactivating: bool,
     pub can_become_key: bool,
     pub can_become_main: bool,
+    pub has_material_background: bool,
+    pub has_contrast_border: bool,
+    pub has_restrained_shadow: bool,
+    pub has_non_template_blue_glyph: bool,
     pub fixed_entry_event: &'static str,
 }
 
@@ -140,8 +147,101 @@ pub const PANEL_CONTRACT: PanelContract = PanelContract {
     nonactivating: true,
     can_become_key: false,
     can_become_main: false,
+    has_material_background: true,
+    has_contrast_border: true,
+    has_restrained_shadow: true,
+    has_non_template_blue_glyph: true,
     fixed_entry_event: "autofill-floating",
 };
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct AppearancePreferences {
+    reduce_motion: bool,
+    reduce_transparency: bool,
+    increase_contrast: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct PillAppearance {
+    uses_material_background: bool,
+    uses_opaque_background: bool,
+    uses_contrast_border: bool,
+    uses_high_contrast_border: bool,
+    interpolates_position: bool,
+}
+
+fn pill_appearance(preferences: AppearancePreferences) -> PillAppearance {
+    PillAppearance {
+        uses_material_background: !preferences.reduce_transparency,
+        uses_opaque_background: preferences.reduce_transparency,
+        uses_contrast_border: true,
+        uses_high_contrast_border: preferences.increase_contrast,
+        interpolates_position: !preferences.reduce_motion,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PillBadge {
+    Person,
+    Lock,
+    Clock,
+    Form,
+    Unknown,
+}
+
+fn pill_badge(presentation: &crate::autofill_ax_context::FillContextPresentation) -> PillBadge {
+    use crate::autofill_ax_context::{PresentedActionMode, PresentedFieldKind};
+
+    if presentation.action.mode == PresentedActionMode::Form {
+        return PillBadge::Form;
+    }
+    match presentation.focused_field.kind {
+        PresentedFieldKind::Username | PresentedFieldKind::Email => PillBadge::Person,
+        PresentedFieldKind::Password => PillBadge::Lock,
+        PresentedFieldKind::OneTimeCode => PillBadge::Clock,
+        PresentedFieldKind::Unknown => PillBadge::Unknown,
+    }
+}
+
+fn visual_presentation(
+    detected: &crate::autofill_ax_context::CapturedAxContext,
+) -> crate::autofill_ax_context::FillContextPresentation {
+    use crate::autofill_ax_context::{
+        FillContextPresentation, PresentedAction, PresentedActionMode, PresentedField,
+        PresentedFieldConfidence, PresentedFieldKind,
+    };
+    use crate::autofill_field_context::DetectedAction;
+
+    let focused_field = detected.fields.iter().find(|field| field.focused).map_or(
+        PresentedField {
+            kind: PresentedFieldKind::Unknown,
+            confidence: PresentedFieldConfidence::Low,
+        },
+        |field| PresentedField {
+            kind: field.kind.into(),
+            confidence: field.confidence.into(),
+        },
+    );
+    let action = match &detected.action {
+        DetectedAction::Field { field } => PresentedAction {
+            mode: PresentedActionMode::Field,
+            fields: vec![*field],
+        },
+        DetectedAction::Form { fields } => PresentedAction {
+            mode: PresentedActionMode::Form,
+            fields: fields.clone(),
+        },
+        DetectedAction::Choose => PresentedAction {
+            mode: PresentedActionMode::Choose,
+            fields: Vec::new(),
+        },
+    };
+    FillContextPresentation {
+        fill_context_token: String::new(),
+        focused_field,
+        action,
+    }
+}
 
 pub fn ax_to_appkit(frame: AxFrame, primary_max_y: f64) -> AppKitFrame {
     AppKitFrame {
@@ -152,12 +252,12 @@ pub fn ax_to_appkit(frame: AxFrame, primary_max_y: f64) -> AppKitFrame {
     }
 }
 
-pub fn place_panel(field: AppKitFrame, work_area: AppKitFrame) -> Option<AppKitFrame> {
+fn pill_x(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<f64> {
     if ![
-        field.x,
-        field.y,
-        field.width,
-        field.height,
+        anchor.x,
+        anchor.y,
+        anchor.width,
+        anchor.height,
         work_area.x,
         work_area.y,
         work_area.width,
@@ -165,31 +265,48 @@ pub fn place_panel(field: AppKitFrame, work_area: AppKitFrame) -> Option<AppKitF
     ]
     .into_iter()
     .all(f64::is_finite)
-        || field.width <= 0.0
-        || field.height <= 0.0
-        || work_area.width < PANEL_SIZE
-        || work_area.height < PANEL_SIZE
+        || anchor.width <= 0.0
+        || anchor.height <= 0.0
+        || work_area.width < PILL_WIDTH
+        || work_area.height < PILL_HEIGHT
     {
         return None;
     }
-    let y = (field.y + (field.height - PANEL_SIZE) / 2.0)
-        .clamp(work_area.y, work_area.y + work_area.height - PANEL_SIZE);
-    let trailing = AppKitFrame {
-        x: field.x + field.width + PANEL_GAP,
-        y,
-        width: PANEL_SIZE,
-        height: PANEL_SIZE,
+    Some(
+        (anchor.x + (anchor.width - PILL_WIDTH) / 2.0)
+            .clamp(work_area.x, work_area.x + work_area.width - PILL_WIDTH),
+    )
+}
+
+fn place_above(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<AppKitFrame> {
+    let candidate = AppKitFrame {
+        x: pill_x(anchor, work_area)?,
+        y: anchor.y + anchor.height + PILL_GAP,
+        width: PILL_WIDTH,
+        height: PILL_HEIGHT,
     };
-    if work_area.contains(trailing) {
-        return Some(trailing);
-    }
-    let leading = AppKitFrame {
-        x: field.x - PANEL_GAP - PANEL_SIZE,
-        y,
-        width: PANEL_SIZE,
-        height: PANEL_SIZE,
+    work_area.contains(candidate).then_some(candidate)
+}
+
+fn place_below(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<AppKitFrame> {
+    let candidate = AppKitFrame {
+        x: pill_x(anchor, work_area)?,
+        y: anchor.y - PILL_GAP - PILL_HEIGHT,
+        width: PILL_WIDTH,
+        height: PILL_HEIGHT,
     };
-    work_area.contains(leading).then_some(leading)
+    work_area.contains(candidate).then_some(candidate)
+}
+
+pub fn place_pill(
+    caret: Option<AppKitFrame>,
+    field: AppKitFrame,
+    work_area: AppKitFrame,
+) -> Option<AppKitFrame> {
+    caret
+        .and_then(|caret| place_above(caret, work_area))
+        .or_else(|| place_above(field, work_area))
+        .or_else(|| place_below(field, work_area))
 }
 
 #[derive(Default)]
@@ -677,8 +794,8 @@ impl AutoFillFloatingController {
             AppKitFrame {
                 x: 0.0,
                 y: 0.0,
-                width: PANEL_SIZE,
-                height: PANEL_SIZE,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
             },
         );
         state.permission = AccessibilityPermission::Granted;
@@ -822,12 +939,12 @@ mod macos {
     };
     use core_foundation::string::{CFString, CFStringRef};
     use core_graphics::display::CGDisplay;
-    use objc2::rc::Retained;
-    use objc2::runtime::{AnyObject, NSObjectProtocol};
+    use objc2::rc::{Allocated, Retained};
+    use objc2::runtime::{AnyClass, AnyObject, NSObjectProtocol};
     use objc2::{define_class, msg_send, sel, AnyThread, DefinedClass, MainThreadOnly};
     use objc2_app_kit::{
         NSBackingStoreType, NSButton, NSColor, NSImage, NSImageScaling, NSPanel, NSScreen,
-        NSStatusWindowLevel, NSWindowCollectionBehavior, NSWindowStyleMask, NSWorkspace,
+        NSStatusWindowLevel, NSView, NSWindowCollectionBehavior, NSWindowStyleMask, NSWorkspace,
         NSWorkspaceDidActivateApplicationNotification,
         NSWorkspaceDidTerminateApplicationNotification,
     };
@@ -848,7 +965,12 @@ mod macos {
     type CFDictionaryRef = *const c_void;
     type AXError = i32;
     const AX_ERROR_SUCCESS: AXError = 0;
-    const PANEL_ICON: &[u8] = include_bytes!("../icons/tray-template@2x.png");
+    const PANEL_ICON: &[u8] = include_bytes!("../icons/autofill-pill@2x.png");
+    // objc2-app-kit gates NSVisualEffectView behind a feature that this target does not enable.
+    // These are the stable AppKit enum values used by the dynamic messages below.
+    const NS_VISUAL_EFFECT_MATERIAL_POPOVER: isize = 6;
+    const NS_VISUAL_EFFECT_BLEND_BEHIND_WINDOW: isize = 0;
+    const NS_VISUAL_EFFECT_STATE_ACTIVE: isize = 1;
 
     #[link(name = "ApplicationServices", kind = "framework")]
     extern "C" {
@@ -972,6 +1094,21 @@ mod macos {
         }
     );
 
+    define_class!(
+        #[unsafe(super = NSButton)]
+        #[thread_kind = MainThreadOnly]
+        struct FloatingBadge;
+
+        unsafe impl NSObjectProtocol for FloatingBadge {}
+
+        impl FloatingBadge {
+            #[unsafe(method(hitTest:))]
+            fn hit_test(&self, _point: NSPoint) -> *mut AnyObject {
+                ptr::null_mut()
+            }
+        }
+    );
+
     impl FloatingTarget {
         fn new(app: tauri::AppHandle, mtm: MainThreadMarker) -> Retained<Self> {
             let this = Self::alloc(mtm).set_ivars(FloatingTargetIvars::default());
@@ -991,6 +1128,9 @@ mod macos {
 
     static PANEL: OnceLock<usize> = OnceLock::new();
     static TARGET: OnceLock<usize> = OnceLock::new();
+    static PANEL_ROOT: OnceLock<usize> = OnceLock::new();
+    static MATERIAL_BACKGROUND: OnceLock<usize> = OnceLock::new();
+    static BADGE_BUTTON: OnceLock<usize> = OnceLock::new();
     static WORKSPACE_TOKENS: OnceLock<(usize, usize)> = OnceLock::new();
 
     pub(super) fn native_accessibility_trusted(prompt: bool) -> bool {
@@ -1466,6 +1606,10 @@ mod macos {
         let controller = controller.clone();
         let primary_max_y = CGDisplay::main().bounds().size.height;
         let field = ax_to_appkit(detected.focused.frame, primary_max_y);
+        let caret = detected
+            .caret_frame
+            .map(|frame| ax_to_appkit(frame, primary_max_y));
+        let badge = pill_badge(&visual_presentation(&detected));
         let bundle_id = detected.focused.app.bundle_id.clone();
         let _ = app.run_on_main_thread(move || {
             let Some(mtm) = MainThreadMarker::new() else {
@@ -1481,7 +1625,7 @@ mod macos {
                 hide_panel();
                 return;
             };
-            let Some(panel_frame) = place_panel(field, work_area) else {
+            let Some(panel_frame) = place_pill(caret, field, work_area) else {
                 controller.publish_hidden(
                     generation,
                     AccessibilityPermission::Granted,
@@ -1501,6 +1645,7 @@ mod macos {
                     &app_for_panel,
                     panel_frame,
                     FloatingClickContext { generation, target },
+                    badge,
                     mtm,
                 );
             }
@@ -1543,18 +1688,109 @@ mod macos {
         app: &tauri::AppHandle,
         frame: AppKitFrame,
         context: FloatingClickContext,
+        badge: PillBadge,
         mtm: MainThreadMarker,
     ) {
         let panel = panel(app, mtm);
         panel_target().set_context(context);
-        panel.setFrame_display(
-            NSRect::new(
-                NSPoint::new(frame.x, frame.y),
-                NSSize::new(frame.width, frame.height),
-            ),
-            true,
+        update_badge(badge, mtm);
+        let appearance = pill_appearance(current_appearance_preferences());
+        update_panel_appearance(appearance);
+        let frame = NSRect::new(
+            NSPoint::new(frame.x, frame.y),
+            NSSize::new(frame.width, frame.height),
         );
+        if appearance.interpolates_position && panel.isVisible() {
+            let animator: Retained<AnyObject> = unsafe { msg_send![panel, animator] };
+            let _: () = unsafe { msg_send![&*animator, setFrame: frame, display: true] };
+        } else {
+            panel.setFrame_display(frame, true);
+        }
         panel.orderFrontRegardless();
+    }
+
+    fn current_appearance_preferences() -> AppearancePreferences {
+        let workspace = NSWorkspace::sharedWorkspace();
+        AppearancePreferences {
+            reduce_motion: unsafe {
+                msg_send![&*workspace, accessibilityDisplayShouldReduceMotion]
+            },
+            reduce_transparency: unsafe {
+                msg_send![&*workspace, accessibilityDisplayShouldReduceTransparency]
+            },
+            increase_contrast: unsafe {
+                msg_send![&*workspace, accessibilityDisplayShouldIncreaseContrast]
+            },
+        }
+    }
+
+    fn badge_image(badge: PillBadge) -> Option<Retained<NSImage>> {
+        let (symbol, description) = match badge {
+            PillBadge::Person => ("person.fill", "Username or email field"),
+            PillBadge::Lock => ("lock.fill", "Password field"),
+            PillBadge::Clock => ("clock.fill", "One-time code field"),
+            PillBadge::Form => ("list.bullet.rectangle.fill", "Fill form"),
+            PillBadge::Unknown => ("questionmark", "Fill field"),
+        };
+        let image = NSImage::imageWithSystemSymbolName_accessibilityDescription(
+            &NSString::from_str(symbol),
+            Some(&NSString::from_str(description)),
+        )?;
+        image.setTemplate(true);
+        image.setSize(NSSize::new(9.0, 9.0));
+        Some(image)
+    }
+
+    fn update_badge(badge: PillBadge, _mtm: MainThreadMarker) {
+        let Some(address) = BADGE_BUTTON.get() else {
+            return;
+        };
+        let button = unsafe { &*(*address as *const NSButton) };
+        if let Some(image) = badge_image(badge) {
+            button.setImage(Some(&image));
+        }
+    }
+
+    fn update_panel_appearance(appearance: PillAppearance) {
+        let (Some(root_address), Some(material_address), Some(badge_address)) = (
+            PANEL_ROOT.get(),
+            MATERIAL_BACKGROUND.get(),
+            BADGE_BUTTON.get(),
+        ) else {
+            return;
+        };
+        let root = unsafe { &*(*root_address as *const NSView) };
+        let material = unsafe { &*(*material_address as *const NSView) };
+        let badge = unsafe { &*(*badge_address as *const NSButton) };
+        material.setHidden(!appearance.uses_material_background);
+
+        let layer = root.layer().expect("floating pill root keeps its layer");
+        let background = if appearance.uses_opaque_background {
+            NSColor::windowBackgroundColor()
+        } else {
+            NSColor::clearColor()
+        };
+        let background_cg: *const c_void = unsafe { msg_send![&*background, CGColor] };
+        let _: () = unsafe { msg_send![&*layer, setBackgroundColor: background_cg] };
+
+        let border = if appearance.uses_high_contrast_border {
+            NSColor::labelColor()
+        } else {
+            NSColor::separatorColor()
+        };
+        let border_cg: *const c_void = unsafe { msg_send![&*border, CGColor] };
+        let _: () = unsafe { msg_send![&*layer, setBorderColor: border_cg] };
+        layer.setBorderWidth(if appearance.uses_contrast_border {
+            1.0
+        } else {
+            0.0
+        });
+        let badge_tint = if appearance.uses_high_contrast_border {
+            NSColor::labelColor()
+        } else {
+            NSColor::secondaryLabelColor()
+        };
+        badge.setContentTintColor(Some(&badge_tint));
     }
 
     fn panel(app: &tauri::AppHandle, mtm: MainThreadMarker) -> &'static NSPanel {
@@ -1565,7 +1801,8 @@ mod macos {
             };
             let image = NSImage::initWithData(NSImage::alloc(), &data)
                 .expect("floating icon asset is valid");
-            image.setTemplate(true);
+            image.setTemplate(false);
+            image.setSize(NSSize::new(18.0, 18.0));
             let button = unsafe {
                 NSButton::buttonWithImage_target_action(
                     &image,
@@ -1576,15 +1813,60 @@ mod macos {
             };
             button.setBordered(false);
             button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
-            button.setFrame(NSRect::new(NSPoint::new(2.0, 2.0), NSSize::new(24.0, 24.0)));
+            button.setFrame(NSRect::new(
+                NSPoint::new(0.0, 0.0),
+                NSSize::new(PILL_WIDTH, PILL_HEIGHT),
+            ));
             button.setToolTip(Some(&NSString::from_str("Open Barwarden AutoFill")));
+
+            let bounds = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(PILL_WIDTH, PILL_HEIGHT));
+            let root = NSView::initWithFrame(NSView::alloc(mtm), bounds);
+            root.setWantsLayer(true);
+            let root_layer = root.layer().expect("floating pill root has a layer");
+            root_layer.setCornerRadius(PILL_RADIUS);
+            root_layer.setMasksToBounds(true);
+            root_layer.setBorderWidth(1.0);
+
+            let material_class = AnyClass::get(c"NSVisualEffectView")
+                .expect("NSVisualEffectView is available on supported macOS");
+            let material_allocated: Allocated<AnyObject> =
+                unsafe { msg_send![material_class, alloc] };
+            let material: Retained<AnyObject> =
+                unsafe { msg_send![material_allocated, initWithFrame: bounds] };
+            let _: () =
+                unsafe { msg_send![&*material, setMaterial: NS_VISUAL_EFFECT_MATERIAL_POPOVER] };
+            let _: () = unsafe {
+                msg_send![&*material, setBlendingMode: NS_VISUAL_EFFECT_BLEND_BEHIND_WINDOW]
+            };
+            let _: () = unsafe { msg_send![&*material, setState: NS_VISUAL_EFFECT_STATE_ACTIVE] };
+            let material_view = unsafe { &*((&*material as *const AnyObject).cast::<NSView>()) };
+            root.addSubview(material_view);
+            root.addSubview(&button);
+
+            let badge_image = badge_image(PillBadge::Unknown)
+                .expect("supported macOS provides the badge symbols");
+            let badge_button: Retained<FloatingBadge> = unsafe {
+                msg_send![
+                    FloatingBadge::alloc(mtm),
+                    initWithFrame: NSRect::new(
+                        NSPoint::new(21.0, 1.0),
+                        NSSize::new(11.0, 11.0)
+                    )
+                ]
+            };
+            badge_button.setImage(Some(&badge_image));
+            badge_button.setBordered(false);
+            badge_button.setRefusesFirstResponder(true);
+            badge_button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
+            badge_button.setContentTintColor(Some(&NSColor::secondaryLabelColor()));
+            root.addSubview(&badge_button);
 
             let panel: Retained<FloatingPanel> = unsafe {
                 msg_send![
                     FloatingPanel::alloc(mtm),
                     initWithContentRect: NSRect::new(
                         NSPoint::new(0.0, 0.0),
-                        NSSize::new(PANEL_SIZE, PANEL_SIZE)
+                        NSSize::new(PILL_SIZE.0, PILL_SIZE.1)
                     ),
                     styleMask: NSWindowStyleMask::Borderless
                         | NSWindowStyleMask::NonactivatingPanel,
@@ -1606,7 +1888,11 @@ mod macos {
                     | NSWindowCollectionBehavior::Stationary
                     | NSWindowCollectionBehavior::IgnoresCycle,
             );
-            panel.setContentView(Some(&button));
+            panel.setContentView(Some(&root));
+            let _ = PANEL_ROOT.set((&*root as *const NSView) as usize);
+            let _ = MATERIAL_BACKGROUND.set((&*material as *const AnyObject) as usize);
+            let _ = BADGE_BUTTON
+                .set((&*badge_button as *const FloatingBadge).cast::<NSButton>() as usize);
             let target_ptr = Retained::into_raw(target) as usize;
             let _ = TARGET.set(target_ptr);
             Retained::into_raw(panel) as usize
@@ -1779,61 +2065,143 @@ mod tests {
     }
 
     #[test]
-    fn prefers_trailing_outside_and_never_overlaps_the_field() {
+    fn prefers_field_above_and_centers_the_pill_on_the_anchor() {
         let field = AppKitFrame {
             x: 100.0,
             y: 400.0,
             width: 300.0,
             height: 28.0,
         };
-        let placed = place_panel(field, work_area()).expect("trailing placement");
-        assert_eq!(placed.x, 406.0);
-        assert!(placed.x >= field.x + field.width);
-        assert!(work_area().contains(placed));
+        assert_eq!(
+            place_pill(None, field, work_area()),
+            Some(AppKitFrame {
+                x: 233.0,
+                y: 436.0,
+                width: 34.0,
+                height: 30.0,
+            })
+        );
     }
 
     #[test]
-    fn uses_safe_leading_outside_when_trailing_has_no_room() {
+    fn prefers_caret_above_before_field_above() {
+        let caret = AppKitFrame {
+            x: 245.0,
+            y: 415.0,
+            width: 2.0,
+            height: 16.0,
+        };
         let field = AppKitFrame {
-            x: 1200.0,
+            x: 100.0,
             y: 400.0,
-            width: 210.0,
+            width: 300.0,
             height: 28.0,
         };
-        let placed = place_panel(field, work_area()).expect("leading placement");
-        assert_eq!(placed.x + placed.width, 1194.0);
-        assert!(placed.x + placed.width <= field.x);
-        assert!(work_area().contains(placed));
+        assert_eq!(
+            place_pill(Some(caret), field, work_area()),
+            Some(AppKitFrame {
+                x: 229.0,
+                y: 439.0,
+                width: 34.0,
+                height: 30.0,
+            })
+        );
     }
 
     #[test]
-    fn clamps_vertically_inside_work_area_and_hides_without_safe_horizontal_space() {
-        let top = place_panel(
+    fn field_above_precedes_below_when_caret_above_is_not_safe() {
+        let caret = AppKitFrame {
+            x: 245.0,
+            y: 870.0,
+            width: 2.0,
+            height: 20.0,
+        };
+        let field = AppKitFrame {
+            x: 100.0,
+            y: 800.0,
+            width: 300.0,
+            height: 30.0,
+        };
+        assert_eq!(
+            place_pill(Some(caret), field, work_area()),
+            Some(AppKitFrame {
+                x: 233.0,
+                y: 838.0,
+                width: 34.0,
+                height: 30.0,
+            })
+        );
+    }
+
+    #[test]
+    fn flips_below_when_above_is_not_safe() {
+        let field = AppKitFrame {
+            x: 100.0,
+            y: 880.0,
+            width: 300.0,
+            height: 20.0,
+        };
+        assert_eq!(
+            place_pill(None, field, work_area()),
+            Some(AppKitFrame {
+                x: 233.0,
+                y: 842.0,
+                width: 34.0,
+                height: 30.0,
+            })
+        );
+    }
+
+    #[test]
+    fn clamps_horizontally_after_screen_selection_and_hides_without_vertical_space() {
+        let clamped = place_pill(
+            None,
             AppKitFrame {
-                x: 100.0,
-                y: 895.0,
-                width: 300.0,
+                x: -1450.0,
+                y: 400.0,
+                width: 40.0,
                 height: 20.0,
             },
-            work_area(),
+            AppKitFrame {
+                x: -1440.0,
+                y: 0.0,
+                width: 1440.0,
+                height: 900.0,
+            },
         )
-        .expect("top clamped");
-        assert_eq!(top.y + top.height, 900.0);
+        .expect("clamped on selected display");
+        assert_eq!(
+            clamped,
+            AppKitFrame {
+                x: -1440.0,
+                y: 428.0,
+                width: 34.0,
+                height: 30.0,
+            }
+        );
 
-        let no_space = place_panel(
+        let no_space = place_pill(
+            None,
+            AppKitFrame {
+                x: 100.0,
+                y: 125.0,
+                width: 200.0,
+                height: 10.0,
+            },
             AppKitFrame {
                 x: 0.0,
                 y: 100.0,
-                width: 1440.0,
-                height: 30.0,
+                width: 500.0,
+                height: 60.0,
             },
-            work_area(),
         );
         assert_eq!(no_space, None);
     }
 
     #[test]
-    fn panel_contract_is_borderless_nonactivating_and_never_key_or_main() {
+    fn pill_contract_is_visible_and_never_activating() {
+        assert_eq!(PILL_SIZE, (34.0, 30.0));
+        assert_eq!(PILL_RADIUS, 9.0);
         assert_eq!(
             PANEL_CONTRACT,
             PanelContract {
@@ -1841,8 +2209,115 @@ mod tests {
                 nonactivating: true,
                 can_become_key: false,
                 can_become_main: false,
+                has_material_background: true,
+                has_contrast_border: true,
+                has_restrained_shadow: true,
+                has_non_template_blue_glyph: true,
                 fixed_entry_event: "autofill-floating",
             },
+        );
+    }
+
+    #[test]
+    fn accessibility_preferences_preserve_legibility_and_disable_motion() {
+        assert_eq!(
+            pill_appearance(AppearancePreferences::default()),
+            PillAppearance {
+                uses_material_background: true,
+                uses_opaque_background: false,
+                uses_contrast_border: true,
+                uses_high_contrast_border: false,
+                interpolates_position: true,
+            }
+        );
+        assert!(
+            !pill_appearance(AppearancePreferences {
+                reduce_motion: true,
+                ..AppearancePreferences::default()
+            })
+            .interpolates_position
+        );
+        let opaque = pill_appearance(AppearancePreferences {
+            reduce_transparency: true,
+            ..AppearancePreferences::default()
+        });
+        assert!(!opaque.uses_material_background);
+        assert!(opaque.uses_opaque_background);
+        assert!(
+            pill_appearance(AppearancePreferences {
+                increase_contrast: true,
+                ..AppearancePreferences::default()
+            })
+            .uses_high_contrast_border
+        );
+        assert_eq!(
+            pill_appearance(AppearancePreferences {
+                reduce_motion: true,
+                reduce_transparency: true,
+                increase_contrast: true,
+            }),
+            PillAppearance {
+                uses_material_background: false,
+                uses_opaque_background: true,
+                uses_contrast_border: true,
+                uses_high_contrast_border: true,
+                interpolates_position: false,
+            }
+        );
+    }
+
+    #[test]
+    fn field_presentation_maps_to_person_lock_clock_form_or_unknown_badge() {
+        use crate::autofill_ax_context::{
+            FillContextPresentation, PresentedAction, PresentedActionMode, PresentedField,
+            PresentedFieldConfidence, PresentedFieldKind,
+        };
+
+        let presentation = |kind, mode| FillContextPresentation {
+            fill_context_token: String::new(),
+            focused_field: PresentedField {
+                kind,
+                confidence: PresentedFieldConfidence::High,
+            },
+            action: PresentedAction {
+                mode,
+                fields: Vec::new(),
+            },
+        };
+
+        for kind in [PresentedFieldKind::Username, PresentedFieldKind::Email] {
+            assert_eq!(
+                pill_badge(&presentation(kind, PresentedActionMode::Field)),
+                PillBadge::Person
+            );
+        }
+        assert_eq!(
+            pill_badge(&presentation(
+                PresentedFieldKind::Password,
+                PresentedActionMode::Field
+            )),
+            PillBadge::Lock
+        );
+        assert_eq!(
+            pill_badge(&presentation(
+                PresentedFieldKind::OneTimeCode,
+                PresentedActionMode::Field
+            )),
+            PillBadge::Clock
+        );
+        assert_eq!(
+            pill_badge(&presentation(
+                PresentedFieldKind::Unknown,
+                PresentedActionMode::Form
+            )),
+            PillBadge::Form
+        );
+        assert_eq!(
+            pill_badge(&presentation(
+                PresentedFieldKind::Unknown,
+                PresentedActionMode::Choose
+            )),
+            PillBadge::Unknown
         );
     }
 
@@ -1961,8 +2436,8 @@ mod tests {
             AppKitFrame {
                 x: 5.0,
                 y: 6.0,
-                width: PANEL_SIZE,
-                height: PANEL_SIZE,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
             },
             detected,
         ));
@@ -1990,8 +2465,8 @@ mod tests {
             AppKitFrame {
                 x: 5.0,
                 y: 6.0,
-                width: PANEL_SIZE,
-                height: PANEL_SIZE,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
             },
         ));
         let hides = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -2024,8 +2499,8 @@ mod tests {
             AppKitFrame {
                 x: 5.0,
                 y: 6.0,
-                width: PANEL_SIZE,
-                height: PANEL_SIZE,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
             },
         ));
         let context = FloatingClickContext {
@@ -2048,8 +2523,8 @@ mod tests {
             AppKitFrame {
                 x: 5.0,
                 y: 6.0,
-                width: PANEL_SIZE,
-                height: PANEL_SIZE,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
             },
         ));
         assert_eq!(controller.consume_visible_target(&context), None);
@@ -2236,7 +2711,7 @@ mod tests {
     }
 
     #[test]
-    fn observer_plan_covers_focus_geometry_activation_termination_and_destruction() {
+    fn observer_plan_covers_focus_field_movement_scroll_app_lifecycle_and_destruction() {
         assert_eq!(
             observer_notification_plan(),
             [
@@ -2262,6 +2737,10 @@ mod tests {
                 WorkspaceNotification::Terminated
             ],
         );
+        // Scrolling moves the focused AX element in screen coordinates, so the focused
+        // element's AXMoved notification invalidates the pill just like direct movement.
+        assert!(observer_notification_plan()
+            .contains(&(ObserverScope::FocusedElement, ObserverNotification::Moved)));
     }
 
     #[test]
@@ -2318,9 +2797,18 @@ mod tests {
     }
 
     #[test]
-    fn native_panel_uses_a_template_image_for_current_system_appearance() {
-        let source = include_str!("autofill_floating.rs");
-        assert_eq!(source.matches("image.setTemplate(true);").count(), 2);
+    fn native_panel_asset_is_the_blue_non_template_barwarden_glyph() {
+        let image =
+            tauri::image::Image::from_bytes(include_bytes!("../icons/autofill-pill@2x.png"))
+                .expect("valid autofill pill PNG");
+        assert_eq!((image.width(), image.height()), (36, 36));
+        let visible: Vec<_> = image
+            .rgba()
+            .chunks_exact(4)
+            .filter(|pixel| pixel[3] > 0)
+            .collect();
+        assert!(!visible.is_empty());
+        assert!(visible.iter().all(|pixel| pixel[..3] == [10, 132, 255]));
     }
 
     #[derive(Default)]
