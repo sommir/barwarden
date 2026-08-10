@@ -100,6 +100,27 @@ describe("AutoFillProjectionService", () => {
     fixture.service.destroy();
   });
 
+  it("drops blank Login URI entries instead of rejecting the entire native projection", async () => {
+    const fixture = createFixture();
+    const login = {
+      ...demoVaultItems[0],
+      uris: [
+        { id: "blank", uri: "   ", matchType: "0" },
+        { id: "usable", uri: "https://github.com", matchType: "0" },
+      ],
+    };
+
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([login]);
+    await fixture.service.settled();
+
+    expect(fixture.host.replacements[0].logins[0].uris).toEqual([
+      { uri: "https://github.com", matchType: 0 },
+    ]);
+    fixture.service.destroy();
+  });
+
   it("leaves revision allocation to the one native writer shared by all windows", async () => {
     const fixture = createFixture();
     fixture.store.setActiveSession(session);
@@ -292,6 +313,55 @@ describe("AutoFillProjectionService", () => {
     fixture.service.destroy();
   });
 
+  it("retries an explicit reprojection when a concurrent store refresh stales its first snapshot", async () => {
+    const fixture = createFixture();
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([demoVaultItems[0]]);
+    await fixture.service.settled();
+
+    await fixture.service.invalidateAndLock();
+    let refreshed = false;
+    fixture.host.onCaptureBinding = () => {
+      if (refreshed) return;
+      refreshed = true;
+      fixture.store.updateVaultItem("github", (item) => ({ ...item, favorite: false }));
+    };
+    await fixture.service.reprojectCurrent();
+
+    expect(fixture.host.replacements).toHaveLength(2);
+    expect(fixture.host.replacements[1].logins[0].favorite).toBe(false);
+    fixture.service.destroy();
+  });
+
+  it("does not report an explicit reprojection ready when its native replace became stale in flight", async () => {
+    const staleReplace = deferred<void>();
+    const currentReplace = deferred<void>();
+    const host = new RecordingProjectionHost(async (call) => {
+      if (call === 2) await staleReplace.promise;
+      if (call === 3) await currentReplace.promise;
+    });
+    const fixture = createFixture(host);
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([demoVaultItems[0]]);
+    await fixture.service.settled();
+    await fixture.service.invalidateAndLock();
+
+    let settled = false;
+    const reprojection = fixture.service.reprojectCurrent().then(() => { settled = true; });
+    await vi.waitFor(() => expect(host.replacements).toHaveLength(2));
+    fixture.store.updateVaultItem("github", (item) => ({ ...item, favorite: false }));
+    staleReplace.resolve();
+    await vi.waitFor(() => expect(host.replacements).toHaveLength(3));
+
+    expect(settled).toBe(false);
+    currentReplace.resolve();
+    await reprojection;
+    expect(host.replacements[2].logins[0].favorite).toBe(false);
+    fixture.service.destroy();
+  });
+
   it("surfaces a bounded background lock failure without exposing native details", async () => {
     const fixture = createFixture();
     fixture.host.lockFailures = 3;
@@ -321,11 +391,13 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
   lockAttempts = 0;
   lockFailures = 0;
   maximumConcurrentReplacements = 0;
+  onCaptureBinding: (() => void) | null = null;
   private concurrentReplacements = 0;
 
   constructor(private readonly onReplace: (call: number) => Promise<void> = async () => undefined) {}
 
   async captureBinding(accountId: string) {
+    this.onCaptureBinding?.();
     return { token: `binding:${accountId}`, accountId };
   }
 

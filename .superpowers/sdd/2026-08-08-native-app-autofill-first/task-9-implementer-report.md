@@ -52,7 +52,9 @@ The repair `Retry` control now awaits setup recovery (`status → register-if-ne
 
 A real Release native overlay build completed for the Tauri main app. The existing deterministic Xcode wrapper built the Agent and Credential Provider, and an exact unsigned app assembly embedded all three native components at their final sealed locations. The real collector rejected the linker ad-hoc inner code with `NATIVE_AUTOFILL_INNER_UNSIGNED`. Production configuration and entitlements were byte-identical before and after this build.
 
-No signed app or DMG exists, so artifact hashes remain `null`. The checked-in evidence status is `BLOCKED`; it makes no notarization, stapling, Gatekeeper, installation, Provider enablement, or live-fill claim.
+No signed **release** app or DMG exists, so release artifact hashes remain `null`. The checked-in evidence status is `BLOCKED`; it makes no notarization, stapling, Gatekeeper, Credential Provider enablement, or production-promotion claim.
+
+An explicitly local-only Developer ID smoke app was later built with the isolated signing Keychain and installed temporarily at `/Applications/Barwarden.app`. It is not notarized, stapled, packaged as a DMG, or accepted by the release evidence gate. On the current macOS 26 machine, the signed main app and its identically signed embedded Agent opened the redesigned picker for TextEdit, returned real grouped/searchable candidate metadata, and completed one explicit username fill through the one-field guarded-paste path without exposing the secret to test output. The visible picker exercised field switching, search, grouped candidates, selection, mismatch confirmation, and Fill. The separate manual-copy live path was not proven by that run and is not claimed; its automated contract remains covered by the picker/Rust suites.
 
 ## Credential and external gate status
 
@@ -78,7 +80,7 @@ Current external state is represented only by fixed codes in the evidence:
 
 ## Live matrix and production promotion
 
-All 18 current-machine fresh/update, Provider, field, matching/search, AX, lock/reprompt/account/logout/restart/offline/stale-generation rows remain `NATIVE_AUTOFILL_LIVE_BLOCKED_NO_RELEASE_ARTIFACT`. Without a signed/notarized/stapled artifact, no installation into `/Applications`, Provider enablement, update, or live secret-release test was safe or meaningful. The prior GUI environment also remains unable to activate the bounded external fixture and reports `loginwindow` as frontmost; this is not presented as live success.
+All 18 production-promotion rows remain `NATIVE_AUTOFILL_LIVE_BLOCKED_NO_RELEASE_ARTIFACT`. The local-only signed smoke above does not replace the required notarized/stapled release artifact, Credential Provider enablement, update, or complete live matrix. The earlier headless fixture limitation is superseded only for the scoped main-app picker smoke; it is not converted into release PASS evidence.
 
 Under the revised acceptance, macOS 13–25 runtime testing is explicitly best-effort/unverified and does not block promotion. Deployment target 13.0 and compile/API/binary-floor checks still pass. Production native config and entitlements remain unpromoted because the signed artifact and current-machine live matrix gates have not passed.
 
@@ -94,6 +96,7 @@ Under the revised acceptance, macOS 13–25 runtime testing is explicitly best-e
 - Full Rust: 252 passed, 7 ignored.
 - Full Swift/Xcode: 131 passed, 0 failed. The sandboxed first attempt was blocked by the XCTest helper-service sandbox; the approved unrestricted rerun passed.
 - Production web build: passed with existing externalization, Tailwind, and chunk-size warnings.
+- Signed-picker stabilization verification: real local username fill passed; focused App/Picker/Projection/Setup passed 120 tests; full TypeScript passed 3,554 with 22 skipped; Rust passed 255 with 7 ignored; Swift/Xcode passed 131/131 on macOS 26.6.1; native project/contract tests passed 29/29; local/release signing policies passed 15/15; production web build, `cargo fmt --check`, and `git diff --check` passed. Independent review reported 0 Critical, 0 Important, and 0 Minor after search-focus, stale-projection, enable/disable linearization, keyboard scrolling, and duplicate-status fixes.
 - Rust/native release code was unchanged by the final lifecycle fix, so its previously passing 252/7 and 131/0 results remain the recorded native evidence rather than being rerun.
 - Shell syntax and `git diff --check`: passed.
 

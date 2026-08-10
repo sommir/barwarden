@@ -1,6 +1,6 @@
 use crate::window::{
-    hide_popup_window, show_autofill_picker_window, show_popup_window, toggle_popup_window,
-    PopupEntrySource,
+    hide_popup_window, show_autofill_picker_window_from_captured_target, show_popup_window,
+    toggle_popup_window, PopupEntrySource,
 };
 use tauri::image::Image;
 use tauri::menu::MenuBuilder;
@@ -30,13 +30,19 @@ pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
+            if autofill_menu_pre_capture_requested(&event) {
+                crate::frontmost::capture_current_target_app();
+            }
             if let Some(rect) = primary_click_rect(&event) {
                 let _ = toggle_popup_window(tray.app_handle(), Some(rect));
             }
         })
         .on_menu_event(|app, event| match event.id().as_ref() {
             MENU_AUTOFILL => {
-                let _ = show_autofill_picker_window(app, PopupEntrySource::AutoFillMenu);
+                let _ = show_autofill_picker_window_from_captured_target(
+                    app,
+                    PopupEntrySource::AutoFillMenu,
+                );
             }
             MENU_SHOW => {
                 let _ = show_popup_window(app, None);
@@ -58,6 +64,17 @@ fn is_primary_click(event: &TrayIconEvent) -> bool {
         TrayIconEvent::Click {
             button: MouseButton::Left,
             button_state: MouseButtonState::Up,
+            ..
+        }
+    )
+}
+
+fn autofill_menu_pre_capture_requested(event: &TrayIconEvent) -> bool {
+    matches!(
+        event,
+        TrayIconEvent::Click {
+            button: MouseButton::Right,
+            button_state: MouseButtonState::Down | MouseButtonState::Up,
             ..
         }
     )
@@ -109,6 +126,39 @@ mod tests {
         };
 
         assert!(primary_click_rect(&event).is_none());
+    }
+
+    #[test]
+    fn secondary_click_captures_the_target_before_the_autofill_menu_opens() {
+        for button_state in [MouseButtonState::Down, MouseButtonState::Up] {
+            let event = TrayIconEvent::Click {
+                id: "main".into(),
+                position: PhysicalPosition::new(0.0, 0.0),
+                rect: Rect {
+                    position: Position::Physical(PhysicalPosition::new(0, 0)),
+                    size: Size::Physical(PhysicalSize::new(22, 22)),
+                },
+                button: MouseButton::Right,
+                button_state,
+            };
+
+            assert!(autofill_menu_pre_capture_requested(&event));
+        }
+    }
+
+    #[test]
+    fn autofill_menu_reuses_the_target_captured_before_menu_selection() {
+        let tray = include_str!("tray.rs");
+        let menu_branch = tray
+            .split("MENU_AUTOFILL =>")
+            .nth(1)
+            .expect("AutoFill menu branch")
+            .split("MENU_SHOW =>")
+            .next()
+            .expect("bounded AutoFill menu branch");
+
+        assert!(menu_branch.contains("show_autofill_picker_window_from_captured_target"));
+        assert!(!menu_branch.contains("show_autofill_picker_window(app"));
     }
 
     #[test]

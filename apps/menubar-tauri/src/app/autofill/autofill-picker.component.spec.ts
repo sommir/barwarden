@@ -333,6 +333,7 @@ describe("AutoFillPickerComponent", () => {
     await vi.waitFor(() => expect(fixture.nativeElement.textContent).toContain("自动填充已关闭。"));
     expect(disable).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.mode).toBe("repair");
+    expect(fixture.nativeElement.querySelectorAll('[role="status"]')).toHaveLength(1);
   });
 
   it("shows a fixed Turn Off failure without native error details", async () => {
@@ -386,6 +387,31 @@ describe("AutoFillPickerComponent", () => {
     expect(nativeHost.pasteText).not.toHaveBeenCalled();
   });
 
+  it("keeps the search control mounted and focused while an async query is pending", async () => {
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    const pending = deferred<Awaited<ReturnType<AutoFillCandidateHost["queryCandidates"]>>>();
+    candidateHost.queryCandidates.mockImplementation(() => pending.promise);
+    const search = fixture.nativeElement.querySelector('input[type="search"]') as HTMLInputElement;
+    search.focus();
+    search.value = "g";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(search.isConnected).toBe(true);
+    expect(document.activeElement).toBe(search);
+    search.value = "gi";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(search);
+
+    pending.resolve({ contextToken: crypto.randomUUID(), candidates: [candidateHostCandidate()] });
+    await fixture.whenStable();
+  });
+
   it("moves a visible active option with arrows without releasing a secret", async () => {
     const second = {
       cipherId: "cipher-second",
@@ -404,8 +430,12 @@ describe("AutoFillPickerComponent", () => {
     await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
     fixture.detectChanges();
 
+    const optionsBeforeMove = [...fixture.nativeElement.querySelectorAll('[role="option"]')] as HTMLElement[];
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(optionsBeforeMove[1], "scrollIntoView", { value: scrollIntoView });
     fixture.componentInstance.onListKeydown(new KeyboardEvent("keydown", { key: "ArrowDown" }));
     fixture.detectChanges();
+    await Promise.resolve();
 
     const listbox = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
     const options = [...fixture.nativeElement.querySelectorAll('[role="option"]')] as HTMLElement[];
@@ -413,6 +443,8 @@ describe("AutoFillPickerComponent", () => {
     expect(options[1].getAttribute("aria-selected")).toBe("false");
     expect(listbox.getAttribute("tabindex")).toBe("0");
     expect(listbox.getAttribute("aria-activedescendant")).toBe(options[1].id);
+    expect(options.every((option) => option.tabIndex === -1)).toBe(true);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
     expect(fixture.componentInstance.selected).toBeNull();
     expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
     expect(nativeHost.pasteText).not.toHaveBeenCalled();

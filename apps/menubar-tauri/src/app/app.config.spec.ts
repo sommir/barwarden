@@ -28,6 +28,10 @@ import { SETTINGS_EVIDENCE_STATE } from "./settings/settings-evidence-state";
 import { SettingsService } from "./settings/settings.service";
 import { VaultActionsService } from "./vault/vault-actions.service";
 import { VAULT_MAIN_EVIDENCE_STATE } from "./vault/vault-main-evidence-state";
+import {
+  AUTOFILL_PROJECTION_HOST,
+  NativeAutoFillProjectionHost,
+} from "./autofill/autofill-projection.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -53,6 +57,12 @@ describe("appConfig bootstrap router integration", () => {
     await TestBed.configureTestingModule({ providers: [...appConfig.providers] }).compileComponents();
 
     expect(TestBed.inject(UNLOCK_METHODS_PORT)).toBe(TestBed.inject(UnlockMethodsService));
+  });
+
+  it("binds native AutoFill projection commands explicitly in the production app graph", async () => {
+    await TestBed.configureTestingModule({ providers: [...appConfig.providers] }).compileComponents();
+
+    expect(TestBed.inject(AUTOFILL_PROJECTION_HOST)).toBeInstanceOf(NativeAutoFillProjectionHost);
   });
 
   it("binds account security preferences and logout cleanup to the composed services", async () => {

@@ -34,10 +34,17 @@ function harness(
     autofillClearProjection: vi.fn(async () => undefined),
   };
   const store = { snapshot: () => ({ vaultOwnerAccountId: ownerAccountId }) };
+  const projection = { reprojectCurrent: vi.fn(async () => undefined) };
   return {
-    service: new AutoFillSetupService(host, storage as AutoFillSetupStorage, store as never),
+    service: new AutoFillSetupService(
+      host,
+      storage as AutoFillSetupStorage,
+      store as never,
+      projection as never,
+    ),
     host,
     storage,
+    projection,
     setOwnerAccountId: (accountId: string | null) => { ownerAccountId = accountId; },
   };
 }
@@ -57,6 +64,52 @@ describe("AutoFillSetupService", () => {
     );
   });
 
+  it("does not report ready until the current vault projection is republished", async () => {
+    const { service, projection } = harness(false, "enabled");
+    let finishProjection: (() => void) | undefined;
+    projection.reprojectCurrent.mockImplementation(() => new Promise<void>((resolve) => {
+      finishProjection = resolve;
+    }));
+
+    let settled = false;
+    const enabling = service.enableFromEntry().then((state) => {
+      settled = true;
+      return state;
+    });
+    await vi.waitFor(() => expect(projection.reprojectCurrent).toHaveBeenCalledOnce());
+    expect(settled).toBe(false);
+
+    finishProjection?.();
+    await expect(enabling).resolves.toBe("ready");
+  });
+
+  it("keeps setup unavailable when the current vault projection cannot be republished", async () => {
+    const { service, projection } = harness(false, "enabled");
+    projection.reprojectCurrent.mockRejectedValue(new Error("private projection detail"));
+
+    await expect(service.enableFromEntry()).resolves.toBe("unavailable");
+
+    expect(service.blockReason()).toBe("unavailable");
+  });
+
+  it("linearizes disable behind an in-flight enable projection and never lets enable return ready", async () => {
+    const { service, projection, host, storage } = harness(false, "enabled");
+    const projectionGate = deferred<void>();
+    projection.reprojectCurrent.mockImplementation(() => projectionGate.promise);
+
+    const enabling = service.enableFromEntry();
+    await vi.waitFor(() => expect(projection.reprojectCurrent).toHaveBeenCalledOnce());
+    const disabling = service.disable();
+    expect(storage.writeEnabled).toHaveBeenLastCalledWith(false);
+    expect(host.autofillAgentLock).not.toHaveBeenCalled();
+
+    projectionGate.resolve();
+    await expect(enabling).resolves.toBe("disabled");
+    await disabling;
+    expect(host.autofillAgentLock).toHaveBeenCalledOnce();
+    expect(service.blockReason()).toBe("disabled");
+  });
+
   it("recovers an enabled feature after update/restart using status, registration, then probe", async () => {
     const { service, host } = harness(true, "notRegistered");
 
@@ -64,6 +117,25 @@ describe("AutoFillSetupService", () => {
 
     expect(host.autofillAgentRegistrationStatus).toHaveBeenCalledOnce();
     expect(host.autofillAgentRegister).toHaveBeenCalledOnce();
+    expect(host.autofillAgentProbe).toHaveBeenCalledOnce();
+  });
+
+  it("accepts an authenticated live Agent when Service Management still reports notFound", async () => {
+    const { service, host } = harness(false, "notFound");
+    host.autofillAgentRegister.mockResolvedValue("notFound");
+
+    await expect(service.enableFromEntry()).resolves.toBe("ready");
+
+    expect(host.autofillAgentRegister).toHaveBeenCalledOnce();
+    expect(host.autofillAgentProbe).toHaveBeenCalledOnce();
+  });
+
+  it("uses the authenticated Agent probe when registration returns a transient error", async () => {
+    const { service, host } = harness(false, "notRegistered");
+    host.autofillAgentRegister.mockRejectedValue(new Error("private Service Management detail"));
+
+    await expect(service.enableFromEntry()).resolves.toBe("ready");
+
     expect(host.autofillAgentProbe).toHaveBeenCalledOnce();
   });
 
@@ -200,3 +272,9 @@ describe("AutoFillSetupService", () => {
     expect(storage.writeCleanupTarget).not.toHaveBeenCalledWith(null);
   });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((completion) => { resolve = completion; });
+  return { promise, resolve };
+}

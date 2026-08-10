@@ -2,6 +2,7 @@ import { Inject, Injectable, InjectionToken } from "@angular/core";
 
 import type { AutoFillAgentRegistrationStatus } from "../../host/tauri-host.service";
 import { PopupStateStore } from "../popup-state";
+import { AutoFillProjectionService } from "./autofill-projection.service";
 
 export type AutoFillSetupState = "disabled" | "ready" | "requiresApproval" | "unavailable";
 
@@ -55,13 +56,14 @@ export const AUTOFILL_SETUP_STORAGE = new InjectionToken<AutoFillSetupStorage>(
 @Injectable()
 export class AutoFillSetupService {
   private state: AutoFillSetupState = "disabled";
-  private operation: Promise<AutoFillSetupState> | null = null;
+  private operationTail: Promise<void> = Promise.resolve();
   private disabling = false;
 
   constructor(
     @Inject(AUTOFILL_SETUP_HOST) private readonly host: AutoFillSetupHost,
     @Inject(AUTOFILL_SETUP_STORAGE) private readonly storage: AutoFillSetupStorage,
     private readonly store: PopupStateStore,
+    private readonly projection: AutoFillProjectionService,
   ) {}
 
   blockReason(): AutoFillSetupState {
@@ -70,23 +72,34 @@ export class AutoFillSetupService {
 
   async enableFromEntry(): Promise<AutoFillSetupState> {
     this.storage.writeEnabled(true);
-    const cleanupTarget = this.storage.readCleanupTarget();
-    if (cleanupTarget && !await this.finishPendingCleanup(cleanupTarget)) {
-      return this.setState("unavailable");
-    }
-    return this.reconcile();
+    return this.enqueueOperation(async () => {
+      const cleanupTarget = this.storage.readCleanupTarget();
+      if (cleanupTarget && !await this.finishPendingCleanup(cleanupTarget)) {
+        return this.setState("unavailable");
+      }
+      const state = await this.performReconcile();
+      if (state !== "ready") return state;
+      try {
+        await this.projection.reprojectCurrent();
+        return this.setState("ready");
+      } catch {
+        return this.setState("unavailable");
+      }
+    });
   }
 
   async recoverAtStartup(): Promise<AutoFillSetupState> {
-    const cleanupTarget = this.storage.readCleanupTarget();
-    if (cleanupTarget && !await this.finishPendingCleanup(cleanupTarget)) {
-      return this.setState("unavailable");
-    }
-    if (!this.storage.readEnabled()) {
-      this.state = "disabled";
-      return this.state;
-    }
-    return this.reconcile();
+    return this.enqueueOperation(async () => {
+      const cleanupTarget = this.storage.readCleanupTarget();
+      if (cleanupTarget && !await this.finishPendingCleanup(cleanupTarget)) {
+        return this.setState("unavailable");
+      }
+      if (!this.storage.readEnabled()) {
+        this.state = "disabled";
+        return this.state;
+      }
+      return this.performReconcile();
+    });
   }
 
   async disable(): Promise<void> {
@@ -102,15 +115,19 @@ export class AutoFillSetupService {
       this.disabling = false;
       throw new Error("AUTOFILL_CLEANUP_PENDING");
     }
-    if (this.operation) await this.operation.catch(() => undefined);
-    const complete = await this.performCleanup(cleanupTarget);
-    this.disabling = false;
-    this.state = "disabled";
-    if (!complete) throw new Error("AUTOFILL_CLEANUP_PENDING");
     try {
-      this.storage.writeCleanupTarget(null);
-    } catch {
-      throw new Error("AUTOFILL_CLEANUP_PENDING");
+      await this.enqueueOperation(async () => {
+        const complete = await this.performCleanup(cleanupTarget);
+        if (!complete) throw new Error("AUTOFILL_CLEANUP_PENDING");
+        try {
+          this.storage.writeCleanupTarget(null);
+        } catch {
+          throw new Error("AUTOFILL_CLEANUP_PENDING");
+        }
+      });
+    } finally {
+      this.disabling = false;
+      this.state = "disabled";
     }
   }
 
@@ -143,27 +160,35 @@ export class AutoFillSetupService {
     return !failed;
   }
 
-  private reconcile(): Promise<AutoFillSetupState> {
-    if (this.operation) return this.operation;
-    this.operation = this.performReconcile().finally(() => { this.operation = null; });
-    return this.operation;
+  private enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const pending = this.operationTail.then(operation);
+    this.operationTail = pending.then(() => undefined, () => undefined);
+    return pending;
   }
 
   private async performReconcile(): Promise<AutoFillSetupState> {
+    if (this.disabling || !this.storage.readEnabled()) return this.setState("disabled");
+    let registration: AutoFillAgentRegistrationStatus | null = null;
     try {
-      let registration = await this.host.autofillAgentRegistrationStatus();
-      if (registration === "requiresApproval") {
-        return this.setState("requiresApproval");
-      }
-      if (registration !== "enabled") {
+      registration = await this.host.autofillAgentRegistrationStatus();
+    } catch {
+      // An authenticated live Agent probe below remains authoritative when
+      // Service Management is briefly unavailable during update/relaunch.
+    }
+    if (registration === "requiresApproval") {
+      return this.setState("requiresApproval");
+    }
+    if (registration !== "enabled") {
+      try {
         registration = await this.host.autofillAgentRegister();
+      } catch {
+        registration = null;
       }
-      if (registration === "requiresApproval") {
-        return this.setState("requiresApproval");
-      }
-      if (registration !== "enabled") {
-        return this.setState("unavailable");
-      }
+    }
+    if (registration === "requiresApproval") {
+      return this.setState("requiresApproval");
+    }
+    try {
       const probe = await this.host.autofillAgentProbe();
       if (!isSuccessfulProbe(probe)) return this.setState("unavailable");
       return this.setState("ready");

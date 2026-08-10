@@ -624,7 +624,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.routeCache?.clear();
     try {
-      await this.autoFillSetup?.enableFromEntry();
+      const setupState = await this.autoFillSetup?.enableFromEntry();
+      if (setupState === "disabled") return;
       await this.router.navigateByUrl("/autofill-picker", { replaceUrl: true });
     } catch {
       // Keep the existing popup route usable when picker navigation cannot settle.

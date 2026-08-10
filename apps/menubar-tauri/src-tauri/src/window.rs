@@ -313,6 +313,14 @@ pub fn show_autofill_picker_window(
     show_popup_window_for_entry(app, None, source)
 }
 
+pub(crate) fn show_autofill_picker_window_from_captured_target(
+    app: &tauri::AppHandle,
+    source: PopupEntrySource,
+) -> Result<(), String> {
+    debug_assert!(source != PopupEntrySource::Vault);
+    show_popup_window_after_target_capture(app, None, source)
+}
+
 pub fn show_autofill_picker_window_for_target(
     app: &tauri::AppHandle,
     source: PopupEntrySource,

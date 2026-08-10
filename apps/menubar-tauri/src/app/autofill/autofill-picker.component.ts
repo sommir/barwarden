@@ -134,7 +134,9 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
         <section class="autofill-picker__state" data-testid="autofill-repair">
           <span class="autofill-picker__state-icon" aria-hidden="true"><i class="bwi bwi-exclamation-triangle"></i></span>
           <h2>{{ "i18nAutofillNeedsAttention" | i18n }}</h2>
-          @if (setupRequiresApproval) {
+          @if (statusMessage) {
+            <p role="status">{{ statusMessage }}</p>
+          } @else if (setupRequiresApproval) {
             <p>{{ "i18nAutofillApprovalDescription" | i18n }}</p>
           } @else {
             <p>{{ "i18nAutofillRepairDescription" | i18n }}</p>
@@ -210,6 +212,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                       class="autofill-picker__candidate"
                       type="button"
                       role="option"
+                      tabindex="-1"
                       [id]="optionId(candidate)"
                       [attr.data-testid]="'autofill-fill-candidate-' + candidate.cipherId"
                       [class.autofill-picker__option--highlighted]="highlightedCandidate?.cipherId === candidate.cipherId"
@@ -245,7 +248,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
         }
       }
 
-      @if (statusMessage) { <p role="status">{{ statusMessage }}</p> }
+      @if (statusMessage && mode !== "repair") { <p role="status">{{ statusMessage }}</p> }
       </div>
 
           @if (pendingMismatch) {
@@ -485,7 +488,6 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const epoch = this.startOperation();
     this.query = value;
     this.selected = null;
-    this.mode = "loading";
     this.markIfAlive();
     await this.refreshCandidates(epoch).catch(() => {
       this.commit(epoch, () => { this.mode = "repair"; });
@@ -621,15 +623,25 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       event.preventDefault();
       this.highlightedIndex = (this.highlightedIndex + 1) % this.candidates.length;
       this.markIfAlive();
+      this.scrollHighlightedIntoView();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       this.highlightedIndex = (this.highlightedIndex - 1 + this.candidates.length) % this.candidates.length;
       this.markIfAlive();
+      this.scrollHighlightedIntoView();
     } else if (event.key === "Enter") {
       event.preventDefault();
       const candidate = this.highlightedCandidate;
       if (candidate) this.activateCandidate(candidate);
     }
+  }
+
+  private scrollHighlightedIntoView(): void {
+    const optionId = this.highlightedCandidate ? this.optionId(this.highlightedCandidate) : null;
+    if (!optionId) return;
+    queueMicrotask(() => {
+      document.getElementById(optionId)?.scrollIntoView?.({ block: "nearest" });
+    });
   }
 
   async perform(action: SecretAction, field: AutoFillSecretField, mismatchConfirmed = false): Promise<void> {

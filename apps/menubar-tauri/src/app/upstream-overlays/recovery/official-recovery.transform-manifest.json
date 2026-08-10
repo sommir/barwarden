@@ -242,7 +242,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
-      "sha256": "0b317e0800427f4b8cbb83f76ee4ddc2e5ae7cbe32ffe653c59afd8fa595a867"
+      "sha256": "67eda34f486b974f21f0de28f0a8dfca3c5a3e0630d48153bd5794789552309e"
     },
     {
       "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",

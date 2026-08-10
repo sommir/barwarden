@@ -89,12 +89,15 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
   }
 
   async reprojectCurrent(): Promise<void> {
-    this.invalidateLifecycle();
-    const pending = this.enqueueProjection(this.store.snapshot());
-    if (!pending) {
-      throw new Error("projection unavailable");
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      this.invalidateLifecycle();
+      const pending = this.enqueueProjection(this.store.snapshot());
+      if (!pending) {
+        throw new Error("projection unavailable");
+      }
+      if (await pending) return;
     }
-    await pending;
+    throw new Error("projection unavailable");
   }
 
   settled(): Promise<void> {
@@ -117,7 +120,7 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     void this.enqueueProjection(state);
   }
 
-  private enqueueProjection(state: PopupState): Promise<void> | null {
+  private enqueueProjection(state: PopupState): Promise<boolean> | null {
     if (
       !state.isUnlocked ||
       !state.activeSession ||
@@ -135,11 +138,12 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
       items: state.items,
       accountId: state.vaultOwnerAccountId,
     } as const;
-    return this.enqueue(async () => {
+    let projected = false;
+    const pending = this.enqueue(async () => {
       if (!this.isCurrentSnapshot(snapshot)) return;
       const binding = await this.host.captureBinding(snapshot.accountId);
       if (binding.accountId !== snapshot.accountId || !this.isCurrentSnapshot(snapshot)) return;
-      await this.replaceWithRetry(snapshot, {
+      projected = await this.replaceWithRetry(snapshot, {
         accountId: snapshot.accountId,
         createdAt: this.clock().toISOString(),
         logins: snapshot.items.flatMap((item) => projectLogin(
@@ -148,7 +152,12 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
         )),
         ...this.matchingState.snapshot(snapshot.accountId),
       }, binding);
-    });
+    }).then(() => projected);
+    // State observers intentionally fire-and-forget. Keep those background
+    // rejections handled while explicit callers can still await the same
+    // rejected promise and surface a fixed failure state.
+    void pending.catch(() => undefined);
+    return pending;
   }
 
   private invalidateLifecycle(): void {
@@ -174,16 +183,16 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     identity: { readonly epoch: number; readonly session: PopupState["activeSession"]; readonly items: readonly VaultItem[]; readonly accountId: string },
     input: AutoFillProjectionInput,
     binding: AutoFillProjectionBinding,
-  ): Promise<void> {
+  ): Promise<boolean> {
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      if (!this.isCurrentSnapshot(identity)) return;
+      if (!this.isCurrentSnapshot(identity)) return false;
       try {
         await this.host.replaceProjection(input, binding);
-        return;
+        return this.isCurrentSnapshot(identity);
       } catch (error) {
         lastError = error;
-        if (!this.isCurrentSnapshot(identity)) return;
+        if (!this.isCurrentSnapshot(identity)) return false;
       }
     }
     throw lastError;
@@ -222,7 +231,8 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
   }
 }
 
-class NativeAutoFillProjectionHost implements AutoFillProjectionHost {
+@Injectable()
+export class NativeAutoFillProjectionHost implements AutoFillProjectionHost {
   async captureBinding(accountId: string): Promise<AutoFillProjectionBinding> {
     const binding = await captureNativeAutoFillProjectionBinding(accountId) as AutoFillProjectionBinding;
     if (!binding || binding.accountId !== accountId || typeof binding.token !== "string") {
@@ -252,10 +262,13 @@ function projectLogin(item: VaultItem, lastUsedAt?: number): AutoFillProjectionL
     name: item.name,
     username: value("username"),
     password: value("password"),
-    uris: item.uris.map(({ uri, matchType }) => ({
-      uri,
-      matchType: canonicalProjectionUriMatch(matchType),
-    })),
+    uris: item.uris.flatMap(({ uri, matchType }) => {
+      const normalizedUri = uri.trim();
+      return normalizedUri.length === 0 ? [] : [{
+        uri: normalizedUri,
+        matchType: canonicalProjectionUriMatch(matchType),
+      }];
+    }),
     totp: value("otp"),
     favorite: item.favorite,
     reprompt: item.reprompt === true,

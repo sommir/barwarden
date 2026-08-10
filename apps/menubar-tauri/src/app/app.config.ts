@@ -44,7 +44,11 @@ import {
   POPUP_ROUTER_CACHE_LIFECYCLE_PORT,
   POPUP_ROUTER_CACHE_ROUTE_GRAPH,
 } from "./platform/popup-router-cache.lifecycle";
-import { AutoFillProjectionService } from "./autofill/autofill-projection.service";
+import {
+  AUTOFILL_PROJECTION_HOST,
+  AutoFillProjectionService,
+  NativeAutoFillProjectionHost,
+} from "./autofill/autofill-projection.service";
 import { AUTOFILL_PROJECTION_LIFECYCLE_PORT } from "./auth/autofill-projection-lifecycle.port";
 import { AUTOFILL_CANDIDATE_HOST } from "./autofill/autofill-candidate.service";
 import { AUTOFILL_NATIVE_HOST } from "./autofill/autofill-native.host";
@@ -66,6 +70,7 @@ export const appConfig: ApplicationConfig = {
     OfficialI18nService,
     { provide: I18nService, useExisting: OfficialI18nService },
     { provide: AUTOFILL_PROJECTION_LIFECYCLE_PORT, useExisting: AutoFillProjectionService },
+    { provide: AUTOFILL_PROJECTION_HOST, useClass: NativeAutoFillProjectionHost },
     { provide: AUTOFILL_CANDIDATE_HOST, useFactory: () => new TauriHostService() },
     { provide: AUTOFILL_NATIVE_HOST, useFactory: () => new TauriHostService() },
     { provide: AUTOFILL_SETUP_HOST, useFactory: () => new TauriHostService() },

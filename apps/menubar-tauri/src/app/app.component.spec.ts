@@ -165,6 +165,28 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
+  it("does not reopen the picker when a concurrent Turn Off wins enablement", async () => {
+    const store = new PopupStateStore();
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const enableFromEntry = vi.fn(async () => "disabled" as const);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { enableFromEntry },
+    ]) as AppComponent;
+
+    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+      detail: { entrySource: "autofill-shortcut" },
+    }));
+    await vi.waitFor(() => expect(enableFromEntry).toHaveBeenCalledOnce());
+
+    expect(navigateByUrl).not.toHaveBeenCalled();
+    component.ngOnDestroy();
+  });
+
   it("retries pending AutoFill cleanup after a cold locked restore with no vault owner", async () => {
     const store = new PopupStateStore();
     const restoreStartup = vi.fn(async () => "locked" as const);
