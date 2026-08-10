@@ -1,0 +1,84 @@
+import { describe, expect, it } from "vitest";
+
+import type { AutoFillAgentSession } from "./autofill-native.host";
+import { AutoFillContextSessionService } from "./autofill-context-session.service";
+import type { ContextualCandidate, LiveAutoFillContext } from "./autofill-fill-context.model";
+
+const context: LiveAutoFillContext = {
+  bundleId: "com.example.Terminal",
+  appName: "Terminal",
+  fillContextToken: "00000000-0000-4000-8000-000000000005",
+  focusedField: { kind: "password", confidence: "high" },
+  action: { mode: "form", fields: ["username", "password"] },
+};
+const session: AutoFillAgentSession = {
+  generation: "00000000-0000-4000-8000-000000000004",
+  accountId: "account-a",
+  vaultRevision: 7,
+};
+const candidate: ContextualCandidate = {
+  cipherId: "cipher-a",
+  displayName: "Example",
+  username: "person@example.test",
+  group: "exact",
+  reason: "service_identifier",
+  availableFields: ["username", "password"],
+  authorizations: new Map([
+    ["username", { contextToken: "username-token", requiresMismatchConfirmation: false }],
+    ["password", { contextToken: "password-token", requiresMismatchConfirmation: false }],
+  ]),
+};
+
+describe("AutoFillContextSessionService", () => {
+  it("keeps one picker-to-detail matrix in memory and returns immutable snapshots", () => {
+    const service = new AutoFillContextSessionService(() => 1_000);
+    service.begin(context, session, [candidate]);
+    expect(service.select("cipher-a")).toBe(true);
+
+    const snapshot = service.snapshot();
+    expect(snapshot).toMatchObject({ context, session, selectedCipherId: "cipher-a" });
+    expect(snapshot?.candidates).not.toBe((service.snapshot() as { candidates: unknown }).candidates);
+    expect(Object.isFrozen(snapshot?.candidates)).toBe(true);
+  });
+
+  it.each([
+    ["lock", (service: AutoFillContextSessionService) => service.lock()],
+    ["account switch", (service: AutoFillContextSessionService) => service.accountSwitched("account-b")],
+    ["picker cancel", (service: AutoFillContextSessionService) => service.cancel()],
+    ["target mismatch", (service: AutoFillContextSessionService) => service.targetMismatch()],
+    ["navigation away", (service: AutoFillContextSessionService) => service.navigationChanged("/vault")],
+  ])("clears ephemeral state on %s", (_name, invalidate) => {
+    const service = new AutoFillContextSessionService(() => 1_000);
+    service.begin(context, session, [candidate]);
+    invalidate(service);
+    expect(service.snapshot()).toBeNull();
+  });
+
+  it("retains state only across picker/detail navigation and clears after absolute expiry", () => {
+    let now = 1_000;
+    const service = new AutoFillContextSessionService(() => now);
+    service.begin(context, session, [candidate]);
+    service.navigationChanged("/autofill");
+    service.navigationChanged("/view-cipher/cipher-a");
+    expect(service.snapshot()).not.toBeNull();
+
+    now += 30_000;
+    expect(service.snapshot()).toBeNull();
+  });
+
+  it("clears when app, context token, account, generation, or revision changes", () => {
+    const mutations: Array<[LiveAutoFillContext, AutoFillAgentSession]> = [
+      [{ ...context, bundleId: "com.example.Other" }, session],
+      [{ ...context, fillContextToken: "00000000-0000-4000-8000-000000000006" }, session],
+      [context, { ...session, accountId: "account-b" }],
+      [context, { ...session, generation: "00000000-0000-4000-8000-000000000006" }],
+      [context, { ...session, vaultRevision: 8 }],
+    ];
+    for (const [nextContext, nextSession] of mutations) {
+      const service = new AutoFillContextSessionService(() => 1_000);
+      service.begin(context, session, [candidate]);
+      expect(service.validate(nextContext, nextSession)).toBe(false);
+      expect(service.snapshot()).toBeNull();
+    }
+  });
+});

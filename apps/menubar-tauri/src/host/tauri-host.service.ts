@@ -47,6 +47,40 @@ import {
   type NativeAutostartApi,
 } from "./launch-at-login";
 type AutoFillSecretField = "username" | "password" | "totp";
+interface LiveAutoFillContext {
+  readonly bundleId: string;
+  readonly appName: string;
+  readonly fillContextToken: string;
+  readonly focusedField: {
+    readonly kind: "username" | "email" | "password" | "one-time-code" | "unknown";
+    readonly confidence: "high" | "medium" | "low";
+  };
+  readonly action: {
+    readonly mode: "field" | "form" | "choose";
+    readonly fields: readonly AutoFillSecretField[];
+  };
+}
+interface DetectedFillAuthorizationContract {
+  readonly scope: AutoFillRepromptScope;
+  readonly mismatchConfirmed: boolean;
+}
+interface DetectedFillRequest {
+  readonly fillContextToken: string;
+  readonly authorizations: readonly DetectedFillAuthorizationContract[];
+  readonly repromptReceipt?: string;
+}
+type DetectedFillOutcome =
+  | { readonly status: "success"; readonly fields: readonly AutoFillSecretField[] }
+  | {
+    readonly status: "partial";
+    readonly filled: readonly AutoFillSecretField[];
+    readonly failed: AutoFillSecretField;
+    readonly code: "stale-context" | "fill-failed";
+  }
+  | {
+    readonly status: "error";
+    readonly code: "unauthorized" | "invalid-request" | "stale-context" | "reprompt-failed" | "secret-release-failed";
+  };
 export type AutoFillAgentRegistrationStatus =
   | "notRegistered"
   | "enabled"
@@ -392,7 +426,11 @@ export class TauriHostService
   }
 
   async entryContext() {
-    return decodeEntryContext(await this.invoke<unknown>("autofill_entry_context"));
+    try {
+      return decodeEntryContext(await this.invoke<unknown>("autofill_entry_context"));
+    } catch {
+      throw new Error("AutoFill unavailable");
+    }
   }
 
   async agentSession() {
@@ -409,6 +447,32 @@ export class TauriHostService
     return decodeBeginReprompt(await this.invoke<unknown>("autofill_begin_reprompt", { scope }));
   }
 
+  async beginRepromptBatch(scopes: readonly AutoFillRepromptScope[]) {
+    try {
+      const validated = validateAutoFillRepromptScopes(scopes);
+      return decodeBeginReprompt(await this.invoke<unknown>("autofill_begin_batch_reprompt", {
+        request: { scopes: validated },
+      }));
+    } catch {
+      throw new Error("AutoFill unavailable");
+    }
+  }
+
+  async cancelRepromptBatch(
+    scopes: readonly AutoFillRepromptScope[],
+    receipt: string,
+  ): Promise<void> {
+    try {
+      const validated = validateAutoFillRepromptScopes(scopes);
+      if (!nonEmpty(receipt) || receipt.length > 512) throw new Error("invalid receipt");
+      await this.invoke("autofill_cancel_batch_reprompt", {
+        request: { scopes: validated, receipt },
+      });
+    } catch {
+      throw new Error("AutoFill unavailable");
+    }
+  }
+
   async cancelReprompt(scope: AutoFillRepromptScope, receipt: string): Promise<void> {
     await this.invoke("autofill_cancel_reprompt", { scope, receipt });
   }
@@ -422,6 +486,22 @@ export class TauriHostService
 
   async releaseSecret(request: AutoFillSecretCommandRequest) {
     return decodeSecretOutcome(await this.invoke<unknown>("autofill_release_secret", { request }));
+  }
+
+  async fillDetected(request: DetectedFillRequest): Promise<DetectedFillOutcome> {
+    let validated: DetectedFillRequest;
+    try {
+      validated = validateDetectedFillRequest(request);
+    } catch {
+      throw new Error("AutoFill unavailable");
+    }
+    try {
+      return decodeDetectedFillOutcome(await this.invoke<unknown>("autofill_fill_detected", {
+        request: validated,
+      }));
+    } catch {
+      throw new Error("AutoFill unavailable");
+    }
   }
 
   async fetchJson<T>(url: string, init: RequestInit): Promise<T> {
@@ -981,12 +1061,155 @@ function requestBodyToString(body: BodyInit | null | undefined): string | null {
   throw new Error("Unsupported native HTTP request body type");
 }
 
+const AUTOFILL_FIELD_ORDER: readonly AutoFillSecretField[] = ["username", "password", "totp"];
+const AUTOFILL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function decodeLiveAutoFillContext(value: unknown): LiveAutoFillContext {
+  if (!isExactRecord(value) || !exactKeys(value, [
+    "bundleId", "appName", "fillContextToken", "focusedField", "action",
+  ])) throw new Error("invalid context");
+  const focusedField = value["focusedField"];
+  const action = value["action"];
+  if (!isExactRecord(focusedField) || !exactKeys(focusedField, ["kind", "confidence"])
+      || !isExactRecord(action) || !exactKeys(action, ["mode", "fields"])) {
+    throw new Error("invalid context");
+  }
+  const kind = valueFromSet(focusedField["kind"], [
+    "username", "email", "password", "one-time-code", "unknown",
+  ] as const);
+  const confidence = valueFromSet(focusedField["confidence"], ["high", "medium", "low"] as const);
+  const mode = valueFromSet(action["mode"], ["field", "form", "choose"] as const);
+  return Object.freeze({
+    bundleId: boundedAutoFillString(value["bundleId"], 255),
+    appName: boundedAutoFillString(value["appName"], 255),
+    fillContextToken: autoFillUuid(value["fillContextToken"]),
+    focusedField: Object.freeze({ kind, confidence }),
+    action: Object.freeze({ mode, fields: canonicalAutoFillFields(action["fields"], false) }),
+  });
+}
+
+function validateAutoFillRepromptScopes(value: unknown): readonly AutoFillRepromptScope[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 3) throw new Error("invalid scopes");
+  const scopes = value.map((entry) => {
+    if (!isExactRecord(entry) || !exactKeys(entry, [
+      "accountId", "candidateId", "field", "generation", "contextToken",
+    ])) throw new Error("invalid scope");
+    return Object.freeze({
+      accountId: boundedAutoFillString(entry["accountId"], 512),
+      candidateId: boundedAutoFillString(entry["candidateId"], 512),
+      field: autoFillField(entry["field"]),
+      generation: autoFillUuid(entry["generation"]),
+      contextToken: boundedAutoFillString(entry["contextToken"], 512),
+    });
+  });
+  canonicalAutoFillFields(scopes.map(({ field }) => field), false);
+  const first = scopes[0];
+  if (scopes.some((scope) => scope.accountId !== first.accountId
+    || scope.candidateId !== first.candidateId || scope.generation !== first.generation)
+    || new Set(scopes.map(({ contextToken }) => contextToken)).size !== scopes.length) {
+    throw new Error("incompatible scopes");
+  }
+  return Object.freeze(scopes);
+}
+
+function validateDetectedFillRequest(value: unknown): DetectedFillRequest {
+  if (!isExactRecord(value) || (!exactKeys(value, ["fillContextToken", "authorizations"])
+      && !exactKeys(value, ["fillContextToken", "authorizations", "repromptReceipt"]))) {
+    throw new Error("invalid request");
+  }
+  const rawAuthorizations = value["authorizations"];
+  if (!Array.isArray(rawAuthorizations) || rawAuthorizations.length < 1
+      || rawAuthorizations.length > 3) throw new Error("invalid request");
+  const authorizations = rawAuthorizations.map((entry) => {
+    if (!isExactRecord(entry) || !exactKeys(entry, ["scope", "mismatchConfirmed"])
+        || typeof entry["mismatchConfirmed"] !== "boolean") throw new Error("invalid authorization");
+    const [scope] = validateAutoFillRepromptScopes([entry["scope"]]);
+    return Object.freeze({ scope, mismatchConfirmed: entry["mismatchConfirmed"] });
+  });
+  validateAutoFillRepromptScopes(authorizations.map(({ scope }) => scope));
+  const hasReceipt = Object.prototype.hasOwnProperty.call(value, "repromptReceipt");
+  const repromptReceipt = hasReceipt
+    ? boundedAutoFillString(value["repromptReceipt"], 512)
+    : undefined;
+  return Object.freeze({
+    fillContextToken: autoFillUuid(value["fillContextToken"]),
+    authorizations: Object.freeze(authorizations),
+    ...(repromptReceipt === undefined ? {} : { repromptReceipt }),
+  });
+}
+
+function decodeDetectedFillOutcome(value: unknown): DetectedFillOutcome {
+  if (!isExactRecord(value)) throw new Error("invalid outcome");
+  if (value["status"] === "success" && exactKeys(value, ["status", "fields"])) {
+    return Object.freeze({ status: "success", fields: canonicalAutoFillFields(value["fields"], false) });
+  }
+  if (value["status"] === "partial" && exactKeys(value, ["status", "filled", "failed", "code"])) {
+    const filled = canonicalAutoFillFields(value["filled"], true);
+    const failed = autoFillField(value["failed"]);
+    const code = valueFromSet(value["code"], ["stale-context", "fill-failed"] as const);
+    if (filled.includes(failed)) throw new Error("invalid outcome");
+    return Object.freeze({ status: "partial", filled, failed, code });
+  }
+  if (value["status"] === "error" && exactKeys(value, ["status", "code"])) {
+    return Object.freeze({
+      status: "error",
+      code: valueFromSet(value["code"], [
+        "unauthorized", "invalid-request", "stale-context", "reprompt-failed", "secret-release-failed",
+      ] as const),
+    });
+  }
+  throw new Error("invalid outcome");
+}
+
+function canonicalAutoFillFields(value: unknown, allowEmpty: boolean): readonly AutoFillSecretField[] {
+  if (!Array.isArray(value) || value.length > 3 || (!allowEmpty && value.length === 0)) {
+    throw new Error("invalid fields");
+  }
+  const fields = value.map(autoFillField);
+  if (new Set(fields).size !== fields.length || fields.some((field, index) => (
+    AUTOFILL_FIELD_ORDER.indexOf(field)
+      <= (index === 0 ? -1 : AUTOFILL_FIELD_ORDER.indexOf(fields[index - 1]))
+  ))) throw new Error("invalid fields");
+  return Object.freeze(fields);
+}
+
+function autoFillField(value: unknown): AutoFillSecretField {
+  return valueFromSet(value, AUTOFILL_FIELD_ORDER);
+}
+
+function autoFillUuid(value: unknown): string {
+  const result = boundedAutoFillString(value, 36);
+  if (!AUTOFILL_UUID.test(result)) throw new Error("invalid UUID");
+  return result;
+}
+
+function boundedAutoFillString(value: unknown, maximum: number): string {
+  if (typeof value !== "string" || value.length > maximum || value.trim().length === 0) {
+    throw new Error("invalid string");
+  }
+  return value.normalize("NFC");
+}
+
+function valueFromSet<const Values extends readonly string[]>(
+  value: unknown,
+  values: Values,
+): Values[number] {
+  if (typeof value !== "string" || !values.includes(value)) throw new Error("invalid enum");
+  return value as Values[number];
+}
+
 function decodeEntryContext(value: unknown) {
   if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
   if (value["status"] === "unavailable" && exactKeys(value, ["status"])) return { status: "unavailable" as const };
-  if (value["status"] === "available" && exactKeys(value, ["status", "bundleId", "appName"])
-      && nonEmpty(value["bundleId"]) && typeof value["appName"] === "string") {
-    return { status: "available" as const, bundleId: value["bundleId"], appName: value["appName"] };
+  if (value["status"] === "available" && exactKeys(value, [
+    "status", "bundleId", "appName", "fillContextToken", "focusedField", "action",
+  ])) {
+    try {
+      const { status: _status, ...context } = value;
+      return { status: "available" as const, context: decodeLiveAutoFillContext(context) };
+    } catch {
+      throw new Error("AutoFill unavailable");
+    }
   }
   throw new Error("AutoFill unavailable");
 }
@@ -1012,7 +1235,8 @@ function decodeCandidateOutcome(value: unknown): unknown {
 function decodeBeginReprompt(value: unknown) {
   if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
   if (value["status"] === "unavailable" && exactKeys(value, ["status"])) return { status: "unavailable" as const };
-  if (value["status"] === "pending" && exactKeys(value, ["status", "receipt"]) && nonEmpty(value["receipt"])) {
+  if (value["status"] === "pending" && exactKeys(value, ["status", "receipt"])
+      && nonEmpty(value["receipt"]) && value["receipt"].length <= 512) {
     return { status: "pending" as const, receipt: value["receipt"] };
   }
   throw new Error("AutoFill unavailable");
@@ -1031,11 +1255,15 @@ function decodeSecretOutcome(value: unknown) {
 }
 
 function isExactRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
-  return Object.keys(value).sort().join("|") === [...keys].sort().join("|");
+  const actual = Reflect.ownKeys(value);
+  return actual.length === keys.length
+    && actual.every((key) => typeof key === "string" && keys.includes(key));
 }
 
 function nonEmpty(value: unknown): value is string {

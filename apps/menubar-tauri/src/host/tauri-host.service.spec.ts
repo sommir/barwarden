@@ -33,6 +33,148 @@ function brokerSnapshot() {
 }
 
 describe("TauriHostService", () => {
+  it("strictly wraps the detected native entry context", async () => {
+    const nativeContext = {
+      status: "available",
+      bundleId: "com.example.Terminal",
+      appName: "Terminal",
+      fillContextToken: "00000000-0000-4000-8000-000000000005",
+      focusedField: { kind: "password", confidence: "high" },
+      action: { mode: "form", fields: ["username", "password"] },
+    };
+    const host = new TauriHostService(async () => nativeContext as never);
+
+    await expect(host.entryContext()).resolves.toEqual({
+      status: "available",
+      context: {
+        bundleId: nativeContext.bundleId,
+        appName: nativeContext.appName,
+        fillContextToken: nativeContext.fillContextToken,
+        focusedField: nativeContext.focusedField,
+        action: nativeContext.action,
+      },
+    });
+  });
+
+  it.each([
+    { focusedField: { kind: "password", confidence: "high", secretField: undefined } },
+    { action: { mode: "field", fields: ["password"], value: undefined } },
+    { action: { mode: "field", fields: ["totp", "username"] } },
+  ])("rejects malformed detected context nested contracts", async (override) => {
+    const host = new TauriHostService(async () => ({
+      status: "available",
+      bundleId: "com.example.Terminal",
+      appName: "Terminal",
+      fillContextToken: "00000000-0000-4000-8000-000000000005",
+      focusedField: { kind: "password", confidence: "high" },
+      action: { mode: "field", fields: ["password"] },
+      ...override,
+    }) as never);
+    await expect(host.entryContext()).rejects.toThrow("AutoFill unavailable");
+  });
+
+  it("sanitizes hostile detected-context objects without leaking native details", async () => {
+    const host = new TauriHostService(async () => new Proxy({ status: "available" }, {
+      ownKeys() {
+        throw new Error("private native secret");
+      },
+    }) as never);
+    const error = await host.entryContext().then(() => null, (caught: unknown) => caught);
+    expect(error).toMatchObject({ message: "AutoFill unavailable" });
+    expect(JSON.stringify(error)).not.toMatch(/private|secret|native/);
+  });
+
+  it("maps exact batch reprompt and detected-fill command envelopes", async () => {
+    const calls: Array<[string, Record<string, unknown> | undefined]> = [];
+    const host = new TauriHostService(async (command, args) => {
+      calls.push([command, args]);
+      if (command === "autofill_begin_batch_reprompt") {
+        return { status: "pending", receipt: "receipt-a" } as never;
+      }
+      if (command === "autofill_fill_detected") {
+        return { status: "success", fields: ["username", "password"] } as never;
+      }
+      return undefined as never;
+    });
+    const scopes = ["username", "password"].map((field, index) => ({
+      accountId: "account-a",
+      candidateId: "cipher-a",
+      field: field as "username" | "password",
+      generation: "00000000-0000-4000-8000-000000000004",
+      contextToken: `context-${index}`,
+    }));
+    const request = {
+      fillContextToken: "00000000-0000-4000-8000-000000000005",
+      authorizations: scopes.map((scope) => ({ scope, mismatchConfirmed: false })),
+    };
+
+    await expect(host.beginRepromptBatch(scopes)).resolves.toEqual({ status: "pending", receipt: "receipt-a" });
+    await expect(host.cancelRepromptBatch(scopes, "receipt-a")).resolves.toBeUndefined();
+    await expect(host.fillDetected(request)).resolves.toEqual({
+      status: "success",
+      fields: ["username", "password"],
+    });
+    expect(calls).toEqual([
+      ["autofill_begin_batch_reprompt", { request: { scopes } }],
+      ["autofill_cancel_batch_reprompt", { request: { scopes, receipt: "receipt-a" } }],
+      ["autofill_fill_detected", { request }],
+    ]);
+  });
+
+  it("rejects detected-fill outcome secret smuggling and unknown result codes", async () => {
+    for (const outcome of [
+      { status: "success", fields: ["password"], value: "private" },
+      { status: "partial", filled: [], failed: "password", code: "native-private" },
+      { status: "error", code: "stale-context", secret: undefined },
+    ]) {
+      const host = new TauriHostService(async () => outcome as never);
+      await expect(host.fillDetected({
+        fillContextToken: "00000000-0000-4000-8000-000000000005",
+        authorizations: [{
+          scope: {
+            accountId: "account-a",
+            candidateId: "cipher-a",
+            field: "password",
+            generation: "00000000-0000-4000-8000-000000000004",
+            contextToken: "context-password",
+          },
+          mismatchConfirmed: false,
+        }],
+      })).rejects.toThrow("AutoFill unavailable");
+    }
+  });
+
+  it("rejects oversized batch receipts from the native boundary", async () => {
+    const host = new TauriHostService(async () => ({
+      status: "pending",
+      receipt: "r".repeat(513),
+    }) as never);
+    await expect(host.beginRepromptBatch([{
+      accountId: "account-a",
+      candidateId: "cipher-a",
+      field: "password",
+      generation: "00000000-0000-4000-8000-000000000004",
+      contextToken: "context-password",
+    }])).rejects.toThrow("AutoFill unavailable");
+  });
+
+  it("sanitizes hostile batch-reprompt outcomes", async () => {
+    const host = new TauriHostService(async () => new Proxy({}, {
+      getPrototypeOf() {
+        throw new Error("private native receipt");
+      },
+    }) as never);
+    const error = await host.beginRepromptBatch([{
+      accountId: "account-a",
+      candidateId: "cipher-a",
+      field: "password",
+      generation: "00000000-0000-4000-8000-000000000004",
+      contextToken: "context-password",
+    }]).then(() => null, (caught: unknown) => caught);
+    expect(error).toMatchObject({ message: "AutoFill unavailable" });
+    expect(JSON.stringify(error)).not.toMatch(/private|receipt|native/);
+  });
+
   it("maps Agent registration lifecycle and preserves requiresApproval as an explicit state", async () => {
     const invoke = vi.fn<TauriInvoke>(async (command) => {
       if (command === "autofill_agent_registration_status") return "notRegistered" as never;

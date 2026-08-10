@@ -414,8 +414,8 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
         return;
       }
       if (!this.commit(epoch, () => {
-        this.bundleId = context.bundleId;
-        this.appName = context.appName;
+        this.bundleId = context.context.bundleId;
+        this.appName = context.context.appName;
       })) return;
       const shortcut = await this.shortcutHost.getGlobalShortcut().catch(() => null);
       if (!this.commit(epoch, () => {
@@ -895,8 +895,8 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const context = await this.native.entryContext().catch(() => ({ status: "unavailable" as const }));
     if (!this.sessionIsCurrent(epoch, session)
       || context.status !== "available"
-      || context.bundleId !== bundleId
-      || context.appName !== appName) return;
+      || context.context.bundleId !== bundleId
+      || context.context.appName !== appName) return;
     const byField = new Map<AutoFillSecretField, readonly RankedAutoFillCandidate[]>();
     for (const [index, result] of results.entries()) {
       const candidates = new Map<string, RankedAutoFillCandidate>();
@@ -1072,8 +1072,8 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const context = await this.native.entryContext().catch(() => ({ status: "unavailable" as const }));
     return this.operationIsCurrent(operation)
       && context.status === "available"
-      && context.bundleId === operation.bundleId
-      && context.appName === operation.appName;
+      && context.context.bundleId === operation.bundleId
+      && context.context.appName === operation.appName;
   }
 
   private commit(epoch: number, update: () => void): boolean {

@@ -40,7 +40,10 @@ describe("AutoFillPickerComponent", () => {
     agentSession: ReturnType<typeof vi.fn>;
     beginReprompt: ReturnType<typeof vi.fn>;
     cancelReprompt: ReturnType<typeof vi.fn>;
+    beginRepromptBatch: ReturnType<typeof vi.fn>;
+    cancelRepromptBatch: ReturnType<typeof vi.fn>;
     biometricReprompt: ReturnType<typeof vi.fn>;
+    fillDetected: ReturnType<typeof vi.fn>;
     releaseSecret: ReturnType<typeof vi.fn>;
     pasteText: ReturnType<typeof vi.fn>;
     copyText: ReturnType<typeof vi.fn>;
@@ -71,12 +74,15 @@ describe("AutoFillPickerComponent", () => {
       })),
     };
     nativeHost = {
-      entryContext: vi.fn(async () => ({ status: "available", bundleId: "com.example.App", appName: "Example" })),
-      agentSession: vi.fn(async () => ({ status: "success", generation: "00000000-0000-4000-8000-000000000004", accountId: "account-a", vaultRevision: 1 })),
-      beginReprompt: vi.fn(async () => ({ status: "pending", receipt: "receipt-a" })),
+      entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => detectedEntry("com.example.App", "Example")),
+      agentSession: vi.fn<AutoFillNativeHost["agentSession"]>(async () => ({ status: "success", generation: "00000000-0000-4000-8000-000000000004", accountId: "account-a", vaultRevision: 1 })),
+      beginReprompt: vi.fn<AutoFillNativeHost["beginReprompt"]>(async () => ({ status: "pending", receipt: "receipt-a" })),
       cancelReprompt: vi.fn(async () => undefined),
-      biometricReprompt: vi.fn(async () => "success"),
-      releaseSecret: vi.fn(async (request) => ({ status: "success", field: request.scope.field, value: "one-secret" })),
+      beginRepromptBatch: vi.fn<AutoFillNativeHost["beginRepromptBatch"]>(async () => ({ status: "pending", receipt: "receipt-a" })),
+      cancelRepromptBatch: vi.fn(async () => undefined),
+      biometricReprompt: vi.fn<AutoFillNativeHost["biometricReprompt"]>(async () => "success"),
+      fillDetected: vi.fn<AutoFillNativeHost["fillDetected"]>(async () => ({ status: "success", fields: ["password"] })),
+      releaseSecret: vi.fn<AutoFillNativeHost["releaseSecret"]>(async (request) => ({ status: "success", field: request.scope.field, value: "one-secret" })),
       pasteText: vi.fn(async () => undefined),
       copyText: vi.fn(async () => undefined),
     };
@@ -137,11 +143,7 @@ describe("AutoFillPickerComponent", () => {
         requiresMismatchConfirmation: false,
       }],
     });
-    nativeHost.entryContext.mockResolvedValue({
-      status: "available",
-      bundleId: "com.termius-dmg.mac",
-      appName: "Termius",
-    });
+    nativeHost.entryContext.mockResolvedValue(detectedEntry("com.termius-dmg.mac", "Termius"));
 
     const fixture = TestBed.createComponent(AutoFillPickerComponent);
     fixture.detectChanges();
@@ -630,8 +632,8 @@ describe("AutoFillPickerComponent", () => {
   });
 
   it("does not paste when target revalidation finishes after destruction", async () => {
-    const target = deferred<{ status: "available"; bundleId: string; appName: string }>();
-    const available = { status: "available" as const, bundleId: "com.example.App", appName: "Example" };
+    const target = deferred<ReturnType<typeof detectedEntry>>();
+    const available = detectedEntry("com.example.App", "Example");
     const fixture = TestBed.createComponent(AutoFillPickerComponent);
     fixture.detectChanges();
     await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
@@ -787,11 +789,7 @@ describe("AutoFillPickerComponent", () => {
     fixture.detectChanges();
     await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
     fixture.componentInstance.selectIndex(0);
-    nativeHost.entryContext.mockResolvedValue({
-      status: "available",
-      bundleId: "com.example.Other",
-      appName: "Other",
-    });
+    nativeHost.entryContext.mockResolvedValue(detectedEntry("com.example.Other", "Other"));
 
     await fixture.componentInstance.perform("fill", "password");
 
@@ -887,6 +885,19 @@ function candidateHostCandidate() {
 
 function candidateResponse() {
   return { contextToken: crypto.randomUUID(), candidates: [candidateHostCandidate()] };
+}
+
+function detectedEntry(bundleId: string, appName: string) {
+  return {
+    status: "available" as const,
+    context: {
+      bundleId,
+      appName,
+      fillContextToken: "00000000-0000-4000-8000-000000000005",
+      focusedField: { kind: "password" as const, confidence: "high" as const },
+      action: { mode: "field" as const, fields: ["password" as const] },
+    },
+  };
 }
 
 function deferred<T>() {

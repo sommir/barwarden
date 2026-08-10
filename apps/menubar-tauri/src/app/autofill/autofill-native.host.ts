@@ -2,11 +2,21 @@ import { InjectionToken } from "@angular/core";
 
 import type { BiometricOperationStatus } from "../../host/biometric-host";
 import type { AutoFillSecretField } from "./autofill-candidate.service";
+import type {
+  DetectedFillOutcome,
+  DetectedFillRequest,
+  LiveAutoFillContext,
+} from "./autofill-fill-context.model";
 export type AutoFillEntryContextOutcome =
-  | { readonly status: "available"; readonly bundleId: string; readonly appName: string }
+  | { readonly status: "available"; readonly context: LiveAutoFillContext }
   | { readonly status: "unavailable" };
+export interface AutoFillAgentSession {
+  readonly generation: string;
+  readonly accountId: string;
+  readonly vaultRevision: number;
+}
 export type AutoFillAgentSessionOutcome =
-  | { readonly status: "success"; readonly generation: string; readonly accountId: string; readonly vaultRevision: number }
+  | ({ readonly status: "success" } & AutoFillAgentSession)
   | { readonly status: "error"; readonly code: string };
 export interface AutoFillRepromptScope {
   readonly accountId: string;
@@ -32,7 +42,10 @@ export interface AutoFillNativeHost {
   agentSession(): Promise<AutoFillAgentSessionOutcome>;
   beginReprompt(scope: AutoFillRepromptScope): Promise<AutoFillBeginRepromptOutcome>;
   cancelReprompt(scope: AutoFillRepromptScope, receipt: string): Promise<void>;
+  beginRepromptBatch(scopes: readonly AutoFillRepromptScope[]): Promise<AutoFillBeginRepromptOutcome>;
+  cancelRepromptBatch(scopes: readonly AutoFillRepromptScope[], receipt: string): Promise<void>;
   biometricReprompt(accountId: string, receipt: string): Promise<BiometricOperationStatus>;
+  fillDetected(request: DetectedFillRequest): Promise<DetectedFillOutcome>;
   releaseSecret(request: AutoFillSecretCommandRequest): Promise<AutoFillSecretCommandOutcome>;
   pasteText(value: string, clearAfterSeconds?: number): Promise<void>;
   copyText(value: string, clearAfterSeconds?: number): Promise<void>;
