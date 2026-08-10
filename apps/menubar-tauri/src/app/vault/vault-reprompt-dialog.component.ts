@@ -140,7 +140,7 @@ export class VaultRepromptDialogComponent implements OnDestroy {
           ? error.message
           : translateOfficialMessage("i18nUnableToVerifyMasterPassword");
       } else {
-        this.close(false);
+        this.close(this.cancellation !== null);
       }
       return;
     } finally {
@@ -149,7 +149,7 @@ export class VaultRepromptDialogComponent implements OnDestroy {
     }
 
     if (!verified || !this.store.isCurrentProtectedOperation(epoch)) {
-      this.close(false);
+      this.close(this.cancellation !== null);
       return;
     }
 

@@ -486,6 +486,195 @@ describe("VaultItemDetailPageComponent", () => {
     expect(native.fillDetected).not.toHaveBeenCalled();
   });
 
+  it("burns a contextual session when a reused detail route changes A to B to A", async () => {
+    const secondItem = {
+      ...demoVaultItems[0],
+      id: "second-login",
+      name: "Second Login",
+    };
+    const context = detailContext();
+    const native = detailNative(() => context);
+    const result = await createFixture(undefined, undefined, [demoVaultItems[0], secondItem], [], [], { native });
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    expect(result.contextSession.select("github")).toBe(true);
+
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => {
+      result.fixture.detectChanges();
+      expect((result.fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-context']"))
+        .not.toBeNull();
+    });
+
+    Object.defineProperty(router, "url", { value: "/view-cipher/second-login", configurable: true });
+    result.fixture.componentRef.setInput("id", "second-login");
+    result.fixture.detectChanges();
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await result.fixture.whenStable();
+    result.fixture.detectChanges();
+
+    expect(result.contextSession.snapshot()).toBeNull();
+    expect((result.fixture.nativeElement as HTMLElement)
+      .querySelector("[data-testid='autofill-detail-context']"))
+      .toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("cancels a no-reprompt action when navigation changes during live validation", async () => {
+    const secondItem = {
+      ...demoVaultItems[0],
+      id: "second-login",
+      name: "Second Login",
+    };
+    const context = detailContext();
+    const native = detailNative(() => context);
+    const result = await createFixture(undefined, undefined, [demoVaultItems[0], secondItem], [], [], { native });
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.select("github");
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => {
+      result.fixture.detectChanges();
+      expect((result.fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+
+    let resolveEntry!: (value: Awaited<ReturnType<AutoFillNativeHost["entryContext"]>>) => void;
+    const pendingEntry = new Promise<Awaited<ReturnType<AutoFillNativeHost["entryContext"]>>>(
+      (resolve) => { resolveEntry = resolve; },
+    );
+    native.entryContext.mockImplementationOnce(() => pendingEntry);
+    (result.fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!
+      .click();
+    await vi.waitFor(() => expect(native.entryContext).toHaveBeenCalledTimes(2));
+
+    Object.defineProperty(router, "url", { value: "/view-cipher/second-login", configurable: true });
+    result.fixture.componentRef.setInput("id", "second-login");
+    result.fixture.detectChanges();
+    resolveEntry({ status: "available", context });
+    await result.fixture.whenStable();
+    await Promise.resolve();
+    result.fixture.detectChanges();
+
+    expect(result.contextSession.snapshot()).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("burns an exact protected batch receipt that arrives after detail navigation", async () => {
+    const protectedItem = { ...demoVaultItems[0], reprompt: true };
+    const secondItem = {
+      ...demoVaultItems[0],
+      id: "second-login",
+      name: "Second Login",
+    };
+    const context = detailContext();
+    const native = detailNative(() => context);
+    let resolveBatch!: (
+      value: Awaited<ReturnType<AutoFillNativeHost["beginRepromptBatch"]>>,
+    ) => void;
+    native.beginRepromptBatch.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveBatch = resolve;
+    }));
+    const result = await createFixture(undefined, undefined, [protectedItem, secondItem], [], [], { native });
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.select("github");
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => {
+      result.fixture.detectChanges();
+      expect((result.fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+
+    (result.fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!
+      .click();
+    await vi.waitFor(() => expect(native.beginRepromptBatch).toHaveBeenCalledOnce());
+    Object.defineProperty(router, "url", { value: "/view-cipher/second-login", configurable: true });
+    result.fixture.componentRef.setInput("id", "second-login");
+    result.fixture.detectChanges();
+    resolveBatch({ status: "pending", receipt: "late-detail-receipt" });
+
+    await vi.waitFor(() => expect(native.cancelRepromptBatch).toHaveBeenCalledOnce());
+    expect(native.cancelRepromptBatch).toHaveBeenCalledWith([
+      {
+        accountId: "account-a",
+        candidateId: "github",
+        field: "username",
+        generation: "00000000-0000-4000-8000-000000000004",
+        contextToken: "username-token",
+      },
+      {
+        accountId: "account-a",
+        candidateId: "github",
+        field: "password",
+        generation: "00000000-0000-4000-8000-000000000004",
+        contextToken: "password-token",
+      },
+    ], "late-detail-receipt");
+    expect(result.contextSession.snapshot()).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("burns the exact protected batch receipt when reprompt validation becomes invalid", async () => {
+    const protectedItem = { ...demoVaultItems[0], reprompt: true };
+    const { fixture, native, repromptVerify, contextSession } = await createLiveContextFixture({
+      item: protectedItem,
+    });
+    fixture.componentRef.setInput("id", protectedItem.id);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
+    await vi.waitFor(() => expect(native.beginRepromptBatch).toHaveBeenCalledOnce());
+    fixture.detectChanges();
+    repromptVerify.mockResolvedValueOnce(false);
+
+    submitReprompt(host, "invalidated-master-password");
+
+    await vi.waitFor(() => expect(native.cancelRepromptBatch).toHaveBeenCalledOnce());
+    expect(native.cancelRepromptBatch).toHaveBeenCalledWith([
+      {
+        accountId: "account-a",
+        candidateId: "github",
+        field: "username",
+        generation: "00000000-0000-4000-8000-000000000004",
+        contextToken: "username-token",
+      },
+      {
+        accountId: "account-a",
+        candidateId: "github",
+        field: "password",
+        generation: "00000000-0000-4000-8000-000000000004",
+        contextToken: "password-token",
+      },
+    ], "detail-reprompt-receipt");
+    expect(repromptVerify).toHaveBeenCalledWith(
+      "invalidated-master-password",
+      expect.any(Number),
+      "detail-reprompt-receipt",
+    );
+    expect(contextSession.snapshot()).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
   it("expires and burns the contextual detail action and clears it on pop-out", async () => {
     const calls: string[] = [];
     const now = { value: 1_000 };

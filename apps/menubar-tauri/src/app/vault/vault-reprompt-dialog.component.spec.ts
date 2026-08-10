@@ -113,6 +113,41 @@ describe("VaultRepromptDialogComponent", () => {
     expect((fixture.nativeElement as HTMLElement).querySelector("dialog")?.hasAttribute("open")).toBe(false);
   });
 
+  it("runs contextual cancellation exactly once when verification becomes invalid", async () => {
+    const { fixture } = await setup(vi.fn().mockResolvedValue(false));
+    const continuation = vi.fn();
+    const cancellation = vi.fn().mockResolvedValue(undefined);
+    fixture.componentInstance.openFor(
+      "cipher-a",
+      continuation,
+      undefined,
+      "protected-receipt",
+      cancellation,
+    );
+    enterPassword(fixture.nativeElement as HTMLElement, "never-persist");
+
+    await fixture.componentInstance.submit();
+    fixture.componentInstance.cancel();
+    fixture.destroy();
+
+    expect(continuation).not.toHaveBeenCalled();
+    expect(cancellation).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the legacy close semantics when verification returns false", async () => {
+    const { fixture, store } = await setup(vi.fn().mockResolvedValue(false));
+    const continuation = vi.fn();
+    fixture.componentInstance.openFor("cipher-a", continuation);
+    const epoch = fixture.componentInstance.operationEpoch;
+    enterPassword(fixture.nativeElement as HTMLElement, "never-persist");
+
+    await fixture.componentInstance.submit();
+
+    expect(continuation).not.toHaveBeenCalled();
+    expect(store.isCurrentProtectedOperation(epoch)).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).querySelector("dialog")?.hasAttribute("open")).toBe(false);
+  });
+
   it("clears transient state on cancel and destroy", async () => {
     const { fixture, store } = await setup();
     fixture.componentInstance.openFor("cipher-a", vi.fn());

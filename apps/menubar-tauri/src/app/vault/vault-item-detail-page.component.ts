@@ -296,6 +296,7 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     const itemIdChange = changes["itemId"];
     if (itemIdChange) {
       if (!itemIdChange.firstChange && itemIdChange.previousValue !== itemIdChange.currentValue) {
+        this.invalidateContextualJourney();
         this.detailActions.invalidate();
         this.repromptDialog?.cancel();
       }
@@ -953,10 +954,12 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   }
 
   private async refreshContextualFillAction(): Promise<void> {
+    const priorPrepared = this.preparedContextualAction;
     const epoch = ++this.contextualEpoch;
     this.contextualPresentation = undefined;
     this.preparedContextualAction = undefined;
     this.contextualFillBusy = false;
+    if (priorPrepared) void this.fillActions.cancel(priorPrepared);
     const item = this.item;
     const route = this.router.url.split(/[?#]/, 1)[0];
     const snapshot = this.contextSession.snapshot();
@@ -964,16 +967,23 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
         || resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popup"
         || route !== `/view-cipher/${encodeURIComponent(item.id)}`
         || snapshot?.selectedCipherId !== item.id) {
+      if (snapshot) this.invalidateContextualJourney(priorPrepared);
       return;
     }
     const candidate = snapshot.candidates.find(({ cipherId }) => cipherId === item.id);
-    if (!candidate || !requestedSecretsExist(item, snapshot.context.action.fields)) return;
+    if (!candidate || !requestedSecretsExist(item, snapshot.context.action.fields)) {
+      this.invalidateContextualJourney(priorPrepared);
+      return;
+    }
 
     const [entry, nativeSession] = await Promise.all([
       this.autoFillNative.entryContext().catch(() => ({ status: "unavailable" as const })),
       this.autoFillNative.agentSession().catch(() => ({ status: "error" as const, code: "unavailable" })),
     ]);
-    if (epoch !== this.contextualEpoch || this.item !== item) return;
+    if (epoch !== this.contextualEpoch || this.item !== item) {
+      this.invalidateContextualJourney(priorPrepared);
+      return;
+    }
     const liveRoute = this.router.url.split(/[?#]/, 1)[0];
     if (this.itemLocation !== "active"
         || resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popup"
@@ -1012,7 +1022,10 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       return;
     }
     const prepared = this.fillActions.prepare(context, session, liveCandidate);
-    if (prepared.status !== "ready") return;
+    if (prepared.status !== "ready") {
+      this.invalidateContextualJourney();
+      return;
+    }
     this.preparedContextualAction = prepared;
     this.contextualPresentation = Object.freeze({
       appName: context.appName,
@@ -1047,7 +1060,15 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       requiresReprompt: Boolean(item.reprompt),
       ...(repromptVerified ? { repromptVerified: true } : {}),
     });
-    if (this.preparedContextualAction !== prepared) return;
+    const liveRoute = this.router.url.split(/[?#]/, 1)[0];
+    const liveSnapshot = this.contextSession.snapshot();
+    if (this.preparedContextualAction !== prepared
+        || this.item !== item
+        || liveRoute !== `/view-cipher/${encodeURIComponent(item.id)}`
+        || liveSnapshot?.selectedCipherId !== item.id) {
+      this.invalidateContextualJourney(prepared);
+      return;
+    }
     if (outcome.status === "reprompt-required") {
       this.contextualFillBusy = false;
       this.repromptDialog?.openFor(
@@ -1093,6 +1114,19 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     this.contextualPresentation = undefined;
     this.preparedContextualAction = undefined;
     this.contextualFillBusy = false;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  private invalidateContextualJourney(
+    prepared: ReadyContextualAction | undefined = this.preparedContextualAction,
+  ): void {
+    this.contextualEpoch += 1;
+    this.contextualPresentation = undefined;
+    this.preparedContextualAction = undefined;
+    this.contextualFillBusy = false;
+    this.pendingAction = "";
+    this.contextSession.targetMismatch();
+    if (prepared) void this.fillActions.cancel(prepared);
     this.changeDetectorRef.markForCheck();
   }
 }

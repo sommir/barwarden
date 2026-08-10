@@ -2,7 +2,38 @@
 
 ## Status
 
-Implementation complete and ready for independent review. An active Login opened from the contextual picker now carries the exact live native context into its existing official detail composition. The detail renders one explicit contextual form/field action above credentials and only the authorized username/password/TOTP field actions. All navigation, context, candidate, session, and route mismatches fail closed.
+Implementation and independent-review fixes are complete and ready for scoped re-review. An active Login opened from the contextual picker now carries the exact live native context into its existing official detail composition. The detail renders one explicit contextual form/field action above credentials and only the authorized username/password/TOTP field actions. All navigation, context, candidate, session, and route mismatches fail closed.
+
+## Independent-review fix round 1
+
+The first independent review identified two lifecycle gaps, both fixed with strict RED-to-GREEN coverage:
+
+- A reused detail route could move `A -> B -> A` without burning the selected contextual session. A no-reprompt action already validating could consequently continue, and a protected batch receipt returned after navigation was not guaranteed to be canceled by the detail lifecycle. Item/route identity changes, initial admission mismatches, and every post-await identity mismatch now invalidate the context immediately and cancel the exact prepared action. The action service's one-shot state burns a late receipt exactly once before any fill.
+- `VaultRepromptDialogComponent` closed on `verify() === false` without invoking its contextual cancellation continuation. A protected receipt could therefore remain outstanding after lock, account/session change, or protected-operation invalidation. A false/stale verification now invokes contextual cancellation exactly once when that continuation exists; the legacy dialog path keeps its prior non-canceling close semantics.
+
+Review-fix RED evidence:
+
+```text
+npx vitest run \
+  apps/menubar-tauri/src/app/vault/vault-item-detail-page.component.spec.ts \
+  apps/menubar-tauri/src/app/vault/vault-reprompt-dialog.component.spec.ts
+Test Files: 2 failed
+Tests: 5 failed, 56 passed (61)
+```
+
+The five expected failures were: `A -> B -> A` session resurrection, navigation during no-reprompt validation, late protected batch receipt after navigation, exact receipt burn after `verify() === false`, and once-only dialog cancellation.
+
+Review-fix GREEN and expanded regression:
+
+```text
+Test Files: 2 passed
+Tests: 61 passed (61)
+
+Test Files: 12 passed
+Tests: 171 passed (171)
+```
+
+The expanded set includes detail, official Login credentials/detail, reprompt dialog/service, router cache/routes, context session, fill action, both guarded overlays, and retained i18n. `npm run build:web` passed with 1116 transformed modules and only the recorded baseline warnings. `git diff --check` passed with no output.
 
 ## Implementation
 
@@ -118,4 +149,4 @@ The temporary deterministic native/candidate entry only supplied safe test bound
 
 ## Concerns
 
-No blocking concern. The visual evidence covers the selected light-appearance 480 x 600 state. Dark/increased-contrast behavior remains inherited from existing official tokens; signed native live-matrix validation remains explicitly deferred to Task 8.
+No blocking concern. The review fix changes lifecycle behavior and tests only, so the previously passed visual evidence remains current and no new harness capture was warranted. Dark/increased-contrast behavior remains inherited from existing official tokens; signed native live-matrix validation remains explicitly deferred to Task 8.
