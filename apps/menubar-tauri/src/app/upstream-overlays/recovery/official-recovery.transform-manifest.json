@@ -234,7 +234,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
-      "sha256": "bff66ef08c9803e8ae8b85f5d406120cad7c535cdbb00248cffadf9bd07f3626"
+      "sha256": "4bcab9e82696c6845d960aebacba51fbb7dbffa40170a347237e190bd93c3876"
     },
     {
       "path": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",

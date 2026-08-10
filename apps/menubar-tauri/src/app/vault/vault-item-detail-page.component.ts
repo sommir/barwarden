@@ -14,6 +14,25 @@ import { Router, RouterLink } from "@angular/router";
 import type { Subscription } from "rxjs";
 
 import { TauriHostService } from "../../host/tauri-host.service";
+import { resolveWindowLayoutMode } from "../../window-layout-mode";
+import type { AutoFillSecretField } from "../autofill/autofill-candidate.service";
+import { AutoFillContextSessionService } from "../autofill/autofill-context-session.service";
+import {
+  AutoFillFillActionService,
+  type AutoFillActionOutcome,
+  type PreparedAutoFillAction,
+} from "../autofill/autofill-fill-action.service";
+import {
+  contextsEqual,
+  decodeLiveAutoFillContext,
+  projectAutoFillAgentSession,
+  type ContextualCandidate,
+} from "../autofill/autofill-fill-context.model";
+import {
+  AUTOFILL_NATIVE_HOST,
+  type AutoFillAgentSession,
+  type AutoFillNativeHost,
+} from "../autofill/autofill-native.host";
 import { PopupFooterComponent } from "../layout/popup-footer.component";
 import { PopupHeaderComponent } from "../layout/popup-header.component";
 import { PopupPageComponent } from "../layout/popup-page.component";
@@ -29,7 +48,10 @@ import { PopupStateStore } from "../popup-state";
 import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component";
 import type { VaultField, VaultItem } from "../vault-demo";
 import { OfficialLoginDetailComponent } from "../upstream-overlays/cipher-detail/official-login-detail.component";
-import type { LoginRevealRequest } from "../upstream-overlays/cipher-detail/official-login-credentials.component";
+import type {
+  LoginContextualFillPresentation,
+  LoginRevealRequest,
+} from "../upstream-overlays/cipher-detail/official-login-credentials.component";
 import { OfficialPersonalCipherDetailComponent } from "../upstream-overlays/cipher-detail/official-personal-cipher-detail.component";
 import {
   BitFormFieldComponent,
@@ -114,9 +136,13 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
             <bw-official-login-detail
               [projection]="projection"
               [canFill]="canFillCurrentItem"
+              [contextualFillAction]="contextualFillAction"
+              [contextualFillFields]="contextualFillAction?.fields"
+              [contextualFillBusy]="contextualFillBusy"
               [revealedFieldIds]="revealedFields"
               (copyField)="copy($event)"
               (fillField)="fill($event)"
+              (contextualFill)="requestContextualFill($event)"
               (launchUri)="launchUri($event)"
               (toggleReveal)="toggleReveal($event)"
               (viewPasswordHistory)="openPasswordHistory()"
@@ -194,7 +220,7 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   @ViewChild(VaultRepromptDialogComponent) private repromptDialog?: VaultRepromptDialogComponent;
   @ViewChild("confirmationDialog") private confirmationDialog?: AppBottomSheetComponent;
   @Input("id") itemId = "";
-  pendingAction: "archive" | "delete" | "permanent-delete" | "" = "";
+  pendingAction: "archive" | "delete" | "permanent-delete" | "autofill-mismatch" | "" = "";
   private originLocation?: VaultItemLocation;
   private readonly revealedFieldIds = new Set<string>();
   private loginProjectionItem: VaultItem | undefined;
@@ -204,6 +230,12 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   private readonly detailActions: VaultDetailActionsAdapter;
   private readonly stateSubscription: Subscription;
   private detailItemReference: VaultItem | undefined;
+  private contextualPresentation?: LoginContextualFillPresentation;
+  private preparedContextualAction?: ReadyContextualAction;
+  private contextualEpoch = 0;
+  private readonly removeContextInvalidationListener: () => void;
+  private readonly contextExpiryTimer: number;
+  contextualFillBusy = false;
 
   constructor(
     private readonly store: PopupStateStore,
@@ -213,6 +245,9 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly ngZone: NgZone,
     private readonly feedback: AppFeedbackService,
+    private readonly contextSession: AutoFillContextSessionService,
+    private readonly fillActions: AutoFillFillActionService,
+    @Inject(AUTOFILL_NATIVE_HOST) private readonly autoFillNative: AutoFillNativeHost,
     @Optional() @Inject(POP_OUT_HOST) popOutHost: PopOutHost | null = null,
   ) {
     this.popOutHost = popOutHost ?? new TauriHostService();
@@ -224,10 +259,26 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       (operation) => this.ngZone.run(operation),
       this.feedback,
     );
+    this.removeContextInvalidationListener = this.contextSession.onInvalidate(() => {
+      this.contextualEpoch += 1;
+      this.contextualPresentation = undefined;
+      this.preparedContextualAction = undefined;
+      this.contextualFillBusy = false;
+      this.changeDetectorRef.markForCheck();
+    });
+    this.contextExpiryTimer = window.setInterval(() => {
+      if (!this.contextSession.snapshot() && this.contextualPresentation) {
+        this.contextualPresentation = undefined;
+        this.preparedContextualAction = undefined;
+        this.contextualFillBusy = false;
+        this.changeDetectorRef.markForCheck();
+      }
+    }, 250);
     this.stateSubscription = this.store.state$.subscribe(() => {
       const nextItem = this.item;
       if (this.detailItemReference && this.detailItemReference !== nextItem) {
         this.revealedFieldIds.clear();
+        this.contextSession.targetMismatch();
         this.changeDetectorRef.markForCheck();
       }
       this.detailItemReference = nextItem;
@@ -256,22 +307,32 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       this.personalProjectionValue = undefined;
       this.originLocation = this.vault.itemLocation(this.itemId);
       this.detailItemReference = this.item;
+      void this.refreshContextualFillAction();
     }
   }
 
   ngOnDestroy(): void {
     this.stateSubscription.unsubscribe();
+    this.removeContextInvalidationListener();
+    window.clearInterval(this.contextExpiryTimer);
+    this.contextSession.navigationChanged("/");
     this.detailActions.invalidate();
     this.discardPendingAction();
     this.repromptDialog?.cancel();
   }
 
   async popOut(): Promise<void> {
+    this.contextSession.navigationChanged("/");
     await this.popOutHost.popOut(this.router.url);
   }
 
   async backToVault(): Promise<void> {
+    this.contextSession.navigationChanged("/");
     await this.router.navigateByUrl(routeForLocation(this.originLocation ?? this.itemLocation));
+  }
+
+  get contextualFillAction(): LoginContextualFillPresentation | undefined {
+    return this.contextualPresentation;
   }
 
   get itemLocation(): VaultItemLocation | undefined {
@@ -523,6 +584,9 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   }
 
   get confirmationText(): string {
+    if (this.pendingAction === "autofill-mismatch") {
+      return translateOfficialMessage("i18nAutofillMismatchDescription");
+    }
     const itemName = this.item?.name ?? translateOfficialMessage("i18nItem");
     if (this.pendingAction === "archive") {
       return translateOfficialMessage("i18nArchiveItemQuestion", itemName);
@@ -537,6 +601,9 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   }
 
   get confirmationActionLabel(): string {
+    if (this.pendingAction === "autofill-mismatch") {
+      return translateOfficialMessage("i18nAutofillFillAnyway");
+    }
     if (this.pendingAction === "archive") {
       return translateOfficialMessage("i18nConfirmArchive");
     }
@@ -548,6 +615,9 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   }
 
   get confirmationActionButtonText(): string {
+    if (this.pendingAction === "autofill-mismatch") {
+      return translateOfficialMessage("i18nAutofillFillAnyway");
+    }
     if (this.pendingAction === "archive") {
       return translateOfficialMessage("archive");
     }
@@ -583,21 +653,40 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   }
 
   dismissPendingAction(): void {
+    if (this.pendingAction === "autofill-mismatch") {
+      this.cancelContextualFill();
+      return;
+    }
     this.pendingAction = "";
   }
 
   cancelPendingAction(): void {
+    if (this.pendingAction === "autofill-mismatch") {
+      this.confirmationDialog?.close(false);
+      this.cancelContextualFill();
+      return;
+    }
     this.pendingAction = "";
     this.confirmationDialog?.close();
   }
 
   private discardPendingAction(): void {
+    if (this.pendingAction === "autofill-mismatch") {
+      this.cancelContextualFill();
+    }
     this.pendingAction = "";
     this.confirmationDialog?.close(false);
   }
 
   async confirmPendingAction(event?: Event): Promise<void> {
     event?.preventDefault();
+    if (this.pendingAction === "autofill-mismatch") {
+      const prepared = this.preparedContextualAction;
+      this.pendingAction = "";
+      this.confirmationDialog?.close(false);
+      if (prepared) await this.executeContextualFill(prepared, true);
+      return;
+    }
     const item = this.item;
     const action = this.pendingAction;
     if (!item || !action) {
@@ -702,6 +791,29 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       return;
     }
     const item = this.item;
+    const contextualField = contextualSecretField(field);
+    if (item?.type === "login" && contextualField && this.contextualFillAction) {
+      if (!this.actionFieldBelongsToItem(field)) return;
+      const snapshot = this.contextSession.snapshot();
+      const candidate = snapshot?.candidates.find(({ cipherId }) => cipherId === item.id);
+      if (!snapshot || snapshot.selectedCipherId !== item.id || !candidate
+          || !this.contextualFillAction.fields.includes(contextualField)) return;
+      const prepared = this.fillActions.prepare(
+        snapshot.context,
+        snapshot.session,
+        candidate,
+        [contextualField],
+      );
+      if (prepared.status !== "ready") return;
+      this.preparedContextualAction = prepared;
+      if (prepared.requiresMismatchConfirmation) {
+        this.pendingAction = "autofill-mismatch";
+        this.confirmationDialog?.open();
+      } else {
+        await this.executeContextualFill(prepared, false);
+      }
+      return;
+    }
     if (item && (item.type === "login" || isRetainedPersonalType(item.type))) {
       await this.detailActions.run(item, { kind: "fill", field });
       return;
@@ -711,6 +823,17 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     }
 
     await this.fillNow(field);
+  }
+
+  requestContextualFill(event: Event): void {
+    const prepared = this.preparedContextualAction;
+    if (!prepared || this.contextualFillBusy || !this.contextualFillAction) return;
+    if (prepared.requiresMismatchConfirmation) {
+      this.pendingAction = "autofill-mismatch";
+      this.confirmationDialog?.open(eventTrigger(event));
+      return;
+    }
+    void this.executeContextualFill(prepared, false, eventTrigger(event));
   }
 
   async launchUri(uri: string): Promise<void> {
@@ -828,6 +951,190 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     });
     return true;
   }
+
+  private async refreshContextualFillAction(): Promise<void> {
+    const epoch = ++this.contextualEpoch;
+    this.contextualPresentation = undefined;
+    this.preparedContextualAction = undefined;
+    this.contextualFillBusy = false;
+    const item = this.item;
+    const route = this.router.url.split(/[?#]/, 1)[0];
+    const snapshot = this.contextSession.snapshot();
+    if (!item || item.type !== "login" || this.itemLocation !== "active"
+        || resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popup"
+        || route !== `/view-cipher/${encodeURIComponent(item.id)}`
+        || snapshot?.selectedCipherId !== item.id) {
+      return;
+    }
+    const candidate = snapshot.candidates.find(({ cipherId }) => cipherId === item.id);
+    if (!candidate || !requestedSecretsExist(item, snapshot.context.action.fields)) return;
+
+    const [entry, nativeSession] = await Promise.all([
+      this.autoFillNative.entryContext().catch(() => ({ status: "unavailable" as const })),
+      this.autoFillNative.agentSession().catch(() => ({ status: "error" as const, code: "unavailable" })),
+    ]);
+    if (epoch !== this.contextualEpoch || this.item !== item) return;
+    const liveRoute = this.router.url.split(/[?#]/, 1)[0];
+    if (this.itemLocation !== "active"
+        || resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popup"
+        || liveRoute !== `/view-cipher/${encodeURIComponent(item.id)}`) {
+      this.contextSession.targetMismatch();
+      return;
+    }
+    if (entry.status !== "available" || nativeSession.status !== "success") {
+      this.contextSession.targetMismatch();
+      return;
+    }
+    let context;
+    let session: AutoFillAgentSession;
+    try {
+      context = decodeLiveAutoFillContext(entry.context);
+      session = projectAutoFillAgentSession({
+        accountId: nativeSession.accountId,
+        generation: nativeSession.generation,
+        vaultRevision: nativeSession.vaultRevision,
+      });
+    } catch {
+      this.contextSession.targetMismatch();
+      return;
+    }
+    if (!contextsEqual(context, snapshot.context)
+        || !sameAgentSession(session, snapshot.session)
+        || !this.contextSession.validate(context, session)) {
+      this.contextSession.targetMismatch();
+      return;
+    }
+    const liveSnapshot = this.contextSession.snapshot();
+    const liveCandidate = liveSnapshot?.candidates.find(({ cipherId }) => cipherId === item.id);
+    if (epoch !== this.contextualEpoch || liveSnapshot?.selectedCipherId !== item.id
+        || !liveCandidate || !sameCandidateAuthorization(candidate, liveCandidate)) {
+      this.contextSession.targetMismatch();
+      return;
+    }
+    const prepared = this.fillActions.prepare(context, session, liveCandidate);
+    if (prepared.status !== "ready") return;
+    this.preparedContextualAction = prepared;
+    this.contextualPresentation = Object.freeze({
+      appName: context.appName,
+      contextLabel: context.action.mode === "form"
+        ? translateOfficialMessage("i18nAutofillLoginForm")
+        : fieldLabel(prepared.fields[0]),
+      actionLabel: context.action.mode === "form"
+        ? translateOfficialMessage("i18nAutofillFillForm")
+        : translateOfficialMessage("i18nAutofillFillField", fieldLabel(prepared.fields[0])),
+      fields: prepared.fields,
+      mode: context.action.mode === "form" ? "form" : "field",
+    });
+    this.changeDetectorRef.markForCheck();
+  }
+
+  private async executeContextualFill(
+    prepared: ReadyContextualAction,
+    mismatchConfirmed: boolean,
+    trigger?: HTMLElement,
+    repromptVerified = false,
+  ): Promise<void> {
+    if (this.preparedContextualAction !== prepared || this.contextualFillBusy) return;
+    const item = this.item;
+    if (!item || item.type !== "login" || item.id !== prepared.scopes[0]?.candidateId) {
+      this.finishContextualFill({ status: "unavailable", reason: "stale-context" });
+      return;
+    }
+    this.contextualFillBusy = true;
+    this.changeDetectorRef.markForCheck();
+    const outcome = await this.fillActions.execute(prepared, {
+      mismatchConfirmed,
+      requiresReprompt: Boolean(item.reprompt),
+      ...(repromptVerified ? { repromptVerified: true } : {}),
+    });
+    if (this.preparedContextualAction !== prepared) return;
+    if (outcome.status === "reprompt-required") {
+      this.contextualFillBusy = false;
+      this.repromptDialog?.openFor(
+        item.id,
+        () => this.executeContextualFill(prepared, mismatchConfirmed, trigger, true),
+        trigger,
+        outcome.receipt,
+        () => this.cancelContextualFill(),
+      );
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+    this.finishContextualFill(outcome);
+  }
+
+  private finishContextualFill(outcome: AutoFillActionOutcome): void {
+    if (outcome.status === "success") {
+      this.store.setStatus(translateOfficialMessage("i18nAutofillFilled"));
+    } else if (outcome.status === "partial") {
+      this.store.setStatus(translateOfficialMessage(
+        "i18nAutofillPartial",
+        outcome.filled.map(fieldLabel).join("、") || translateOfficialMessage("i18nAutofillNoFields"),
+        fieldLabel(outcome.failed),
+      ));
+    } else if ((outcome.status === "error" && outcome.code === "stale-context")
+        || (outcome.status === "unavailable" && outcome.reason === "stale-context")) {
+      this.store.setStatus(translateOfficialMessage("i18nAutofillTargetChanged"));
+    } else {
+      this.store.setStatus(translateOfficialMessage("i18nAutofillActionUnavailable"));
+    }
+    this.contextSession.clear();
+    this.contextualPresentation = undefined;
+    this.preparedContextualAction = undefined;
+    this.contextualFillBusy = false;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  private cancelContextualFill(): void {
+    const prepared = this.preparedContextualAction;
+    this.pendingAction = "";
+    if (prepared) void this.fillActions.cancel(prepared);
+    this.contextSession.cancel();
+    this.contextualPresentation = undefined;
+    this.preparedContextualAction = undefined;
+    this.contextualFillBusy = false;
+    this.changeDetectorRef.markForCheck();
+  }
+}
+
+type ReadyContextualAction = Extract<PreparedAutoFillAction, { readonly status: "ready" }>;
+
+function sameAgentSession(left: AutoFillAgentSession, right: AutoFillAgentSession): boolean {
+  return left.accountId === right.accountId
+    && left.generation === right.generation
+    && left.vaultRevision === right.vaultRevision;
+}
+
+function sameCandidateAuthorization(left: ContextualCandidate, right: ContextualCandidate): boolean {
+  if (left.cipherId !== right.cipherId || left.availableFields.length !== right.availableFields.length) return false;
+  return left.availableFields.every((field, index) => {
+    if (right.availableFields[index] !== field) return false;
+    const leftAuthorization = left.authorizations.get(field);
+    const rightAuthorization = right.authorizations.get(field);
+    return leftAuthorization?.contextToken === rightAuthorization?.contextToken
+      && leftAuthorization?.requiresMismatchConfirmation
+        === rightAuthorization?.requiresMismatchConfirmation;
+  });
+}
+
+function requestedSecretsExist(item: VaultItem, fields: readonly AutoFillSecretField[]): boolean {
+  return fields.length > 0 && fields.every((field) => {
+    const fieldId = field === "totp" ? "otp" : field;
+    return item.fields.some((candidate) => candidate.id === fieldId && candidate.value.length > 0);
+  });
+}
+
+function fieldLabel(field: AutoFillSecretField | undefined): string {
+  return translateOfficialMessage({
+    username: "i18nAutofillFieldUsername",
+    password: "i18nAutofillFieldPassword",
+    totp: "i18nAutofillFieldTotp",
+  }[field ?? "password"]);
+}
+
+function contextualSecretField(field: VaultField): AutoFillSecretField | undefined {
+  if (field.id === "username" || field.id === "password") return field.id;
+  return field.id === "otp" ? "totp" : undefined;
 }
 
 function routeForLocation(location: VaultItemLocation | undefined): string {

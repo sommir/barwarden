@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from
 
 import { I18nPipe } from "@bitwarden/ui-common";
 import { CardComponent } from "@bitwarden/components/card/card.component";
+import { ButtonComponent } from "@bitwarden/components/button/button.component";
 import { BitLabelComponent } from "@bitwarden/components/form-control/label.component";
 import { BitFormFieldComponent } from "@bitwarden/components/form-field/form-field.component";
 import { BitSuffixDirective } from "@bitwarden/components/form-field/suffix.directive";
@@ -27,12 +28,21 @@ export interface LoginRevealRequest {
   readonly trigger: HTMLElement;
 }
 
+export interface LoginContextualFillPresentation {
+  readonly appName: string;
+  readonly contextLabel: string;
+  readonly actionLabel: string;
+  readonly fields: readonly ("username" | "password" | "totp")[];
+  readonly mode: "field" | "form";
+}
+
 /** Guarded Login-only transform of pinned LoginCredentialsViewComponent. */
 @Component({
   selector: "official-login-credentials",
   standalone: true,
   imports: [
     BitFormFieldComponent,
+    ButtonComponent,
     BitIconButtonComponent,
     BitInputDirective,
     BitLabelComponent,
@@ -50,9 +60,13 @@ export interface LoginRevealRequest {
 export class OfficialLoginCredentialsComponent implements OnChanges {
   @Input({ required: true }) projection!: OfficialLoginDetailProjection;
   @Input() canFill = false;
+  @Input() contextualFillAction?: LoginContextualFillPresentation;
+  @Input() contextualFillFields?: readonly ("username" | "password" | "totp")[];
+  @Input() contextualFillBusy = false;
   @Input() revealedFieldIds: ReadonlySet<string> = new Set();
   @Output() copyField = new EventEmitter<VaultField>();
   @Output() fillField = new EventEmitter<VaultField>();
+  @Output() contextualFill = new EventEmitter<Event>();
   @Output() toggleReveal = new EventEmitter<LoginRevealRequest>();
 
   showPasswordCount = false;
@@ -75,6 +89,10 @@ export class OfficialLoginCredentialsComponent implements OnChanges {
 
   get otpField(): VaultField | undefined {
     return this.projection.actionFields.get("otp");
+  }
+
+  canFillField(field: "username" | "password" | "totp"): boolean {
+    return this.contextualFillFields == null || this.contextualFillFields.includes(field);
   }
 
   isRevealed(fieldId: string): boolean {

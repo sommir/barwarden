@@ -6,9 +6,13 @@
   <official-login-credentials
     [projection]="projection"
     [canFill]="canFill"
+    [contextualFillAction]="contextualFillAction"
+    [contextualFillFields]="contextualFillFields"
+    [contextualFillBusy]="contextualFillBusy"
     [revealedFieldIds]="revealedFieldIds"
     (copyField)="copyField.emit($event)"
     (fillField)="fillField.emit($event)"
+    (contextualFill)="contextualFill.emit($event)"
     (toggleReveal)="toggleReveal.emit($event)"
   />
   @if (projection.cipher.login.uris.length > 0) {
