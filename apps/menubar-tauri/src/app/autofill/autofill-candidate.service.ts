@@ -54,18 +54,28 @@ export class AutoFillCandidateService {
   }
 
   async query(request: AutoFillCandidateQuery): Promise<AutoFillCandidateResponse> {
-    const normalized = {
-      accountId: required(request.accountId),
-      lockGeneration: required(request.lockGeneration),
-      field: request.field ?? "password",
-      context: {
-        bundleId: bounded(request.context.bundleId, 255),
-        appName: bounded(request.context.appName, 255),
-        serviceIdentifiers: request.context.serviceIdentifiers.map((value) => bounded(value, 2_048)).slice(0, 32),
-        query: bounded(request.context.query.trim(), 512),
-      },
-    } satisfies AutoFillCandidateQuery;
-    return validateCandidateResponse(await this.host.queryCandidates(normalized));
+    try {
+      const field = request.field ?? "password";
+      if (!(["username", "password", "totp"] as unknown[]).includes(field)
+          || !Array.isArray(request.context.serviceIdentifiers)
+          || request.context.serviceIdentifiers.length > 32) {
+        throw new Error("invalid candidate request");
+      }
+      const normalized = Object.freeze({
+        accountId: required(request.accountId),
+        lockGeneration: required(request.lockGeneration),
+        field,
+        context: Object.freeze({
+          bundleId: bounded(request.context.bundleId, 255),
+          appName: bounded(request.context.appName, 255),
+          serviceIdentifiers: Object.freeze(request.context.serviceIdentifiers.map((value) => bounded(value, 2_048))),
+          query: bounded(request.context.query.trim(), 512),
+        }),
+      }) satisfies AutoFillCandidateQuery;
+      return validateCandidateResponse(await this.host.queryCandidates(normalized));
+    } catch {
+      throw new Error("AutoFill candidates unavailable");
+    }
   }
 }
 
@@ -111,35 +121,52 @@ export function validateSecretReleaseRequest(input: AutoFillSecretReleaseRequest
 
 function validateCandidateResponse(input: unknown): AutoFillCandidateResponse {
   if (!isRecord(input) || !hasExactKeys(input, ["contextToken", "candidates"]) ||
-      typeof input.contextToken !== "string" || !input.contextToken ||
+      typeof input.contextToken !== "string" || !input.contextToken || input.contextToken.length > 512 ||
       !Array.isArray(input.candidates) || input.candidates.length > 500) {
     throw new Error("invalid candidate response");
   }
+  const cipherIds = new Set<string>();
   const candidates = input.candidates.map((candidate) => {
     const keys = [
       "cipherId", "displayName", "username", "group", "reason", "requiresMismatchConfirmation",
     ];
     if (!isRecord(candidate) || !hasExactKeys(candidate, keys) ||
-        typeof candidate.cipherId !== "string" || !candidate.cipherId ||
-        typeof candidate.displayName !== "string" ||
-        typeof candidate.username !== "string" ||
+        typeof candidate.cipherId !== "string" || !candidate.cipherId.trim() || candidate.cipherId.length > 512 ||
+        typeof candidate.displayName !== "string" || candidate.displayName.length > 2_048 ||
+        typeof candidate.username !== "string" || candidate.username.length > 2_048 ||
         !(["exact", "relevant", "other"] as unknown[]).includes(candidate.group) ||
-        typeof candidate.reason !== "string" ||
+        typeof candidate.reason !== "string" || candidate.reason.length > 512 ||
         typeof candidate.requiresMismatchConfirmation !== "boolean") {
       throw new Error("invalid candidate response");
     }
-    return candidate as unknown as RankedAutoFillCandidate;
+    const cipherId = candidate.cipherId.normalize("NFC");
+    if (cipherIds.has(cipherId)) throw new Error("invalid candidate response");
+    cipherIds.add(cipherId);
+    return Object.freeze({
+      cipherId,
+      displayName: candidate.displayName.normalize("NFC"),
+      username: candidate.username.normalize("NFC"),
+      group: candidate.group as AutoFillCandidateGroup,
+      reason: candidate.reason.normalize("NFC"),
+      requiresMismatchConfirmation: candidate.requiresMismatchConfirmation,
+    });
   });
-  return { contextToken: input.contextToken, candidates };
+  return Object.freeze({
+    contextToken: input.contextToken.normalize("NFC"),
+    candidates: Object.freeze(candidates),
+  });
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {
-  return typeof input === "object" && input !== null && !Array.isArray(input);
+  if (typeof input !== "object" || input === null || Array.isArray(input)) return false;
+  const prototype = Object.getPrototypeOf(input);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function hasExactKeys(input: Record<string, unknown>, expected: readonly string[]): boolean {
-  const actual = Object.keys(input).sort();
-  return actual.length === expected.length && expected.slice().sort().every((key, index) => key === actual[index]);
+  const actual = Reflect.ownKeys(input);
+  return actual.length === expected.length
+    && actual.every((key) => typeof key === "string" && expected.includes(key));
 }
 
 function bounded(value: string, maximum: number): string {

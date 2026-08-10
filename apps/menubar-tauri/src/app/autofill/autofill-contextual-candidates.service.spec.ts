@@ -4,6 +4,7 @@ import { AutoFillCandidateService, type AutoFillCandidateHost, type AutoFillSecr
 import type { LiveAutoFillContext } from "./autofill-fill-context.model";
 import type { AutoFillAgentSession, AutoFillNativeHost } from "./autofill-native.host";
 import {
+  AutoFillCandidatesUnavailableError,
   AutoFillContextChangedError,
   AutoFillContextualCandidatesService,
 } from "./autofill-contextual-candidates.service";
@@ -85,7 +86,49 @@ describe("AutoFillContextualCandidatesService", () => {
 
     await expect(service.queryAll(context, session, "")).rejects.toBeInstanceOf(AutoFillContextChangedError);
   });
+
+  it("uses frozen request projections while caller context and session mutate during queries", async () => {
+    const mutableContext = {
+      bundleId: context.bundleId,
+      appName: context.appName,
+      fillContextToken: context.fillContextToken,
+      focusedField: { kind: context.focusedField.kind, confidence: context.focusedField.confidence },
+      action: { mode: context.action.mode, fields: [...context.action.fields] },
+    };
+    const mutableSession = { ...session };
+    const query = deferred<unknown>();
+    const host: AutoFillCandidateHost = {
+      queryCandidates: vi.fn((request) => request.field === "username"
+        ? query.promise
+        : Promise.resolve(response(`${request.field}-token`, [candidate("login-a", "exact")]))),
+    };
+    const service = new AutoFillContextualCandidatesService(new AutoFillCandidateService(host), liveHost());
+    const result = service.queryAll(mutableContext, mutableSession, "term");
+    mutableContext.fillContextToken = "00000000-0000-4000-8000-000000000006";
+    mutableSession.accountId = "account-b";
+    query.resolve(response("username-token", [candidate("login-a", "exact")]));
+
+    await expect(result).resolves.toHaveLength(1);
+    expect(vi.mocked(host.queryCandidates).mock.calls.every(([request]) => request.accountId === "account-a")).toBe(true);
+  });
+
+  it("returns a fixed unavailable error for any field query rejection", async () => {
+    const host: AutoFillCandidateHost = {
+      queryCandidates: vi.fn(async (request) => {
+        if (request.field === "password") throw new Error("native candidate secret detail");
+        return response(`${request.field}-token`, []);
+      }),
+    };
+    const service = new AutoFillContextualCandidatesService(new AutoFillCandidateService(host), liveHost());
+    await expect(service.queryAll(context, session, "")).rejects.toEqual(new AutoFillCandidatesUnavailableError());
+  });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
 
 function candidate(cipherId: string, group: "exact" | "relevant" | "other") {
   return {

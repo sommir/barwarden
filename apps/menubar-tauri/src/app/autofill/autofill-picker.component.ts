@@ -338,6 +338,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   readonly fieldOrder = FIELD_ORDER;
   readonly groupOrder = GROUP_ORDER;
   private bundleId = "";
+  private detectedFillContextToken: string | null = null;
   private candidatesByField = new Map<AutoFillSecretField, readonly RankedAutoFillCandidate[]>();
   private agentSession: Extract<AutoFillAgentSessionOutcome, { status: "success" }> | null = null;
   private operationEpoch = 0;
@@ -416,6 +417,9 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       if (!this.commit(epoch, () => {
         this.bundleId = context.context.bundleId;
         this.appName = context.context.appName;
+        this.detectedFillContextToken = typeof context.context.fillContextToken === "string"
+          ? context.context.fillContextToken
+          : null;
       })) return;
       const shortcut = await this.shortcutHost.getGlobalShortcut().catch(() => null);
       if (!this.commit(epoch, () => {
@@ -663,6 +667,13 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const selected = this.selected;
     const session = this.agentSession;
     if (!selected || !session || this.mode === "repair") return;
+    if (this.detectedFillContextToken !== null) {
+      this.startOperation();
+      this.mode = "context-unavailable";
+      this.statusMessage = translateOfficialMessage("i18nAutofillActionFailed");
+      this.markIfAlive();
+      return;
+    }
     const epoch = this.startOperation();
     const operation = this.operation(epoch, selected, session);
     if (selected.requiresMismatchConfirmation && !mismatchConfirmed) {
@@ -1009,6 +1020,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.selectedField = "password";
     this.appName = "";
     this.bundleId = "";
+    this.detectedFillContextToken = null;
     this.shortcutLabel = "";
     this.shortcutUnavailable = false;
     this.agentSession = null;

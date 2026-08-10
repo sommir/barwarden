@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AutoFillBindingsService } from "./autofill-bindings.service";
 import {
@@ -129,7 +129,57 @@ describe("AutoFillCandidateService", () => {
       accountId: "account-a",
       lockGeneration: "0f9ddca7-c7ee-45ce-841f-62e47df55c89",
       context: { bundleId: "com.example.App", appName: "Example", serviceIdentifiers: [], query: "" },
-    })).rejects.toThrow("invalid candidate response");
+    })).rejects.toThrow("AutoFill candidates unavailable");
+  });
+
+  it.each([
+    ["custom prototype", Object.assign(Object.create({ inherited: true }), {
+      contextToken: "context-token", candidates: [],
+    })],
+    ["symbol root key", Object.assign({ contextToken: "context-token", candidates: [] }, {
+      [Symbol("secret")]: "hidden",
+    })],
+    ["undefined root key", { contextToken: "context-token", candidates: [], password: undefined }],
+    ["oversized token", { contextToken: "x".repeat(513), candidates: [] }],
+    ["duplicate cipher IDs", {
+      contextToken: "context-token",
+      candidates: [
+        candidatePayload("same"),
+        candidatePayload("same"),
+      ],
+    }],
+    ["nested unknown key", {
+      contextToken: "context-token",
+      candidates: [{ ...candidatePayload("a"), secret: undefined }],
+    }],
+  ])("rejects hostile %s candidate responses with a fixed error", async (_name, response) => {
+    const service = new AutoFillCandidateService(new RecordingCandidateHost(response));
+    await expect(service.query(candidateRequest())).rejects.toThrow(/^AutoFill candidates unavailable$/);
+  });
+
+  it("projects and freezes candidate responses instead of retaining Agent aliases", async () => {
+    const candidate = candidatePayload("opaque-cipher");
+    const response = { contextToken: "context-token", candidates: [candidate] };
+    const result = await new AutoFillCandidateService(new RecordingCandidateHost(response)).query(candidateRequest());
+    candidate.displayName = "mutated";
+    response.candidates.push(candidatePayload("late"));
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0].displayName).toBe("Display");
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.candidates)).toBe(true);
+    expect(Object.isFrozen(result.candidates[0])).toBe(true);
+  });
+
+  it("sanitizes rejected promises and hostile getters without leaking details", async () => {
+    const rejection = new AutoFillCandidateService({
+      queryCandidates: vi.fn(async () => { throw new Error("native password database detail"); }),
+    });
+    await expect(rejection.query(candidateRequest())).rejects.toThrow(/^AutoFill candidates unavailable$/);
+
+    const hostile = new Proxy({}, { get: () => { throw new Error("getter secret detail"); } });
+    const getter = new AutoFillCandidateService(new RecordingCandidateHost(hostile));
+    await expect(getter.query(candidateRequest())).rejects.toThrow(/^AutoFill candidates unavailable$/);
   });
 
   it("defines a separate secret operation bound to candidate field context generation mismatch and reprompt", () => {
@@ -156,6 +206,25 @@ describe("AutoFillCandidateService", () => {
     } as typeof request)).toThrow();
   });
 });
+
+function candidatePayload(cipherId: string) {
+  return {
+    cipherId,
+    displayName: "Display",
+    username: "person@example.test",
+    group: "exact",
+    reason: "service_identifier",
+    requiresMismatchConfirmation: false,
+  };
+}
+
+function candidateRequest() {
+  return {
+    accountId: "account-a",
+    lockGeneration: "0f9ddca7-c7ee-45ce-841f-62e47df55c89",
+    context: { bundleId: "com.example.App", appName: "Example", serviceIdentifiers: [] as string[], query: "" },
+  };
+}
 
 class RecordingCandidateHost implements AutoFillCandidateHost {
   readonly requests: Parameters<AutoFillCandidateHost["queryCandidates"]>[0][] = [];

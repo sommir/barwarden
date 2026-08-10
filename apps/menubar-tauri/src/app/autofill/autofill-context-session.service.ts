@@ -3,7 +3,9 @@ import { Inject, Injectable, InjectionToken, Optional } from "@angular/core";
 import type { AutoFillAgentSession } from "./autofill-native.host";
 import {
   contextsEqual,
-  immutableAuthorizationMap,
+  decodeLiveAutoFillContext,
+  projectAutoFillAgentSession,
+  projectContextualCandidate,
   type ContextualCandidate,
   type LiveAutoFillContext,
 } from "./autofill-fill-context.model";
@@ -29,6 +31,7 @@ interface StoredContextSession extends AutoFillContextSessionSnapshot {
 @Injectable({ providedIn: "root" })
 export class AutoFillContextSessionService {
   private state: StoredContextSession | null = null;
+  private readonly invalidationListeners = new Set<() => void>();
 
   constructor(
     @Optional() @Inject(AUTOFILL_CONTEXT_CLOCK) private readonly clock: () => number = Date.now,
@@ -39,13 +42,23 @@ export class AutoFillContextSessionService {
     session: AutoFillAgentSession,
     candidates: readonly ContextualCandidate[],
   ): void {
-    this.state = {
-      context: cloneContext(context),
-      session: Object.freeze({ ...session }),
-      candidates: cloneCandidates(candidates),
-      selectedCipherId: null,
-      expiresAt: this.clock() + CONTEXT_LIFETIME_MS,
-    };
+    try {
+      if (!Array.isArray(candidates) || candidates.length > 500) throw new Error("invalid candidates");
+      const projectedContext = decodeLiveAutoFillContext(context);
+      const projectedSession = projectAutoFillAgentSession(session);
+      const projectedCandidates = projectCandidates(candidates);
+      if (this.state) this.invalidate();
+      this.state = Object.freeze({
+        context: projectedContext,
+        session: projectedSession,
+        candidates: projectedCandidates,
+        selectedCipherId: null,
+        expiresAt: this.clock() + CONTEXT_LIFETIME_MS,
+      });
+    } catch {
+      this.clear();
+      throw new Error("invalid AutoFill context session");
+    }
   }
 
   snapshot(): AutoFillContextSessionSnapshot | null {
@@ -54,7 +67,7 @@ export class AutoFillContextSessionService {
     return Object.freeze({
       context: state.context,
       session: state.session,
-      candidates: cloneCandidates(state.candidates),
+      candidates: projectCandidates(state.candidates),
       selectedCipherId: state.selectedCipherId,
     });
   }
@@ -62,8 +75,20 @@ export class AutoFillContextSessionService {
   select(cipherId: string): boolean {
     const state = this.liveState();
     if (!state || !state.candidates.some((candidate) => candidate.cipherId === cipherId)) return false;
-    this.state = { ...state, selectedCipherId: cipherId };
+    if (state.selectedCipherId !== cipherId) this.invalidate();
+    this.state = Object.freeze({
+      context: state.context,
+      session: state.session,
+      candidates: state.candidates,
+      selectedCipherId: cipherId,
+      expiresAt: state.expiresAt,
+    });
     return true;
+  }
+
+  onInvalidate(listener: () => void): () => void {
+    this.invalidationListeners.add(listener);
+    return () => this.invalidationListeners.delete(listener);
   }
 
   validate(context: LiveAutoFillContext, session: AutoFillAgentSession): boolean {
@@ -87,12 +112,17 @@ export class AutoFillContextSessionService {
   }
 
   clear(): void {
+    if (this.state) this.invalidate();
     this.state = null;
   }
 
   private liveState(): StoredContextSession | null {
     if (this.state && this.clock() >= this.state.expiresAt) this.clear();
     return this.state;
+  }
+
+  private invalidate(): void {
+    for (const listener of [...this.invalidationListeners]) listener();
   }
 }
 
@@ -102,18 +132,10 @@ function sessionsEqual(left: AutoFillAgentSession, right: AutoFillAgentSession):
     && left.vaultRevision === right.vaultRevision;
 }
 
-function cloneContext(context: LiveAutoFillContext): LiveAutoFillContext {
-  return Object.freeze({
-    ...context,
-    focusedField: Object.freeze({ ...context.focusedField }),
-    action: Object.freeze({ ...context.action, fields: Object.freeze([...context.action.fields]) }),
-  });
-}
-
-function cloneCandidates(candidates: readonly ContextualCandidate[]): readonly ContextualCandidate[] {
-  return Object.freeze(candidates.map((candidate) => Object.freeze({
-    ...candidate,
-    availableFields: Object.freeze([...candidate.availableFields]),
-    authorizations: immutableAuthorizationMap(candidate.authorizations),
-  })));
+function projectCandidates(candidates: readonly ContextualCandidate[]): readonly ContextualCandidate[] {
+  const projected = candidates.map((candidate) => projectContextualCandidate(candidate));
+  if (new Set(projected.map(({ cipherId }) => cipherId)).size !== projected.length) {
+    throw new Error("duplicate contextual candidate");
+  }
+  return Object.freeze(projected);
 }

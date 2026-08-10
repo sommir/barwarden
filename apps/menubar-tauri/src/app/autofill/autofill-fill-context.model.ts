@@ -3,6 +3,7 @@ import type {
   AutoFillSecretField,
 } from "./autofill-candidate.service";
 import type { AutoFillRepromptScope } from "./autofill-native.host";
+import type { AutoFillAgentSession } from "./autofill-native.host";
 
 export type DetectedFieldKind = "username" | "email" | "password" | "one-time-code" | "unknown";
 export type FieldConfidence = "high" | "medium" | "low";
@@ -47,10 +48,14 @@ class ImmutableAuthorizationMap implements ReadonlyMap<AutoFillSecretField, Cont
   readonly #values: Map<AutoFillSecretField, ContextualCandidateAuthorization>;
 
   constructor(entries: Iterable<readonly [AutoFillSecretField, ContextualCandidateAuthorization]>) {
-    this.#values = new Map([...entries].map(([field, authorization]) => [
-      field,
-      Object.freeze({ ...authorization }),
-    ]));
+    this.#values = new Map([...entries].map(([field, authorization]) => {
+      const value = exactRecord(authorization, ["contextToken", "requiresMismatchConfirmation"]);
+      if (typeof value["requiresMismatchConfirmation"] !== "boolean") throw new Error("invalid authorization");
+      return [decodeAutoFillField(field), Object.freeze({
+        contextToken: boundedString(value["contextToken"], 512, false),
+        requiresMismatchConfirmation: value["requiresMismatchConfirmation"],
+      })];
+    }));
     Object.freeze(this);
   }
 
@@ -134,6 +139,53 @@ export function decodeLiveAutoFillContext(input: unknown): LiveAutoFillContext {
     });
   } catch {
     throw new Error("invalid detected AutoFill context");
+  }
+}
+
+export function projectAutoFillAgentSession(input: unknown): AutoFillAgentSession {
+  try {
+    const value = exactRecord(input, ["accountId", "generation", "vaultRevision"]);
+    if (!Number.isSafeInteger(value["vaultRevision"])) throw new Error("invalid revision");
+    return Object.freeze({
+      accountId: boundedString(value["accountId"], 512, false),
+      generation: uuid(value["generation"]),
+      vaultRevision: value["vaultRevision"] as number,
+    });
+  } catch {
+    throw new Error("invalid AutoFill Agent session");
+  }
+}
+
+export function projectContextualCandidate(input: unknown): ContextualCandidate {
+  try {
+    const value = exactRecord(input, [
+      "cipherId", "displayName", "username", "group", "reason", "availableFields", "authorizations",
+    ]);
+    const fields = canonicalFields(value["availableFields"], true);
+    const source = value["authorizations"];
+    const plainMap = source instanceof Map && Object.getPrototypeOf(source) === Map.prototype;
+    const immutableMap = source instanceof ImmutableAuthorizationMap
+      && Object.getPrototypeOf(source) === ImmutableAuthorizationMap.prototype;
+    if ((!plainMap && !immutableMap) || Reflect.ownKeys(source as object).length !== 0) {
+      throw new Error("invalid authorization map");
+    }
+    const entries = fields.map((field) => {
+      const authorization = source.get(field);
+      if (authorization === undefined) throw new Error("missing authorization");
+      return [field, authorization] as const;
+    });
+    if (source.size !== entries.length) throw new Error("unexpected authorization");
+    return Object.freeze({
+      cipherId: boundedString(value["cipherId"], 512, false),
+      displayName: boundedString(value["displayName"], 2_048, true),
+      username: boundedString(value["username"], 2_048, true),
+      group: member(value["group"], new Set<AutoFillCandidateGroup>(["exact", "relevant", "other"])),
+      reason: boundedString(value["reason"], 512, true),
+      availableFields: fields,
+      authorizations: immutableAuthorizationMap(entries),
+    });
+  } catch {
+    throw new Error("invalid contextual AutoFill candidate");
   }
 }
 

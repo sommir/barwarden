@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AutoFillAgentSession } from "./autofill-native.host";
 import { AutoFillContextSessionService } from "./autofill-context-session.service";
@@ -80,5 +80,39 @@ describe("AutoFillContextSessionService", () => {
       expect(service.validate(nextContext, nextSession)).toBe(false);
       expect(service.snapshot()).toBeNull();
     }
+  });
+
+  it("strictly projects runtime values so undeclared secret, value, nonenumerable, and symbol keys cannot enter", () => {
+    const service = new AutoFillContextSessionService(() => 1_000);
+    const hostileContext = { ...context, secret: "must-not-enter" };
+    Object.defineProperty(hostileContext, "value", { enumerable: false, value: "hidden" });
+    Object.defineProperty(hostileContext, Symbol("secret"), { value: "hidden" });
+    expect(() => service.begin(hostileContext, session, [candidate])).toThrow("invalid AutoFill context session");
+
+    const hostileCandidate = { ...candidate, password: undefined };
+    expect(() => service.begin(context, session, [hostileCandidate])).toThrow("invalid AutoFill context session");
+    const hostileAuthorizations = new Map(candidate.authorizations);
+    Object.defineProperty(hostileAuthorizations, Symbol("value"), { value: "hidden" });
+    expect(() => service.begin(context, session, [{
+      ...candidate,
+      authorizations: hostileAuthorizations,
+    }])).toThrow("invalid AutoFill context session");
+    expect(service.snapshot()).toBeNull();
+  });
+
+  it("notifies active actions on selection, clear, navigation, and expiry", () => {
+    let now = 1_000;
+    const service = new AutoFillContextSessionService(() => now);
+    const invalidated = vi.fn();
+    service.onInvalidate(invalidated);
+    service.begin(context, session, [candidate]);
+    service.select("cipher-a");
+    expect(invalidated).toHaveBeenCalledTimes(1);
+    service.navigationChanged("/vault");
+    expect(invalidated).toHaveBeenCalledTimes(2);
+    service.begin(context, session, [candidate]);
+    now += 30_000;
+    service.snapshot();
+    expect(invalidated).toHaveBeenCalledTimes(3);
   });
 });

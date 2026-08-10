@@ -9,7 +9,9 @@ import {
 } from "./autofill-candidate.service";
 import {
   contextsEqual,
+  decodeLiveAutoFillContext,
   immutableAuthorizationMap,
+  projectAutoFillAgentSession,
   type ContextualCandidate,
   type LiveAutoFillContext,
 } from "./autofill-fill-context.model";
@@ -34,6 +36,14 @@ export class AutoFillContextChangedError extends Error {
   }
 }
 
+export class AutoFillCandidatesUnavailableError extends Error {
+  override readonly name = "AutoFillCandidatesUnavailableError";
+
+  constructor() {
+    super("AutoFill candidates unavailable.");
+  }
+}
+
 interface MutableCandidate {
   candidate: RankedAutoFillCandidate;
   firstAgentOrder: number;
@@ -55,29 +65,67 @@ export class AutoFillContextualCandidatesService {
     session: AutoFillAgentSession,
     query: string,
   ): Promise<readonly ContextualCandidate[]> {
+    let requestContext: LiveAutoFillContext;
+    let requestSession: AutoFillAgentSession;
+    let requestQuery: string;
+    try {
+      requestContext = decodeLiveAutoFillContext(context);
+      requestSession = projectAutoFillAgentSession(session);
+      if (typeof query !== "string" || query.length > 512) throw new Error("invalid query");
+      requestQuery = query.normalize("NFC");
+    } catch {
+      throw new AutoFillCandidatesUnavailableError();
+    }
     const requests = FIELDS.map((field) => this.candidates.query({
-      accountId: session.accountId,
-      lockGeneration: session.generation,
+      accountId: requestSession.accountId,
+      lockGeneration: requestSession.generation,
       field,
-      context: {
-        bundleId: context.bundleId,
-        appName: context.appName,
-        serviceIdentifiers: [],
-        query,
-      },
+      context: Object.freeze({
+        bundleId: requestContext.bundleId,
+        appName: requestContext.appName,
+        serviceIdentifiers: Object.freeze([]),
+        query: requestQuery,
+      }),
     }));
     const settled = await Promise.allSettled(requests);
-    const [liveContext, liveSession] = await Promise.all([
-      this.native.entryContext(),
-      this.native.agentSession(),
-    ]);
-    if (liveContext.status !== "available" || liveSession.status !== "success"
-        || !contextsEqual(context, liveContext.context) || !sessionsEqual(session, liveSession)) {
+    let liveContext: Awaited<ReturnType<AutoFillNativeHost["entryContext"]>>;
+    let liveSession: Awaited<ReturnType<AutoFillNativeHost["agentSession"]>>;
+    try {
+      [liveContext, liveSession] = await Promise.all([
+        this.native.entryContext(),
+        this.native.agentSession(),
+      ]);
+    } catch {
+      throw new AutoFillContextChangedError();
+    }
+    if (liveContext.status !== "available" || liveSession.status !== "success") {
+      throw new AutoFillContextChangedError();
+    }
+    let projectedLiveContext: LiveAutoFillContext;
+    let projectedLiveSession: AutoFillAgentSession;
+    try {
+      projectedLiveContext = decodeLiveAutoFillContext(liveContext.context);
+      projectedLiveSession = projectAutoFillAgentSession({
+        accountId: liveSession.accountId,
+        generation: liveSession.generation,
+        vaultRevision: liveSession.vaultRevision,
+      });
+    } catch {
+      throw new AutoFillContextChangedError();
+    }
+    if (!contextsEqual(requestContext, projectedLiveContext)
+        || !sessionsEqual(requestSession, projectedLiveSession)) {
       throw new AutoFillContextChangedError();
     }
     const rejection = settled.find((result): result is PromiseRejectedResult => result.status === "rejected");
-    if (rejection) throw rejection.reason;
-    return mergeResponses(settled.map((result) => (result as PromiseFulfilledResult<AutoFillCandidateResponse>).value));
+    if (rejection) throw new AutoFillCandidatesUnavailableError();
+    try {
+      return mergeResponses(settled.map((result) => (
+        result as PromiseFulfilledResult<AutoFillCandidateResponse>
+      ).value));
+    } catch {
+      throw new AutoFillCandidatesUnavailableError();
+    }
   }
 }
 
@@ -94,14 +142,28 @@ function mergeResponses(responses: readonly AutoFillCandidateResponse[]): readon
       });
       if (!existing) {
         merged.set(candidate.cipherId, {
-          candidate,
+          candidate: Object.freeze({
+            cipherId: candidate.cipherId,
+            displayName: candidate.displayName,
+            username: candidate.username,
+            group: candidate.group,
+            reason: candidate.reason,
+            requiresMismatchConfirmation: candidate.requiresMismatchConfirmation,
+          }),
           firstAgentOrder: agentOrder,
           authorizations: new Map([[field, authorization]]),
         });
       } else {
         existing.authorizations.set(field, authorization);
         if (GROUP_RANK[candidate.group] < GROUP_RANK[existing.candidate.group]) {
-          existing.candidate = candidate;
+          existing.candidate = Object.freeze({
+            cipherId: candidate.cipherId,
+            displayName: candidate.displayName,
+            username: candidate.username,
+            group: candidate.group,
+            reason: candidate.reason,
+            requiresMismatchConfirmation: candidate.requiresMismatchConfirmation,
+          });
         }
       }
       agentOrder += 1;

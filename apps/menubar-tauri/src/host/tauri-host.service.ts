@@ -438,9 +438,13 @@ export class TauriHostService
   }
 
   async queryCandidates(request: AutoFillCandidateQueryContract): Promise<unknown> {
-    return decodeCandidateOutcome(await this.invoke<unknown>("autofill_query_candidates", {
-      request,
-    }));
+    try {
+      return decodeCandidateOutcome(await this.invoke<unknown>("autofill_query_candidates", {
+        request,
+      }));
+    } catch {
+      throw new Error("AutoFill unavailable");
+    }
   }
 
   async beginReprompt(scope: AutoFillRepromptScope) {
@@ -1227,9 +1231,40 @@ function decodeAgentSession(value: unknown) {
 }
 
 function decodeCandidateOutcome(value: unknown): unknown {
-  if (!isExactRecord(value) || value["status"] !== "success") throw new Error("AutoFill unavailable");
-  const { status: _status, ...response } = value;
-  return response;
+  if (!isExactRecord(value) || !exactKeys(value, ["status", "contextToken", "candidates"])
+      || value["status"] !== "success" || typeof value["contextToken"] !== "string"
+      || value["contextToken"].trim().length === 0 || value["contextToken"].length > 512
+      || !Array.isArray(value["candidates"]) || value["candidates"].length > 500) {
+    throw new Error("AutoFill unavailable");
+  }
+  const cipherIds = new Set<string>();
+  const candidates = value["candidates"].map((candidate) => {
+    if (!isExactRecord(candidate) || !exactKeys(candidate, [
+      "cipherId", "displayName", "username", "group", "reason", "requiresMismatchConfirmation",
+    ]) || typeof candidate["cipherId"] !== "string" || candidate["cipherId"].trim().length === 0
+      || candidate["cipherId"].length > 512 || typeof candidate["displayName"] !== "string"
+      || candidate["displayName"].length > 2_048 || typeof candidate["username"] !== "string"
+      || candidate["username"].length > 2_048 || !["exact", "relevant", "other"].includes(String(candidate["group"]))
+      || typeof candidate["reason"] !== "string" || candidate["reason"].length > 512
+      || typeof candidate["requiresMismatchConfirmation"] !== "boolean") {
+      throw new Error("AutoFill unavailable");
+    }
+    const cipherId = candidate["cipherId"].normalize("NFC");
+    if (cipherIds.has(cipherId)) throw new Error("AutoFill unavailable");
+    cipherIds.add(cipherId);
+    return Object.freeze({
+      cipherId,
+      displayName: candidate["displayName"].normalize("NFC"),
+      username: candidate["username"].normalize("NFC"),
+      group: candidate["group"],
+      reason: candidate["reason"].normalize("NFC"),
+      requiresMismatchConfirmation: candidate["requiresMismatchConfirmation"],
+    });
+  });
+  return Object.freeze({
+    contextToken: value["contextToken"].normalize("NFC"),
+    candidates: Object.freeze(candidates),
+  });
 }
 
 function decodeBeginReprompt(value: unknown) {

@@ -84,6 +84,43 @@ describe("TauriHostService", () => {
     expect(JSON.stringify(error)).not.toMatch(/private|secret|native/);
   });
 
+  it("strictly projects native candidate success envelopes and sanitizes hostile results", async () => {
+    const request = {
+      accountId: "account-a",
+      lockGeneration: "00000000-0000-4000-8000-000000000004",
+      field: "password" as const,
+      context: { bundleId: "com.example.App", appName: "Example", serviceIdentifiers: [], query: "" },
+    };
+    const candidate = {
+      cipherId: "cipher-a",
+      displayName: "Example",
+      username: "person@example.test",
+      group: "exact",
+      reason: "service_identifier",
+      requiresMismatchConfirmation: false,
+    };
+    const response = { status: "success", contextToken: "context-a", candidates: [candidate] };
+    const projected = await new TauriHostService(async () => response as never).queryCandidates(request);
+    candidate.displayName = "mutated";
+    expect(projected).toEqual({
+      contextToken: "context-a",
+      candidates: [{ ...candidate, displayName: "Example" }],
+    });
+    expect(Object.isFrozen(projected)).toBe(true);
+
+    for (const hostile of [
+      { ...response, secret: undefined },
+      { ...response, candidates: [{ ...candidate, password: undefined }] },
+      { ...response, candidates: [candidate, candidate] },
+      new Proxy({}, { ownKeys: () => { throw new Error("private native candidate detail"); } }),
+    ]) {
+      const error = await new TauriHostService(async () => hostile as never).queryCandidates(request)
+        .then(() => null, (caught: unknown) => caught);
+      expect(error).toMatchObject({ message: "AutoFill unavailable" });
+      expect(JSON.stringify(error)).not.toMatch(/private|secret|native/);
+    }
+  });
+
   it("maps exact batch reprompt and detected-fill command envelopes", async () => {
     const calls: Array<[string, Record<string, unknown> | undefined]> = [];
     const host = new TauriHostService(async (command, args) => {

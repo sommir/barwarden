@@ -74,7 +74,7 @@ describe("AutoFillPickerComponent", () => {
       })),
     };
     nativeHost = {
-      entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => detectedEntry("com.example.App", "Example")),
+      entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => legacyEntry("com.example.App", "Example")),
       agentSession: vi.fn<AutoFillNativeHost["agentSession"]>(async () => ({ status: "success", generation: "00000000-0000-4000-8000-000000000004", accountId: "account-a", vaultRevision: 1 })),
       beginReprompt: vi.fn<AutoFillNativeHost["beginReprompt"]>(async () => ({ status: "pending", receipt: "receipt-a" })),
       cancelReprompt: vi.fn(async () => undefined),
@@ -143,7 +143,7 @@ describe("AutoFillPickerComponent", () => {
         requiresMismatchConfirmation: false,
       }],
     });
-    nativeHost.entryContext.mockResolvedValue(detectedEntry("com.termius-dmg.mac", "Termius"));
+    nativeHost.entryContext.mockResolvedValue(legacyEntry("com.termius-dmg.mac", "Termius"));
 
     const fixture = TestBed.createComponent(AutoFillPickerComponent);
     fixture.detectChanges();
@@ -535,6 +535,30 @@ describe("AutoFillPickerComponent", () => {
     expect(nativeHost.copyText).not.toHaveBeenCalled();
   });
 
+  it("fails closed without legacy release or paste when a detected token changes inside the same app", async () => {
+    const first = detectedEntry("com.example.App", "Example");
+    const second = {
+      ...first,
+      context: {
+        ...first.context,
+        fillContextToken: "00000000-0000-4000-8000-000000000006",
+        focusedField: { kind: "username" as const, confidence: "high" as const },
+      },
+    };
+    nativeHost.entryContext.mockResolvedValue(first);
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.componentInstance.selectIndex(0);
+    nativeHost.entryContext.mockResolvedValue(second);
+
+    await fixture.componentInstance.perform("fill", "password");
+
+    expect(fixture.componentInstance.mode).toBe("context-unavailable");
+    expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
+    expect(nativeHost.pasteText).not.toHaveBeenCalled();
+  });
+
   it("binds an explicitly filled account to the target app after delivery succeeds", async () => {
     const bindings = TestBed.inject(AutoFillBindingsService);
     const fixture = TestBed.createComponent(AutoFillPickerComponent);
@@ -633,7 +657,7 @@ describe("AutoFillPickerComponent", () => {
 
   it("does not paste when target revalidation finishes after destruction", async () => {
     const target = deferred<ReturnType<typeof detectedEntry>>();
-    const available = detectedEntry("com.example.App", "Example");
+    const available = legacyEntry("com.example.App", "Example");
     const fixture = TestBed.createComponent(AutoFillPickerComponent);
     fixture.detectChanges();
     await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
@@ -789,7 +813,7 @@ describe("AutoFillPickerComponent", () => {
     fixture.detectChanges();
     await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
     fixture.componentInstance.selectIndex(0);
-    nativeHost.entryContext.mockResolvedValue(detectedEntry("com.example.Other", "Other"));
+    nativeHost.entryContext.mockResolvedValue(legacyEntry("com.example.Other", "Other"));
 
     await fixture.componentInstance.perform("fill", "password");
 
@@ -898,6 +922,12 @@ function detectedEntry(bundleId: string, appName: string) {
       action: { mode: "field" as const, fields: ["password" as const] },
     },
   };
+}
+
+function legacyEntry(bundleId: string, appName: string): Awaited<ReturnType<AutoFillNativeHost["entryContext"]>> {
+  return { status: "available", context: { bundleId, appName } } as unknown as Awaited<
+    ReturnType<AutoFillNativeHost["entryContext"]>
+  >;
 }
 
 function deferred<T>() {
