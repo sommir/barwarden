@@ -5,6 +5,7 @@ import {
   decodeLiveAutoFillContext,
   immutableAuthorizationMap,
   projectAutoFillAgentSession,
+  validateAutoFillRepromptScopes,
   validateDetectedFillRequest,
 } from "./autofill-fill-context.model";
 
@@ -132,6 +133,55 @@ describe("detected AutoFill contracts", () => {
       { status: "success", fields: ["password"], value: "must-not-cross" },
       { status: "partial", filled: [], failed: "password", code: "private-detail" },
       { status: "error", code: "native-private-error", secret: undefined },
+    ]) {
+      expect(() => decodeDetectedFillOutcome(invalid)).toThrow("invalid detected fill outcome");
+    }
+  });
+
+  it("rejects sparse or augmented arrays at every detected AutoFill boundary", () => {
+    const sparseFields = ["username", , "totp"];
+    const augmentedFields = Object.assign(["password"], { password: "must-not-cross" });
+    const baseContext = {
+      bundleId: "com.example.Terminal",
+      appName: "Terminal",
+      fillContextToken: token,
+      focusedField: { kind: "password", confidence: "high" },
+      action: { mode: "field", fields: ["password"] },
+    };
+    const scope = {
+      accountId: "account-a",
+      candidateId: "cipher-a",
+      field: "password",
+      generation,
+      contextToken: "field-token",
+    };
+    const augmentedScopes = Object.assign([scope], { totpSeed: "must-not-cross" });
+    const sparseAuthorizations = [{ scope, mismatchConfirmed: false }, ,];
+
+    expect(() => decodeLiveAutoFillContext({
+      ...baseContext,
+      action: { ...baseContext.action, fields: sparseFields },
+    })).toThrow("invalid detected AutoFill context");
+    expect(() => decodeDetectedFillOutcome({ status: "success", fields: augmentedFields }))
+      .toThrow("invalid detected fill outcome");
+    expect(() => validateAutoFillRepromptScopes(augmentedScopes))
+      .toThrow("invalid AutoFill reprompt scopes");
+    expect(() => validateDetectedFillRequest({
+      fillContextToken: token,
+      authorizations: sparseAuthorizations,
+    })).toThrow("invalid detected fill request");
+  });
+
+  it("rejects negative revisions and partial outcomes that claim a later field before failure", () => {
+    expect(() => projectAutoFillAgentSession({
+      accountId: "account-a",
+      generation,
+      vaultRevision: -1,
+    })).toThrow("invalid AutoFill Agent session");
+
+    for (const invalid of [
+      { status: "partial", filled: ["password"], failed: "username", code: "fill-failed" },
+      { status: "partial", filled: ["totp"], failed: "password", code: "stale-context" },
     ]) {
       expect(() => decodeDetectedFillOutcome(invalid)).toThrow("invalid detected fill outcome");
     }

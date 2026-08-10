@@ -224,6 +224,19 @@ describe("AutoFillCandidateService", () => {
     }
   });
 
+  it("rejects sparse and augmented candidate arrays", async () => {
+    const sparse = [candidatePayload("a"), , candidatePayload("b")];
+    const augmented = Object.assign([candidatePayload("a")], { password: "must-not-cross" });
+    for (const candidates of [sparse, augmented]) {
+      const error = await new AutoFillCandidateService(new RecordingCandidateHost({
+        contextToken: "context-token",
+        candidates,
+      })).query(candidateRequest()).then(() => null, (caught: unknown) => caught);
+      expect(error).toMatchObject({ message: "AutoFill candidates unavailable" });
+      expect(JSON.stringify(error)).not.toMatch(/password|must-not-cross/);
+    }
+  });
+
   it("defines a separate secret operation bound to candidate field context generation mismatch and reprompt", () => {
     const request = {
       accountId: "account-a",

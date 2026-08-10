@@ -123,11 +123,9 @@ function validateCandidateResponse(input: unknown): AutoFillCandidateResponse {
   const value = snapshotExactRecord(input, ["contextToken", "candidates"]);
   const contextToken = candidateToken(value["contextToken"]);
   const rawCandidates = value["candidates"];
-  if (!Array.isArray(rawCandidates) || rawCandidates.length > 500) {
-    throw new Error("invalid candidate response");
-  }
+  const candidateValues = snapshotDenseArray(rawCandidates, 0, 500);
   const cipherIds = new Set<string>();
-  const candidates = rawCandidates.map((candidate) => {
+  const candidates = candidateValues.map((candidate) => {
     const keys = [
       "cipherId", "displayName", "username", "group", "reason", "requiresMismatchConfirmation",
     ];
@@ -177,6 +175,32 @@ function snapshotExactRecord(input: unknown, expected: readonly string[]): Recor
     snapshot[key as string] = descriptor.value;
   }
   return snapshot;
+}
+
+function snapshotDenseArray(input: unknown, minimum: number, maximum: number): readonly unknown[] {
+  if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype) {
+    throw new Error("invalid candidate response");
+  }
+  const keys = Reflect.ownKeys(input);
+  const lengthDescriptor = Reflect.getOwnPropertyDescriptor(input, "length");
+  if (!lengthDescriptor || !("value" in lengthDescriptor)
+      || !Number.isSafeInteger(lengthDescriptor.value)
+      || lengthDescriptor.value < minimum || lengthDescriptor.value > maximum) {
+    throw new Error("invalid candidate response");
+  }
+  const length = lengthDescriptor.value as number;
+  const expectedKeys = new Set<string>(["length", ...Array.from({ length }, (_, index) => String(index))]);
+  if (keys.length !== expectedKeys.size
+      || keys.some((key) => typeof key !== "string" || !expectedKeys.has(key))) {
+    throw new Error("invalid candidate response");
+  }
+  const snapshot: unknown[] = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(input, String(index));
+    if (!descriptor || !("value" in descriptor)) throw new Error("invalid candidate response");
+    snapshot.push(descriptor.value);
+  }
+  return Object.freeze(snapshot);
 }
 
 function boundedCandidateString(input: unknown, maximum: number, allowEmpty: boolean): string {

@@ -133,4 +133,18 @@ describe("AutoFillContextSessionService", () => {
     expect(service.snapshot()).toBeNull();
     expect(JSON.stringify(service.snapshot())).not.toContain("secret-revision");
   });
+
+  it("rejects negative revisions and sparse or augmented candidate matrices", () => {
+    const service = new AutoFillContextSessionService(() => 1_000);
+    expect(() => service.begin(context, { ...session, vaultRevision: -1 }, [candidate]))
+      .toThrow("invalid AutoFill context session");
+
+    const sparse = [candidate, ,];
+    const augmented = Object.assign([candidate], { password: "must-not-cross" });
+    for (const candidates of [sparse, augmented]) {
+      expect(() => service.begin(context, session, candidates as never))
+        .toThrow("invalid AutoFill context session");
+      expect(service.snapshot()).toBeNull();
+    }
+  });
 });

@@ -344,6 +344,7 @@ fn is_supported_text_role(observation: &SemanticFieldObservation) -> bool {
 
 fn is_secure_role(observation: &SemanticFieldObservation) -> bool {
     observation.role == "AXSecureTextField"
+        || observation.subrole.as_deref() == Some("AXSecureTextField")
 }
 
 fn same_container(left: &SemanticFieldObservation, right: &SemanticFieldObservation) -> bool {
@@ -595,6 +596,11 @@ mod tests {
             self
         }
 
+        fn subrole(mut self, value: &str) -> Self {
+            self.0.subrole = Some(value.into());
+            self
+        }
+
         fn linked_title(mut self, value: &str) -> Self {
             self.0.linked_title = Some(value.into());
             self
@@ -692,6 +698,24 @@ mod tests {
         assert_eq!(detected[1].kind, DetectedFieldKind::Password);
         assert_eq!(detected[1].score, 100);
         assert_eq!(detected[2].kind, DetectedFieldKind::OneTimeCode);
+    }
+
+    #[test]
+    fn secure_text_subrole_is_conclusive_without_semantic_strings() {
+        let detected = classify_fields(&[field("AXTextField")
+            .subrole("AXSecureTextField")
+            .focused()
+            .build()]);
+
+        assert_eq!(detected[0].kind, DetectedFieldKind::Password);
+        assert_eq!(detected[0].confidence, FieldConfidence::High);
+        assert_eq!(detected[0].score, 100);
+        assert_eq!(
+            detect_action(&detected),
+            DetectedAction::Form {
+                fields: vec![AutoFillSecretField::Password],
+            }
+        );
     }
 
     #[test]

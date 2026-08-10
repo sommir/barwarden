@@ -297,6 +297,121 @@ describe("TauriHostService", () => {
     }
   });
 
+  it("keeps entry, candidate, and detected-fill responses free of native and secret metadata", async () => {
+    const sensitiveKeys = [
+      "label", "placeholder", "identifier", "geometry", "frame", "pid",
+      "password", "totpSeed", "value", "releasedSecret",
+    ];
+    const fillRequest = {
+      fillContextToken: "00000000-0000-4000-8000-000000000005",
+      authorizations: [{
+        scope: {
+          accountId: "account-a",
+          candidateId: "cipher-a",
+          field: "password" as const,
+          generation: "00000000-0000-4000-8000-000000000004",
+          contextToken: "context-password",
+        },
+        mismatchConfirmed: false,
+      }],
+    };
+    const candidateRequest = {
+      accountId: "account-a",
+      lockGeneration: "00000000-0000-4000-8000-000000000004",
+      field: "password" as const,
+      context: { bundleId: "com.example.App", appName: "Example", serviceIdentifiers: [], query: "" },
+    };
+    for (const key of sensitiveKeys) {
+      await expect(new TauriHostService(async () => ({
+        status: "available",
+        bundleId: "com.example.App",
+        appName: "Example",
+        fillContextToken: fillRequest.fillContextToken,
+        focusedField: { kind: "password", confidence: "high" },
+        action: { mode: "field", fields: ["password"] },
+        [key]: "must-not-cross",
+      }) as never).entryContext()).rejects.toThrow("AutoFill unavailable");
+      await expect(new TauriHostService(async () => ({
+        status: "success",
+        contextToken: "context-a",
+        candidates: [{
+          cipherId: "cipher-a",
+          displayName: "Example",
+          username: "person@example.test",
+          group: "exact",
+          reason: "service_identifier",
+          requiresMismatchConfirmation: false,
+          [key]: "must-not-cross",
+        }],
+      }) as never).queryCandidates(candidateRequest)).rejects.toThrow("AutoFill unavailable");
+      await expect(new TauriHostService(async () => ({
+        status: "success",
+        fields: ["password"],
+        [key]: "must-not-cross",
+      }) as never).fillDetected(fillRequest)).rejects.toThrow("AutoFill unavailable");
+    }
+  });
+
+  it("rejects sparse or augmented arrays, negative revisions, and noncanonical partial outcomes", async () => {
+    const sparseFields = ["username", , "totp"];
+    const augmentedFields = Object.assign(["password"], { password: "must-not-cross" });
+    const candidate = {
+      cipherId: "cipher-a",
+      displayName: "Example",
+      username: "person@example.test",
+      group: "exact",
+      reason: "service_identifier",
+      requiresMismatchConfirmation: false,
+    };
+    const augmentedCandidates = Object.assign([candidate], { totpSeed: "must-not-cross" });
+    const fillRequest = {
+      fillContextToken: "00000000-0000-4000-8000-000000000005",
+      authorizations: [{
+        scope: {
+          accountId: "account-a",
+          candidateId: "cipher-a",
+          field: "password" as const,
+          generation: "00000000-0000-4000-8000-000000000004",
+          contextToken: "context-password",
+        },
+        mismatchConfirmed: false,
+      }],
+    };
+
+    await expect(new TauriHostService(async () => ({
+      status: "available",
+      bundleId: "com.example.App",
+      appName: "Example",
+      fillContextToken: fillRequest.fillContextToken,
+      focusedField: { kind: "password", confidence: "high" },
+      action: { mode: "form", fields: sparseFields },
+    }) as never).entryContext()).rejects.toThrow("AutoFill unavailable");
+    await expect(new TauriHostService(async () => ({
+      status: "success",
+      generation: "00000000-0000-4000-8000-000000000004",
+      accountId: "account-a",
+      vaultRevision: -1,
+    }) as never).agentSession()).rejects.toThrow("AutoFill unavailable");
+    await expect(new TauriHostService(async () => ({
+      status: "success",
+      contextToken: "context-a",
+      candidates: augmentedCandidates,
+    }) as never).queryCandidates({
+      accountId: "account-a",
+      lockGeneration: "00000000-0000-4000-8000-000000000004",
+      field: "password",
+      context: { bundleId: "com.example.App", appName: "Example", serviceIdentifiers: [], query: "" },
+    })).rejects.toThrow("AutoFill unavailable");
+    await expect(new TauriHostService(async () => ({
+      status: "partial",
+      filled: ["password"],
+      failed: "username",
+      code: "fill-failed",
+    }) as never).fillDetected(fillRequest)).rejects.toThrow("AutoFill unavailable");
+    await expect(new TauriHostService(async () => ({ status: "success", fields: augmentedFields }) as never)
+      .fillDetected(fillRequest)).rejects.toThrow("AutoFill unavailable");
+  });
+
   it("rejects oversized batch receipts from the native boundary", async () => {
     const host = new TauriHostService(async () => ({
       status: "pending",

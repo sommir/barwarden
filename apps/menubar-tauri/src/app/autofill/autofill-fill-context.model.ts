@@ -149,7 +149,9 @@ export function decodeLiveAutoFillContext(input: unknown): LiveAutoFillContext {
 export function projectAutoFillAgentSession(input: unknown): AutoFillAgentSession {
   try {
     const value = exactRecord(input, ["accountId", "generation", "vaultRevision"]);
-    if (!Number.isSafeInteger(value["vaultRevision"])) throw new Error("invalid revision");
+    if (!Number.isSafeInteger(value["vaultRevision"]) || Number(value["vaultRevision"]) < 0) {
+      throw new Error("invalid revision");
+    }
     return Object.freeze({
       accountId: boundedString(value["accountId"], 512, false),
       generation: uuid(value["generation"]),
@@ -199,11 +201,8 @@ export function validateDetectedFillRequest(input: unknown): DetectedFillRequest
       ["fillContextToken", "authorizations"],
       ["fillContextToken", "authorizations", "repromptReceipt"],
     ]);
-    if (!Array.isArray(value["authorizations"]) || value["authorizations"].length < 1
-        || value["authorizations"].length > 3) {
-      throw new Error("invalid authorizations");
-    }
-    const authorizations = value["authorizations"].map((entry) => {
+    const rawAuthorizations = snapshotDenseArray(value["authorizations"], 1, 3);
+    const authorizations = rawAuthorizations.map((entry) => {
       const authorization = exactRecord(entry, ["scope", "mismatchConfirmed"]);
       const scopeValue = exactRecord(authorization["scope"], [
         "accountId", "candidateId", "field", "generation", "contextToken",
@@ -240,8 +239,8 @@ export function validateDetectedFillRequest(input: unknown): DetectedFillRequest
 
 export function validateAutoFillRepromptScopes(input: unknown): readonly AutoFillRepromptScope[] {
   try {
-    if (!Array.isArray(input) || input.length < 1 || input.length > 3) throw new Error("invalid scopes");
-    const scopes = input.map((entry) => {
+    const rawScopes = snapshotDenseArray(input, 1, 3);
+    const scopes = rawScopes.map((entry) => {
       const scope = exactRecord(entry, ["accountId", "candidateId", "field", "generation", "contextToken"]);
       return Object.freeze({
         accountId: boundedString(scope["accountId"], 512, false),
@@ -277,7 +276,11 @@ export function decodeDetectedFillOutcome(input: unknown): DetectedFillOutcome {
         const filled = canonicalFields(value["filled"], true);
         const failed = decodeAutoFillField(value["failed"]);
         const code = member(value["code"], PARTIAL_CODES);
-        if (filled.includes(failed)) throw new Error("duplicate failed field");
+        const failedIndex = FIELD_ORDER.indexOf(failed);
+        if (filled.includes(failed)
+            || filled.some((field) => FIELD_ORDER.indexOf(field) >= failedIndex)) {
+          throw new Error("invalid partial order");
+        }
         return Object.freeze({ status: "partial", filled, failed, code });
       }
       case "error": {
@@ -304,15 +307,38 @@ export function contextsEqual(left: LiveAutoFillContext, right: LiveAutoFillCont
 }
 
 function canonicalFields(input: unknown, allowEmpty: boolean): readonly AutoFillSecretField[] {
-  if (!Array.isArray(input) || input.length > 3 || (!allowEmpty && input.length === 0)) {
-    throw new Error("invalid fields");
-  }
-  const fields = input.map(decodeAutoFillField);
+  const fields = snapshotDenseArray(input, allowEmpty ? 0 : 1, 3).map(decodeAutoFillField);
   if (new Set(fields).size !== fields.length
       || fields.some((field, index) => FIELD_ORDER.indexOf(field) <= (index ? FIELD_ORDER.indexOf(fields[index - 1]) : -1))) {
     throw new Error("invalid field order");
   }
   return Object.freeze(fields);
+}
+
+function snapshotDenseArray(input: unknown, minimum: number, maximum: number): readonly unknown[] {
+  if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype) {
+    throw new Error("invalid array");
+  }
+  const keys = Reflect.ownKeys(input);
+  const lengthDescriptor = Reflect.getOwnPropertyDescriptor(input, "length");
+  if (!lengthDescriptor || !("value" in lengthDescriptor)
+      || !Number.isSafeInteger(lengthDescriptor.value)
+      || lengthDescriptor.value < minimum || lengthDescriptor.value > maximum) {
+    throw new Error("invalid array length");
+  }
+  const length = lengthDescriptor.value as number;
+  const expectedKeys = new Set<string>(["length", ...Array.from({ length }, (_, index) => String(index))]);
+  if (keys.length !== expectedKeys.size
+      || keys.some((key) => typeof key !== "string" || !expectedKeys.has(key))) {
+    throw new Error("invalid array keys");
+  }
+  const snapshot: unknown[] = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(input, String(index));
+    if (!descriptor || !("value" in descriptor)) throw new Error("invalid array descriptor");
+    snapshot.push(descriptor.value);
+  }
+  return Object.freeze(snapshot);
 }
 
 function decodeAutoFillField(input: unknown): AutoFillSecretField {

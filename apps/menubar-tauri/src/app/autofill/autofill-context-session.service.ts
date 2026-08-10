@@ -43,10 +43,10 @@ export class AutoFillContextSessionService {
     candidates: readonly ContextualCandidate[],
   ): void {
     try {
-      if (!Array.isArray(candidates) || candidates.length > 500) throw new Error("invalid candidates");
+      const candidateValues = snapshotDenseArray(candidates, 0, 500);
       const projectedContext = decodeLiveAutoFillContext(context);
       const projectedSession = projectAutoFillAgentSession(session);
-      const projectedCandidates = projectCandidates(candidates);
+      const projectedCandidates = projectCandidates(candidateValues as readonly ContextualCandidate[]);
       if (this.state) this.invalidate();
       this.state = Object.freeze({
         context: projectedContext,
@@ -138,4 +138,30 @@ function projectCandidates(candidates: readonly ContextualCandidate[]): readonly
     throw new Error("duplicate contextual candidate");
   }
   return Object.freeze(projected);
+}
+
+function snapshotDenseArray(input: unknown, minimum: number, maximum: number): readonly unknown[] {
+  if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype) {
+    throw new Error("invalid array");
+  }
+  const keys = Reflect.ownKeys(input);
+  const lengthDescriptor = Reflect.getOwnPropertyDescriptor(input, "length");
+  if (!lengthDescriptor || !("value" in lengthDescriptor)
+      || !Number.isSafeInteger(lengthDescriptor.value)
+      || lengthDescriptor.value < minimum || lengthDescriptor.value > maximum) {
+    throw new Error("invalid array length");
+  }
+  const length = lengthDescriptor.value as number;
+  const expectedKeys = new Set<string>(["length", ...Array.from({ length }, (_, index) => String(index))]);
+  if (keys.length !== expectedKeys.size
+      || keys.some((key) => typeof key !== "string" || !expectedKeys.has(key))) {
+    throw new Error("invalid array keys");
+  }
+  const snapshot: unknown[] = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(input, String(index));
+    if (!descriptor || !("value" in descriptor)) throw new Error("invalid array descriptor");
+    snapshot.push(descriptor.value);
+  }
+  return Object.freeze(snapshot);
 }

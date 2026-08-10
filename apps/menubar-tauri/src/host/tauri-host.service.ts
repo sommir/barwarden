@@ -1093,8 +1093,8 @@ function decodeLiveAutoFillContext(value: unknown): LiveAutoFillContext {
 }
 
 function validateAutoFillRepromptScopes(value: unknown): readonly AutoFillRepromptScope[] {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 3) throw new Error("invalid scopes");
-  const scopes = value.map((entry) => {
+  const rawScopes = snapshotDenseAutoFillArray(value, 1, 3);
+  const scopes = rawScopes.map((entry) => {
     const scope = snapshotExactAutoFillRecord(entry, [
       "accountId", "candidateId", "field", "generation", "contextToken",
     ]);
@@ -1123,9 +1123,7 @@ function validateDetectedFillRequest(value: unknown): DetectedFillRequest {
     throw new Error("invalid request");
   }
   const rawAuthorizations = request["authorizations"];
-  if (!Array.isArray(rawAuthorizations) || rawAuthorizations.length < 1
-      || rawAuthorizations.length > 3) throw new Error("invalid request");
-  const authorizations = rawAuthorizations.map((entry) => {
+  const authorizations = snapshotDenseAutoFillArray(rawAuthorizations, 1, 3).map((entry) => {
     const authorization = snapshotExactAutoFillRecord(entry, ["scope", "mismatchConfirmed"]);
     if (typeof authorization["mismatchConfirmed"] !== "boolean") throw new Error("invalid authorization");
     const [scope] = validateAutoFillRepromptScopes([authorization["scope"]]);
@@ -1152,7 +1150,11 @@ function decodeDetectedFillOutcome(value: unknown): DetectedFillOutcome {
     const filled = canonicalAutoFillFields(outcome["filled"], true);
     const failed = autoFillField(outcome["failed"]);
     const code = valueFromSet(outcome["code"], ["stale-context", "fill-failed"] as const);
-    if (filled.includes(failed)) throw new Error("invalid outcome");
+    const failedIndex = AUTOFILL_FIELD_ORDER.indexOf(failed);
+    if (filled.includes(failed)
+        || filled.some((field) => AUTOFILL_FIELD_ORDER.indexOf(field) >= failedIndex)) {
+      throw new Error("invalid outcome");
+    }
     return Object.freeze({ status: "partial", filled, failed, code });
   }
   if (outcome["status"] === "error" && exactKeys(outcome, ["status", "code"])) {
@@ -1167,10 +1169,7 @@ function decodeDetectedFillOutcome(value: unknown): DetectedFillOutcome {
 }
 
 function canonicalAutoFillFields(value: unknown, allowEmpty: boolean): readonly AutoFillSecretField[] {
-  if (!Array.isArray(value) || value.length > 3 || (!allowEmpty && value.length === 0)) {
-    throw new Error("invalid fields");
-  }
-  const fields = value.map(autoFillField);
+  const fields = snapshotDenseAutoFillArray(value, allowEmpty ? 0 : 1, 3).map(autoFillField);
   if (new Set(fields).size !== fields.length || fields.some((field, index) => (
     AUTOFILL_FIELD_ORDER.indexOf(field)
       <= (index === 0 ? -1 : AUTOFILL_FIELD_ORDER.indexOf(fields[index - 1]))
@@ -1235,7 +1234,8 @@ function decodeAgentSession(value: unknown) {
     return { status: "error" as const, code: outcome["code"] };
   }
   if (outcome["status"] === "success" && exactKeys(outcome, ["status", "generation", "accountId", "vaultRevision"])
-      && isNativeUuid(outcome["generation"]) && nonEmpty(outcome["accountId"]) && Number.isSafeInteger(outcome["vaultRevision"])) {
+      && isNativeUuid(outcome["generation"]) && nonEmpty(outcome["accountId"])
+      && Number.isSafeInteger(outcome["vaultRevision"]) && Number(outcome["vaultRevision"]) >= 0) {
     return { status: "success" as const, generation: outcome["generation"], accountId: outcome["accountId"], vaultRevision: outcome["vaultRevision"] as number };
   }
   throw new Error("AutoFill unavailable");
@@ -1245,11 +1245,12 @@ function decodeCandidateOutcome(value: unknown): unknown {
   const outcome = snapshotExactAutoFillRecord(value, ["status", "contextToken", "candidates"]);
   const contextToken = boundedAutoFillString(outcome["contextToken"], 512);
   const rawCandidates = outcome["candidates"];
-  if (outcome["status"] !== "success" || !Array.isArray(rawCandidates) || rawCandidates.length > 500) {
+  if (outcome["status"] !== "success") {
     throw new Error("AutoFill unavailable");
   }
+  const candidateValues = snapshotDenseAutoFillArray(rawCandidates, 0, 500);
   const cipherIds = new Set<string>();
-  const candidates = rawCandidates.map((candidate) => {
+  const candidates = candidateValues.map((candidate) => {
     const projected = snapshotExactAutoFillRecord(candidate, [
       "cipherId", "displayName", "username", "group", "reason", "requiresMismatchConfirmation",
     ]);
@@ -1326,6 +1327,36 @@ function snapshotAutoFillRecord(value: unknown): Record<string, unknown> {
     snapshot[key as string] = descriptor.value;
   }
   return snapshot;
+}
+
+function snapshotDenseAutoFillArray(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): readonly unknown[] {
+  if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) {
+    throw new Error("AutoFill unavailable");
+  }
+  const keys = Reflect.ownKeys(value);
+  const lengthDescriptor = Reflect.getOwnPropertyDescriptor(value, "length");
+  if (!lengthDescriptor || !("value" in lengthDescriptor)
+      || !Number.isSafeInteger(lengthDescriptor.value)
+      || lengthDescriptor.value < minimum || lengthDescriptor.value > maximum) {
+    throw new Error("AutoFill unavailable");
+  }
+  const length = lengthDescriptor.value as number;
+  const expectedKeys = new Set<string>(["length", ...Array.from({ length }, (_, index) => String(index))]);
+  if (keys.length !== expectedKeys.size
+      || keys.some((key) => typeof key !== "string" || !expectedKeys.has(key))) {
+    throw new Error("AutoFill unavailable");
+  }
+  const snapshot: unknown[] = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(value, String(index));
+    if (!descriptor || !("value" in descriptor)) throw new Error("AutoFill unavailable");
+    snapshot.push(descriptor.value);
+  }
+  return Object.freeze(snapshot);
 }
 
 function isExactRecord(value: unknown): value is Record<string, unknown> {

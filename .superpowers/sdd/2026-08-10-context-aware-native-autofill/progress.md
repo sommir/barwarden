@@ -23,3 +23,5 @@ Task 6: fix round 1/5 (2 Important + 1 Minor addressed; commits c4b6fa0..866e6e6
 Task 6: complete (commits fb69e32..866e6e6, review clean; actual rendered Product Design QA passed)
 Task 7: implementation complete (commit pending independent review; 11 focused files / 161 tests passed; actual rendered Product Design QA passed)
 Task 7: fix round 1/5 (2 Important lifecycle findings addressed, 0 open — reused-detail/action invalidation and reprompt false-result receipt burn; 12 focused files / 171 tests passed; base d26a85c6)
+Task 8: automated phase complete (Task 1/2/5 deferred findings closed; native privacy/identity and response-leakage gates added; Rust 337 passed/7 ignored, Xcode 143 passed, Node 19 passed, Vitest 3648 passed/22 skipped, build and diff checks passed)
+Task 8: signed macOS 26 local smoke pending root execution; no credentials, signing, install, GUI, notarization, production configuration/entitlement, or browser work performed in the automated phase
