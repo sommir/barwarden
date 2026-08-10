@@ -42,6 +42,13 @@ fn updater_plugin_is_configured(config: &tauri::Config) -> bool {
 }
 
 fn main() {
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    if let Some(output_dir) = std::env::var_os("BARWARDEN_AUTOFILL_PILL_FIXTURE_DIR") {
+        autofill_floating::render_native_pill_fixture(std::path::Path::new(&output_dir))
+            .expect("render deterministic native AutoFill pill fixture");
+        return;
+    }
+
     let context = tauri::generate_context!();
     let observer_generation = autofill_ax_context::ObserverGeneration::default();
     let detected_fill_contexts =

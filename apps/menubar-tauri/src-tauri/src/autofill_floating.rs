@@ -10,6 +10,8 @@ const PILL_HEIGHT: f64 = 30.0;
 const PILL_GAP: f64 = 8.0;
 const PILL_RADIUS: f64 = 9.0;
 const PILL_SIZE: (f64, f64) = (PILL_WIDTH, PILL_HEIGHT);
+const PILL_BUTTON_FRAME: (f64, f64, f64, f64) = (0.0, 0.0, PILL_WIDTH, PILL_HEIGHT);
+const PILL_BADGE_FRAME: (f64, f64, f64, f64) = (21.0, 1.0, 11.0, 11.0);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ObserverScope {
@@ -21,12 +23,13 @@ enum ObserverScope {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ObserverNotification {
     FocusedElementChanged,
+    LayoutChanged,
     Moved,
     Resized,
     Destroyed,
 }
 
-const fn observer_notification_plan() -> [(ObserverScope, ObserverNotification); 7] {
+const fn observer_notification_plan() -> [(ObserverScope, ObserverNotification); 8] {
     [
         (
             ObserverScope::Application,
@@ -40,6 +43,7 @@ const fn observer_notification_plan() -> [(ObserverScope, ObserverNotification);
         ),
         (ObserverScope::Window, ObserverNotification::Moved),
         (ObserverScope::Window, ObserverNotification::Resized),
+        (ObserverScope::Window, ObserverNotification::LayoutChanged),
         (ObserverScope::Window, ObserverNotification::Destroyed),
     ]
 }
@@ -252,7 +256,11 @@ pub fn ax_to_appkit(frame: AxFrame, primary_max_y: f64) -> AppKitFrame {
     }
 }
 
-fn pill_x(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<f64> {
+fn pill_x(
+    anchor: AppKitFrame,
+    work_area: AppKitFrame,
+    accepts_collapsed_width: bool,
+) -> Option<f64> {
     if ![
         anchor.x,
         anchor.y,
@@ -265,7 +273,8 @@ fn pill_x(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<f64> {
     ]
     .into_iter()
     .all(f64::is_finite)
-        || anchor.width <= 0.0
+        || anchor.width < 0.0
+        || (!accepts_collapsed_width && anchor.width == 0.0)
         || anchor.height <= 0.0
         || work_area.width < PILL_WIDTH
         || work_area.height < PILL_HEIGHT
@@ -278,9 +287,13 @@ fn pill_x(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<f64> {
     )
 }
 
-fn place_above(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<AppKitFrame> {
+fn place_above(
+    anchor: AppKitFrame,
+    work_area: AppKitFrame,
+    accepts_collapsed_width: bool,
+) -> Option<AppKitFrame> {
     let candidate = AppKitFrame {
-        x: pill_x(anchor, work_area)?,
+        x: pill_x(anchor, work_area, accepts_collapsed_width)?,
         y: anchor.y + anchor.height + PILL_GAP,
         width: PILL_WIDTH,
         height: PILL_HEIGHT,
@@ -290,7 +303,7 @@ fn place_above(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<AppKitFram
 
 fn place_below(anchor: AppKitFrame, work_area: AppKitFrame) -> Option<AppKitFrame> {
     let candidate = AppKitFrame {
-        x: pill_x(anchor, work_area)?,
+        x: pill_x(anchor, work_area, false)?,
         y: anchor.y - PILL_GAP - PILL_HEIGHT,
         width: PILL_WIDTH,
         height: PILL_HEIGHT,
@@ -304,8 +317,8 @@ pub fn place_pill(
     work_area: AppKitFrame,
 ) -> Option<AppKitFrame> {
     caret
-        .and_then(|caret| place_above(caret, work_area))
-        .or_else(|| place_above(field, work_area))
+        .and_then(|caret| place_above(caret, work_area, true))
+        .or_else(|| place_above(field, work_area, false))
         .or_else(|| place_below(field, work_area))
 }
 
@@ -971,6 +984,7 @@ mod macos {
     const NS_VISUAL_EFFECT_MATERIAL_POPOVER: isize = 6;
     const NS_VISUAL_EFFECT_BLEND_BEHIND_WINDOW: isize = 0;
     const NS_VISUAL_EFFECT_STATE_ACTIVE: isize = 1;
+    const NS_EVENT_MASK_SCROLL_WHEEL: usize = 1usize << 22;
 
     #[link(name = "ApplicationServices", kind = "framework")]
     extern "C" {
@@ -1132,6 +1146,14 @@ mod macos {
     static MATERIAL_BACKGROUND: OnceLock<usize> = OnceLock::new();
     static BADGE_BUTTON: OnceLock<usize> = OnceLock::new();
     static WORKSPACE_TOKENS: OnceLock<(usize, usize)> = OnceLock::new();
+    static SCROLL_MONITOR: OnceLock<usize> = OnceLock::new();
+
+    struct PillContent {
+        root: Retained<NSView>,
+        material: Retained<AnyObject>,
+        button: Retained<NSButton>,
+        badge: Retained<FloatingBadge>,
+    }
 
     pub(super) fn native_accessibility_trusted(prompt: bool) -> bool {
         unsafe {
@@ -1164,6 +1186,26 @@ mod macos {
     }
 
     fn install_workspace_observers(signal: Arc<ObserverInvalidationSignal>) {
+        SCROLL_MONITOR.get_or_init(|| {
+            let event_class = AnyClass::get(c"NSEvent").expect("NSEvent is available on macOS");
+            let scroll_signal = Arc::clone(&signal);
+            // The monitor observes only the fact that a scroll occurred. It never reads,
+            // stores, or forwards event contents, and installation stays on AppKit's main
+            // thread. This covers ancestor scrolling even when AX emits no element move.
+            let handler = RcBlock::new(move |_event: NonNull<AnyObject>| {
+                scroll_signal.invalidate();
+            });
+            let token: *mut AnyObject = unsafe {
+                msg_send![
+                    event_class,
+                    addGlobalMonitorForEventsMatchingMask: NS_EVENT_MASK_SCROLL_WHEEL,
+                    handler: &*handler
+                ]
+            };
+            unsafe { Retained::retain(token) }
+                .map(|token| Retained::into_raw(token) as usize)
+                .unwrap_or_default()
+        });
         WORKSPACE_TOKENS.get_or_init(|| {
             debug_assert_eq!(
                 workspace_notification_plan(),
@@ -1540,6 +1582,7 @@ mod macos {
             ObserverNotification::FocusedElementChanged => {
                 CFString::from_static_string("AXFocusedUIElementChanged")
             }
+            ObserverNotification::LayoutChanged => CFString::from_static_string("AXLayoutChanged"),
             ObserverNotification::Moved => CFString::from_static_string("AXMoved"),
             ObserverNotification::Resized => CFString::from_static_string("AXResized"),
             ObserverNotification::Destroyed => CFString::from_static_string("AXUIElementDestroyed"),
@@ -1741,14 +1784,60 @@ mod macos {
         Some(image)
     }
 
+    fn apply_badge(button: &NSButton, badge: PillBadge) {
+        if let Some(image) = badge_image(badge) {
+            button.setImage(Some(&image));
+        }
+    }
+
     fn update_badge(badge: PillBadge, _mtm: MainThreadMarker) {
         let Some(address) = BADGE_BUTTON.get() else {
             return;
         };
         let button = unsafe { &*(*address as *const NSButton) };
-        if let Some(image) = badge_image(badge) {
-            button.setImage(Some(&image));
-        }
+        apply_badge(button, badge);
+    }
+
+    fn apply_panel_appearance(
+        root: &NSView,
+        material: &NSView,
+        badge: &NSButton,
+        appearance: PillAppearance,
+    ) {
+        material.setHidden(!appearance.uses_material_background);
+        let effective_appearance: *mut AnyObject = unsafe { msg_send![root, effectiveAppearance] };
+        let apply_dynamic_colors = RcBlock::new(|| {
+            let layer = root.layer().expect("floating pill root keeps its layer");
+            let background = if appearance.uses_opaque_background {
+                NSColor::windowBackgroundColor()
+            } else {
+                NSColor::clearColor()
+            };
+            let background_cg: *const c_void = unsafe { msg_send![&*background, CGColor] };
+            let _: () = unsafe { msg_send![&*layer, setBackgroundColor: background_cg] };
+
+            let border = if appearance.uses_high_contrast_border {
+                NSColor::labelColor()
+            } else {
+                NSColor::separatorColor()
+            };
+            let border_cg: *const c_void = unsafe { msg_send![&*border, CGColor] };
+            let _: () = unsafe { msg_send![&*layer, setBorderColor: border_cg] };
+            layer.setBorderWidth(if appearance.uses_contrast_border {
+                1.0
+            } else {
+                0.0
+            });
+            let badge_tint = if appearance.uses_high_contrast_border {
+                NSColor::labelColor()
+            } else {
+                NSColor::secondaryLabelColor()
+            };
+            badge.setContentTintColor(Some(&badge_tint));
+        });
+        let _: () = unsafe {
+            msg_send![effective_appearance, performAsCurrentDrawingAppearance: &*apply_dynamic_colors]
+        };
     }
 
     fn update_panel_appearance(appearance: PillAppearance) {
@@ -1762,104 +1851,92 @@ mod macos {
         let root = unsafe { &*(*root_address as *const NSView) };
         let material = unsafe { &*(*material_address as *const NSView) };
         let badge = unsafe { &*(*badge_address as *const NSButton) };
-        material.setHidden(!appearance.uses_material_background);
+        apply_panel_appearance(root, material, badge, appearance);
+    }
 
-        let layer = root.layer().expect("floating pill root keeps its layer");
-        let background = if appearance.uses_opaque_background {
-            NSColor::windowBackgroundColor()
-        } else {
-            NSColor::clearColor()
+    fn build_pill_content(
+        target: Option<&AnyObject>,
+        badge: PillBadge,
+        appearance: PillAppearance,
+        mtm: MainThreadMarker,
+    ) -> PillContent {
+        let data =
+            unsafe { NSData::dataWithBytes_length(PANEL_ICON.as_ptr().cast(), PANEL_ICON.len()) };
+        let image =
+            NSImage::initWithData(NSImage::alloc(), &data).expect("floating icon asset is valid");
+        image.setTemplate(false);
+        image.setSize(NSSize::new(18.0, 18.0));
+        let button = unsafe {
+            NSButton::buttonWithImage_target_action(
+                &image,
+                target,
+                target.map(|_| sel!(openAutoFill:)),
+                mtm,
+            )
         };
-        let background_cg: *const c_void = unsafe { msg_send![&*background, CGColor] };
-        let _: () = unsafe { msg_send![&*layer, setBackgroundColor: background_cg] };
+        button.setBordered(false);
+        button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
+        button.setFrame(NSRect::new(
+            NSPoint::new(PILL_BUTTON_FRAME.0, PILL_BUTTON_FRAME.1),
+            NSSize::new(PILL_BUTTON_FRAME.2, PILL_BUTTON_FRAME.3),
+        ));
+        button.setToolTip(Some(&NSString::from_str("Open Barwarden AutoFill")));
 
-        let border = if appearance.uses_high_contrast_border {
-            NSColor::labelColor()
-        } else {
-            NSColor::separatorColor()
+        let bounds = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(PILL_WIDTH, PILL_HEIGHT));
+        let root = NSView::initWithFrame(NSView::alloc(mtm), bounds);
+        root.setWantsLayer(true);
+        let root_layer = root.layer().expect("floating pill root has a layer");
+        root_layer.setCornerRadius(PILL_RADIUS);
+        root_layer.setMasksToBounds(true);
+        root_layer.setBorderWidth(1.0);
+
+        let material_class = AnyClass::get(c"NSVisualEffectView")
+            .expect("NSVisualEffectView is available on supported macOS");
+        let material_allocated: Allocated<AnyObject> = unsafe { msg_send![material_class, alloc] };
+        let material: Retained<AnyObject> =
+            unsafe { msg_send![material_allocated, initWithFrame: bounds] };
+        let _: () =
+            unsafe { msg_send![&*material, setMaterial: NS_VISUAL_EFFECT_MATERIAL_POPOVER] };
+        let _: () =
+            unsafe { msg_send![&*material, setBlendingMode: NS_VISUAL_EFFECT_BLEND_BEHIND_WINDOW] };
+        let _: () = unsafe { msg_send![&*material, setState: NS_VISUAL_EFFECT_STATE_ACTIVE] };
+        let material_view = unsafe { &*((&*material as *const AnyObject).cast::<NSView>()) };
+        root.addSubview(material_view);
+        root.addSubview(&button);
+
+        let badge_button: Retained<FloatingBadge> = unsafe {
+            msg_send![
+                FloatingBadge::alloc(mtm),
+                initWithFrame: NSRect::new(
+                    NSPoint::new(PILL_BADGE_FRAME.0, PILL_BADGE_FRAME.1),
+                    NSSize::new(PILL_BADGE_FRAME.2, PILL_BADGE_FRAME.3)
+                )
+            ]
         };
-        let border_cg: *const c_void = unsafe { msg_send![&*border, CGColor] };
-        let _: () = unsafe { msg_send![&*layer, setBorderColor: border_cg] };
-        layer.setBorderWidth(if appearance.uses_contrast_border {
-            1.0
-        } else {
-            0.0
-        });
-        let badge_tint = if appearance.uses_high_contrast_border {
-            NSColor::labelColor()
-        } else {
-            NSColor::secondaryLabelColor()
-        };
-        badge.setContentTintColor(Some(&badge_tint));
+        badge_button.setBordered(false);
+        badge_button.setRefusesFirstResponder(true);
+        badge_button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
+        root.addSubview(&badge_button);
+        apply_badge(&badge_button, badge);
+        apply_panel_appearance(&root, material_view, &badge_button, appearance);
+
+        PillContent {
+            root,
+            material,
+            button,
+            badge: badge_button,
+        }
     }
 
     fn panel(app: &tauri::AppHandle, mtm: MainThreadMarker) -> &'static NSPanel {
         let address = *PANEL.get_or_init(|| {
             let target = FloatingTarget::new(app.clone(), mtm);
-            let data = unsafe {
-                NSData::dataWithBytes_length(PANEL_ICON.as_ptr().cast(), PANEL_ICON.len())
-            };
-            let image = NSImage::initWithData(NSImage::alloc(), &data)
-                .expect("floating icon asset is valid");
-            image.setTemplate(false);
-            image.setSize(NSSize::new(18.0, 18.0));
-            let button = unsafe {
-                NSButton::buttonWithImage_target_action(
-                    &image,
-                    Some(&target),
-                    Some(sel!(openAutoFill:)),
-                    mtm,
-                )
-            };
-            button.setBordered(false);
-            button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
-            button.setFrame(NSRect::new(
-                NSPoint::new(0.0, 0.0),
-                NSSize::new(PILL_WIDTH, PILL_HEIGHT),
-            ));
-            button.setToolTip(Some(&NSString::from_str("Open Barwarden AutoFill")));
-
-            let bounds = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(PILL_WIDTH, PILL_HEIGHT));
-            let root = NSView::initWithFrame(NSView::alloc(mtm), bounds);
-            root.setWantsLayer(true);
-            let root_layer = root.layer().expect("floating pill root has a layer");
-            root_layer.setCornerRadius(PILL_RADIUS);
-            root_layer.setMasksToBounds(true);
-            root_layer.setBorderWidth(1.0);
-
-            let material_class = AnyClass::get(c"NSVisualEffectView")
-                .expect("NSVisualEffectView is available on supported macOS");
-            let material_allocated: Allocated<AnyObject> =
-                unsafe { msg_send![material_class, alloc] };
-            let material: Retained<AnyObject> =
-                unsafe { msg_send![material_allocated, initWithFrame: bounds] };
-            let _: () =
-                unsafe { msg_send![&*material, setMaterial: NS_VISUAL_EFFECT_MATERIAL_POPOVER] };
-            let _: () = unsafe {
-                msg_send![&*material, setBlendingMode: NS_VISUAL_EFFECT_BLEND_BEHIND_WINDOW]
-            };
-            let _: () = unsafe { msg_send![&*material, setState: NS_VISUAL_EFFECT_STATE_ACTIVE] };
-            let material_view = unsafe { &*((&*material as *const AnyObject).cast::<NSView>()) };
-            root.addSubview(material_view);
-            root.addSubview(&button);
-
-            let badge_image = badge_image(PillBadge::Unknown)
-                .expect("supported macOS provides the badge symbols");
-            let badge_button: Retained<FloatingBadge> = unsafe {
-                msg_send![
-                    FloatingBadge::alloc(mtm),
-                    initWithFrame: NSRect::new(
-                        NSPoint::new(21.0, 1.0),
-                        NSSize::new(11.0, 11.0)
-                    )
-                ]
-            };
-            badge_button.setImage(Some(&badge_image));
-            badge_button.setBordered(false);
-            badge_button.setRefusesFirstResponder(true);
-            badge_button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
-            badge_button.setContentTintColor(Some(&NSColor::secondaryLabelColor()));
-            root.addSubview(&badge_button);
+            let content = build_pill_content(
+                Some(&target),
+                PillBadge::Unknown,
+                pill_appearance(current_appearance_preferences()),
+                mtm,
+            );
 
             let panel: Retained<FloatingPanel> = unsafe {
                 msg_send![
@@ -1888,11 +1965,15 @@ mod macos {
                     | NSWindowCollectionBehavior::Stationary
                     | NSWindowCollectionBehavior::IgnoresCycle,
             );
-            panel.setContentView(Some(&root));
-            let _ = PANEL_ROOT.set((&*root as *const NSView) as usize);
-            let _ = MATERIAL_BACKGROUND.set((&*material as *const AnyObject) as usize);
+            panel.setContentView(Some(&content.root));
+            let _ = PANEL_ROOT.set((&*content.root as *const NSView) as usize);
+            let _ = MATERIAL_BACKGROUND.set((&*content.material as *const AnyObject) as usize);
             let _ = BADGE_BUTTON
-                .set((&*badge_button as *const FloatingBadge).cast::<NSButton>() as usize);
+                .set((&*content.badge as *const FloatingBadge).cast::<NSButton>() as usize);
+            debug_assert_eq!(
+                content.button.frame().size,
+                NSSize::new(PILL_WIDTH, PILL_HEIGHT)
+            );
             let target_ptr = Retained::into_raw(target) as usize;
             let _ = TARGET.set(target_ptr);
             Retained::into_raw(panel) as usize
@@ -1905,6 +1986,142 @@ mod macos {
             .get()
             .expect("floating target initialized with panel");
         unsafe { &*(address as *const FloatingTarget) }
+    }
+
+    #[cfg(debug_assertions)]
+    fn set_fixture_appearance(view: &NSView, name: &str) -> Result<(), String> {
+        let appearance_class = AnyClass::get(c"NSAppearance")
+            .ok_or_else(|| "NSAppearance is unavailable".to_owned())?;
+        let name = NSString::from_str(name);
+        let appearance: *mut AnyObject =
+            unsafe { msg_send![appearance_class, appearanceNamed: &*name] };
+        if appearance.is_null() {
+            return Err("requested fixture appearance is unavailable".to_owned());
+        }
+        let _: () = unsafe { msg_send![view, setAppearance: appearance] };
+        Ok(())
+    }
+
+    #[cfg(debug_assertions)]
+    fn set_fixture_application_appearance(
+        application: *mut AnyObject,
+        name: &str,
+    ) -> Result<(), String> {
+        let appearance_class = AnyClass::get(c"NSAppearance")
+            .ok_or_else(|| "NSAppearance is unavailable".to_owned())?;
+        let name = NSString::from_str(name);
+        let appearance: *mut AnyObject =
+            unsafe { msg_send![appearance_class, appearanceNamed: &*name] };
+        if appearance.is_null() {
+            return Err("requested fixture appearance is unavailable".to_owned());
+        }
+        let _: () = unsafe { msg_send![application, setAppearance: appearance] };
+        Ok(())
+    }
+
+    #[cfg(debug_assertions)]
+    fn write_fixture_png(
+        view: &NSView,
+        output_path: &std::path::Path,
+        scale: usize,
+    ) -> Result<(), String> {
+        let bitmap_class = AnyClass::get(c"NSBitmapImageRep")
+            .ok_or_else(|| "NSBitmapImageRep is unavailable".to_owned())?;
+        let allocated: Allocated<AnyObject> = unsafe { msg_send![bitmap_class, alloc] };
+        let color_space = NSString::from_str("NSDeviceRGBColorSpace");
+        let planes: *mut *mut u8 = ptr::null_mut();
+        let bitmap: Retained<AnyObject> = unsafe {
+            msg_send![
+                allocated,
+                initWithBitmapDataPlanes: planes,
+                pixelsWide: PILL_WIDTH as usize * scale,
+                pixelsHigh: PILL_HEIGHT as usize * scale,
+                bitsPerSample: 8usize,
+                samplesPerPixel: 4usize,
+                hasAlpha: true,
+                isPlanar: false,
+                colorSpaceName: &*color_space,
+                bytesPerRow: 0usize,
+                bitsPerPixel: 0usize
+            ]
+        };
+        let _: () = unsafe { msg_send![&*bitmap, setSize: NSSize::new(PILL_WIDTH, PILL_HEIGHT)] };
+        let _: () = unsafe {
+            msg_send![view, cacheDisplayInRect: view.bounds(), toBitmapImageRep: &*bitmap]
+        };
+        let dictionary_class = AnyClass::get(c"NSDictionary")
+            .ok_or_else(|| "NSDictionary is unavailable".to_owned())?;
+        let properties: *mut AnyObject = unsafe { msg_send![dictionary_class, dictionary] };
+        // NSBitmapImageFileTypePNG has the stable AppKit enum value 4.
+        let png: *mut NSData =
+            unsafe { msg_send![&*bitmap, representationUsingType: 4usize, properties: properties] };
+        let png = unsafe { png.as_ref() }
+            .ok_or_else(|| "AppKit could not encode the pill fixture as PNG".to_owned())?;
+        let output_path = output_path
+            .to_str()
+            .ok_or_else(|| "fixture output path is not valid UTF-8".to_owned())?;
+        if !png.writeToFile_atomically(&NSString::from_str(output_path), true) {
+            return Err(format!("could not write {output_path}"));
+        }
+        Ok(())
+    }
+
+    #[cfg(debug_assertions)]
+    pub(super) fn render_pill_fixture(output_dir: &std::path::Path) -> Result<(), String> {
+        let mtm = MainThreadMarker::new()
+            .ok_or_else(|| "native pill fixture renderer must run on the main thread".to_owned())?;
+        let application_class = AnyClass::get(c"NSApplication")
+            .ok_or_else(|| "NSApplication is unavailable".to_owned())?;
+        let application: *mut AnyObject =
+            unsafe { msg_send![application_class, sharedApplication] };
+        std::fs::create_dir_all(output_dir).map_err(|error| error.to_string())?;
+
+        for (variant, appearance_name) in [
+            ("light", "NSAppearanceNameAqua"),
+            ("dark", "NSAppearanceNameDarkAqua"),
+        ] {
+            set_fixture_application_appearance(application, appearance_name)?;
+            let appearance = pill_appearance(AppearancePreferences {
+                reduce_motion: true,
+                reduce_transparency: true,
+                increase_contrast: false,
+            });
+            let content = build_pill_content(None, PillBadge::Lock, appearance, mtm);
+            set_fixture_appearance(&content.root, appearance_name)?;
+            let material_view =
+                unsafe { &*((&*content.material as *const AnyObject).cast::<NSView>()) };
+            apply_panel_appearance(&content.root, material_view, &content.badge, appearance);
+            content.root.layoutSubtreeIfNeeded();
+            content.root.displayIfNeededIgnoringOpacity();
+
+            let badge_center = NSPoint::new(
+                PILL_BADGE_FRAME.0 + PILL_BADGE_FRAME.2 / 2.0,
+                PILL_BADGE_FRAME.1 + PILL_BADGE_FRAME.3 / 2.0,
+            );
+            let hit = content
+                .root
+                .hitTest(badge_center)
+                .ok_or_else(|| "badge-center hit test unexpectedly missed the pill".to_owned())?;
+            let hit_address = (&*hit as *const NSView) as usize;
+            let button_address = (&*content.button as *const NSButton).cast::<NSView>() as usize;
+            if hit_address != button_address {
+                return Err(
+                    "badge must pass pointer events through to the full-pill button".to_owned(),
+                );
+            }
+
+            for scale in [1usize, 2usize] {
+                write_fixture_png(
+                    &content.root,
+                    &output_dir.join(format!("autofill-pill-{variant}-{scale}x.png")),
+                    scale,
+                )?;
+            }
+            println!(
+                "rendered {variant} production opaque-fallback pill: 34x30pt at 1x/2x; badge-center hit=full-pill-button"
+            );
+        }
+        Ok(())
     }
 
     fn hide_panel() {
@@ -1981,6 +2198,11 @@ pub(crate) use macos::start_native_observer;
 #[cfg(target_os = "macos")]
 use macos::{native_accessibility_trusted, schedule_panel_hide};
 
+#[cfg(all(target_os = "macos", debug_assertions))]
+pub(crate) fn render_native_pill_fixture(output_dir: &std::path::Path) -> Result<(), String> {
+    macos::render_pill_fixture(output_dir)
+}
+
 impl ObservationThrottle {
     pub fn new(interval_ms: u64) -> Self {
         Self {
@@ -1995,7 +2217,6 @@ impl ObservationThrottle {
             Some(current) if generation < current => return ThrottleDecision::Discard,
             Some(current) if generation > current => {
                 self.generation = Some(generation);
-                self.last_run_ms = None;
             }
             None => self.generation = Some(generation),
             _ => {}
@@ -2086,9 +2307,9 @@ mod tests {
     #[test]
     fn prefers_caret_above_before_field_above() {
         let caret = AppKitFrame {
-            x: 245.0,
+            x: 246.0,
             y: 415.0,
-            width: 2.0,
+            width: 0.0,
             height: 16.0,
         };
         let field = AppKitFrame {
@@ -2216,6 +2437,18 @@ mod tests {
                 fixed_entry_event: "autofill-floating",
             },
         );
+    }
+
+    #[test]
+    fn pill_content_layout_keeps_one_full_hit_target_under_the_badge() {
+        assert_eq!(PILL_BUTTON_FRAME, (0.0, 0.0, 34.0, 30.0));
+        let (badge_x, badge_y, badge_width, badge_height) = PILL_BADGE_FRAME;
+        assert!(badge_x >= 0.0 && badge_y >= 0.0);
+        assert!(badge_x + badge_width <= PILL_WIDTH);
+        assert!(badge_y + badge_height <= PILL_HEIGHT);
+        // The production FloatingBadge returns nil from hitTest:, leaving this
+        // full-size button as the only actionable surface.
+        assert_eq!(PILL_BUTTON_FRAME.2 * PILL_BUTTON_FRAME.3, 1020.0);
     }
 
     #[test]
@@ -2488,6 +2721,48 @@ mod tests {
     }
 
     #[test]
+    fn layout_invalidation_rejects_a_queued_show_and_stale_click_before_refresh() {
+        assert!(observer_notification_plan()
+            .contains(&(ObserverScope::Window, ObserverNotification::LayoutChanged)));
+        let controller = AutoFillFloatingController::default();
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.example.editor", 41, 7);
+        let generation = controller.begin_refresh();
+        assert!(controller.publish_visible(
+            generation,
+            target.clone(),
+            AppKitFrame {
+                x: 5.0,
+                y: 6.0,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
+            },
+        ));
+        let stale_click = FloatingClickContext {
+            generation,
+            target: target.clone(),
+        };
+        let signal = ObserverInvalidationSignal::new(controller.clone(), || {});
+
+        // This is the synchronous callback path used by AXLayoutChanged. The queued
+        // refresh may run later, but neither its old show nor the old click can win.
+        signal.invalidate();
+
+        assert!(!controller.publish_visible(
+            generation,
+            target,
+            AppKitFrame {
+                x: 8.0,
+                y: 9.0,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
+            },
+        ));
+        assert_eq!(controller.consume_visible_target(&stale_click), None);
+        assert!(signal.take_dirty());
+    }
+
+    #[test]
     fn panel_click_atomically_consumes_only_the_exact_visible_generation_and_app_instance() {
         let controller = AutoFillFloatingController::default();
         controller.set_fallback(AccessibilityFallback::Unsupported);
@@ -2545,6 +2820,15 @@ mod tests {
             ThrottleDecision::Discard
         );
         assert_eq!(throttle.schedule(generation, 160), ThrottleDecision::RunNow);
+    }
+
+    #[test]
+    fn scroll_generations_stay_bounded_by_the_same_fifty_millisecond_throttle() {
+        let mut throttle = ObservationThrottle::new(50);
+        assert_eq!(throttle.schedule(7, 100), ThrottleDecision::RunNow);
+        assert_eq!(throttle.schedule(8, 110), ThrottleDecision::RunAt(150));
+        assert_eq!(throttle.schedule(7, 120), ThrottleDecision::Discard);
+        assert_eq!(throttle.schedule(8, 150), ThrottleDecision::RunNow);
     }
 
     #[test]
@@ -2712,6 +2996,7 @@ mod tests {
 
     #[test]
     fn observer_plan_covers_focus_field_movement_scroll_app_lifecycle_and_destruction() {
+        assert_eq!(observer_notification_plan().len(), 8);
         assert_eq!(
             observer_notification_plan(),
             [
@@ -2727,6 +3012,7 @@ mod tests {
                 ),
                 (ObserverScope::Window, ObserverNotification::Moved),
                 (ObserverScope::Window, ObserverNotification::Resized),
+                (ObserverScope::Window, ObserverNotification::LayoutChanged),
                 (ObserverScope::Window, ObserverNotification::Destroyed),
             ],
         );
@@ -2737,10 +3023,10 @@ mod tests {
                 WorkspaceNotification::Terminated
             ],
         );
-        // Scrolling moves the focused AX element in screen coordinates, so the focused
-        // element's AXMoved notification invalidates the pill just like direct movement.
+        // Ancestor scrolling and layout changes are explicit window-scoped invalidations;
+        // the callback hides synchronously and the bounded 50 ms observer loop refreshes.
         assert!(observer_notification_plan()
-            .contains(&(ObserverScope::FocusedElement, ObserverNotification::Moved)));
+            .contains(&(ObserverScope::Window, ObserverNotification::LayoutChanged)));
     }
 
     #[test]

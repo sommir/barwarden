@@ -1090,7 +1090,7 @@ pub fn capture_with_port<P: AxMetadataPort>(
     if !editable || !enabled {
         return Err(AxContextError::NoWritableField);
     }
-    let caret_frame = port.caret_frame(&focused_element).filter(valid_frame);
+    let caret_frame = port.caret_frame(&focused_element).filter(valid_caret_frame);
     ensure_metadata_valid(port)?;
     check_budget(port, started)?;
 
@@ -1318,6 +1318,14 @@ fn valid_frame(frame: &AxFrame) -> bool {
         && frame.height > 0.0
 }
 
+fn valid_caret_frame(frame: &AxFrame) -> bool {
+    [frame.x, frame.y, frame.width, frame.height]
+        .into_iter()
+        .all(f64::is_finite)
+        && frame.width >= 0.0
+        && frame.height > 0.0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1530,6 +1538,12 @@ mod tests {
     #[test]
     fn reader_uses_only_the_bounded_privacy_allowlist_and_prefers_caret() {
         let mut port = FakePort::login_form();
+        port.caret = Some(AxFrame {
+            x: 116.0,
+            y: 102.0,
+            width: 0.0,
+            height: 20.0,
+        });
         let capture = capture_with_port(
             &mut port,
             Element(1),
@@ -1563,6 +1577,7 @@ mod tests {
         assert!(!port.requested.contains(&"AXValue"));
         assert!(port.parameterized.contains(&"AXBoundsForRange"));
         assert_eq!(capture.anchor_frame(), port.caret.unwrap());
+        assert!(!valid_frame(&port.caret.unwrap()));
         assert_eq!(capture.fields.len(), 2);
         assert_eq!(
             capture.action,
@@ -1570,6 +1585,38 @@ mod tests {
                 fields: vec![AutoFillSecretField::Username, AutoFillSecretField::Password]
             }
         );
+    }
+
+    #[test]
+    fn reader_rejects_malformed_carets_without_relaxing_field_geometry() {
+        for caret in [
+            AxFrame {
+                x: 116.0,
+                y: 102.0,
+                width: -1.0,
+                height: 20.0,
+            },
+            AxFrame {
+                x: f64::NAN,
+                y: 102.0,
+                width: 0.0,
+                height: 20.0,
+            },
+            AxFrame {
+                x: 116.0,
+                y: 102.0,
+                width: 0.0,
+                height: 0.0,
+            },
+        ] {
+            assert!(!valid_caret_frame(&caret));
+        }
+        assert!(!valid_frame(&AxFrame {
+            x: 100.0,
+            y: 100.0,
+            width: 0.0,
+            height: 24.0,
+        }));
     }
 
     #[test]
