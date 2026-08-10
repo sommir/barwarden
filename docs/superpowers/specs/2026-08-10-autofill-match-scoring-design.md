@@ -38,8 +38,8 @@ References:
 
 ## Normalization
 
-1. Apply Unicode canonical composition and locale-stable case folding.
-2. Split on non-alphanumeric separators and camel-case boundaries.
+1. Apply Unicode canonical composition and insert separators at camel-case boundaries while original casing is still available.
+2. Apply locale-stable case folding, then split on non-alphanumeric separators.
 3. Preserve all tokens for exact application-name equality.
 4. For approximate matching only, remove packaging/vendor noise tokens such as `app`, `application`, `client`, `com`, `desktop`, `dmg`, `mac`, `macos`, `official`, and `osx`.
 5. Reject approximate matching when either side has fewer than three meaningful alphanumeric characters.
