@@ -80,6 +80,7 @@ export class AutoFillFillActionService {
     context: LiveAutoFillContext,
     session: AutoFillAgentSession,
     candidate: ContextualCandidate,
+    selectedFields?: readonly AutoFillSecretField[],
   ): PreparedAutoFillAction {
     let projectedContext: LiveAutoFillContext;
     let projectedSession: AutoFillAgentSession;
@@ -91,13 +92,24 @@ export class AutoFillFillActionService {
     } catch {
       return Object.freeze({ status: "unavailable", reason: "missing-required-field" });
     }
-    const fields = Object.freeze(projectedContext.action.fields.filter((field) => (
+    const availableActionFields = Object.freeze(projectedContext.action.fields.filter((field) => (
       projectedCandidate.availableFields.includes(field) && projectedCandidate.authorizations.has(field)
     )));
-    if (projectedContext.action.mode === "choose") {
-      return Object.freeze({ status: "choose", fields });
+    let fields = availableActionFields;
+    if (projectedContext.action.mode === "choose" && selectedFields === undefined) {
+      return Object.freeze({ status: "choose", fields: availableActionFields });
     }
-    if (fields.length !== projectedContext.action.fields.length) {
+    if (projectedContext.action.mode === "choose") {
+      if (!Array.isArray(selectedFields) || selectedFields.length !== 1
+          || !availableActionFields.includes(selectedFields[0])) {
+        return Object.freeze({ status: "unavailable", reason: "missing-required-field" });
+      }
+      fields = Object.freeze([selectedFields[0]]);
+    } else if (selectedFields !== undefined) {
+      return Object.freeze({ status: "unavailable", reason: "missing-required-field" });
+    }
+    if (projectedContext.action.mode !== "choose"
+        && fields.length !== projectedContext.action.fields.length) {
       return Object.freeze({ status: "unavailable", reason: "missing-required-field" });
     }
     const scopes = Object.freeze(fields.map((field) => {

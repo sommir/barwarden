@@ -11,6 +11,8 @@
   gap: var(--mac-space-3);
   padding: var(--mac-space-3) var(--mac-space-4) var(--mac-space-4);
   color: var(--mac-text-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
 }
 
 .autofill-picker__content {
@@ -23,14 +25,15 @@
 
 .autofill-picker__target {
   display: grid;
-  min-height: 54px;
+  min-height: 56px;
   grid-template-columns: 32px minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: var(--mac-space-3);
   padding: 0 var(--mac-space-3);
   border: 1px solid var(--mac-border-subtle);
   border-radius: var(--mac-row-radius);
-  background: color-mix(in srgb, var(--mac-surface-raised) 84%, transparent);
+  background: color-mix(in srgb, var(--mac-surface-raised) 88%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--mac-shadow) 30%, transparent);
 }
 
 .autofill-picker__target-icon,
@@ -61,6 +64,7 @@
   font-size: 14px;
   font-weight: 600;
   line-height: 1.25;
+  letter-spacing: -0.005em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -70,7 +74,8 @@
   overflow: hidden;
   color: var(--mac-text-secondary);
   font-size: 12px;
-  line-height: 1.25;
+  font-weight: 450;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -86,26 +91,29 @@
   font-size: 11px;
 }
 
-.autofill-picker__shortcut-warning {
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border-radius: 6px;
-  color: var(--mac-warning);
-  background: color-mix(in srgb, var(--mac-warning) 12%, transparent);
-  font-size: 12px;
-}
-
-.autofill-picker__turn-off {
+.autofill-picker__shortcut-warning,
+.autofill-picker__turn-off,
+.autofill-picker__expand-actions,
+.autofill-picker__field-action {
   display: grid;
   width: 28px;
   height: 28px;
+  flex: 0 0 auto;
   place-items: center;
+  padding: 0;
   border: 0;
   border-radius: 7px;
   color: var(--mac-text-tertiary);
   background: transparent;
+  font: inherit;
+}
+
+.autofill-picker__shortcut-warning {
+  width: 24px;
+  height: 24px;
+  color: var(--mac-warning);
+  background: color-mix(in srgb, var(--mac-warning) 12%, transparent);
+  font-size: 12px;
 }
 
 .autofill-picker__turn-off:hover {
@@ -113,38 +121,26 @@
   background: var(--mac-hover);
 }
 
-.autofill-picker__field-switcher {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-control-radius);
-  background: color-mix(in srgb, var(--mac-surface-solid) 52%, transparent);
-}
-
-.autofill-picker__field-switcher button {
-  display: flex;
-  min-height: 34px;
+.autofill-picker__context {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 32px;
+  box-sizing: border-box;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 0;
-  border-radius: 7px;
-  color: var(--mac-text-secondary);
-  background: transparent;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.autofill-picker__field-switcher button:hover {
-  background: var(--mac-hover);
-}
-
-.autofill-picker__field-switcher .autofill-picker__field--selected {
+  gap: 8px;
+  padding: 5px 11px;
+  border: 1px solid color-mix(in srgb, var(--mac-accent) 28%, var(--mac-border-subtle));
+  border-radius: 999px;
   color: var(--mac-accent);
-  background: var(--mac-surface-solid);
-  box-shadow: 0 1px 3px var(--mac-shadow), inset 0 0 0 1px color-mix(in srgb, var(--mac-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--mac-selected) 82%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.autofill-picker__context i {
+  width: 14px;
+  text-align: center;
 }
 
 .autofill-picker__search {
@@ -170,13 +166,15 @@
   border-radius: var(--mac-control-radius);
   outline: none;
   color: var(--mac-text-primary);
-  background: color-mix(in srgb, var(--mac-surface-solid) 76%, transparent);
+  background: color-mix(in srgb, var(--mac-surface-solid) 82%, transparent);
   font: inherit;
   font-size: 13px;
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out;
 }
 
 .autofill-picker__search input:focus {
   border-color: var(--mac-focus);
+  background: var(--mac-surface-solid);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 18%, transparent);
 }
 
@@ -189,94 +187,125 @@
   outline: none;
 }
 
+.autofill-picker__groups:focus-visible {
+  border-radius: var(--mac-row-radius);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 18%, transparent);
+}
+
 .autofill-picker__groups section > h2 {
   margin: 0 0 7px 8px;
   color: var(--mac-text-secondary);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 650;
+  line-height: 1.25;
 }
 
 .autofill-picker__group-list {
   overflow: hidden;
   border: 1px solid var(--mac-border-subtle);
   border-radius: var(--mac-row-radius);
-  background: color-mix(in srgb, var(--mac-surface-raised) 80%, transparent);
+  background: color-mix(in srgb, var(--mac-surface-raised) 84%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--mac-shadow) 22%, transparent);
+}
+
+.autofill-picker__candidate-row {
+  position: relative;
+  display: grid;
+  min-height: 60px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  background: transparent;
+}
+
+.autofill-picker__candidate-row:last-child {
+  border-bottom: 0;
+}
+
+.autofill-picker__candidate-row:hover,
+.autofill-picker__candidate-row--highlighted {
+  background: var(--mac-hover);
+}
+
+.autofill-picker__candidate-row--highlighted {
+  box-shadow: inset 0 0 0 2px var(--mac-focus);
 }
 
 .autofill-picker__candidate {
   display: grid;
-  width: 100%;
-  min-height: 58px;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  min-width: 0;
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: var(--mac-space-3);
-  padding: 8px 12px;
+  padding: 9px 8px 9px 12px;
   border: 0;
-  border-bottom: 1px solid var(--mac-border-subtle);
+  outline: none;
   color: var(--mac-text-primary);
   background: transparent;
   font: inherit;
 }
 
-.autofill-picker__candidate:last-child {
-  border-bottom: 0;
-}
-
-.autofill-picker__candidate:hover,
-.autofill-picker__candidate:focus-visible,
-.autofill-picker__option--highlighted {
-  background: var(--mac-hover);
-  outline: none;
-}
-
-.autofill-picker__candidate:focus-visible,
-.autofill-picker__option--highlighted {
+.autofill-picker__candidate:focus-visible {
+  border-radius: calc(var(--mac-row-radius) - 1px);
   box-shadow: inset 0 0 0 2px var(--mac-focus);
 }
 
-.autofill-picker__fill-label {
-  color: var(--mac-accent);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.autofill-picker__copy-bar {
-  position: sticky;
-  bottom: 0;
+.autofill-picker__candidate-actions {
   display: flex;
   align-items: center;
-  gap: var(--mac-space-3);
-  margin-top: auto;
-  padding: 10px 12px;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
-  background: var(--mac-surface-raised);
-  box-shadow: 0 -4px 14px color-mix(in srgb, var(--mac-shadow) 44%, transparent);
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 8px 10px 8px 0;
 }
 
-.autofill-picker__copy-bar button {
+.autofill-picker__primary-action {
   display: inline-flex;
+  min-height: 32px;
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
-  padding: 6px 8px;
+  padding: 0 9px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   color: var(--mac-accent);
   background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.autofill-picker__copy-bar button:hover {
+.autofill-picker__primary-action:hover,
+.autofill-picker__primary-action:focus-visible,
+.autofill-picker__field-action:hover,
+.autofill-picker__field-action:focus-visible,
+.autofill-picker__expand-actions:hover,
+.autofill-picker__expand-actions:focus-visible {
+  outline: none;
+  color: var(--mac-accent);
   background: var(--mac-selected);
 }
 
-.autofill-picker__copy-bar > span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--mac-text-secondary);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.autofill-picker__primary-action:focus-visible,
+.autofill-picker__field-action:focus-visible,
+.autofill-picker__expand-actions:focus-visible,
+.autofill-picker__turn-off:focus-visible,
+.autofill-picker__primary:focus-visible,
+.autofill-picker__secondary:focus-visible,
+.autofill-picker__modal button:focus-visible,
+.autofill-picker__modal input:focus-visible {
+  outline: 2px solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.autofill-picker__field-action {
+  color: var(--mac-accent);
+}
+
+.autofill-picker button:active {
+  transform: scale(0.97);
+  transition: transform 80ms ease-out;
 }
 
 .autofill-picker__state {
@@ -300,6 +329,8 @@
 .autofill-picker__state h2 {
   font-size: 18px;
   font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.012em;
 }
 
 .autofill-picker__state p {
@@ -344,6 +375,17 @@
   animation: autofill-spin 800ms linear infinite;
 }
 
+.autofill-picker__status,
+[role="status"] {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--mac-text-secondary);
+  background: var(--mac-hover);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .autofill-picker__modal-backdrop {
   position: fixed;
   z-index: 1000;
@@ -351,7 +393,7 @@
   display: grid;
   place-items: center;
   padding: var(--mac-space-4);
-  background: color-mix(in srgb, black 28%, transparent);
+  background: color-mix(in srgb, black 30%, transparent);
 }
 
 .autofill-picker__modal {
@@ -380,19 +422,43 @@
   gap: var(--mac-space-2);
 }
 
-[role="status"] {
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  color: var(--mac-text-secondary);
-  background: var(--mac-hover);
-  font-size: 12px;
-}
-
 @keyframes autofill-spin {
   to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .autofill-picker *,
+  .autofill-picker *::before,
+  .autofill-picker *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .autofill-picker button:active { transform: none; }
   .autofill-picker__spinner { animation: none; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .autofill-picker__target,
+  .autofill-picker__search input,
+  .autofill-picker__group-list,
+  .autofill-picker__modal {
+    background: var(--mac-surface-solid);
+  }
+
+  .autofill-picker__modal-backdrop { background: rgb(0 0 0 / 48%); }
+}
+
+@media (prefers-contrast: more) {
+  .autofill-picker__target,
+  .autofill-picker__context,
+  .autofill-picker__search input,
+  .autofill-picker__group-list,
+  .autofill-picker__candidate-row {
+    border-color: currentColor;
+  }
+
+  .autofill-picker__candidate-row--highlighted {
+    box-shadow: inset 0 0 0 3px var(--mac-focus);
+  }
 }
