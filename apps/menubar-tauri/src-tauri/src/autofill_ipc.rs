@@ -28,6 +28,10 @@ pub struct AgentClient {
     timeout: Duration,
 }
 
+pub(crate) trait AgentRequestPort {
+    fn perform_request(&self, request: AgentRequest) -> Result<AgentResponse, AgentErrorCode>;
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CandidateCommandRequest {
@@ -179,6 +183,12 @@ impl AgentClient {
             return Err(AgentErrorCode::MalformedRequest);
         }
         Ok(response)
+    }
+}
+
+impl AgentRequestPort for AgentClient {
+    fn perform_request(&self, request: AgentRequest) -> Result<AgentResponse, AgentErrorCode> {
+        AgentClient::perform_request(self, request)
     }
 }
 
@@ -459,10 +469,31 @@ fn perform_secret(
         mismatch_confirmed,
         reprompt_receipt,
     } = request;
-    let reprompt = if let Some(receipt) = reprompt_receipt {
+    let reprompt_verified = if let Some(receipt) = reprompt_receipt {
         if !receipts.consume_verified(&receipt, &scope) {
             return Err(AgentErrorCode::Unauthorized);
         }
+        true
+    } else {
+        false
+    };
+    let (field, value) =
+        perform_secret_with_verified_scope(client, scope, mismatch_confirmed, reprompt_verified)?;
+    Ok((field, value.to_string()))
+}
+
+pub(crate) fn perform_secret_with_verified_scope<C: AgentRequestPort>(
+    client: &C,
+    scope: AutoFillRepromptScope,
+    mismatch_confirmed: bool,
+    reprompt_verified: bool,
+) -> Result<(AutoFillSecretField, Zeroizing<String>), AgentErrorCode> {
+    validate_secret_request(&SecretCommandRequest {
+        scope: scope.clone(),
+        mismatch_confirmed,
+        reprompt_receipt: None,
+    })?;
+    let reprompt = if reprompt_verified {
         let mut grant_response = client.perform_request(AgentRequest::reprompt_grant_issue(
             RepromptGrantIssuePayload {
                 generation: scope.generation.clone(),
@@ -517,7 +548,7 @@ fn perform_secret(
         zeroize::Zeroize::zeroize(&mut bytes);
         AgentErrorCode::MalformedRequest
     })?;
-    Ok((scope.field, value))
+    Ok((scope.field, Zeroizing::new(value)))
 }
 
 #[tauri::command]
@@ -603,8 +634,114 @@ mod tests {
     use std::io::{Read, Write};
     use std::os::unix::net::UnixListener;
     use std::path::PathBuf;
+    use std::sync::Mutex;
     use std::thread;
     use std::time::Duration;
+
+    #[derive(Default)]
+    struct RecordingAgentPort {
+        requests: Mutex<Vec<AgentRequest>>,
+    }
+
+    impl AgentRequestPort for RecordingAgentPort {
+        fn perform_request(&self, request: AgentRequest) -> Result<AgentResponse, AgentErrorCode> {
+            let response = match request.operation {
+                AgentOperation::IssueRepromptGrant => AgentResponse {
+                    version: AGENT_PROTOCOL_VERSION,
+                    request_id: Some(request.request_id.clone()),
+                    nonce: request.nonce.clone(),
+                    status: AgentResponseStatus::Ok,
+                    error: None,
+                    candidate_response: None,
+                    session: None,
+                    secret_response: None,
+                    reprompt_grant: Some(crate::autofill_contract::RepromptGrantPayload {
+                        grant: format!("grant-{}", self.requests.lock().unwrap().len()),
+                    }),
+                },
+                AgentOperation::ReleaseSecret => {
+                    let field = request.secret_release.as_ref().unwrap().field;
+                    AgentResponse {
+                        version: AGENT_PROTOCOL_VERSION,
+                        request_id: Some(request.request_id.clone()),
+                        nonce: request.nonce.clone(),
+                        status: AgentResponseStatus::Ok,
+                        error: None,
+                        candidate_response: None,
+                        session: None,
+                        secret_response: Some(crate::autofill_contract::ReleasedSecret {
+                            field,
+                            value: format!("secret-{field:?}").into_bytes(),
+                        }),
+                        reprompt_grant: None,
+                    }
+                }
+                _ => panic!("unexpected operation in secret-release seam"),
+            };
+            self.requests.lock().unwrap().push(request);
+            Ok(response)
+        }
+    }
+
+    fn scoped_authorization(
+        field: AutoFillSecretField,
+        context_token: &str,
+    ) -> AutoFillRepromptScope {
+        AutoFillRepromptScope {
+            account_id: "account-a".to_owned(),
+            candidate_id: "cipher-a".to_owned(),
+            field,
+            generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            context_token: context_token.to_owned(),
+        }
+    }
+
+    #[test]
+    fn verified_batch_keeps_grants_and_secret_releases_field_scoped() {
+        let client = RecordingAgentPort::default();
+        let authorizations = [
+            scoped_authorization(AutoFillSecretField::Username, "context-username"),
+            scoped_authorization(AutoFillSecretField::Password, "context-password"),
+            scoped_authorization(AutoFillSecretField::Totp, "context-totp"),
+        ];
+
+        let mut secrets = Vec::new();
+        for scope in authorizations {
+            secrets.push(
+                perform_secret_with_verified_scope(&client, scope, false, true)
+                    .expect("field-scoped release"),
+            );
+        }
+
+        let requests = client.requests.lock().unwrap();
+        assert_eq!(requests.len(), 6);
+        let grants = requests
+            .iter()
+            .filter_map(|request| request.reprompt_grant_issue.as_ref())
+            .collect::<Vec<_>>();
+        let releases = requests
+            .iter()
+            .filter_map(|request| request.secret_release.as_ref())
+            .collect::<Vec<_>>();
+        assert_eq!(grants.len(), 3);
+        assert_eq!(releases.len(), 3);
+        assert_eq!(
+            releases
+                .iter()
+                .map(|release| (release.field, release.context_token.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                (AutoFillSecretField::Username, "context-username"),
+                (AutoFillSecretField::Password, "context-password"),
+                (AutoFillSecretField::Totp, "context-totp"),
+            ]
+        );
+        assert!(releases
+            .iter()
+            .all(|release| release.reprompt.grant.is_some()));
+        drop(requests);
+        drop(secrets);
+    }
 
     #[test]
     fn app_group_container_path_uses_the_authorized_system_container_lookup() {

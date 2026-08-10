@@ -34,7 +34,7 @@ enum ReceiptStatus {
 
 #[derive(Debug)]
 struct ReceiptRecord {
-    scope: AutoFillRepromptScope,
+    scopes: Vec<AutoFillRepromptScope>,
     verify_url: String,
     expires_at: Instant,
     status: ReceiptStatus,
@@ -65,7 +65,15 @@ impl AutoFillRepromptReceiptStore {
     }
 
     pub fn begin(&self, scope: AutoFillRepromptScope, verify_url: String) -> Result<String, ()> {
-        validate_scope(&scope)?;
+        self.begin_batch(vec![scope], verify_url)
+    }
+
+    pub fn begin_batch(
+        &self,
+        scopes: Vec<AutoFillRepromptScope>,
+        verify_url: String,
+    ) -> Result<String, ()> {
+        let scopes = canonicalize_scopes(scopes)?;
         validate_verify_url(&verify_url)?;
         let now = (self.clock)();
         let mut records = self.records.lock().map_err(|_| ())?;
@@ -80,7 +88,7 @@ impl AutoFillRepromptReceiptStore {
         records.insert(
             receipt.clone(),
             ReceiptRecord {
-                scope,
+                scopes,
                 verify_url,
                 expires_at: now + self.lifetime,
                 status: ReceiptStatus::Pending,
@@ -119,7 +127,10 @@ impl AutoFillRepromptReceiptStore {
         };
         if record.expires_at <= now
             || record.status != ReceiptStatus::Pending
-            || record.scope.account_id != account_id
+            || record
+                .scopes
+                .first()
+                .is_none_or(|scope| scope.account_id != account_id)
         {
             return Err(());
         }
@@ -155,6 +166,10 @@ impl AutoFillRepromptReceiptStore {
     }
 
     pub fn consume_verified(&self, receipt: &str, scope: &AutoFillRepromptScope) -> bool {
+        self.consume_verified_batch(receipt, std::slice::from_ref(scope))
+    }
+
+    pub fn consume_verified_batch(&self, receipt: &str, scopes: &[AutoFillRepromptScope]) -> bool {
         let now = (self.clock)();
         let Ok(mut records) = self.records.lock() else {
             return false;
@@ -162,18 +177,26 @@ impl AutoFillRepromptReceiptStore {
         let Some(record) = records.remove(receipt) else {
             return false;
         };
+        let Ok(scopes) = canonicalize_scopes(scopes.to_vec()) else {
+            return false;
+        };
         record.expires_at > now
             && record.status == ReceiptStatus::Verified
-            && record.scope == *scope
+            && record.scopes == scopes
     }
 
     pub fn cancel(&self, receipt: &str, scope: &AutoFillRepromptScope) -> bool {
+        self.cancel_batch(receipt, std::slice::from_ref(scope))
+    }
+
+    pub fn cancel_batch(&self, receipt: &str, scopes: &[AutoFillRepromptScope]) -> bool {
         let Ok(mut records) = self.records.lock() else {
             return false;
         };
-        records
-            .remove(receipt)
-            .is_some_and(|record| record.scope == *scope)
+        let Some(record) = records.remove(receipt) else {
+            return false;
+        };
+        canonicalize_scopes(scopes.to_vec()).is_ok_and(|scopes| record.scopes == scopes)
     }
 
     pub fn burn(&self, receipt: &str) -> bool {
@@ -202,6 +225,36 @@ fn validate_scope(scope: &AutoFillRepromptScope) -> Result<(), ()> {
         return Err(());
     }
     Ok(())
+}
+
+fn canonicalize_scopes(
+    mut scopes: Vec<AutoFillRepromptScope>,
+) -> Result<Vec<AutoFillRepromptScope>, ()> {
+    if scopes.is_empty() || scopes.len() > 3 {
+        return Err(());
+    }
+    for scope in &scopes {
+        validate_scope(scope)?;
+    }
+    let first = &scopes[0];
+    if scopes.iter().any(|scope| {
+        scope.account_id != first.account_id
+            || scope.candidate_id != first.candidate_id
+            || scope.generation != first.generation
+    }) {
+        return Err(());
+    }
+    scopes.sort_by_key(|scope| scope.field);
+    if scopes.windows(2).any(|pair| pair[0].field == pair[1].field)
+        || scopes.iter().enumerate().any(|(index, scope)| {
+            scopes[..index]
+                .iter()
+                .any(|previous| previous.context_token == scope.context_token)
+        })
+    {
+        return Err(());
+    }
+    Ok(scopes)
 }
 
 fn validate_verify_url(value: &str) -> Result<(), ()> {
@@ -269,6 +322,36 @@ pub fn autofill_begin_reprompt(
 }
 
 #[tauri::command]
+pub fn autofill_begin_batch_reprompt(
+    window: tauri::WebviewWindow,
+    broker: tauri::State<'_, SessionBroker>,
+    receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
+    scopes: Vec<AutoFillRepromptScope>,
+) -> BeginRepromptOutcome {
+    begin_batch_reprompt_for_window(window.label(), &broker, &receipts, scopes)
+}
+
+fn begin_batch_reprompt_for_window(
+    window_label: &str,
+    broker: &SessionBroker,
+    receipts: &AutoFillRepromptReceiptStore,
+    scopes: Vec<AutoFillRepromptScope>,
+) -> BeginRepromptOutcome {
+    if !is_main_picker_window(window_label) {
+        return BeginRepromptOutcome::Unavailable;
+    }
+    let result = scopes
+        .first()
+        .ok_or(())
+        .and_then(|scope| bound_verify_url(broker, window_label, scope))
+        .and_then(|verify_url| receipts.begin_batch(scopes, verify_url));
+    match result {
+        Ok(receipt) => BeginRepromptOutcome::Pending { receipt },
+        Err(()) => BeginRepromptOutcome::Unavailable,
+    }
+}
+
+#[tauri::command]
 pub fn autofill_cancel_reprompt(
     window: tauri::WebviewWindow,
     receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
@@ -276,6 +359,32 @@ pub fn autofill_cancel_reprompt(
     receipt: String,
 ) -> Result<(), &'static str> {
     cancel_reprompt_for_window(window.label(), &receipts, scope, receipt)
+}
+
+#[tauri::command]
+pub fn autofill_cancel_batch_reprompt(
+    window: tauri::WebviewWindow,
+    receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
+    scopes: Vec<AutoFillRepromptScope>,
+    receipt: String,
+) -> Result<(), &'static str> {
+    cancel_batch_reprompt_for_window(window.label(), &receipts, scopes, receipt)
+}
+
+fn cancel_batch_reprompt_for_window(
+    window_label: &str,
+    receipts: &AutoFillRepromptReceiptStore,
+    scopes: Vec<AutoFillRepromptScope>,
+    receipt: String,
+) -> Result<(), &'static str> {
+    if !is_main_picker_window(window_label) || receipt.trim().is_empty() || receipt.len() > 512 {
+        receipts.burn(&receipt);
+        return Err("unavailable");
+    }
+    if !receipts.cancel_batch(&receipt, &scopes) {
+        return Err("unavailable");
+    }
+    Ok(())
 }
 
 fn cancel_reprompt_for_window(
@@ -347,8 +456,143 @@ mod tests {
             candidate_id: "cipher-a".to_owned(),
             field,
             generation: "00000000-0000-4000-8000-000000000004".to_owned(),
-            context_token: "context-a".to_owned(),
+            context_token: format!("context-{field:?}"),
         }
+    }
+
+    #[test]
+    fn verified_batch_receipt_is_canonical_single_use_and_exact_set_bound() {
+        let store = AutoFillRepromptReceiptStore::default();
+        let receipt = store
+            .begin_batch(
+                vec![
+                    scope(AutoFillSecretField::Totp),
+                    scope(AutoFillSecretField::Username),
+                    scope(AutoFillSecretField::Password),
+                ],
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+
+        assert!(store
+            .begin_http_verification(&receipt, "https://api.example/accounts/verify-password")
+            .is_ok());
+        assert!(store.complete_verification(&receipt, true));
+        assert!(store.consume_verified_batch(
+            &receipt,
+            &[
+                scope(AutoFillSecretField::Password),
+                scope(AutoFillSecretField::Totp),
+                scope(AutoFillSecretField::Username),
+            ]
+        ));
+        assert!(!store.consume_verified_batch(
+            &receipt,
+            &[
+                scope(AutoFillSecretField::Username),
+                scope(AutoFillSecretField::Password),
+                scope(AutoFillSecretField::Totp),
+            ]
+        ));
+    }
+
+    #[test]
+    fn batch_scope_mismatch_partial_consume_and_cancel_burn_the_receipt() {
+        let store = AutoFillRepromptReceiptStore::default();
+        let exact = vec![
+            scope(AutoFillSecretField::Username),
+            scope(AutoFillSecretField::Password),
+        ];
+        let receipt = store
+            .begin_batch(
+                exact.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+        assert!(store
+            .begin_http_verification(&receipt, "https://api.example/accounts/verify-password")
+            .is_ok());
+        assert!(store.complete_verification(&receipt, true));
+
+        assert!(!store.consume_verified_batch(&receipt, &[scope(AutoFillSecretField::Password)]));
+        assert!(!store.consume_verified_batch(&receipt, &exact));
+
+        let cancelled = store
+            .begin_batch(
+                exact.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+        assert!(!store.cancel_batch(&cancelled, &[scope(AutoFillSecretField::Password)]));
+        assert!(!store.cancel_batch(&cancelled, &exact));
+    }
+
+    #[test]
+    fn batch_receipt_rejects_duplicate_fields_and_mixed_candidate_binding() {
+        let store = AutoFillRepromptReceiptStore::default();
+        let mut duplicate = scope(AutoFillSecretField::Password);
+        duplicate.context_token = "context-other".to_owned();
+        assert!(store
+            .begin_batch(
+                vec![scope(AutoFillSecretField::Password), duplicate],
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .is_err());
+
+        let mut wrong_candidate = scope(AutoFillSecretField::Totp);
+        wrong_candidate.candidate_id = "cipher-b".to_owned();
+        assert!(store
+            .begin_batch(
+                vec![scope(AutoFillSecretField::Password), wrong_candidate],
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .is_err());
+
+        let password = scope(AutoFillSecretField::Password);
+        let mut reused_context = scope(AutoFillSecretField::Totp);
+        reused_context.context_token = password.context_token.clone();
+        assert!(store
+            .begin_batch(
+                vec![password, reused_context],
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn expired_or_failed_batch_verification_burns_the_entire_receipt() {
+        let clock = TestClock::new();
+        let store =
+            AutoFillRepromptReceiptStore::with_clock(Duration::from_secs(30), clock.reader());
+        let exact = vec![
+            scope(AutoFillSecretField::Username),
+            scope(AutoFillSecretField::Password),
+        ];
+        let failed = store
+            .begin_batch(
+                exact.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+        assert!(store
+            .begin_http_verification(&failed, "https://api.example/accounts/verify-password")
+            .is_ok());
+        assert!(!store.complete_verification(&failed, false));
+        assert!(!store.consume_verified_batch(&failed, &exact));
+
+        let expired = store
+            .begin_batch(
+                exact.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+        assert!(store
+            .begin_http_verification(&expired, "https://api.example/accounts/verify-password")
+            .is_ok());
+        assert!(store.complete_verification(&expired, true));
+        clock.advance(Duration::from_secs(30));
+        assert!(!store.consume_verified_batch(&expired, &exact));
+        assert!(!store.consume_verified_batch(&expired, &exact));
     }
 
     #[test]
@@ -483,5 +727,57 @@ mod tests {
             }
         )
         .is_err());
+    }
+
+    #[test]
+    fn batch_command_helpers_require_main_and_cancel_only_the_exact_scope_set() {
+        let broker = SessionBroker::new("process-a");
+        broker.attach("main").unwrap();
+        broker
+            .mutate(
+                "main",
+                SessionBrokerMutation::Unlocked {
+                    active_account_id: "account-a".to_owned(),
+                    shared_snapshot: None,
+                },
+            )
+            .unwrap();
+        broker
+            .set_session_handoff(
+                "main",
+                json!({
+                    "environment": { "apiUrl": "https://vault.example/api/" },
+                    "token": {
+                        "accessToken": "token",
+                        "refreshToken": "refresh",
+                        "tokenType": "Bearer",
+                        "expiresIn": 3600
+                    }
+                }),
+            )
+            .unwrap();
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let scopes = vec![
+            scope(AutoFillSecretField::Username),
+            scope(AutoFillSecretField::Password),
+        ];
+
+        assert_eq!(
+            begin_batch_reprompt_for_window("main-copy", &broker, &receipts, scopes.clone()),
+            BeginRepromptOutcome::Unavailable
+        );
+        let BeginRepromptOutcome::Pending { receipt } =
+            begin_batch_reprompt_for_window("main", &broker, &receipts, scopes.clone())
+        else {
+            panic!("main batch begin must return a receipt");
+        };
+        assert!(cancel_batch_reprompt_for_window(
+            "main",
+            &receipts,
+            vec![scope(AutoFillSecretField::Password)],
+            receipt.clone(),
+        )
+        .is_err());
+        assert!(cancel_batch_reprompt_for_window("main", &receipts, scopes, receipt,).is_err());
     }
 }

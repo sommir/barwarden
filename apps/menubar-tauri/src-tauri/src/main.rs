@@ -1,6 +1,7 @@
 mod accessibility_focus;
 mod autofill_ax_context;
 mod autofill_contract;
+mod autofill_detected_fill;
 mod autofill_field_context;
 mod autofill_floating;
 mod autofill_ipc;
@@ -145,8 +146,11 @@ fn main() {
             autofill_ipc::autofill_agent_session,
             autofill_ipc::autofill_query_candidates,
             autofill_ipc::autofill_release_secret,
+            autofill_detected_fill::autofill_fill_detected,
             autofill_reprompt::autofill_begin_reprompt,
             autofill_reprompt::autofill_cancel_reprompt,
+            autofill_reprompt::autofill_begin_batch_reprompt,
+            autofill_reprompt::autofill_cancel_batch_reprompt,
             autofill_projection::autofill_capture_projection_binding,
             autofill_projection::autofill_replace_projection,
             autofill_projection::autofill_clear_projection,

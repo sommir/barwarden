@@ -169,6 +169,7 @@ pub struct CapturedFillPlan {
     pub fields: Vec<CapturedFieldFingerprint>,
     pub action: DetectedAction,
     pub requested: Vec<AutoFillSecretField>,
+    pub(crate) observer_generation: ObserverGeneration,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -332,6 +333,7 @@ impl DetectedFillContextStore {
             fields: record.fields,
             action: record.action,
             requested: requested.to_vec(),
+            observer_generation: self.observer_generation.clone(),
         })
     }
 
@@ -340,6 +342,14 @@ impl DetectedFillContextStore {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clear();
+    }
+
+    pub(crate) fn burn(&self, token: &str) -> bool {
+        self.records
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(token)
+            .is_some()
     }
 
     pub(crate) fn current_observer_generation(&self) -> u64 {
@@ -539,6 +549,43 @@ fn validate_current_fingerprints(
     Ok(())
 }
 
+pub(crate) fn exact_fill_element_index(
+    stored: &[CapturedFieldFingerprint],
+    current: &[CapturedFieldFingerprint],
+    expected: &CapturedFieldFingerprint,
+    observer_generation: u64,
+) -> Result<usize, crate::autofill_detected_fill::ExactAxFillError> {
+    use crate::autofill_detected_fill::ExactAxFillError;
+
+    if stored
+        .iter()
+        .chain(current)
+        .any(|field| field.observer_generation != observer_generation)
+    {
+        return Err(ExactAxFillError::GenerationChanged);
+    }
+    if stored
+        .iter()
+        .chain(current)
+        .any(|field| field.process_id != expected.process_id)
+    {
+        return Err(ExactAxFillError::ProcessChanged);
+    }
+    if stored
+        .iter()
+        .chain(current)
+        .any(|field| field.window_frame != expected.window_frame)
+    {
+        return Err(ExactAxFillError::WindowChanged);
+    }
+    validate_current_fingerprints(stored, current, observer_generation)
+        .map_err(|_| ExactAxFillError::FrameChanged)?;
+    current
+        .iter()
+        .position(|field| field == expected)
+        .ok_or(ExactAxFillError::FrameChanged)
+}
+
 fn inspect_bounded_child_entries<T>(
     entries: &[T],
     limit: usize,
@@ -567,6 +614,8 @@ mod macos {
         kCFStringEncodingUTF8, CFString, CFStringGetBytes, CFStringGetLength, CFStringRef,
     };
     use core_graphics::display::CGDisplay;
+    use core_graphics::event::{CGEvent, CGEventFlags};
+    use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
     use core_graphics::geometry::{CGPoint, CGRect, CGSize};
     use std::ffi::c_void;
     use std::ptr;
@@ -576,6 +625,8 @@ mod macos {
     type AXError = i32;
 
     const AX_ERROR_SUCCESS: AXError = 0;
+    const AX_ERROR_ATTRIBUTE_UNSUPPORTED: AXError = -25205;
+    const AX_ERROR_NOT_IMPLEMENTED: AXError = -25208;
     const AX_VALUE_CGPOINT: i32 = 1;
     const AX_VALUE_CGSIZE: i32 = 2;
     const AX_VALUE_CGRECT: i32 = 3;
@@ -609,6 +660,11 @@ mod macos {
             element: AXUIElementRef,
             attribute: CFStringRef,
             settable: *mut bool,
+        ) -> AXError;
+        fn AXUIElementSetAttributeValue(
+            element: AXUIElementRef,
+            attribute: CFStringRef,
+            value: CFTypeRef,
         ) -> AXError;
         fn AXValueGetValue(value: AXValueRef, value_type: i32, output: *mut c_void) -> bool;
         fn AXValueGetTypeID() -> CFTypeID;
@@ -1006,6 +1062,149 @@ mod macos {
             .map_err(|_| DetectedFillError::StaleField)?;
         validate_current_fingerprints(fields, &current.fields, observer_generation)
     }
+
+    fn reacquire_exact_element(
+        plan: &CapturedFillPlan,
+        stored_fields: &[CapturedFieldFingerprint],
+        expected: &CapturedFieldFingerprint,
+    ) -> Result<NativeAxElement, crate::autofill_detected_fill::ExactAxFillError> {
+        use crate::autofill_detected_fill::ExactAxFillError;
+
+        let generation = expected.observer_generation;
+        if plan.observer_generation.current() != generation {
+            return Err(ExactAxFillError::GenerationChanged);
+        }
+        if !crate::frontmost::target_is_running(&plan.target) {
+            return Err(ExactAxFillError::TargetChanged);
+        }
+        let application = unsafe { AXUIElementCreateApplication(plan.target.process_id) };
+        if application.is_null() {
+            return Err(ExactAxFillError::TargetChanged);
+        }
+        let application = NativeAxElement(application);
+        let mut port = NativeAxMetadataPort::new();
+        let focused = port
+            .element(&application, "AXFocusedUIElement")
+            .ok_or(ExactAxFillError::FrameChanged)?;
+        let (captured, elements) = capture_with_port_and_elements(
+            &mut port,
+            focused,
+            plan.target.clone(),
+            &active_screen_frames(),
+            generation,
+        )
+        .map_err(|_| ExactAxFillError::FrameChanged)?;
+        if plan.observer_generation.current() != generation {
+            return Err(ExactAxFillError::GenerationChanged);
+        }
+        if !crate::frontmost::target_is_running(&plan.target) {
+            return Err(ExactAxFillError::TargetChanged);
+        }
+        let index =
+            exact_fill_element_index(stored_fields, &captured.fields, expected, generation)?;
+        elements
+            .into_iter()
+            .nth(index)
+            .ok_or(ExactAxFillError::FrameChanged)
+    }
+
+    pub(crate) fn set_value_exact(
+        plan: &CapturedFillPlan,
+        fingerprint: &CapturedFieldFingerprint,
+        value: &str,
+    ) -> Result<
+        crate::autofill_detected_fill::ExactSetValueOutcome,
+        crate::autofill_detected_fill::ExactAxFillError,
+    > {
+        use crate::autofill_detected_fill::{ExactAxFillError, ExactSetValueOutcome};
+
+        let element = reacquire_exact_element(plan, &plan.fields, fingerprint)?;
+        if plan.observer_generation.current() != fingerprint.observer_generation
+            || !crate::frontmost::target_is_running(&plan.target)
+        {
+            return Err(ExactAxFillError::GenerationChanged);
+        }
+        let attribute = CFString::from_static_string("AXValue");
+        let value = CFString::new(value);
+        match unsafe {
+            AXUIElementSetAttributeValue(
+                element.0,
+                attribute.as_concrete_TypeRef(),
+                value.as_concrete_TypeRef().cast(),
+            )
+        } {
+            AX_ERROR_SUCCESS => Ok(ExactSetValueOutcome::Written),
+            AX_ERROR_ATTRIBUTE_UNSUPPORTED | AX_ERROR_NOT_IMPLEMENTED => {
+                Ok(ExactSetValueOutcome::Unsupported)
+            }
+            _ => Err(ExactAxFillError::WriteFailed),
+        }
+    }
+
+    fn command_v_events() -> Result<(CGEvent, CGEvent), ()> {
+        let down_source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)?;
+        let up_source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)?;
+        let down = CGEvent::new_keyboard_event(down_source, 9, true)?;
+        let up = CGEvent::new_keyboard_event(up_source, 9, false)?;
+        down.set_flags(CGEventFlags::CGEventFlagCommand);
+        up.set_flags(CGEventFlags::CGEventFlagCommand);
+        Ok((down, up))
+    }
+
+    pub(crate) fn focus_and_paste_exact(
+        plan: &CapturedFillPlan,
+        fingerprint: &CapturedFieldFingerprint,
+        value: &str,
+    ) -> Result<(), crate::autofill_detected_fill::ExactAxFillError> {
+        use crate::autofill_detected_fill::ExactAxFillError;
+
+        let element = reacquire_exact_element(plan, &plan.fields, fingerprint)?;
+        let focused_attribute = CFString::from_static_string("AXFocused");
+        let focused_value = CFBoolean::true_value();
+        if unsafe {
+            AXUIElementSetAttributeValue(
+                element.0,
+                focused_attribute.as_concrete_TypeRef(),
+                focused_value.as_concrete_TypeRef().cast(),
+            )
+        } != AX_ERROR_SUCCESS
+        {
+            return Err(ExactAxFillError::PasteFailed);
+        }
+
+        let Some(index) = plan.fields.iter().position(|field| field == fingerprint) else {
+            return Err(ExactAxFillError::FrameChanged);
+        };
+        let mut focused_fields = plan.fields.clone();
+        for field in &mut focused_fields {
+            field.focused = false;
+        }
+        focused_fields[index].focused = true;
+        let focused_fingerprint = focused_fields[index].clone();
+        let _focused_element =
+            reacquire_exact_element(plan, &focused_fields, &focused_fingerprint)?;
+        if plan.observer_generation.current() != fingerprint.observer_generation
+            || !crate::frontmost::target_is_running(&plan.target)
+        {
+            return Err(ExactAxFillError::GenerationChanged);
+        }
+
+        let (down, up) = command_v_events().map_err(|_| ExactAxFillError::PasteFailed)?;
+        let mut clipboard = arboard::Clipboard::new().map_err(|_| ExactAxFillError::PasteFailed)?;
+        let previous = clipboard.get_text().ok();
+        clipboard
+            .set_text(value)
+            .map_err(|_| ExactAxFillError::PasteFailed)?;
+        down.post_to_pid(plan.target.process_id);
+        up.post_to_pid(plan.target.process_id);
+        std::thread::sleep(Duration::from_millis(50));
+        if let Some(previous) = previous {
+            let _ = clipboard.set_text(previous);
+        } else {
+            let _ = clipboard.set_text("");
+        }
+        Ok(())
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -1018,6 +1217,30 @@ fn validate_native_fingerprints(
     observer_generation: u64,
 ) -> Result<(), DetectedFillError> {
     macos::validate_native_fingerprints(target, fields, observer_generation)
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) use macos::{focus_and_paste_exact, set_value_exact};
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn set_value_exact(
+    _plan: &CapturedFillPlan,
+    _fingerprint: &CapturedFieldFingerprint,
+    _value: &str,
+) -> Result<
+    crate::autofill_detected_fill::ExactSetValueOutcome,
+    crate::autofill_detected_fill::ExactAxFillError,
+> {
+    Err(crate::autofill_detected_fill::ExactAxFillError::TargetChanged)
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn focus_and_paste_exact(
+    _plan: &CapturedFillPlan,
+    _fingerprint: &CapturedFieldFingerprint,
+    _value: &str,
+) -> Result<(), crate::autofill_detected_fill::ExactAxFillError> {
+    Err(crate::autofill_detected_fill::ExactAxFillError::TargetChanged)
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -1035,6 +1258,17 @@ pub fn capture_with_port<P: AxMetadataPort>(
     screens: &[ScreenFrame],
     observer_generation: u64,
 ) -> Result<CapturedAxContext, AxContextError> {
+    capture_with_port_and_elements(port, focused_element, target, screens, observer_generation)
+        .map(|(context, _)| context)
+}
+
+fn capture_with_port_and_elements<P: AxMetadataPort>(
+    port: &mut P,
+    focused_element: P::Element,
+    target: FrontmostApp,
+    screens: &[ScreenFrame],
+    observer_generation: u64,
+) -> Result<(CapturedAxContext, Vec<P::Element>), AxContextError> {
     let started = port.now();
     check_budget(port, started)?;
     let focused_strings = read_semantic_strings(port, &focused_element, started)?;
@@ -1118,6 +1352,7 @@ pub fn capture_with_port<P: AxMetadataPort>(
     )?;
 
     let mut observations = Vec::new();
+    let mut observation_elements = vec![focused_element.clone()];
     observations.push(semantic_observation(
         focused_strings,
         focused_frame,
@@ -1153,6 +1388,7 @@ pub fn capture_with_port<P: AxMetadataPort>(
             false,
             container_path(&path),
         ));
+        observation_elements.push(element);
     }
     if observations.is_empty() {
         return Err(AxContextError::NoWritableField);
@@ -1178,12 +1414,15 @@ pub fn capture_with_port<P: AxMetadataPort>(
             }
         })
         .collect();
-    Ok(CapturedAxContext {
-        focused,
-        caret_frame,
-        fields,
-        action,
-    })
+    Ok((
+        CapturedAxContext {
+            focused,
+            caret_frame,
+            fields,
+            action,
+        },
+        observation_elements,
+    ))
 }
 
 #[derive(Default)]
@@ -2164,5 +2403,59 @@ mod tests {
 
         assert_eq!(result, Err(2));
         assert_eq!(inspected.get(), 2);
+    }
+
+    #[test]
+    fn exact_fill_element_index_requires_the_same_process_window_frame_and_generation() {
+        let username = fingerprint(AutoFillSecretField::Username, true);
+        let password = fingerprint(AutoFillSecretField::Password, false);
+        let stored = vec![username.clone(), password.clone()];
+        let reordered = vec![password.clone(), username.clone()];
+
+        assert_eq!(
+            exact_fill_element_index(&stored, &reordered, &password, 7),
+            Ok(0)
+        );
+
+        let cases = [
+            {
+                let mut changed = reordered.clone();
+                changed[0].process_id = 99;
+                (
+                    changed,
+                    crate::autofill_detected_fill::ExactAxFillError::ProcessChanged,
+                )
+            },
+            {
+                let mut changed = reordered.clone();
+                changed[0].window_frame.x += 1.0;
+                (
+                    changed,
+                    crate::autofill_detected_fill::ExactAxFillError::WindowChanged,
+                )
+            },
+            {
+                let mut changed = reordered.clone();
+                changed[0].frame.x += 1.0;
+                (
+                    changed,
+                    crate::autofill_detected_fill::ExactAxFillError::FrameChanged,
+                )
+            },
+            {
+                let mut changed = reordered.clone();
+                changed[0].observer_generation = 8;
+                (
+                    changed,
+                    crate::autofill_detected_fill::ExactAxFillError::GenerationChanged,
+                )
+            },
+        ];
+        for (current, expected_error) in cases {
+            assert_eq!(
+                exact_fill_element_index(&stored, &current, &password, 7),
+                Err(expected_error)
+            );
+        }
     }
 }
