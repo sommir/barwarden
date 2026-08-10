@@ -125,6 +125,33 @@ describe("AutoFillPickerComponent", () => {
     expect(JSON.stringify(candidateHost.queryCandidates.mock.calls)).not.toMatch(/one-secret/);
   });
 
+  it("explains an exact application-name match as a related account", async () => {
+    candidateHost.queryCandidates.mockResolvedValue({
+      contextToken: crypto.randomUUID(),
+      candidates: [{
+        cipherId: demoVaultItems[0].id,
+        displayName: "Termius",
+        username: "person@example.test",
+        group: "relevant",
+        reason: "application_name",
+        requiresMismatchConfirmation: false,
+      }],
+    });
+    nativeHost.entryContext.mockResolvedValue({
+      status: "available",
+      bundleId: "com.termius-dmg.mac",
+      appName: "Termius",
+    });
+
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain("应用名称相同");
+    expect(fixture.nativeElement.querySelector('[data-testid="autofill-group-relevant"]')).not.toBeNull();
+  });
+
   it("shows the registered shortcut and reports when another instance owns it", async () => {
     TestBed.overrideProvider(GLOBAL_SHORTCUT_SETTINGS_HOST, {
       useValue: {

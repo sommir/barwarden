@@ -115,6 +115,53 @@ final class MatchingEngineTests: XCTestCase {
         ])
     }
 
+    func testExactApplicationNameRanksAsRelevantWithoutAServiceIdentifier() throws {
+        let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [
+                login("unrelated", name: "Example"),
+                login("termius", name: "Termius"),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.termius-dmg.mac",
+                appName: "Termius",
+                serviceIdentifiers: [],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.map(\.cipherID), ["termius", "unrelated"])
+        XCTAssertEqual(ranked.first?.group, .relevant)
+        XCTAssertEqual(ranked.first?.reason, "application_name")
+        XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, false)
+    }
+
+    func testGenericBundleTokensDoNotCreateFuzzyMatches() throws {
+        let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [
+                login("dot-com", name: "Example", uris: [("https://example.com", .domain)]),
+                login("mac", name: "CleanMyMac"),
+                login("related", name: "Termius SSH"),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.termius-dmg.mac",
+                appName: "Termius",
+                serviceIdentifiers: [],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.first?.cipherID, "related")
+        XCTAssertEqual(ranked.first?.reason, "fuzzy_name")
+        XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, true)
+        XCTAssertEqual(ranked.dropFirst().map(\.reason), ["other", "other"])
+    }
+
     func testAllLoginSearchFindsUnrelatedItemsAndFiltersNonMatches() {
         let engine = MatchingEngine(presets: [])
         let context = NativeAutoFillContext(

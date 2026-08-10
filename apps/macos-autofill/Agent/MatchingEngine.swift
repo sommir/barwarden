@@ -188,16 +188,17 @@ struct MatchingEngine {
         case preset = 2
         case uriRule = 3
         case domain = 4
-        case fuzzy = 5
-        case history = 6
-        case favorite = 7
-        case recent = 8
-        case other = 9
+        case applicationName = 5
+        case fuzzy = 6
+        case history = 7
+        case favorite = 8
+        case recent = 9
+        case other = 10
 
         var group: CandidateGroup {
             switch self {
             case .binding, .serviceIdentifier, .preset, .uriRule: .exact
-            case .domain: .relevant
+            case .domain, .applicationName: .relevant
             default: .other
             }
         }
@@ -209,6 +210,7 @@ struct MatchingEngine {
             case .preset: "app_preset"
             case .uriRule: "vault_uri_rule"
             case .domain: "host_or_domain"
+            case .applicationName: "application_name"
             case .fuzzy: "fuzzy_name"
             case .history: "selection_history"
             case .favorite: "favorite"
@@ -321,6 +323,7 @@ struct MatchingEngine {
             guard uri.matchType == .domain else { return false }
             return context.serviceIdentifiers.contains { hostOrDomainMatches($0, uri.uri) }
         }) { return .domain }
+        if Self.applicationNameMatches(login: login, context: context) { return .applicationName }
         if Self.fuzzyMatches(login: login, context: context) { return .fuzzy }
         if hasHistory { return .history }
         if login.favorite { return .favorite }
@@ -464,11 +467,33 @@ struct MatchingEngine {
     }
 
     private static func fuzzyMatches(login: AutoFillLogin, context: NativeAutoFillContext) -> Bool {
-        let hints = [context.appName, context.bundleID]
-            + context.serviceIdentifiers.compactMap(host)
+        let hints = meaningfulTokens(context.appName)
+            + meaningfulTokens(context.bundleID)
+            + context.serviceIdentifiers.compactMap(host).flatMap(meaningfulTokens)
         let loginValues = [login.name] + login.uris.filter(isContextMatchable).map(\.uri)
-        return hints.flatMap(tokens).contains { hint in
-            hint.count >= 3 && loginValues.flatMap(tokens).contains(hint)
+        let loginTokens = loginValues.flatMap(tokens)
+        return hints.contains { hint in
+            loginTokens.contains(hint)
+        }
+    }
+
+    private static func applicationNameMatches(
+        login: AutoFillLogin,
+        context: NativeAutoFillContext
+    ) -> Bool {
+        let application = tokens(context.appName)
+        let loginName = tokens(login.name)
+        return application.contains(where: { $0.count >= 3 }) && application == loginName
+    }
+
+    private static let genericApplicationTokens: Set<String> = [
+        "app", "apps", "application", "client", "com", "desktop", "dmg", "io", "mac",
+        "macos", "net", "official", "org", "osx",
+    ]
+
+    private static func meaningfulTokens(_ value: String) -> [String] {
+        tokens(value).filter { token in
+            token.count >= 3 && !genericApplicationTokens.contains(token)
         }
     }
 
