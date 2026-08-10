@@ -182,23 +182,25 @@ struct MatchingEngine {
         self.domainRules = domainRules
     }
 
-    private enum Signal: Int {
-        case binding = 0
-        case serviceIdentifier = 1
-        case preset = 2
-        case uriRule = 3
-        case domain = 4
-        case applicationName = 5
-        case fuzzy = 6
-        case history = 7
-        case favorite = 8
-        case recent = 9
-        case other = 10
+    private enum Signal {
+        case binding
+        case serviceIdentifier
+        case preset
+        case uriRule
+        case domain
+        case applicationName
+        case applicationNameSimilarRelevant
+        case applicationNameSimilarOther
+        case fuzzy
+        case history
+        case favorite
+        case recent
+        case other
 
         var group: CandidateGroup {
             switch self {
             case .binding, .serviceIdentifier, .preset, .uriRule: .exact
-            case .domain, .applicationName: .relevant
+            case .domain, .applicationName, .applicationNameSimilarRelevant: .relevant
             default: .other
             }
         }
@@ -211,6 +213,8 @@ struct MatchingEngine {
             case .uriRule: "vault_uri_rule"
             case .domain: "host_or_domain"
             case .applicationName: "application_name"
+            case .applicationNameSimilarRelevant, .applicationNameSimilarOther:
+                "application_name_similar"
             case .fuzzy: "fuzzy_name"
             case .history: "selection_history"
             case .favorite: "favorite"
@@ -218,11 +222,47 @@ struct MatchingEngine {
             case .other: "other"
             }
         }
+
+        var defaultRankScore: Int {
+            switch self {
+            case .binding: 1_000_000
+            case .serviceIdentifier: 980_000
+            case .preset: 960_000
+            case .uriRule: 940_000
+            case .domain: 920_000
+            case .applicationName: 900_000
+            case .applicationNameSimilarRelevant, .applicationNameSimilarOther: 650_000
+            case .fuzzy: 640_000
+            case .history: 300_000
+            case .favorite: 200_000
+            case .recent: 100_000
+            case .other: 0
+            }
+        }
+
+        var requiresMismatchConfirmation: Bool {
+            switch self {
+            case .binding, .serviceIdentifier, .preset, .uriRule, .domain, .applicationName:
+                false
+            default:
+                true
+            }
+        }
+    }
+
+    private struct ScoredSignal {
+        let signal: Signal
+        let rankScore: Int
+
+        init(_ signal: Signal, rankScore: Int? = nil) {
+            self.signal = signal
+            self.rankScore = rankScore ?? signal.defaultRankScore
+        }
     }
 
     private struct ScoredCandidate {
         let login: AutoFillLogin
-        let signal: Signal
+        let scoredSignal: ScoredSignal
         let historyCount: UInt
         let historyDate: Int64
         let recentDate: Int64
@@ -254,7 +294,7 @@ struct MatchingEngine {
             let matchingHistory = scopedHistory.first { $0.cipherID == login.cipherID }
             return ScoredCandidate(
                 login: login,
-                signal: signal(
+                scoredSignal: signal(
                     for: login,
                     context: context,
                     bindings: scopedBindings,
@@ -266,12 +306,12 @@ struct MatchingEngine {
                 recentDate: max(login.lastUsedAt ?? 0, 0)
             )
         }.sorted { lhs, rhs in
-            if lhs.signal.rawValue != rhs.signal.rawValue {
-                return lhs.signal.rawValue < rhs.signal.rawValue
+            if lhs.scoredSignal.rankScore != rhs.scoredSignal.rankScore {
+                return lhs.scoredSignal.rankScore > rhs.scoredSignal.rankScore
             }
             if lhs.historyCount != rhs.historyCount { return lhs.historyCount > rhs.historyCount }
             if lhs.historyDate != rhs.historyDate { return lhs.historyDate > rhs.historyDate }
-            if lhs.signal == .recent, lhs.recentDate != rhs.recentDate {
+            if lhs.scoredSignal.signal == .recent, lhs.recentDate != rhs.recentDate {
                 return lhs.recentDate > rhs.recentDate
             }
             let left = (
@@ -290,9 +330,9 @@ struct MatchingEngine {
                 cipherID: $0.login.cipherID,
                 displayName: $0.login.name,
                 username: $0.login.username,
-                group: $0.signal.group,
-                reason: $0.signal.reason,
-                requiresMismatchConfirmation: $0.signal.rawValue >= Signal.fuzzy.rawValue
+                group: $0.scoredSignal.signal.group,
+                reason: $0.scoredSignal.signal.reason,
+                requiresMismatchConfirmation: $0.scoredSignal.signal.requiresMismatchConfirmation
             )
         }
     }
@@ -303,32 +343,51 @@ struct MatchingEngine {
         bindings: [UserAppBinding],
         presetServices: [String],
         hasHistory: Bool
-    ) -> Signal {
-        if bindings.contains(where: { $0.cipherID == login.cipherID }) { return .binding }
+    ) -> ScoredSignal {
+        if bindings.contains(where: { $0.cipherID == login.cipherID }) {
+            return ScoredSignal(.binding)
+        }
         if login.uris.contains(where: { uri in
             guard Self.isContextMatchable(uri) else { return false }
             return context.serviceIdentifiers.contains { Self.servicesAreExactlyEqual($0, uri.uri) }
-        }) { return .serviceIdentifier }
+        }) { return ScoredSignal(.serviceIdentifier) }
         if login.uris.contains(where: { uri in
             guard Self.isContextMatchable(uri) else { return false }
             return presetServices.contains { Self.hostOrServiceMatches($0, uri.uri) }
-        }) { return .preset }
+        }) { return ScoredSignal(.preset) }
         if login.uris.contains(where: { uri in
             guard uri.matchType == .host
                     || uri.matchType == .startsWith
                     || uri.matchType == .exact else { return false }
             return context.serviceIdentifiers.contains { uriRuleMatches(uri, service: $0) }
-        }) { return .uriRule }
+        }) { return ScoredSignal(.uriRule) }
         if login.uris.contains(where: { uri in
             guard uri.matchType == .domain else { return false }
             return context.serviceIdentifiers.contains { hostOrDomainMatches($0, uri.uri) }
-        }) { return .domain }
-        if Self.applicationNameMatches(login: login, context: context) { return .applicationName }
-        if Self.fuzzyMatches(login: login, context: context) { return .fuzzy }
-        if hasHistory { return .history }
-        if login.favorite { return .favorite }
-        if let lastUsedAt = login.lastUsedAt, lastUsedAt > 0 { return .recent }
-        return .other
+        }) { return ScoredSignal(.domain) }
+        if let nameMatch = ApplicationNameSimilarity.compare(
+            applicationName: context.appName,
+            itemName: login.name
+        ) {
+            switch nameMatch.kind {
+            case .exact:
+                return ScoredSignal(.applicationName)
+            case .approximate:
+                let bounded = min(max(nameMatch.similarity, 7_200), 10_000)
+                let score = 650_000 + (bounded - 7_200) * 249_999 / 2_800
+                return ScoredSignal(
+                    nameMatch.isHighConfidence
+                        ? .applicationNameSimilarRelevant
+                        : .applicationNameSimilarOther,
+                    rankScore: score
+                )
+            }
+        }
+        if Self.fuzzyMatches(login: login, context: context) { return ScoredSignal(.fuzzy) }
+        if hasHistory { return ScoredSignal(.history) }
+        if login.favorite { return ScoredSignal(.favorite) }
+        if let lastUsedAt = login.lastUsedAt, lastUsedAt > 0 { return ScoredSignal(.recent) }
+        return ScoredSignal(.other)
     }
 
     static func contextKey(_ context: NativeAutoFillContext) -> String {
@@ -475,15 +534,6 @@ struct MatchingEngine {
         return hints.contains { hint in
             loginTokens.contains(hint)
         }
-    }
-
-    private static func applicationNameMatches(
-        login: AutoFillLogin,
-        context: NativeAutoFillContext
-    ) -> Bool {
-        let application = tokens(context.appName)
-        let loginName = tokens(login.name)
-        return application.contains(where: { $0.count >= 3 }) && application == loginName
     }
 
     private static let genericApplicationTokens: Set<String> = [

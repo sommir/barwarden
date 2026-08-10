@@ -138,6 +138,75 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, false)
     }
 
+    func testApplicationNameSimilarityRanksByDegreeAndAlwaysConfirmsApproximateMatches() throws {
+        let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [
+                login("extended", name: "Termius SSH"),
+                login("unrelated", name: "Personal Mail", favorite: true),
+                login("typo", name: "Trmius"),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.termius-dmg.mac",
+                appName: "Termius",
+                serviceIdentifiers: [],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.map(\.cipherID), ["typo", "extended", "unrelated"])
+        XCTAssertEqual(ranked.map(\.group), [.relevant, .other, .other])
+        XCTAssertEqual(ranked.prefix(2).map(\.reason), [
+            "application_name_similar", "application_name_similar",
+        ])
+        XCTAssertTrue(ranked.prefix(2).allSatisfy(\.requiresMismatchConfirmation))
+    }
+
+    func testHardServiceEvidenceAlwaysOutranksApproximateApplicationName() throws {
+        let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [
+                login("typo", name: "Trmius"),
+                login("service", name: "Unrelated", uris: [("https://termius.example", .exact)]),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.termius-dmg.mac",
+                appName: "Termius",
+                serviceIdentifiers: ["https://termius.example"],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.map(\.cipherID), ["service", "typo"])
+        XCTAssertEqual(ranked.map(\.group), [.exact, .relevant])
+        XCTAssertFalse(ranked[0].requiresMismatchConfirmation)
+        XCTAssertTrue(ranked[1].requiresMismatchConfirmation)
+    }
+
+    func testApplicationNameSimilarityScoreStaysAgentInternal() throws {
+        let candidate = try XCTUnwrap(MatchingEngine(presets: [], domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [login("typo", name: "Trmius")],
+            context: NativeAutoFillContext(
+                bundleID: "com.termius-dmg.mac",
+                appName: "Termius",
+                serviceIdentifiers: [],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        ).first)
+
+        let encoded = try JSONEncoder().encode(candidate)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        XCTAssertNil(object["score"])
+        XCTAssertNil(object["similarity"])
+    }
+
     func testGenericBundleTokensDoNotCreateFuzzyMatches() throws {
         let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
             accountID: "account-a",
@@ -157,7 +226,7 @@ final class MatchingEngineTests: XCTestCase {
         )
 
         XCTAssertEqual(ranked.first?.cipherID, "related")
-        XCTAssertEqual(ranked.first?.reason, "fuzzy_name")
+        XCTAssertEqual(ranked.first?.reason, "application_name_similar")
         XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, true)
         XCTAssertEqual(ranked.dropFirst().map(\.reason), ["other", "other"])
     }
@@ -420,7 +489,7 @@ final class MatchingEngineTests: XCTestCase {
             )],
             context: NativeAutoFillContext(
                 bundleID: "com.example.app",
-                appName: "Unrelated App",
+                appName: "Different Application",
                 serviceIdentifiers: ["https://example.test.evil.invalid/login"],
                 query: ""
             ),
