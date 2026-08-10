@@ -71,6 +71,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
   vault_uri_rule: "i18nAutofillReasonUriRule",
   host_or_domain: "i18nAutofillReasonDomain",
   application_name: "i18nAutofillReasonApplicationName",
+  application_name_similar: "i18nAutofillReasonApplicationNameSimilar",
   fuzzy_name: "i18nAutofillReasonSimilar",
   selection_history: "i18nAutofillReasonHistory",
   favorite: "i18nAutofillReasonFavorite",

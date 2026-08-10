@@ -152,6 +152,28 @@ describe("AutoFillPickerComponent", () => {
     expect(fixture.nativeElement.querySelector('[data-testid="autofill-group-relevant"]')).not.toBeNull();
   });
 
+  it("explains an approximate application-name match without exposing its raw score", async () => {
+    candidateHost.queryCandidates.mockResolvedValue({
+      contextToken: crypto.randomUUID(),
+      candidates: [{
+        cipherId: demoVaultItems[0].id,
+        displayName: "Trmius",
+        username: "person@example.test",
+        group: "relevant",
+        reason: "application_name_similar",
+        requiresMismatchConfirmation: true,
+      }],
+    });
+
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain("应用名称相似");
+    expect(fixture.nativeElement.textContent).not.toMatch(/\b(?:7200|8800|10000)\b/);
+  });
+
   it("shows the registered shortcut and reports when another instance owns it", async () => {
     TestBed.overrideProvider(GLOBAL_SHORTCUT_SETTINGS_HOST, {
       useValue: {
