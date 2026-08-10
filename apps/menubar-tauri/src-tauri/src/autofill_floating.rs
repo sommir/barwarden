@@ -29,7 +29,7 @@ enum ObserverNotification {
     Destroyed,
 }
 
-const fn observer_notification_plan() -> [(ObserverScope, ObserverNotification); 8] {
+const fn observer_notification_plan() -> [(ObserverScope, ObserverNotification); 7] {
     [
         (
             ObserverScope::Application,
@@ -43,9 +43,12 @@ const fn observer_notification_plan() -> [(ObserverScope, ObserverNotification);
         ),
         (ObserverScope::Window, ObserverNotification::Moved),
         (ObserverScope::Window, ObserverNotification::Resized),
-        (ObserverScope::Window, ObserverNotification::LayoutChanged),
         (ObserverScope::Window, ObserverNotification::Destroyed),
     ]
+}
+
+const fn optional_observer_notification_plan() -> [(ObserverScope, ObserverNotification); 1] {
+    [(ObserverScope::Window, ObserverNotification::LayoutChanged)]
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -72,6 +75,48 @@ fn install_notifications(
     plan.iter()
         .copied()
         .all(|(scope, notification)| add(scope, notification))
+}
+
+fn install_required_and_optional_notifications(
+    required: &[(ObserverScope, ObserverNotification)],
+    optional: &[(ObserverScope, ObserverNotification)],
+    mut add: impl FnMut(ObserverScope, ObserverNotification) -> bool,
+) -> bool {
+    if !install_notifications(required, &mut add) {
+        return false;
+    }
+    for (scope, notification) in optional.iter().copied() {
+        let _ = add(scope, notification);
+    }
+    true
+}
+
+fn record_notification_installation(
+    installed: &mut Vec<(ObserverScope, ObserverNotification)>,
+    scope: ObserverScope,
+    notification: ObserverNotification,
+    succeeded: bool,
+) -> bool {
+    if succeeded {
+        installed.push((scope, notification));
+    }
+    succeeded
+}
+
+fn drain_element_notification_registrations(
+    installed: &mut Vec<(ObserverScope, ObserverNotification)>,
+) -> Vec<(ObserverScope, ObserverNotification)> {
+    let mut retained = Vec::with_capacity(1);
+    let mut removed = Vec::with_capacity(installed.len());
+    for registration in installed.drain(..) {
+        if registration.0 == ObserverScope::Application {
+            retained.push(registration);
+        } else {
+            removed.push(registration);
+        }
+    }
+    *installed = retained;
+    removed
 }
 
 #[cfg(test)]
@@ -500,6 +545,10 @@ impl ObserverInvalidationSignal {
     fn is_dirty(&self) -> bool {
         self.dirty.load(Ordering::Acquire)
     }
+}
+
+fn handle_observer_notification(signal: &ObserverInvalidationSignal) {
+    signal.invalidate();
 }
 
 impl AutoFillFloatingController {
@@ -1490,12 +1539,12 @@ mod macos {
                     refcon,
                 )
             };
-            if status == AX_ERROR_SUCCESS {
-                self.installed.push((scope, notification));
-                true
-            } else {
-                false
-            }
+            record_notification_installation(
+                &mut self.installed,
+                scope,
+                notification,
+                status == AX_ERROR_SUCCESS,
+            )
         }
 
         fn bind_focused_elements(&mut self) -> bool {
@@ -1510,10 +1559,13 @@ mod macos {
                 return false;
             };
             self.window = Some(window);
-            let installed =
-                install_notifications(&observer_notification_plan()[1..], |scope, notification| {
-                    self.add_notification(scope, notification)
-                });
+            // AXLayoutChanged support varies by application. Preserve the original
+            // fail-closed observer set, then add layout observation only when accepted.
+            let installed = install_required_and_optional_notifications(
+                &observer_notification_plan()[1..],
+                &optional_observer_notification_plan(),
+                |scope, notification| self.add_notification(scope, notification),
+            );
             if !installed {
                 self.clear_element_bindings();
             }
@@ -1521,12 +1573,9 @@ mod macos {
         }
 
         fn clear_element_bindings(&mut self) {
-            let mut retained = Vec::with_capacity(1);
-            for (scope, notification) in self.installed.drain(..) {
-                if scope == ObserverScope::Application {
-                    retained.push((scope, notification));
-                    continue;
-                }
+            for (scope, notification) in
+                drain_element_notification_registrations(&mut self.installed)
+            {
                 let element = match scope {
                     ObserverScope::FocusedElement => self.focused,
                     ObserverScope::Window => self.window,
@@ -1542,7 +1591,6 @@ mod macos {
                     };
                 }
             }
-            self.installed = retained;
             if let Some(focused) = self.focused.take() {
                 unsafe { CFRelease(focused.cast()) };
             }
@@ -1596,7 +1644,7 @@ mod macos {
         refcon: *mut c_void,
     ) {
         if let Some(signal) = unsafe { refcon.cast::<ObserverInvalidationSignal>().as_ref() } {
-            signal.invalidate();
+            handle_observer_notification(signal);
         }
     }
 
@@ -2708,7 +2756,7 @@ mod tests {
             hides_for_signal.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         });
 
-        signal.invalidate();
+        handle_observer_notification(&signal);
 
         assert!(controller.generation() > generation);
         assert_eq!(
@@ -2721,8 +2769,8 @@ mod tests {
     }
 
     #[test]
-    fn layout_invalidation_rejects_a_queued_show_and_stale_click_before_refresh() {
-        assert!(observer_notification_plan()
+    fn successful_optional_layout_callback_hides_and_rejects_queued_show_and_stale_click() {
+        assert!(optional_observer_notification_plan()
             .contains(&(ObserverScope::Window, ObserverNotification::LayoutChanged)));
         let controller = AutoFillFloatingController::default();
         controller.set_fallback(AccessibilityFallback::Unsupported);
@@ -2746,7 +2794,7 @@ mod tests {
 
         // This is the synchronous callback path used by AXLayoutChanged. The queued
         // refresh may run later, but neither its old show nor the old click can win.
-        signal.invalidate();
+        handle_observer_notification(&signal);
 
         assert!(!controller.publish_visible(
             generation,
@@ -2996,7 +3044,7 @@ mod tests {
 
     #[test]
     fn observer_plan_covers_focus_field_movement_scroll_app_lifecycle_and_destruction() {
-        assert_eq!(observer_notification_plan().len(), 8);
+        assert_eq!(observer_notification_plan().len(), 7);
         assert_eq!(
             observer_notification_plan(),
             [
@@ -3012,7 +3060,6 @@ mod tests {
                 ),
                 (ObserverScope::Window, ObserverNotification::Moved),
                 (ObserverScope::Window, ObserverNotification::Resized),
-                (ObserverScope::Window, ObserverNotification::LayoutChanged),
                 (ObserverScope::Window, ObserverNotification::Destroyed),
             ],
         );
@@ -3025,8 +3072,13 @@ mod tests {
         );
         // Ancestor scrolling and layout changes are explicit window-scoped invalidations;
         // the callback hides synchronously and the bounded 50 ms observer loop refreshes.
-        assert!(observer_notification_plan()
-            .contains(&(ObserverScope::Window, ObserverNotification::LayoutChanged)));
+        assert!(install_required_notifications(|_scope, notification| {
+            notification != ObserverNotification::LayoutChanged
+        }));
+        assert_eq!(
+            optional_observer_notification_plan(),
+            [(ObserverScope::Window, ObserverNotification::LayoutChanged)]
+        );
     }
 
     #[test]
@@ -3052,6 +3104,78 @@ mod tests {
             true
         }));
         assert_eq!(calls, observer_notification_plan().len());
+    }
+
+    #[test]
+    fn optional_layout_failure_keeps_binding_and_cleanup_tracks_only_success_once() {
+        let mut installed = Vec::new();
+        assert!(install_required_and_optional_notifications(
+            &observer_notification_plan()[1..],
+            &optional_observer_notification_plan(),
+            |scope, notification| {
+                let succeeds = notification != ObserverNotification::LayoutChanged;
+                record_notification_installation(&mut installed, scope, notification, succeeds)
+            },
+        ));
+        assert!(!installed
+            .iter()
+            .any(|(_, notification)| *notification == ObserverNotification::LayoutChanged));
+
+        let removed = drain_element_notification_registrations(&mut installed);
+        assert_eq!(removed, observer_notification_plan()[1..]);
+        assert!(drain_element_notification_registrations(&mut installed).is_empty());
+    }
+
+    #[test]
+    fn mandatory_partial_failure_cleans_only_prior_successes_and_skips_optional_layout() {
+        let required = &observer_notification_plan()[1..];
+        for failed_index in 0..required.len() {
+            let mut installed = Vec::new();
+            let mut calls = 0;
+            assert!(!install_required_and_optional_notifications(
+                required,
+                &optional_observer_notification_plan(),
+                |scope, notification| {
+                    let succeeds = calls != failed_index;
+                    calls += 1;
+                    record_notification_installation(&mut installed, scope, notification, succeeds)
+                },
+            ));
+            assert_eq!(calls, failed_index + 1);
+            assert_eq!(
+                drain_element_notification_registrations(&mut installed),
+                required[..failed_index]
+            );
+            assert!(drain_element_notification_registrations(&mut installed).is_empty());
+        }
+    }
+
+    #[test]
+    fn successful_optional_layout_is_recorded_and_removed_exactly_once() {
+        let mut installed = Vec::new();
+        assert!(install_required_and_optional_notifications(
+            &observer_notification_plan()[1..],
+            &optional_observer_notification_plan(),
+            |scope, notification| record_notification_installation(
+                &mut installed,
+                scope,
+                notification,
+                true,
+            ),
+        ));
+
+        let removed = drain_element_notification_registrations(&mut installed);
+        assert_eq!(
+            removed
+                .iter()
+                .filter(|(_, notification)| {
+                    *notification == ObserverNotification::LayoutChanged
+                })
+                .count(),
+            1
+        );
+        assert_eq!(removed.len(), observer_notification_plan()[1..].len() + 1);
+        assert!(drain_element_notification_registrations(&mut installed).is_empty());
     }
 
     #[test]
