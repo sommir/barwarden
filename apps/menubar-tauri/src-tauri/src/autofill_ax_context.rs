@@ -12,6 +12,7 @@ use crate::frontmost::FrontmostApp;
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -32,7 +33,12 @@ pub trait AxMetadataPort {
         element: &Self::Element,
         attribute: &'static str,
     ) -> Option<Self::Element>;
-    fn elements(&mut self, element: &Self::Element, attribute: &'static str) -> Vec<Self::Element>;
+    fn elements(
+        &mut self,
+        element: &Self::Element,
+        attribute: &'static str,
+        limit: usize,
+    ) -> Vec<Self::Element>;
     fn frame(&mut self, element: &Self::Element) -> Option<AxFrame>;
     fn value_settable(&mut self, element: &Self::Element) -> bool;
     fn caret_frame(&mut self, element: &Self::Element) -> Option<AxFrame>;
@@ -130,8 +136,6 @@ impl From<FieldConfidence> for PresentedFieldConfidence {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PresentedField {
     pub kind: PresentedFieldKind,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub secret_field: Option<AutoFillSecretField>,
     pub confidence: PresentedFieldConfidence,
 }
 
@@ -178,6 +182,25 @@ pub enum DetectedFillError {
     StaleProcess,
     StaleWindow,
     StaleField,
+    StaleGeneration,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ObserverGeneration(Arc<AtomicU64>);
+
+impl ObserverGeneration {
+    #[cfg(test)]
+    pub(crate) fn new(generation: u64) -> Self {
+        Self(Arc::new(AtomicU64::new(generation)))
+    }
+
+    pub(crate) fn current(&self) -> u64 {
+        self.0.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn set(&self, generation: u64) {
+        self.0.store(generation, Ordering::Release);
+    }
 }
 
 #[allow(dead_code)] // Read by the Task 4 fill executor through `take`.
@@ -189,7 +212,7 @@ struct StoredFillContext {
 }
 
 type Clock = dyn Fn() -> Instant + Send + Sync;
-type Validator = dyn Fn(&FrontmostApp, &[CapturedFieldFingerprint]) -> Result<(), DetectedFillError>
+type Validator = dyn Fn(&FrontmostApp, &[CapturedFieldFingerprint], u64) -> Result<(), DetectedFillError>
     + Send
     + Sync;
 
@@ -197,6 +220,7 @@ type Validator = dyn Fn(&FrontmostApp, &[CapturedFieldFingerprint]) -> Result<()
 pub struct DetectedFillContextStore {
     records: Arc<Mutex<HashMap<String, StoredFillContext>>>,
     clock: Arc<Clock>,
+    observer_generation: ObserverGeneration,
     #[allow(dead_code)] // Invoked by `take`, which Task 4 registers on the command surface.
     validator: Arc<Validator>,
 }
@@ -211,9 +235,16 @@ impl fmt::Debug for DetectedFillContextStore {
 
 impl Default for DetectedFillContextStore {
     fn default() -> Self {
+        Self::with_observer_generation(ObserverGeneration::default())
+    }
+}
+
+impl DetectedFillContextStore {
+    pub(crate) fn with_observer_generation(observer_generation: ObserverGeneration) -> Self {
         Self {
             records: Arc::new(Mutex::new(HashMap::new())),
             clock: Arc::new(Instant::now),
+            observer_generation,
             validator: Arc::new(validate_live_fingerprints),
         }
     }
@@ -238,6 +269,12 @@ impl DetectedFillContextStore {
         action: DetectedAction,
     ) -> Result<FillContextPresentation, DetectedFillError> {
         validate_inserted_fingerprints(&target, &fields)?;
+        if fields
+            .first()
+            .is_none_or(|field| field.observer_generation != self.observer_generation.current())
+        {
+            return Err(DetectedFillError::StaleGeneration);
+        }
         let now = (self.clock)();
         let mut records = self
             .records
@@ -278,7 +315,18 @@ impl DetectedFillContextStore {
         if !requested_fields_allowed(requested, &record.fields, &record.action) {
             return Err(DetectedFillError::WrongFieldSubset);
         }
-        (self.validator)(&record.target, &record.fields)?;
+        let generation = self.observer_generation.current();
+        if record
+            .fields
+            .first()
+            .is_none_or(|field| field.observer_generation != generation)
+        {
+            return Err(DetectedFillError::StaleGeneration);
+        }
+        (self.validator)(&record.target, &record.fields, generation)?;
+        if self.observer_generation.current() != generation {
+            return Err(DetectedFillError::StaleGeneration);
+        }
         Ok(CapturedFillPlan {
             target: record.target,
             fields: record.fields,
@@ -294,6 +342,10 @@ impl DetectedFillContextStore {
             .clear();
     }
 
+    pub(crate) fn current_observer_generation(&self) -> u64 {
+        self.observer_generation.current()
+    }
+
     #[cfg(test)]
     fn for_test(
         clock: impl Fn() -> Instant + Send + Sync + 'static,
@@ -302,9 +354,26 @@ impl DetectedFillContextStore {
             + Sync
             + 'static,
     ) -> Self {
+        Self::for_test_with_generation(
+            ObserverGeneration::new(7),
+            clock,
+            move |target, fields, _| validator(target, fields),
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test_with_generation(
+        observer_generation: ObserverGeneration,
+        clock: impl Fn() -> Instant + Send + Sync + 'static,
+        validator: impl Fn(&FrontmostApp, &[CapturedFieldFingerprint], u64) -> Result<(), DetectedFillError>
+            + Send
+            + Sync
+            + 'static,
+    ) -> Self {
         Self {
             records: Arc::new(Mutex::new(HashMap::new())),
             clock: Arc::new(clock),
+            observer_generation,
             validator: Arc::new(validator),
         }
     }
@@ -381,12 +450,10 @@ fn presentation_for(
     let focused_field = focused.map_or(
         PresentedField {
             kind: PresentedFieldKind::Unknown,
-            secret_field: None,
             confidence: PresentedFieldConfidence::Low,
         },
         |field| PresentedField {
             kind: field.kind.into(),
-            secret_field: field.secret_field,
             confidence: field.confidence.into(),
         },
     );
@@ -414,6 +481,7 @@ fn presentation_for(
 fn validate_live_fingerprints(
     target: &FrontmostApp,
     fields: &[CapturedFieldFingerprint],
+    observer_generation: u64,
 ) -> Result<(), DetectedFillError> {
     if !crate::frontmost::target_is_running(target) {
         return Err(DetectedFillError::TargetChanged);
@@ -424,15 +492,66 @@ fn validate_live_fingerprints(
     {
         return Err(DetectedFillError::StaleProcess);
     }
-    validate_native_fingerprints(target, fields)
+    validate_native_fingerprints(target, fields, observer_generation)
 }
 
 #[cfg(not(target_os = "macos"))]
 fn validate_native_fingerprints(
     _target: &FrontmostApp,
     _fields: &[CapturedFieldFingerprint],
+    _observer_generation: u64,
 ) -> Result<(), DetectedFillError> {
     Ok(())
+}
+
+fn validate_current_fingerprints(
+    stored: &[CapturedFieldFingerprint],
+    current: &[CapturedFieldFingerprint],
+    observer_generation: u64,
+) -> Result<(), DetectedFillError> {
+    if stored
+        .iter()
+        .chain(current)
+        .any(|field| field.observer_generation != observer_generation)
+    {
+        return Err(DetectedFillError::StaleGeneration);
+    }
+    if stored.len() != current.len() {
+        return Err(DetectedFillError::StaleField);
+    }
+    let mut matched = vec![false; current.len()];
+    for expected in stored {
+        let Some(index) = current
+            .iter()
+            .enumerate()
+            .position(|(index, actual)| !matched[index] && actual == expected)
+        else {
+            if current
+                .iter()
+                .any(|actual| actual.window_frame != expected.window_frame)
+            {
+                return Err(DetectedFillError::StaleWindow);
+            }
+            return Err(DetectedFillError::StaleField);
+        };
+        matched[index] = true;
+    }
+    Ok(())
+}
+
+fn inspect_bounded_child_entries<T>(
+    entries: &[T],
+    limit: usize,
+    mut valid: impl FnMut(&T) -> bool,
+) -> Result<usize, usize> {
+    let mut inspected = 0;
+    for entry in entries.iter().take(limit) {
+        inspected += 1;
+        if !valid(entry) {
+            return Err(inspected);
+        }
+    }
+    Ok(inspected)
 }
 
 #[cfg(target_os = "macos")]
@@ -473,6 +592,13 @@ mod macos {
             attribute: CFStringRef,
             value: *mut CFTypeRef,
         ) -> AXError;
+        fn AXUIElementCopyAttributeValues(
+            element: AXUIElementRef,
+            attribute: CFStringRef,
+            index: CFIndex,
+            max_values: CFIndex,
+            values: *mut CFTypeRef,
+        ) -> AXError;
         fn AXUIElementCopyParameterizedAttributeValue(
             element: AXUIElementRef,
             attribute: CFStringRef,
@@ -506,14 +632,14 @@ mod macos {
     }
 
     pub struct NativeAxMetadataPort {
-        descendants_returned: usize,
+        descendants_inspected: usize,
         invalid_metadata: bool,
     }
 
     impl NativeAxMetadataPort {
         fn new() -> Self {
             Self {
-                descendants_returned: 0,
+                descendants_inspected: 0,
                 invalid_metadata: false,
             }
         }
@@ -624,10 +750,31 @@ mod macos {
             &mut self,
             element: &Self::Element,
             attribute: &'static str,
+            limit: usize,
         ) -> Vec<Self::Element> {
-            let Some(value) = self.copy_attribute(element, attribute) else {
+            if limit == 0 {
                 return Vec::new();
+            }
+            let attribute = CFString::from_static_string(attribute);
+            let mut value = ptr::null();
+            let status = unsafe {
+                AXUIElementCopyAttributeValues(
+                    element.0,
+                    attribute.as_concrete_TypeRef(),
+                    0,
+                    limit.min(MAX_DESCENDANTS) as CFIndex,
+                    &mut value,
+                )
             };
+            if status != AX_ERROR_SUCCESS {
+                if !value.is_null() {
+                    unsafe { CFRelease(value.cast()) };
+                }
+                return Vec::new();
+            }
+            if value.is_null() {
+                return Vec::new();
+            }
             let Some(value) = (unsafe {
                 validate_copied_type_with(
                     value,
@@ -639,24 +786,29 @@ mod macos {
                 self.invalid_metadata = true;
                 return Vec::new();
             };
-            let remaining = MAX_DESCENDANTS.saturating_sub(self.descendants_returned);
             let count = unsafe { CFArrayGetCount(value.cast()) }
                 .max(0)
-                .min(remaining as CFIndex) as usize;
+                .min(limit as CFIndex) as usize;
+            let entries = (0..count)
+                .map(|index| unsafe { CFArrayGetValueAtIndex(value.cast(), index as CFIndex) })
+                .collect::<Vec<_>>();
+            let inspected = inspect_bounded_child_entries(&entries, limit, |child| {
+                !child.is_null()
+                    && unsafe { CFGetTypeID((*child).cast()) } == unsafe { AXUIElementGetTypeID() }
+            });
+            let inspected_count = inspected.unwrap_or_else(|inspected| inspected);
+            self.descendants_inspected += inspected_count;
+            if inspected.is_err() {
+                self.invalid_metadata = true;
+                unsafe { CFRelease(value.cast()) };
+                return Vec::new();
+            }
             let mut result = Vec::with_capacity(count);
-            for index in 0..count {
-                let child = unsafe { CFArrayGetValueAtIndex(value.cast(), index as CFIndex) };
-                if child.is_null()
-                    || unsafe { CFGetTypeID(child.cast()) } != unsafe { AXUIElementGetTypeID() }
-                {
-                    self.invalid_metadata = true;
-                    continue;
-                }
+            for child in entries {
                 unsafe { CFRetain(child.cast()) };
                 result.push(NativeAxElement(child.cast()));
             }
             unsafe { CFRelease(value.cast()) };
-            self.descendants_returned += result.len();
             result
         }
 
@@ -848,28 +1000,11 @@ mod macos {
     pub fn validate_native_fingerprints(
         target: &FrontmostApp,
         fields: &[CapturedFieldFingerprint],
+        observer_generation: u64,
     ) -> Result<(), DetectedFillError> {
-        let generation = fields.first().map_or(0, |field| field.observer_generation);
-        let current = capture_native_fill_context(target, generation)
+        let current = capture_native_fill_context(target, observer_generation)
             .map_err(|_| DetectedFillError::StaleField)?;
-        if fields.iter().any(|expected| {
-            current
-                .fields
-                .iter()
-                .all(|actual| actual.window_frame != expected.window_frame)
-        }) {
-            return Err(DetectedFillError::StaleWindow);
-        }
-        if fields.iter().any(|expected| {
-            current.fields.iter().all(|actual| {
-                actual.role != expected.role
-                    || actual.frame != expected.frame
-                    || actual.window_frame != expected.window_frame
-            })
-        }) {
-            return Err(DetectedFillError::StaleField);
-        }
-        Ok(())
+        validate_current_fingerprints(fields, &current.fields, observer_generation)
     }
 }
 
@@ -880,8 +1015,9 @@ pub use macos::capture_native_fill_context;
 fn validate_native_fingerprints(
     target: &FrontmostApp,
     fields: &[CapturedFieldFingerprint],
+    observer_generation: u64,
 ) -> Result<(), DetectedFillError> {
-    macos::validate_native_fingerprints(target, fields)
+    macos::validate_native_fingerprints(target, fields, observer_generation)
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -921,7 +1057,8 @@ pub fn capture_with_port<P: AxMetadataPort>(
         if remaining == 0 {
             break;
         }
-        let children = port.elements(&element, "AXChildren");
+        let children = port.elements(&element, "AXChildren", remaining);
+        ensure_metadata_valid(port)?;
         for (index, child) in children.into_iter().take(remaining).enumerate() {
             let mut child_path = path.clone();
             child_path.push(index.min(u16::MAX as usize) as u16);
@@ -1209,6 +1346,7 @@ mod tests {
         requested: Vec<&'static str>,
         parameterized: Vec<&'static str>,
         child_visits: usize,
+        child_request_limits: Vec<usize>,
         parent_requests: usize,
     }
 
@@ -1267,6 +1405,7 @@ mod tests {
                 requested: Vec::new(),
                 parameterized: Vec::new(),
                 child_visits: 0,
+                child_request_limits: Vec::new(),
                 parent_requests: 0,
             }
         }
@@ -1302,15 +1441,17 @@ mod tests {
             &mut self,
             element: &Self::Element,
             attribute: &'static str,
+            limit: usize,
         ) -> Vec<Self::Element> {
             self.record(attribute);
+            self.child_request_limits.push(limit);
             let result = self
                 .children
                 .get(&element.0)
                 .cloned()
                 .unwrap_or_default()
                 .into_iter()
-                .take(MAX_DESCENDANTS.saturating_sub(self.child_visits))
+                .take(limit)
                 .collect::<Vec<_>>();
             self.child_visits += result.len();
             result
@@ -1805,5 +1946,176 @@ mod tests {
                 .unwrap_err(),
             DetectedFillError::StaleField,
         );
+    }
+
+    #[test]
+    fn live_validation_requires_exact_field_multiset_and_real_generation() {
+        let username = fingerprint(AutoFillSecretField::Username, true);
+        let password = fingerprint(AutoFillSecretField::Password, false);
+        let stored = vec![username.clone(), password.clone()];
+
+        let mut reordered = vec![password.clone(), username.clone()];
+        assert_eq!(
+            validate_current_fingerprints(&stored, &reordered, 7),
+            Ok(())
+        );
+
+        reordered[0].focused = true;
+        reordered[1].focused = false;
+        assert_eq!(
+            validate_current_fingerprints(&stored, &reordered, 7),
+            Err(DetectedFillError::StaleField)
+        );
+
+        let mut extra_confirm = stored.clone();
+        extra_confirm.push(password.clone());
+        assert_eq!(
+            validate_current_fingerprints(&stored, &extra_confirm, 7),
+            Err(DetectedFillError::StaleField)
+        );
+        assert_eq!(
+            validate_current_fingerprints(&stored, &stored[..1], 7),
+            Err(DetectedFillError::StaleField)
+        );
+
+        let mut changed_kind = stored.clone();
+        changed_kind[1].kind = DetectedFieldKind::Unknown;
+        assert_eq!(
+            validate_current_fingerprints(&stored, &changed_kind, 7),
+            Err(DetectedFillError::StaleField)
+        );
+        let mut changed_confidence = stored.clone();
+        changed_confidence[1].confidence = FieldConfidence::Medium;
+        assert_eq!(
+            validate_current_fingerprints(&stored, &changed_confidence, 7),
+            Err(DetectedFillError::StaleField)
+        );
+        let mut changed_secret_mapping = stored.clone();
+        changed_secret_mapping[1].secret_field = Some(AutoFillSecretField::Username);
+        assert_eq!(
+            validate_current_fingerprints(&stored, &changed_secret_mapping, 7),
+            Err(DetectedFillError::StaleField)
+        );
+        assert_eq!(
+            validate_current_fingerprints(&stored, &stored, 8),
+            Err(DetectedFillError::StaleGeneration)
+        );
+    }
+
+    #[test]
+    fn observer_generation_change_burns_the_token_before_live_validation() {
+        let generation = ObserverGeneration::new(7);
+        let validator_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let store =
+            DetectedFillContextStore::for_test_with_generation(generation.clone(), Instant::now, {
+                let validator_calls = Arc::clone(&validator_calls);
+                move |_, _, _| {
+                    validator_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok(())
+                }
+            });
+        let presentation = store.insert(
+            test_frontmost_app("com.example.editor", 42, 9),
+            vec![fingerprint(AutoFillSecretField::Password, true)],
+            DetectedAction::Field {
+                field: AutoFillSecretField::Password,
+            },
+        );
+
+        generation.set(8);
+        assert_eq!(
+            store
+                .try_insert(
+                    test_frontmost_app("com.example.editor", 42, 9),
+                    vec![fingerprint(AutoFillSecretField::Password, true)],
+                    DetectedAction::Field {
+                        field: AutoFillSecretField::Password,
+                    },
+                )
+                .unwrap_err(),
+            DetectedFillError::StaleGeneration
+        );
+        assert_eq!(
+            store
+                .take(
+                    &presentation.fill_context_token,
+                    &[AutoFillSecretField::Password]
+                )
+                .unwrap_err(),
+            DetectedFillError::StaleGeneration
+        );
+        assert_eq!(validator_calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert_eq!(
+            store
+                .take(
+                    &presentation.fill_context_token,
+                    &[AutoFillSecretField::Password]
+                )
+                .unwrap_err(),
+            DetectedFillError::InvalidToken
+        );
+    }
+
+    #[test]
+    fn observer_generation_change_during_live_validation_rejects_the_taken_token() {
+        let generation = ObserverGeneration::new(7);
+        let store =
+            DetectedFillContextStore::for_test_with_generation(generation.clone(), Instant::now, {
+                let generation = generation.clone();
+                move |_, _, observed_generation| {
+                    assert_eq!(observed_generation, 7);
+                    generation.set(8);
+                    Ok(())
+                }
+            });
+        let presentation = store.insert(
+            test_frontmost_app("com.example.editor", 42, 9),
+            vec![fingerprint(AutoFillSecretField::Password, true)],
+            DetectedAction::Field {
+                field: AutoFillSecretField::Password,
+            },
+        );
+
+        assert_eq!(
+            store
+                .take(
+                    &presentation.fill_context_token,
+                    &[AutoFillSecretField::Password]
+                )
+                .unwrap_err(),
+            DetectedFillError::StaleGeneration
+        );
+    }
+
+    #[test]
+    fn descendant_reader_requests_only_the_remaining_bounded_allowance() {
+        let mut port = FakePort::login_form();
+        port.children.insert(12, (30..400).map(Element).collect());
+        let _ = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.example.editor", 42, 9),
+            &[screen()],
+            7,
+        );
+
+        assert!(!port.child_request_limits.is_empty());
+        assert!(port
+            .child_request_limits
+            .iter()
+            .all(|limit| *limit <= MAX_DESCENDANTS));
+        assert_eq!(port.child_request_limits[0], MAX_DESCENDANTS);
+    }
+
+    #[test]
+    fn invalid_bounded_child_entry_is_charged_and_fails_immediately() {
+        let inspected = Cell::new(0);
+        let result = inspect_bounded_child_entries(&[true, false, true], 3, |valid| {
+            inspected.set(inspected.get() + 1);
+            *valid
+        });
+
+        assert_eq!(result, Err(2));
+        assert_eq!(inspected.get(), 2);
     }
 }

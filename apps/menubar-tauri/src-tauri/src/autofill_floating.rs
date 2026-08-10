@@ -323,9 +323,16 @@ impl Default for ControllerState {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct AutoFillFloatingController {
     state: Arc<Mutex<ControllerState>>,
+    observer_generation: crate::autofill_ax_context::ObserverGeneration,
+}
+
+impl Default for AutoFillFloatingController {
+    fn default() -> Self {
+        Self::with_observer_generation(crate::autofill_ax_context::ObserverGeneration::default())
+    }
 }
 
 struct ObserverInvalidationSignal {
@@ -366,6 +373,15 @@ impl ObserverInvalidationSignal {
 }
 
 impl AutoFillFloatingController {
+    pub(crate) fn with_observer_generation(
+        observer_generation: crate::autofill_ax_context::ObserverGeneration,
+    ) -> Self {
+        Self {
+            state: Arc::new(Mutex::new(ControllerState::default())),
+            observer_generation,
+        }
+    }
+
     pub fn status(&self) -> AccessibilityStatus {
         let state = self
             .state
@@ -384,7 +400,8 @@ impl AutoFillFloatingController {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.fallback = fallback;
-        state.lifecycle.invalidate();
+        let generation = state.lifecycle.invalidate();
+        self.observer_generation.set(generation);
         state.visible_target = None;
         state.diagnostic = None;
         state.observation = match fallback {
@@ -415,6 +432,7 @@ impl AutoFillFloatingController {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let generation = state.lifecycle.begin_observation();
+        self.observer_generation.set(generation);
         state.visible_target = None;
         state.observation = AccessibilityObservation::Hidden;
         state.diagnostic = None;
@@ -505,7 +523,7 @@ impl AutoFillFloatingController {
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let target = state.visible_target.as_ref().and_then(|visible| {
+        let mut target = state.visible_target.as_ref().and_then(|visible| {
             (state.observation == AccessibilityObservation::Visible
                 && state.lifecycle.generation == context.generation
                 && visible.generation == context.generation
@@ -515,7 +533,13 @@ impl AutoFillFloatingController {
                     detected: visible.detected.clone(),
                 })
         })?;
-        state.lifecycle.invalidate();
+        let generation = state.lifecycle.invalidate();
+        self.observer_generation.set(generation);
+        if let Some(detected) = target.detected.as_mut() {
+            for field in &mut detected.fields {
+                field.observer_generation = generation;
+            }
+        }
         state.visible_target = None;
         state.observation = AccessibilityObservation::Hidden;
         state.diagnostic = None;
@@ -535,7 +559,8 @@ impl AutoFillFloatingController {
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        state.lifecycle.invalidate();
+        let generation = state.lifecycle.invalidate();
+        self.observer_generation.set(generation);
         state.visible_target = None;
         state.observation = match state.fallback {
             AccessibilityFallback::SystemAutoFill => AccessibilityObservation::Stopped,
@@ -593,7 +618,8 @@ impl AutoFillFloatingController {
         if trusted {
             state.diagnostic = None;
         } else {
-            state.lifecycle.invalidate();
+            let generation = state.lifecycle.invalidate();
+            self.observer_generation.set(generation);
             state.visible_target = None;
             state.observation = AccessibilityObservation::Hidden;
             state.diagnostic = Some(AccessibilityDiagnostic {
@@ -609,7 +635,8 @@ impl AutoFillFloatingController {
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        state.lifecycle.invalidate();
+        let generation = state.lifecycle.invalidate();
+        self.observer_generation.set(generation);
         state.visible_target = None;
         state.observation = AccessibilityObservation::Hidden;
         state.diagnostic = Some(AccessibilityDiagnostic {
@@ -627,7 +654,8 @@ impl AutoFillFloatingController {
             .visible_target
             .take()
             .map(|visible| visible.target.bundle_id);
-        state.lifecycle.invalidate();
+        let generation = state.lifecycle.invalidate();
+        self.observer_generation.set(generation);
         state.permission = permission;
         state.observation = AccessibilityObservation::Hidden;
         state.diagnostic = Some(AccessibilityDiagnostic {
@@ -643,6 +671,7 @@ impl AutoFillFloatingController {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let generation = state.lifecycle.begin_observation();
+        self.observer_generation.set(generation);
         state.lifecycle.accept(
             generation,
             AppKitFrame {
@@ -1854,6 +1883,99 @@ mod tests {
             },
         );
         assert!(lifecycle.visible_frame().is_some());
+    }
+
+    #[test]
+    fn controller_lifecycle_updates_the_shared_observer_generation() {
+        let observer_generation = crate::autofill_ax_context::ObserverGeneration::default();
+        let controller =
+            AutoFillFloatingController::with_observer_generation(observer_generation.clone());
+
+        assert_eq!(observer_generation.current(), 0);
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        assert_eq!(observer_generation.current(), controller.generation());
+        let observed = controller.begin_refresh();
+        assert_eq!(observer_generation.current(), observed);
+        controller.observer_invalidated();
+        assert_eq!(observer_generation.current(), controller.generation());
+        assert!(observer_generation.current() > observed);
+    }
+
+    #[test]
+    fn consuming_visible_context_rebinds_it_to_the_shared_generation() {
+        use crate::accessibility_focus::{AppIdentity, AxFrame, FocusedFieldSnapshot};
+        use crate::autofill_ax_context::{CapturedAxContext, CapturedFieldFingerprint};
+        use crate::autofill_contract::AutoFillSecretField;
+        use crate::autofill_field_context::{DetectedAction, DetectedFieldKind, FieldConfidence};
+
+        let observer_generation = crate::autofill_ax_context::ObserverGeneration::default();
+        let controller =
+            AutoFillFloatingController::with_observer_generation(observer_generation.clone());
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let generation = controller.begin_refresh();
+        let target = crate::frontmost::test_frontmost_app("com.example.editor", 42, 9);
+        let app = AppIdentity {
+            bundle_id: "com.example.editor".to_owned(),
+            process_id: 42,
+            live: true,
+        };
+        let field = AxFrame {
+            x: 100.0,
+            y: 100.0,
+            width: 180.0,
+            height: 24.0,
+        };
+        let detected = CapturedAxContext {
+            focused: FocusedFieldSnapshot {
+                app,
+                role: "AXSecureTextField".to_owned(),
+                subrole: None,
+                frame: field,
+                secure: true,
+                reliable: true,
+            },
+            caret_frame: None,
+            fields: vec![CapturedFieldFingerprint {
+                process_id: 42,
+                role: "AXSecureTextField".to_owned(),
+                frame: field,
+                window_frame: AxFrame {
+                    x: 20.0,
+                    y: 20.0,
+                    width: 800.0,
+                    height: 600.0,
+                },
+                kind: DetectedFieldKind::Password,
+                secret_field: Some(AutoFillSecretField::Password),
+                confidence: FieldConfidence::High,
+                focused: true,
+                observer_generation: generation,
+            }],
+            action: DetectedAction::Field {
+                field: AutoFillSecretField::Password,
+            },
+        };
+        assert!(controller.publish_visible_with_context(
+            generation,
+            target.clone(),
+            AppKitFrame {
+                x: 5.0,
+                y: 6.0,
+                width: PANEL_SIZE,
+                height: PANEL_SIZE,
+            },
+            detected,
+        ));
+
+        let consumed = controller
+            .consume_visible(&FloatingClickContext { generation, target })
+            .expect("visible exact context");
+        let rebound = consumed.detected.expect("detected context");
+        assert_eq!(
+            rebound.fields[0].observer_generation,
+            controller.generation()
+        );
+        assert_eq!(observer_generation.current(), controller.generation());
     }
 
     #[test]

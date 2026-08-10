@@ -43,7 +43,15 @@ fn updater_plugin_is_configured(config: &tauri::Config) -> bool {
 
 fn main() {
     let context = tauri::generate_context!();
-    let detected_fill_contexts = autofill_ax_context::DetectedFillContextStore::default();
+    let observer_generation = autofill_ax_context::ObserverGeneration::default();
+    let detected_fill_contexts =
+        autofill_ax_context::DetectedFillContextStore::with_observer_generation(
+            observer_generation.clone(),
+        );
+    let floating_controller =
+        autofill_floating::AutoFillFloatingController::with_observer_generation(
+            observer_generation,
+        );
     let mut builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -66,7 +74,7 @@ fn main() {
         .manage(clipboard::ClipboardGeneration::default())
         .manage(window::PopupVisibilityHold::default())
         .manage(window::PopupPresentationState::default())
-        .manage(autofill_floating::AutoFillFloatingController::default())
+        .manage(floating_controller)
         .manage(detected_fill_contexts.clone())
         .manage(session_broker::SessionBroker::new(
             uuid::Uuid::new_v4().to_string(),
