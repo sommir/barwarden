@@ -132,6 +132,41 @@ describe("AutoFillPickerComponent contextual actions", () => {
     expect(host.querySelector("[data-testid^='autofill-primary-action-']")).toBeNull();
   });
 
+  it("expands only live form fields and executes one immutable authorized subset", async () => {
+    activeContext = context({
+      kind: "username", confidence: "high", mode: "form", fields: ["username", "password"],
+    });
+    nativeHost.fillDetected.mockResolvedValue({ status: "success", fields: ["username"] });
+    const fixture = await renderPicker();
+    const host = fixture.nativeElement as HTMLElement;
+    const more = host.querySelector(".autofill-picker__expand-actions") as HTMLButtonElement;
+    more.click();
+    fixture.detectChanges();
+
+    expect(actionButtons(host).map((button) => button.getAttribute("aria-label")))
+      .toEqual(["填入用户名", "填入密码"]);
+    expect(host.querySelector("[data-testid$='-totp']")).toBeNull();
+
+    (host.querySelector("[data-testid$='-username']") as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(nativeHost.fillDetected).toHaveBeenCalledOnce());
+    expect(nativeHost.fillDetected).toHaveBeenCalledWith({
+      fillContextToken: activeContext.fillContextToken,
+      authorizations: [{
+        scope: expect.objectContaining({ field: "username", contextToken: "username-token" }),
+        mismatchConfirmed: false,
+      }],
+    });
+  });
+
+  it("does not expose candidate fields outside a confident single-field context", async () => {
+    const fixture = await renderPicker();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector(".autofill-picker__expand-actions")).toBeNull();
+    expect(actionButtons(host)).toEqual([]);
+    expect(actionLabels(host)).toEqual(["填入密码"]);
+  });
+
   it("keeps exact, relevant, and other order with fixed localized match reasons", async () => {
     candidateHost.queryCandidates.mockImplementation(async (request: { field: AutoFillSecretField }) => ({
       contextToken: `${request.field}-token`,
@@ -305,6 +340,70 @@ describe("AutoFillPickerComponent contextual actions", () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(nativeHost.fillDetected).not.toHaveBeenCalled();
     expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
+  });
+
+  it("leaves primary, more, and field button keyboard events to the buttons", async () => {
+    activeContext = context({
+      kind: "username", confidence: "high", mode: "form", fields: ["username", "password"],
+    });
+    candidateHost.queryCandidates.mockImplementation(async (request: { field: AutoFillSecretField }) => ({
+      contextToken: `${request.field}-token`,
+      candidates: [
+        candidate(demoVaultItems[0].id, "Example Login", "exact", "service_identifier"),
+        candidate("cipher-second", "Second Login", "relevant", "host_or_domain"),
+      ],
+    }));
+    const fixture = await renderPicker();
+    const host = fixture.nativeElement as HTMLElement;
+    const primary = host.querySelector("[data-testid^='autofill-primary-action-']") as HTMLButtonElement;
+    const more = host.querySelector(".autofill-picker__expand-actions") as HTMLButtonElement;
+
+    for (const button of [primary, more]) {
+      for (const key of ["ArrowDown", "Enter", " "]) {
+        const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+        button.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(false);
+        expect(fixture.componentInstance.highlightedIndex).toBe(0);
+      }
+    }
+
+    more.click();
+    fixture.detectChanges();
+    const field = host.querySelector("[data-testid$='-username']") as HTMLButtonElement;
+    for (const key of ["ArrowDown", "Enter", " "]) {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      field.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(fixture.componentInstance.highlightedIndex).toBe(0);
+    }
+  });
+
+  it("announces one inferred form transition politely after loading", async () => {
+    activeContext = context({
+      kind: "username", confidence: "high", mode: "form", fields: ["username", "password"],
+    });
+    const delayed = new Map<AutoFillSecretField, ReturnType<typeof deferred<ReturnType<typeof response>>>>([
+      ["username", deferred()], ["password", deferred()], ["totp", deferred()],
+    ]);
+    candidateHost.queryCandidates.mockImplementation((request: { field: AutoFillSecretField }) => (
+      delayed.get(request.field)?.promise ?? Promise.reject(new Error("missing field"))
+    ));
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(candidateHost.queryCandidates).toHaveBeenCalledTimes(3));
+    fixture.detectChanges();
+
+    const liveRegion = fixture.nativeElement.querySelector("[data-testid='autofill-live-region']") as HTMLElement;
+    expect(liveRegion).not.toBeNull();
+    expect(liveRegion.getAttribute("aria-live")).toBe("polite");
+    expect(liveRegion.textContent?.trim()).toBe("");
+    expect(fixture.nativeElement.querySelectorAll("[aria-live='polite']")).toHaveLength(1);
+
+    for (const field of ["username", "password", "totp"] as const) delayed.get(field)?.resolve(response(field));
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.detectChanges();
+    expect(liveRegion.textContent).toContain("已识别用户名 + 密码");
+    expect(fixture.nativeElement.querySelectorAll("[aria-live='polite']")).toHaveLength(1);
   });
 
   it("shows a fixed localized partial summary without native or plaintext detail", async () => {

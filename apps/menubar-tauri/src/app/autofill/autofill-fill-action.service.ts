@@ -96,19 +96,16 @@ export class AutoFillFillActionService {
       projectedCandidate.availableFields.includes(field) && projectedCandidate.authorizations.has(field)
     )));
     let fields = availableActionFields;
-    if (projectedContext.action.mode === "choose" && selectedFields === undefined) {
-      return Object.freeze({ status: "choose", fields: availableActionFields });
-    }
-    if (projectedContext.action.mode === "choose") {
+    if (selectedFields !== undefined) {
       if (!Array.isArray(selectedFields) || selectedFields.length !== 1
           || !availableActionFields.includes(selectedFields[0])) {
         return Object.freeze({ status: "unavailable", reason: "missing-required-field" });
       }
       fields = Object.freeze([selectedFields[0]]);
-    } else if (selectedFields !== undefined) {
-      return Object.freeze({ status: "unavailable", reason: "missing-required-field" });
+    } else if (projectedContext.action.mode === "choose") {
+      return Object.freeze({ status: "choose", fields: availableActionFields });
     }
-    if (projectedContext.action.mode !== "choose"
+    if (selectedFields === undefined && projectedContext.action.mode !== "choose"
         && fields.length !== projectedContext.action.fields.length) {
       return Object.freeze({ status: "unavailable", reason: "missing-required-field" });
     }

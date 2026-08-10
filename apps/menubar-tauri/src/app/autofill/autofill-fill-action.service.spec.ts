@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AutoFillFillActionService } from "./autofill-fill-action.service";
 import { AutoFillContextSessionService } from "./autofill-context-session.service";
+import type { AutoFillSecretField } from "./autofill-candidate.service";
 import type { ContextualCandidate, LiveAutoFillContext } from "./autofill-fill-context.model";
 import type { AutoFillAgentSession, AutoFillNativeHost } from "./autofill-native.host";
 
@@ -31,6 +32,44 @@ describe("AutoFillFillActionService", () => {
     })).toEqual({ status: "unavailable", reason: "missing-required-field" });
     expect(service.prepare({ ...context, action: { mode: "choose", fields: ["password"] } }, session, candidate(["password"])))
       .toEqual({ status: "choose", fields: ["password"] });
+  });
+
+  it("prepares exactly one authorized form subset without admitting a non-context field", async () => {
+    const native = host();
+    vi.mocked(native.fillDetected).mockResolvedValue({ status: "success", fields: ["password"] });
+    const mutableCandidate = candidate(["username", "password", "totp"]);
+    const service = new AutoFillFillActionService(native);
+    const prepared = service.prepare(context, session, mutableCandidate, ["password"]);
+    if (prepared.status !== "ready") throw new Error("expected ready subset action");
+
+    expect(prepared.fields).toEqual(["password"]);
+    expect(Object.isFrozen(prepared.fields)).toBe(true);
+    expect(service.prepare(context, session, mutableCandidate, ["totp"]))
+      .toEqual({ status: "unavailable", reason: "missing-required-field" });
+
+    (mutableCandidate.availableFields as AutoFillSecretField[]).splice(0, 3, "totp");
+    (mutableCandidate.authorizations as Map<string, unknown>).clear();
+    await service.execute(prepared, { mismatchConfirmed: true, requiresReprompt: false });
+    expect(native.fillDetected).toHaveBeenCalledWith({
+      fillContextToken: context.fillContextToken,
+      authorizations: [{
+        scope: expect.objectContaining({ field: "password", contextToken: "password-token" }),
+        mismatchConfirmed: true,
+      }],
+    });
+  });
+
+  it("allows only the live field as an explicit confident-field subset", () => {
+    const fieldContext: LiveAutoFillContext = {
+      ...context,
+      focusedField: { kind: "password", confidence: "high" },
+      action: { mode: "field", fields: ["password"] },
+    };
+    const service = new AutoFillFillActionService(host());
+    expect(service.prepare(fieldContext, session, candidate(["username", "password", "totp"]), ["password"]))
+      .toMatchObject({ status: "ready", fields: ["password"] });
+    expect(service.prepare(fieldContext, session, candidate(["username", "password", "totp"]), ["username"]))
+      .toEqual({ status: "unavailable", reason: "missing-required-field" });
   });
 
   it("builds canonical per-field scopes without plaintext secret properties", () => {

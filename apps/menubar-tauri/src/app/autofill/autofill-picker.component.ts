@@ -160,6 +160,14 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
             </div>
           }
 
+          <p
+            class="tw-sr-only"
+            data-testid="autofill-live-region"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >{{ liveRegionMessage }}</p>
+
           @if (mode === "locked") {
             <section class="autofill-picker__state" data-testid="autofill-locked">
               <span class="autofill-picker__state-icon" aria-hidden="true"><i class="bwi bwi-lock"></i></span>
@@ -172,7 +180,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
               <span class="autofill-picker__state-icon" aria-hidden="true"><i class="bwi bwi-exclamation-triangle"></i></span>
               <h2>{{ "i18nAutofillNeedsAttention" | i18n }}</h2>
               @if (statusMessage) {
-                <p role="status">{{ statusMessage }}</p>
+                <p>{{ statusMessage }}</p>
               } @else if (setupRequiresApproval) {
                 <p>{{ "i18nAutofillApprovalDescription" | i18n }}</p>
               } @else if (setupRequiresAccessibility) {
@@ -284,7 +292,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                                   <i [class]="primaryActionIconClass" aria-hidden="true"></i>
                                   <span>{{ primaryActionLabel }}</span>
                                 </button>
-                                @if (isDetectedCandidate(candidate) && candidate.availableFields.length > 1) {
+                                @if (isDetectedCandidate(candidate) && availableFields(candidate).length > 1) {
                                   <button
                                     class="autofill-picker__expand-actions"
                                     type="button"
@@ -319,7 +327,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
           }
 
           @if (statusMessage && mode !== "repair") {
-            <p class="autofill-picker__status" role="status">{{ statusMessage }}</p>
+            <p class="autofill-picker__status">{{ statusMessage }}</p>
           }
         </div>
 
@@ -659,18 +667,31 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       : this.fieldIconClass(this.detectedContext?.action.fields[0] ?? "password");
   }
 
+  get liveRegionMessage(): string {
+    if (this.statusMessage) return this.statusMessage;
+    if ((this.mode === "ready" || this.mode === "empty") && this.detectedContext) {
+      return translateOfficialMessage("i18nAutofillDetectedContext", this.contextLabel);
+    }
+    return "";
+  }
+
   isDetectedCandidate(candidate: PickerCandidate): candidate is ContextualCandidate {
     return "authorizations" in candidate && "availableFields" in candidate;
   }
 
   availableFields(candidate: PickerCandidate): readonly AutoFillSecretField[] {
-    return this.isDetectedCandidate(candidate) ? candidate.availableFields : ["password"];
+    if (!this.isDetectedCandidate(candidate)) return ["password"];
+    const contextFields = this.detectedContext?.action.fields ?? [];
+    return Object.freeze(contextFields.filter((field) => (
+      candidate.availableFields.includes(field) && candidate.authorizations.has(field)
+    )));
   }
 
   showsPrimaryAction(candidate: PickerCandidate): boolean {
     if (!this.detectedContext) return true;
     if (!this.isDetectedCandidate(candidate) || this.detectedContext.action.mode === "choose") return false;
-    return this.detectedContext.action.fields.every((field) => candidate.availableFields.includes(field));
+    const availableFields = this.availableFields(candidate);
+    return this.detectedContext.action.fields.every((field) => availableFields.includes(field));
   }
 
   showsFieldActions(candidate: PickerCandidate): boolean {
@@ -729,7 +750,8 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   }
 
   performFieldAction(candidate: PickerCandidate, field: AutoFillSecretField): void {
-    if (!this.isDetectedCandidate(candidate) || !this.detectedContext) return;
+    if (!this.isDetectedCandidate(candidate) || !this.detectedContext
+        || !this.availableFields(candidate).includes(field)) return;
     void this.performDetectedAction(candidate, field);
   }
 
@@ -772,6 +794,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   }
 
   onListKeydown(event: KeyboardEvent): void {
+    if (event.target !== event.currentTarget) return;
     if (!this.candidates.length) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
