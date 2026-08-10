@@ -182,6 +182,48 @@ describe("AutoFillCandidateService", () => {
     await expect(getter.query(candidateRequest())).rejects.toThrow(/^AutoFill candidates unavailable$/);
   });
 
+  it("rejects stateful root and candidate accessors without a second read or retained secret", async () => {
+    let tokenReads = 0;
+    let displayReads = 0;
+    const statefulCandidate = candidatePayload("opaque-cipher");
+    Object.defineProperty(statefulCandidate, "displayName", {
+      enumerable: true,
+      get: () => {
+        displayReads += 1;
+        if (displayReads > 1) throw new Error("private getter second read");
+        return "safe-first-value";
+      },
+    });
+    const statefulRoot = {
+      get contextToken() {
+        tokenReads += 1;
+        return tokenReads === 1 ? "context-token" : "secret-token-second-value";
+      },
+      candidates: [],
+    };
+    const statefulNested = { contextToken: "context-token", candidates: [statefulCandidate] };
+    for (const response of [statefulRoot, statefulNested]) {
+      const error = await new AutoFillCandidateService(new RecordingCandidateHost(response))
+        .query(candidateRequest()).then(() => null, (caught: unknown) => caught);
+      expect(error).toMatchObject({ message: "AutoFill candidates unavailable" });
+      expect(JSON.stringify(error)).not.toMatch(/private|secret|second/);
+    }
+    expect(tokenReads).toBeLessThanOrEqual(1);
+    expect(displayReads).toBeLessThanOrEqual(1);
+  });
+
+  it("sanitizes descriptor traps and rejects whitespace-only context tokens", async () => {
+    const descriptorTrap = new Proxy({ contextToken: "context-token", candidates: [] }, {
+      getOwnPropertyDescriptor() { throw new Error("private descriptor value"); },
+    });
+    for (const response of [descriptorTrap, { contextToken: "   ", candidates: [] }]) {
+      const error = await new AutoFillCandidateService(new RecordingCandidateHost(response))
+        .query(candidateRequest()).then(() => null, (caught: unknown) => caught);
+      expect(error).toMatchObject({ message: "AutoFill candidates unavailable" });
+      expect(JSON.stringify(error)).not.toMatch(/private|descriptor/);
+    }
+  });
+
   it("defines a separate secret operation bound to candidate field context generation mismatch and reprompt", () => {
     const request = {
       accountId: "account-a",

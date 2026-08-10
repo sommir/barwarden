@@ -434,7 +434,11 @@ export class TauriHostService
   }
 
   async agentSession() {
-    return decodeAgentSession(await this.invoke<unknown>("autofill_agent_session"));
+    try {
+      return decodeAgentSession(await this.invoke<unknown>("autofill_agent_session"));
+    } catch {
+      throw new Error("AutoFill unavailable");
+    }
   }
 
   async queryCandidates(request: AutoFillCandidateQueryContract): Promise<unknown> {
@@ -1069,24 +1073,20 @@ const AUTOFILL_FIELD_ORDER: readonly AutoFillSecretField[] = ["username", "passw
 const AUTOFILL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function decodeLiveAutoFillContext(value: unknown): LiveAutoFillContext {
-  if (!isExactRecord(value) || !exactKeys(value, [
+  const context = snapshotExactAutoFillRecord(value, [
     "bundleId", "appName", "fillContextToken", "focusedField", "action",
-  ])) throw new Error("invalid context");
-  const focusedField = value["focusedField"];
-  const action = value["action"];
-  if (!isExactRecord(focusedField) || !exactKeys(focusedField, ["kind", "confidence"])
-      || !isExactRecord(action) || !exactKeys(action, ["mode", "fields"])) {
-    throw new Error("invalid context");
-  }
+  ]);
+  const focusedField = snapshotExactAutoFillRecord(context["focusedField"], ["kind", "confidence"]);
+  const action = snapshotExactAutoFillRecord(context["action"], ["mode", "fields"]);
   const kind = valueFromSet(focusedField["kind"], [
     "username", "email", "password", "one-time-code", "unknown",
   ] as const);
   const confidence = valueFromSet(focusedField["confidence"], ["high", "medium", "low"] as const);
   const mode = valueFromSet(action["mode"], ["field", "form", "choose"] as const);
   return Object.freeze({
-    bundleId: boundedAutoFillString(value["bundleId"], 255),
-    appName: boundedAutoFillString(value["appName"], 255),
-    fillContextToken: autoFillUuid(value["fillContextToken"]),
+    bundleId: boundedAutoFillString(context["bundleId"], 255),
+    appName: boundedAutoFillString(context["appName"], 255),
+    fillContextToken: autoFillUuid(context["fillContextToken"]),
     focusedField: Object.freeze({ kind, confidence }),
     action: Object.freeze({ mode, fields: canonicalAutoFillFields(action["fields"], false) }),
   });
@@ -1095,15 +1095,15 @@ function decodeLiveAutoFillContext(value: unknown): LiveAutoFillContext {
 function validateAutoFillRepromptScopes(value: unknown): readonly AutoFillRepromptScope[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 3) throw new Error("invalid scopes");
   const scopes = value.map((entry) => {
-    if (!isExactRecord(entry) || !exactKeys(entry, [
+    const scope = snapshotExactAutoFillRecord(entry, [
       "accountId", "candidateId", "field", "generation", "contextToken",
-    ])) throw new Error("invalid scope");
+    ]);
     return Object.freeze({
-      accountId: boundedAutoFillString(entry["accountId"], 512),
-      candidateId: boundedAutoFillString(entry["candidateId"], 512),
-      field: autoFillField(entry["field"]),
-      generation: autoFillUuid(entry["generation"]),
-      contextToken: boundedAutoFillString(entry["contextToken"], 512),
+      accountId: boundedAutoFillString(scope["accountId"], 512),
+      candidateId: boundedAutoFillString(scope["candidateId"], 512),
+      field: autoFillField(scope["field"]),
+      generation: autoFillUuid(scope["generation"]),
+      contextToken: boundedAutoFillString(scope["contextToken"], 512),
     });
   });
   canonicalAutoFillFields(scopes.map(({ field }) => field), false);
@@ -1117,47 +1117,48 @@ function validateAutoFillRepromptScopes(value: unknown): readonly AutoFillReprom
 }
 
 function validateDetectedFillRequest(value: unknown): DetectedFillRequest {
-  if (!isExactRecord(value) || (!exactKeys(value, ["fillContextToken", "authorizations"])
-      && !exactKeys(value, ["fillContextToken", "authorizations", "repromptReceipt"]))) {
+  const request = snapshotAutoFillRecord(value);
+  if (!exactKeys(request, ["fillContextToken", "authorizations"])
+      && !exactKeys(request, ["fillContextToken", "authorizations", "repromptReceipt"])) {
     throw new Error("invalid request");
   }
-  const rawAuthorizations = value["authorizations"];
+  const rawAuthorizations = request["authorizations"];
   if (!Array.isArray(rawAuthorizations) || rawAuthorizations.length < 1
       || rawAuthorizations.length > 3) throw new Error("invalid request");
   const authorizations = rawAuthorizations.map((entry) => {
-    if (!isExactRecord(entry) || !exactKeys(entry, ["scope", "mismatchConfirmed"])
-        || typeof entry["mismatchConfirmed"] !== "boolean") throw new Error("invalid authorization");
-    const [scope] = validateAutoFillRepromptScopes([entry["scope"]]);
-    return Object.freeze({ scope, mismatchConfirmed: entry["mismatchConfirmed"] });
+    const authorization = snapshotExactAutoFillRecord(entry, ["scope", "mismatchConfirmed"]);
+    if (typeof authorization["mismatchConfirmed"] !== "boolean") throw new Error("invalid authorization");
+    const [scope] = validateAutoFillRepromptScopes([authorization["scope"]]);
+    return Object.freeze({ scope, mismatchConfirmed: authorization["mismatchConfirmed"] });
   });
   validateAutoFillRepromptScopes(authorizations.map(({ scope }) => scope));
-  const hasReceipt = Object.prototype.hasOwnProperty.call(value, "repromptReceipt");
+  const hasReceipt = Object.prototype.hasOwnProperty.call(request, "repromptReceipt");
   const repromptReceipt = hasReceipt
-    ? boundedAutoFillString(value["repromptReceipt"], 512)
+    ? boundedAutoFillString(request["repromptReceipt"], 512)
     : undefined;
   return Object.freeze({
-    fillContextToken: autoFillUuid(value["fillContextToken"]),
+    fillContextToken: autoFillUuid(request["fillContextToken"]),
     authorizations: Object.freeze(authorizations),
     ...(repromptReceipt === undefined ? {} : { repromptReceipt }),
   });
 }
 
 function decodeDetectedFillOutcome(value: unknown): DetectedFillOutcome {
-  if (!isExactRecord(value)) throw new Error("invalid outcome");
-  if (value["status"] === "success" && exactKeys(value, ["status", "fields"])) {
-    return Object.freeze({ status: "success", fields: canonicalAutoFillFields(value["fields"], false) });
+  const outcome = snapshotAutoFillRecord(value);
+  if (outcome["status"] === "success" && exactKeys(outcome, ["status", "fields"])) {
+    return Object.freeze({ status: "success", fields: canonicalAutoFillFields(outcome["fields"], false) });
   }
-  if (value["status"] === "partial" && exactKeys(value, ["status", "filled", "failed", "code"])) {
-    const filled = canonicalAutoFillFields(value["filled"], true);
-    const failed = autoFillField(value["failed"]);
-    const code = valueFromSet(value["code"], ["stale-context", "fill-failed"] as const);
+  if (outcome["status"] === "partial" && exactKeys(outcome, ["status", "filled", "failed", "code"])) {
+    const filled = canonicalAutoFillFields(outcome["filled"], true);
+    const failed = autoFillField(outcome["failed"]);
+    const code = valueFromSet(outcome["code"], ["stale-context", "fill-failed"] as const);
     if (filled.includes(failed)) throw new Error("invalid outcome");
     return Object.freeze({ status: "partial", filled, failed, code });
   }
-  if (value["status"] === "error" && exactKeys(value, ["status", "code"])) {
+  if (outcome["status"] === "error" && exactKeys(outcome, ["status", "code"])) {
     return Object.freeze({
       status: "error",
-      code: valueFromSet(value["code"], [
+      code: valueFromSet(outcome["code"], [
         "unauthorized", "invalid-request", "stale-context", "reprompt-failed", "secret-release-failed",
       ] as const),
     });
@@ -1194,6 +1195,11 @@ function boundedAutoFillString(value: unknown, maximum: number): string {
   return value.normalize("NFC");
 }
 
+function boundedAutoFillOptionalString(value: unknown, maximum: number): string {
+  if (typeof value !== "string" || value.length > maximum) throw new Error("invalid string");
+  return value.normalize("NFC");
+}
+
 function valueFromSet<const Values extends readonly string[]>(
   value: unknown,
   values: Values,
@@ -1203,14 +1209,19 @@ function valueFromSet<const Values extends readonly string[]>(
 }
 
 function decodeEntryContext(value: unknown) {
-  if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
-  if (value["status"] === "unavailable" && exactKeys(value, ["status"])) return { status: "unavailable" as const };
-  if (value["status"] === "available" && exactKeys(value, [
+  const outcome = snapshotAutoFillRecord(value);
+  if (outcome["status"] === "unavailable" && exactKeys(outcome, ["status"])) return { status: "unavailable" as const };
+  if (outcome["status"] === "available" && exactKeys(outcome, [
     "status", "bundleId", "appName", "fillContextToken", "focusedField", "action",
   ])) {
     try {
-      const { status: _status, ...context } = value;
-      return { status: "available" as const, context: decodeLiveAutoFillContext(context) };
+      return { status: "available" as const, context: decodeLiveAutoFillContext({
+        bundleId: outcome["bundleId"],
+        appName: outcome["appName"],
+        fillContextToken: outcome["fillContextToken"],
+        focusedField: outcome["focusedField"],
+        action: outcome["action"],
+      }) };
     } catch {
       throw new Error("AutoFill unavailable");
     }
@@ -1219,60 +1230,62 @@ function decodeEntryContext(value: unknown) {
 }
 
 function decodeAgentSession(value: unknown) {
-  if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
-  if (value["status"] === "error" && exactKeys(value, ["status", "code"]) && nonEmpty(value["code"])) {
-    return { status: "error" as const, code: value["code"] };
+  const outcome = snapshotAutoFillRecord(value);
+  if (outcome["status"] === "error" && exactKeys(outcome, ["status", "code"]) && nonEmpty(outcome["code"])) {
+    return { status: "error" as const, code: outcome["code"] };
   }
-  if (value["status"] === "success" && exactKeys(value, ["status", "generation", "accountId", "vaultRevision"])
-      && isNativeUuid(value["generation"]) && nonEmpty(value["accountId"]) && Number.isSafeInteger(value["vaultRevision"])) {
-    return { status: "success" as const, generation: value["generation"], accountId: value["accountId"], vaultRevision: value["vaultRevision"] as number };
+  if (outcome["status"] === "success" && exactKeys(outcome, ["status", "generation", "accountId", "vaultRevision"])
+      && isNativeUuid(outcome["generation"]) && nonEmpty(outcome["accountId"]) && Number.isSafeInteger(outcome["vaultRevision"])) {
+    return { status: "success" as const, generation: outcome["generation"], accountId: outcome["accountId"], vaultRevision: outcome["vaultRevision"] as number };
   }
   throw new Error("AutoFill unavailable");
 }
 
 function decodeCandidateOutcome(value: unknown): unknown {
-  if (!isExactRecord(value) || !exactKeys(value, ["status", "contextToken", "candidates"])
-      || value["status"] !== "success" || typeof value["contextToken"] !== "string"
-      || value["contextToken"].trim().length === 0 || value["contextToken"].length > 512
-      || !Array.isArray(value["candidates"]) || value["candidates"].length > 500) {
+  const outcome = snapshotExactAutoFillRecord(value, ["status", "contextToken", "candidates"]);
+  const contextToken = boundedAutoFillString(outcome["contextToken"], 512);
+  const rawCandidates = outcome["candidates"];
+  if (outcome["status"] !== "success" || !Array.isArray(rawCandidates) || rawCandidates.length > 500) {
     throw new Error("AutoFill unavailable");
   }
   const cipherIds = new Set<string>();
-  const candidates = value["candidates"].map((candidate) => {
-    if (!isExactRecord(candidate) || !exactKeys(candidate, [
+  const candidates = rawCandidates.map((candidate) => {
+    const projected = snapshotExactAutoFillRecord(candidate, [
       "cipherId", "displayName", "username", "group", "reason", "requiresMismatchConfirmation",
-    ]) || typeof candidate["cipherId"] !== "string" || candidate["cipherId"].trim().length === 0
-      || candidate["cipherId"].length > 512 || typeof candidate["displayName"] !== "string"
-      || candidate["displayName"].length > 2_048 || typeof candidate["username"] !== "string"
-      || candidate["username"].length > 2_048 || !["exact", "relevant", "other"].includes(String(candidate["group"]))
-      || typeof candidate["reason"] !== "string" || candidate["reason"].length > 512
-      || typeof candidate["requiresMismatchConfirmation"] !== "boolean") {
+    ]);
+    const cipherId = boundedAutoFillString(projected["cipherId"], 512);
+    const displayName = boundedAutoFillOptionalString(projected["displayName"], 2_048);
+    const username = boundedAutoFillOptionalString(projected["username"], 2_048);
+    const group = projected["group"];
+    const reason = boundedAutoFillOptionalString(projected["reason"], 512);
+    const requiresMismatchConfirmation = projected["requiresMismatchConfirmation"];
+    if (!["exact", "relevant", "other"].includes(String(group))
+      || typeof requiresMismatchConfirmation !== "boolean") {
       throw new Error("AutoFill unavailable");
     }
-    const cipherId = candidate["cipherId"].normalize("NFC");
     if (cipherIds.has(cipherId)) throw new Error("AutoFill unavailable");
     cipherIds.add(cipherId);
     return Object.freeze({
       cipherId,
-      displayName: candidate["displayName"].normalize("NFC"),
-      username: candidate["username"].normalize("NFC"),
-      group: candidate["group"],
-      reason: candidate["reason"].normalize("NFC"),
-      requiresMismatchConfirmation: candidate["requiresMismatchConfirmation"],
+      displayName,
+      username,
+      group,
+      reason,
+      requiresMismatchConfirmation,
     });
   });
   return Object.freeze({
-    contextToken: value["contextToken"].normalize("NFC"),
+    contextToken,
     candidates: Object.freeze(candidates),
   });
 }
 
 function decodeBeginReprompt(value: unknown) {
-  if (!isExactRecord(value)) throw new Error("AutoFill unavailable");
-  if (value["status"] === "unavailable" && exactKeys(value, ["status"])) return { status: "unavailable" as const };
-  if (value["status"] === "pending" && exactKeys(value, ["status", "receipt"])
-      && nonEmpty(value["receipt"]) && value["receipt"].length <= 512) {
-    return { status: "pending" as const, receipt: value["receipt"] };
+  const outcome = snapshotAutoFillRecord(value);
+  if (outcome["status"] === "unavailable" && exactKeys(outcome, ["status"])) return { status: "unavailable" as const };
+  if (outcome["status"] === "pending" && exactKeys(outcome, ["status", "receipt"])
+      && nonEmpty(outcome["receipt"]) && outcome["receipt"].length <= 512) {
+    return { status: "pending" as const, receipt: outcome["receipt"] };
   }
   throw new Error("AutoFill unavailable");
 }
@@ -1287,6 +1300,32 @@ function decodeSecretOutcome(value: unknown) {
     return { status: "success" as const, field: value["field"] as AutoFillSecretField, value: value["value"] };
   }
   throw new Error("AutoFill unavailable");
+}
+
+function snapshotExactAutoFillRecord(
+  value: unknown,
+  expected: readonly string[],
+): Record<string, unknown> {
+  const snapshot = snapshotAutoFillRecord(value);
+  if (!exactKeys(snapshot, expected)) throw new Error("AutoFill unavailable");
+  return snapshot;
+}
+
+function snapshotAutoFillRecord(value: unknown): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("AutoFill unavailable");
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) throw new Error("AutoFill unavailable");
+  const keys = Reflect.ownKeys(value);
+  if (keys.some((key) => typeof key !== "string")) throw new Error("AutoFill unavailable");
+  const snapshot: Record<string, unknown> = Object.create(null);
+  for (const key of keys) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(value, key);
+    if (!descriptor || !("value" in descriptor)) throw new Error("AutoFill unavailable");
+    snapshot[key as string] = descriptor.value;
+  }
+  return snapshot;
 }
 
 function isExactRecord(value: unknown): value is Record<string, unknown> {

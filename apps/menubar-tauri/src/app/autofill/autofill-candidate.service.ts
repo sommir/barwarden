@@ -120,41 +120,74 @@ export function validateSecretReleaseRequest(input: AutoFillSecretReleaseRequest
 }
 
 function validateCandidateResponse(input: unknown): AutoFillCandidateResponse {
-  if (!isRecord(input) || !hasExactKeys(input, ["contextToken", "candidates"]) ||
-      typeof input.contextToken !== "string" || !input.contextToken || input.contextToken.length > 512 ||
-      !Array.isArray(input.candidates) || input.candidates.length > 500) {
+  const value = snapshotExactRecord(input, ["contextToken", "candidates"]);
+  const contextToken = candidateToken(value["contextToken"]);
+  const rawCandidates = value["candidates"];
+  if (!Array.isArray(rawCandidates) || rawCandidates.length > 500) {
     throw new Error("invalid candidate response");
   }
   const cipherIds = new Set<string>();
-  const candidates = input.candidates.map((candidate) => {
+  const candidates = rawCandidates.map((candidate) => {
     const keys = [
       "cipherId", "displayName", "username", "group", "reason", "requiresMismatchConfirmation",
     ];
-    if (!isRecord(candidate) || !hasExactKeys(candidate, keys) ||
-        typeof candidate.cipherId !== "string" || !candidate.cipherId.trim() || candidate.cipherId.length > 512 ||
-        typeof candidate.displayName !== "string" || candidate.displayName.length > 2_048 ||
-        typeof candidate.username !== "string" || candidate.username.length > 2_048 ||
-        !(["exact", "relevant", "other"] as unknown[]).includes(candidate.group) ||
-        typeof candidate.reason !== "string" || candidate.reason.length > 512 ||
-        typeof candidate.requiresMismatchConfirmation !== "boolean") {
+    const projected = snapshotExactRecord(candidate, keys);
+    const cipherId = boundedCandidateString(projected["cipherId"], 512, false);
+    const displayName = boundedCandidateString(projected["displayName"], 2_048, true);
+    const username = boundedCandidateString(projected["username"], 2_048, true);
+    const group = projected["group"];
+    const reason = boundedCandidateString(projected["reason"], 512, true);
+    const requiresMismatchConfirmation = projected["requiresMismatchConfirmation"];
+    if (!(["exact", "relevant", "other"] as unknown[]).includes(group)
+        || typeof requiresMismatchConfirmation !== "boolean") {
       throw new Error("invalid candidate response");
     }
-    const cipherId = candidate.cipherId.normalize("NFC");
     if (cipherIds.has(cipherId)) throw new Error("invalid candidate response");
     cipherIds.add(cipherId);
     return Object.freeze({
       cipherId,
-      displayName: candidate.displayName.normalize("NFC"),
-      username: candidate.username.normalize("NFC"),
-      group: candidate.group as AutoFillCandidateGroup,
-      reason: candidate.reason.normalize("NFC"),
-      requiresMismatchConfirmation: candidate.requiresMismatchConfirmation,
+      displayName,
+      username,
+      group: group as AutoFillCandidateGroup,
+      reason,
+      requiresMismatchConfirmation,
     });
   });
   return Object.freeze({
-    contextToken: input.contextToken.normalize("NFC"),
+    contextToken,
     candidates: Object.freeze(candidates),
   });
+}
+
+function snapshotExactRecord(input: unknown, expected: readonly string[]): Record<string, unknown> {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new Error("invalid candidate response");
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) throw new Error("invalid candidate response");
+  const keys = Reflect.ownKeys(input);
+  if (keys.length !== expected.length
+      || keys.some((key) => typeof key !== "string" || !expected.includes(key))) {
+    throw new Error("invalid candidate response");
+  }
+  const snapshot: Record<string, unknown> = Object.create(null);
+  for (const key of keys) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(input, key);
+    if (!descriptor || !("value" in descriptor)) throw new Error("invalid candidate response");
+    snapshot[key as string] = descriptor.value;
+  }
+  return snapshot;
+}
+
+function boundedCandidateString(input: unknown, maximum: number, allowEmpty: boolean): string {
+  if (typeof input !== "string" || input.length > maximum || (!allowEmpty && input.trim().length === 0)) {
+    throw new Error("invalid candidate response");
+  }
+  return input.normalize("NFC");
+}
+
+function candidateToken(input: unknown): string {
+  return boundedCandidateString(input, 512, false);
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {

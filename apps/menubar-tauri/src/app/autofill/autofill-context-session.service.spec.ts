@@ -115,4 +115,22 @@ describe("AutoFillContextSessionService", () => {
     service.snapshot();
     expect(invalidated).toHaveBeenCalledTimes(3);
   });
+
+  it("never stores a stateful vault revision accessor's second value", () => {
+    let reads = 0;
+    const hostileSession = {
+      accountId: session.accountId,
+      generation: session.generation,
+      get vaultRevision() {
+        reads += 1;
+        return reads === 1 ? session.vaultRevision : "secret-revision";
+      },
+    };
+    const service = new AutoFillContextSessionService(() => 1_000);
+    expect(() => service.begin(context, hostileSession as never, [candidate]))
+      .toThrow("invalid AutoFill context session");
+    expect(reads).toBeLessThanOrEqual(1);
+    expect(service.snapshot()).toBeNull();
+    expect(JSON.stringify(service.snapshot())).not.toContain("secret-revision");
+  });
 });

@@ -121,6 +121,122 @@ describe("TauriHostService", () => {
     }
   });
 
+  it("rejects accessor-based context, session, candidate, and detected-fill outcomes atomically", async () => {
+    const candidateRequest = {
+      accountId: "account-a",
+      lockGeneration: "00000000-0000-4000-8000-000000000004",
+      field: "password" as const,
+      context: { bundleId: "com.example.App", appName: "Example", serviceIdentifiers: [], query: "" },
+    };
+    const fillRequest = {
+      fillContextToken: "00000000-0000-4000-8000-000000000005",
+      authorizations: [{
+        scope: {
+          accountId: "account-a",
+          candidateId: "cipher-a",
+          field: "password" as const,
+          generation: "00000000-0000-4000-8000-000000000004",
+          contextToken: "context-password",
+        },
+        mismatchConfirmed: false,
+      }],
+    };
+    const counts = { context: 0, nestedContext: 0, revision: 0, candidate: 0, outcome: 0 };
+    const entry = {
+      get status() {
+        counts.context += 1;
+        return counts.context === 1 ? "available" : "secret-context-second";
+      },
+      bundleId: "com.example.App",
+      appName: "Example",
+      fillContextToken: fillRequest.fillContextToken,
+      focusedField: { kind: "password", confidence: "high" },
+      action: { mode: "field", fields: ["password"] },
+    };
+    const agentSession = {
+      status: "success",
+      generation: "00000000-0000-4000-8000-000000000004",
+      accountId: "account-a",
+      get vaultRevision() {
+        counts.revision += 1;
+        if (counts.revision > 1) throw new Error("private session second read");
+        return 7;
+      },
+    };
+    const nestedEntry = {
+      status: "available",
+      bundleId: "com.example.App",
+      appName: "Example",
+      fillContextToken: fillRequest.fillContextToken,
+      focusedField: {
+        get kind() {
+          counts.nestedContext += 1;
+          if (counts.nestedContext > 1) throw new Error("private nested context second read");
+          return "password";
+        },
+        confidence: "high",
+      },
+      action: { mode: "field", fields: ["password"] },
+    };
+    const nestedCandidate = {
+      cipherId: "cipher-a",
+      get displayName() {
+        counts.candidate += 1;
+        return counts.candidate === 1 ? "Example" : "secret-candidate-second";
+      },
+      username: "person@example.test",
+      group: "exact",
+      reason: "service_identifier",
+      requiresMismatchConfirmation: false,
+    };
+    const candidateOutcome = { status: "success", contextToken: "context-a", candidates: [nestedCandidate] };
+    const fillOutcome = {
+      get status() {
+        counts.outcome += 1;
+        return counts.outcome === 1 ? "success" : "secret-outcome-second";
+      },
+      fields: ["password"],
+    };
+    const cases: Array<() => Promise<unknown>> = [
+      () => new TauriHostService(async () => entry as never).entryContext(),
+      () => new TauriHostService(async () => nestedEntry as never).entryContext(),
+      () => new TauriHostService(async () => agentSession as never).agentSession(),
+      () => new TauriHostService(async () => candidateOutcome as never).queryCandidates(candidateRequest),
+      () => new TauriHostService(async () => fillOutcome as never).fillDetected(fillRequest),
+    ];
+    for (const operation of cases) {
+      const error = await operation().then(() => null, (caught: unknown) => caught);
+      expect(error).toMatchObject({ message: "AutoFill unavailable" });
+      expect(JSON.stringify(error)).not.toMatch(/private|secret|second/);
+    }
+    expect(counts.context).toBeLessThanOrEqual(1);
+    expect(counts.nestedContext).toBeLessThanOrEqual(1);
+    expect(counts.revision).toBeLessThanOrEqual(1);
+    expect(counts.candidate).toBeLessThanOrEqual(1);
+    expect(counts.outcome).toBeLessThanOrEqual(1);
+  });
+
+  it("sanitizes candidate descriptor traps and matches app whitespace-token rejection", async () => {
+    const request = {
+      accountId: "account-a",
+      lockGeneration: "00000000-0000-4000-8000-000000000004",
+      field: "password" as const,
+      context: { bundleId: "com.example.App", appName: "Example", serviceIdentifiers: [], query: "" },
+    };
+    const descriptorTrap = new Proxy({ status: "success", contextToken: "context-a", candidates: [] }, {
+      getOwnPropertyDescriptor() { throw new Error("private descriptor token"); },
+    });
+    for (const response of [
+      descriptorTrap,
+      { status: "success", contextToken: "   ", candidates: [] },
+    ]) {
+      const error = await new TauriHostService(async () => response as never).queryCandidates(request)
+        .then(() => null, (caught: unknown) => caught);
+      expect(error).toMatchObject({ message: "AutoFill unavailable" });
+      expect(JSON.stringify(error)).not.toMatch(/private|descriptor/);
+    }
+  });
+
   it("maps exact batch reprompt and detected-fill command envelopes", async () => {
     const calls: Array<[string, Record<string, unknown> | undefined]> = [];
     const host = new TauriHostService(async (command, args) => {

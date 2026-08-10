@@ -48,14 +48,18 @@ class ImmutableAuthorizationMap implements ReadonlyMap<AutoFillSecretField, Cont
   readonly #values: Map<AutoFillSecretField, ContextualCandidateAuthorization>;
 
   constructor(entries: Iterable<readonly [AutoFillSecretField, ContextualCandidateAuthorization]>) {
-    this.#values = new Map([...entries].map(([field, authorization]) => {
-      const value = exactRecord(authorization, ["contextToken", "requiresMismatchConfirmation"]);
-      if (typeof value["requiresMismatchConfirmation"] !== "boolean") throw new Error("invalid authorization");
-      return [decodeAutoFillField(field), Object.freeze({
-        contextToken: boundedString(value["contextToken"], 512, false),
-        requiresMismatchConfirmation: value["requiresMismatchConfirmation"],
-      })];
-    }));
+    try {
+      this.#values = new Map([...entries].map(([field, authorization]) => {
+        const value = exactRecord(authorization, ["contextToken", "requiresMismatchConfirmation"]);
+        if (typeof value["requiresMismatchConfirmation"] !== "boolean") throw new Error("invalid authorization");
+        return [decodeAutoFillField(field), Object.freeze({
+          contextToken: boundedString(value["contextToken"], 512, false),
+          requiresMismatchConfirmation: value["requiresMismatchConfirmation"],
+        })];
+      }));
+    } catch {
+      throw new Error("invalid authorization");
+    }
     Object.freeze(this);
   }
 
@@ -262,14 +266,14 @@ export function validateAutoFillRepromptScopes(input: unknown): readonly AutoFil
 
 export function decodeDetectedFillOutcome(input: unknown): DetectedFillOutcome {
   try {
-    if (!isObjectRecord(input)) throw new Error("not record");
-    switch (input["status"]) {
+    const snapshot = snapshotObjectRecord(input);
+    switch (snapshot["status"]) {
       case "success": {
-        const value = exactRecord(input, ["status", "fields"]);
+        const value = exactRecord(snapshot, ["status", "fields"]);
         return Object.freeze({ status: "success", fields: canonicalFields(value["fields"], false) });
       }
       case "partial": {
-        const value = exactRecord(input, ["status", "filled", "failed", "code"]);
+        const value = exactRecord(snapshot, ["status", "filled", "failed", "code"]);
         const filled = canonicalFields(value["filled"], true);
         const failed = decodeAutoFillField(value["failed"]);
         const code = member(value["code"], PARTIAL_CODES);
@@ -277,7 +281,7 @@ export function decodeDetectedFillOutcome(input: unknown): DetectedFillOutcome {
         return Object.freeze({ status: "partial", filled, failed, code });
       }
       case "error": {
-        const value = exactRecord(input, ["status", "code"]);
+        const value = exactRecord(snapshot, ["status", "code"]);
         return Object.freeze({ status: "error", code: member(value["code"], ERROR_CODES) });
       }
       default:
@@ -339,21 +343,32 @@ function valueAt(record: Record<string, unknown>, key: string): unknown {
 }
 
 function exactRecord(input: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (!isObjectRecord(input) || !hasExactOwnKeys(input, keys)) throw new Error("invalid keys");
-  return input;
+  const snapshot = snapshotObjectRecord(input);
+  if (!hasExactOwnKeys(snapshot, keys)) throw new Error("invalid keys");
+  return snapshot;
 }
 
 function exactRecordVariant(input: unknown, variants: readonly (readonly string[])[]): Record<string, unknown> {
-  if (!isObjectRecord(input) || !variants.some((keys) => hasExactOwnKeys(input, keys))) {
+  const snapshot = snapshotObjectRecord(input);
+  if (!variants.some((keys) => hasExactOwnKeys(snapshot, keys))) {
     throw new Error("invalid keys");
   }
-  return input;
+  return snapshot;
 }
 
-function isObjectRecord(input: unknown): input is Record<string, unknown> {
-  if (typeof input !== "object" || input === null || Array.isArray(input)) return false;
+function snapshotObjectRecord(input: unknown): Record<string, unknown> {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("invalid record");
   const prototype = Object.getPrototypeOf(input);
-  return prototype === Object.prototype || prototype === null;
+  if (prototype !== Object.prototype && prototype !== null) throw new Error("invalid prototype");
+  const keys = Reflect.ownKeys(input);
+  if (keys.some((key) => typeof key !== "string")) throw new Error("invalid keys");
+  const snapshot: Record<string, unknown> = Object.create(null);
+  for (const key of keys) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(input, key);
+    if (!descriptor || !("value" in descriptor)) throw new Error("invalid descriptor");
+    snapshot[key as string] = descriptor.value;
+  }
+  return snapshot;
 }
 
 function hasExactOwnKeys(input: Record<string, unknown>, expected: readonly string[]): boolean {
