@@ -61,7 +61,13 @@ impl Eq for FrontmostApp {}
 
 #[derive(Default)]
 pub(crate) struct TargetAppStore {
-    target: Mutex<Option<FrontmostApp>>,
+    target: Mutex<Option<StoredTargetApp>>,
+}
+
+#[derive(Clone)]
+struct StoredTargetApp {
+    target: FrontmostApp,
+    fill_context: Option<crate::autofill_ax_context::FillContextPresentation>,
 }
 
 impl TargetAppStore {
@@ -70,14 +76,55 @@ impl TargetAppStore {
             .target
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *stored = target;
+        *stored = target.map(|target| StoredTargetApp {
+            target,
+            fill_context: None,
+        });
+    }
+
+    fn replace_preserving_context(&self, target: FrontmostApp) {
+        let mut stored = self
+            .target
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let fill_context = stored
+            .as_ref()
+            .filter(|stored| stored.target == target)
+            .and_then(|stored| stored.fill_context.clone());
+        *stored = Some(StoredTargetApp {
+            target,
+            fill_context,
+        });
+    }
+
+    fn replace_with_context(
+        &self,
+        target: FrontmostApp,
+        fill_context: crate::autofill_ax_context::FillContextPresentation,
+    ) {
+        *self
+            .target
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(StoredTargetApp {
+            target,
+            fill_context: Some(fill_context),
+        });
     }
 
     pub(crate) fn current(&self) -> Option<FrontmostApp> {
         self.target
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
+            .as_ref()
+            .map(|stored| stored.target.clone())
+    }
+
+    fn current_fill_context(&self) -> Option<crate::autofill_ax_context::FillContextPresentation> {
+        self.target
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .and_then(|stored| stored.fill_context.clone())
     }
 }
 
@@ -91,6 +138,8 @@ pub enum AutoFillEntryContextOutcome {
         bundle_id: String,
         #[serde(rename = "appName")]
         app_name: String,
+        #[serde(flatten)]
+        fill_context: crate::autofill_ax_context::FillContextPresentation,
     },
     Unavailable,
 }
@@ -104,16 +153,37 @@ pub(crate) fn last_target_app() -> Option<FrontmostApp> {
 }
 
 pub(crate) fn replace_target_app(target: FrontmostApp) {
-    target_app_store().replace(Some(target));
+    target_app_store().replace_preserving_context(target);
+}
+
+pub(crate) fn replace_target_app_with_context(
+    target: FrontmostApp,
+    fill_context: crate::autofill_ax_context::FillContextPresentation,
+) {
+    target_app_store().replace_with_context(target, fill_context);
 }
 
 #[tauri::command]
-pub fn autofill_entry_context() -> AutoFillEntryContextOutcome {
-    autofill_context_with(last_target_app(), Instant::now(), target_is_running)
+pub fn autofill_entry_context(
+    contexts: tauri::State<'_, crate::autofill_ax_context::DetectedFillContextStore>,
+) -> AutoFillEntryContextOutcome {
+    let target = last_target_app();
+    let fill_context = target_app_store().current_fill_context().or_else(|| {
+        let target = target.as_ref()?;
+        if !target_is_running(target) {
+            return None;
+        }
+        let captured = crate::autofill_ax_context::capture_native_fill_context(target, 0).ok()?;
+        contexts
+            .try_insert(target.clone(), captured.fields, captured.action)
+            .ok()
+    });
+    autofill_context_with(target, fill_context, Instant::now(), target_is_running)
 }
 
 fn autofill_context_with<IsRunning>(
     target: Option<FrontmostApp>,
+    fill_context: Option<crate::autofill_ax_context::FillContextPresentation>,
     _now: Instant,
     is_running: IsRunning,
 ) -> AutoFillEntryContextOutcome
@@ -126,9 +196,14 @@ where
     if !is_running(&target) {
         return AutoFillEntryContextOutcome::Unavailable;
     }
+    let Some(fill_context) = fill_context.filter(|context| !context.fill_context_token.is_empty())
+    else {
+        return AutoFillEntryContextOutcome::Unavailable;
+    };
     AutoFillEntryContextOutcome::Available {
         bundle_id: target.bundle_id,
         app_name: target.app_name,
+        fill_context,
     }
 }
 
@@ -302,6 +377,25 @@ fn target_app_store() -> &'static TargetAppStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::autofill_ax_context::{
+        FillContextPresentation, PresentedAction, PresentedActionMode, PresentedField,
+        PresentedFieldConfidence, PresentedFieldKind,
+    };
+
+    fn fill_context(token: &str) -> FillContextPresentation {
+        FillContextPresentation {
+            fill_context_token: token.to_owned(),
+            focused_field: PresentedField {
+                kind: PresentedFieldKind::Password,
+                secret_field: Some(crate::autofill_contract::AutoFillSecretField::Password),
+                confidence: PresentedFieldConfidence::High,
+            },
+            action: PresentedAction {
+                mode: PresentedActionMode::Field,
+                fields: vec![crate::autofill_contract::AutoFillSecretField::Password],
+            },
+        }
+    }
 
     fn app(bundle_id: &str, process_id: i32) -> FrontmostApp {
         test_frontmost_app(bundle_id, process_id, process_id as u64)
@@ -357,6 +451,20 @@ mod tests {
     }
 
     #[test]
+    fn fill_context_is_preserved_only_for_the_exact_captured_app_instance() {
+        let store = TargetAppStore::default();
+        let captured = app_instance("com.example.target", 42, 100);
+        let context = fill_context("0d5d0471-bb6d-47bf-b4b6-b69640c729df");
+        store.replace_with_context(captured.clone(), context.clone());
+
+        store.replace_preserving_context(captured);
+        assert_eq!(store.current_fill_context(), Some(context));
+
+        store.replace_preserving_context(app_instance("com.example.target", 42, 200));
+        assert_eq!(store.current_fill_context(), None);
+    }
+
+    #[test]
     fn translates_only_live_running_applications_with_a_bundle_and_positive_pid() {
         assert_eq!(
             running_application_identity(Some("com.example.target"), 42, false),
@@ -393,21 +501,58 @@ mod tests {
     fn autofill_context_keeps_the_exact_live_target_available_for_the_picker_session() {
         let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
         let captured_at = target.captured_at;
+        let context = fill_context("0d5d0471-bb6d-47bf-b4b6-b69640c729df");
 
         assert_eq!(
             autofill_context_with(
                 Some(target.clone()),
+                Some(context.clone()),
                 captured_at + std::time::Duration::from_secs(3_600),
                 |_| true,
             ),
             AutoFillEntryContextOutcome::Available {
                 bundle_id: "com.example.target".to_owned(),
                 app_name: "Example".to_owned(),
+                fill_context: context,
             }
         );
         assert_eq!(
-            autofill_context_with(Some(target), captured_at, |_| false),
+            autofill_context_with(
+                Some(target),
+                Some(fill_context("token")),
+                captured_at,
+                |_| false
+            ),
             AutoFillEntryContextOutcome::Unavailable,
+        );
+    }
+
+    #[test]
+    fn entry_context_requires_a_valid_focused_field_context_and_flattens_safe_presentation() {
+        let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
+        assert_eq!(
+            autofill_context_with(Some(target.clone()), None, Instant::now(), |_| true),
+            AutoFillEntryContextOutcome::Unavailable,
+        );
+
+        let context = fill_context("0d5d0471-bb6d-47bf-b4b6-b69640c729df");
+        let encoded = serde_json::to_value(autofill_context_with(
+            Some(target),
+            Some(context),
+            Instant::now(),
+            |_| true,
+        ))
+        .unwrap();
+        assert_eq!(
+            encoded,
+            serde_json::json!({
+                "status": "available",
+                "bundleId": "com.example.target",
+                "appName": "Example",
+                "fillContextToken": "0d5d0471-bb6d-47bf-b4b6-b69640c729df",
+                "focusedField": { "kind": "password", "secretField": "password", "confidence": "high" },
+                "action": { "mode": "field", "fields": ["password"] }
+            })
         );
     }
 }

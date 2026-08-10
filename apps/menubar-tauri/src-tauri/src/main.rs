@@ -1,4 +1,5 @@
 mod accessibility_focus;
+mod autofill_ax_context;
 mod autofill_contract;
 mod autofill_field_context;
 mod autofill_floating;
@@ -42,6 +43,7 @@ fn updater_plugin_is_configured(config: &tauri::Config) -> bool {
 
 fn main() {
     let context = tauri::generate_context!();
+    let detected_fill_contexts = autofill_ax_context::DetectedFillContextStore::default();
     let mut builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -65,6 +67,7 @@ fn main() {
         .manage(window::PopupVisibilityHold::default())
         .manage(window::PopupPresentationState::default())
         .manage(autofill_floating::AutoFillFloatingController::default())
+        .manage(detected_fill_contexts.clone())
         .manage(session_broker::SessionBroker::new(
             uuid::Uuid::new_v4().to_string(),
         ))

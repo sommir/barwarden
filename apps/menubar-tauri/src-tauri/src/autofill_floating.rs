@@ -1,4 +1,4 @@
-use crate::accessibility_focus::AxFrame;
+use crate::accessibility_focus::{validate_copied_type_with, AxFrame};
 use serde::{Deserialize, Serialize};
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -104,42 +104,6 @@ fn observer_registration_decision(
         None => ObserverRegistrationDecision::Create,
         Some(pid) if pid == target_pid => ObserverRegistrationDecision::Reuse,
         Some(_) => ObserverRegistrationDecision::Replace,
-    }
-}
-
-fn validate_copied_type_with(
-    value: *const c_void,
-    expected_type: usize,
-    type_id: impl FnOnce(*const c_void) -> usize,
-    release: impl FnOnce(*const c_void),
-) -> Option<*const c_void> {
-    if value.is_null() {
-        return None;
-    }
-    if type_id(value) == expected_type {
-        Some(value)
-    } else {
-        release(value);
-        None
-    }
-}
-
-fn validate_ax_value_with(
-    value: *const c_void,
-    expected_cf_type: usize,
-    expected_ax_type: i32,
-    type_id: impl FnOnce(*const c_void) -> usize,
-    ax_value_type: impl FnOnce(*const c_void) -> i32,
-    release: impl FnOnce(*const c_void),
-) -> Option<*const c_void> {
-    if value.is_null() {
-        return None;
-    }
-    if type_id(value) == expected_cf_type && ax_value_type(value) == expected_ax_type {
-        Some(value)
-    } else {
-        release(value);
-        None
     }
 }
 
@@ -277,17 +241,6 @@ pub enum AccessibilityFallback {
     Unsupported,
 }
 
-impl AccessibilityFallback {
-    fn focus_eligibility(self) -> crate::accessibility_focus::FallbackEligibility {
-        match self {
-            Self::SystemAutoFill => {
-                crate::accessibility_focus::FallbackEligibility::SystemAvailableOrUnknown
-            }
-            Self::Unsupported => crate::accessibility_focus::FallbackEligibility::SystemUnsupported,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum AccessibilityPermission {
@@ -330,6 +283,12 @@ struct FloatingClickContext {
 struct VisibleTarget {
     generation: u64,
     target: crate::frontmost::FrontmostApp,
+    detected: Option<crate::autofill_ax_context::CapturedAxContext>,
+}
+
+struct ConsumedVisibleTarget {
+    target: crate::frontmost::FrontmostApp,
+    detected: Option<crate::autofill_ax_context::CapturedAxContext>,
 }
 
 struct ControllerState {
@@ -462,6 +421,7 @@ impl AutoFillFloatingController {
         generation
     }
 
+    #[cfg(test)]
     fn publish_visible(
         &self,
         generation: u64,
@@ -480,7 +440,39 @@ impl AutoFillFloatingController {
         state.lifecycle.accept(generation, frame);
         state.permission = AccessibilityPermission::Granted;
         state.observation = AccessibilityObservation::Visible;
-        state.visible_target = Some(VisibleTarget { generation, target });
+        state.visible_target = Some(VisibleTarget {
+            generation,
+            target,
+            detected: None,
+        });
+        state.diagnostic = None;
+        true
+    }
+
+    fn publish_visible_with_context(
+        &self,
+        generation: u64,
+        target: crate::frontmost::FrontmostApp,
+        frame: AppKitFrame,
+        detected: crate::autofill_ax_context::CapturedAxContext,
+    ) -> bool {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.fallback != AccessibilityFallback::Unsupported
+            || state.lifecycle.generation != generation
+        {
+            return false;
+        }
+        state.lifecycle.accept(generation, frame);
+        state.permission = AccessibilityPermission::Granted;
+        state.observation = AccessibilityObservation::Visible;
+        state.visible_target = Some(VisibleTarget {
+            generation,
+            target,
+            detected: Some(detected),
+        });
         state.diagnostic = None;
         true
     }
@@ -508,10 +500,7 @@ impl AutoFillFloatingController {
         });
     }
 
-    fn consume_visible_target(
-        &self,
-        context: &FloatingClickContext,
-    ) -> Option<crate::frontmost::FrontmostApp> {
+    fn consume_visible(&self, context: &FloatingClickContext) -> Option<ConsumedVisibleTarget> {
         let mut state = self
             .state
             .lock()
@@ -521,13 +510,24 @@ impl AutoFillFloatingController {
                 && state.lifecycle.generation == context.generation
                 && visible.generation == context.generation
                 && visible.target == context.target)
-                .then(|| visible.target.clone())
+                .then(|| ConsumedVisibleTarget {
+                    target: visible.target.clone(),
+                    detected: visible.detected.clone(),
+                })
         })?;
         state.lifecycle.invalidate();
         state.visible_target = None;
         state.observation = AccessibilityObservation::Hidden;
         state.diagnostic = None;
         Some(target)
+    }
+
+    #[cfg(test)]
+    fn consume_visible_target(
+        &self,
+        context: &FloatingClickContext,
+    ) -> Option<crate::frontmost::FrontmostApp> {
+        self.consume_visible(context).map(|visible| visible.target)
     }
 
     fn observer_invalidated(&self) {
@@ -657,6 +657,7 @@ impl AutoFillFloatingController {
         state.visible_target = Some(VisibleTarget {
             generation,
             target: crate::frontmost::test_frontmost_app(bundle_id, 42, generation),
+            detected: None,
         });
         state.diagnostic = None;
     }
@@ -780,10 +781,7 @@ fn schedule_panel_hide(_app: &tauri::AppHandle) {}
 #[cfg(target_os = "macos")]
 mod macos {
     use super::*;
-    use crate::accessibility_focus::{
-        classify_focused_field, AppIdentity, FallbackEligibility, FocusRejectReason,
-        FocusedFieldObservation, ScreenFrame,
-    };
+    use crate::accessibility_focus::FocusRejectReason;
     use crate::{frontmost, window};
     use block2::RcBlock;
     use core_foundation::base::{CFGetTypeID, CFRelease, CFTypeID, TCFType};
@@ -795,7 +793,6 @@ mod macos {
     };
     use core_foundation::string::{CFString, CFStringRef};
     use core_graphics::display::CGDisplay;
-    use core_graphics::geometry::{CGPoint, CGSize};
     use objc2::rc::Retained;
     use objc2::runtime::{AnyObject, NSObjectProtocol};
     use objc2::{define_class, msg_send, sel, AnyThread, DefinedClass, MainThreadOnly};
@@ -817,14 +814,11 @@ mod macos {
     use tauri::Manager;
 
     type AXUIElementRef = *const c_void;
-    type AXValueRef = *const c_void;
     type AXObserverRef = *const c_void;
     type CFTypeRef = *const c_void;
     type CFDictionaryRef = *const c_void;
     type AXError = i32;
     const AX_ERROR_SUCCESS: AXError = 0;
-    const AX_VALUE_CGPOINT: i32 = 1;
-    const AX_VALUE_CGSIZE: i32 = 2;
     const PANEL_ICON: &[u8] = include_bytes!("../icons/tray-template@2x.png");
 
     #[link(name = "ApplicationServices", kind = "framework")]
@@ -838,14 +832,6 @@ mod macos {
             attribute: CFStringRef,
             value: *mut CFTypeRef,
         ) -> AXError;
-        fn AXUIElementIsAttributeSettable(
-            element: AXUIElementRef,
-            attribute: CFStringRef,
-            settable: *mut bool,
-        ) -> AXError;
-        fn AXValueGetValue(value: AXValueRef, value_type: i32, output: *mut c_void) -> bool;
-        fn AXValueGetTypeID() -> CFTypeID;
-        fn AXValueGetType(value: AXValueRef) -> i32;
         fn AXObserverCreate(
             pid: i32,
             callback: unsafe extern "C" fn(AXObserverRef, AXUIElementRef, CFStringRef, *mut c_void),
@@ -898,10 +884,11 @@ mod macos {
                     hide_panel();
                     return;
                 };
-                let Some(target) = controller.consume_visible_target(&context) else {
+                let Some(visible) = controller.consume_visible(&context) else {
                     hide_panel();
                     return;
                 };
+                let target = visible.target;
                 hide_panel();
                 let still_exact_frontmost = frontmost::target_is_running(&target)
                     && frontmost::current_frontmost_app()
@@ -911,6 +898,22 @@ mod macos {
                 if !still_exact_frontmost {
                     return;
                 }
+                let Some(detected) = visible.detected else {
+                    return;
+                };
+                let Some(contexts) = app.try_state::<
+                    crate::autofill_ax_context::DetectedFillContextStore,
+                >() else {
+                    return;
+                };
+                let Ok(presentation) = contexts.try_insert(
+                    target.clone(),
+                    detected.fields,
+                    detected.action,
+                ) else {
+                    return;
+                };
+                frontmost::replace_target_app_with_context(target.clone(), presentation);
                 let _ = window::show_autofill_picker_window_for_target(
                     app,
                     window::PopupEntrySource::AutoFillFloating,
@@ -1154,19 +1157,33 @@ mod macos {
                 schedule_panel_hide(&app);
                 continue;
             }
-            let result = read_focused_field(&target, controller.fallback().focus_eligibility());
+            let result =
+                crate::autofill_ax_context::capture_native_fill_context(&target, generation);
             if signal.is_dirty() || controller.generation() != generation {
                 continue;
             }
             match result {
-                Ok(snapshot) => {
-                    schedule_panel_show(&app, &controller, generation, snapshot, target)
+                Ok(detected) => {
+                    schedule_panel_show(&app, &controller, generation, detected, target)
                 }
-                Err(reason) => {
+                Err(error) => {
+                    let reason = match error {
+                        crate::autofill_ax_context::AxContextError::Focus(reason) => reason.code(),
+                        crate::autofill_ax_context::AxContextError::OversizedMetadata => {
+                            "invalid-metadata"
+                        }
+                        crate::autofill_ax_context::AxContextError::TimeBudgetExceeded => {
+                            "observation-timeout"
+                        }
+                        crate::autofill_ax_context::AxContextError::MissingWindow => "stale-window",
+                        crate::autofill_ax_context::AxContextError::NoWritableField => {
+                            "not-editable"
+                        }
+                    };
                     controller.publish_hidden(
                         generation,
                         AccessibilityPermission::Granted,
-                        reason.code(),
+                        reason,
                         Some(target.bundle_id.clone()),
                     );
                     schedule_panel_hide(&app);
@@ -1371,73 +1388,6 @@ mod macos {
         }
     }
 
-    fn read_focused_field(
-        target: &frontmost::FrontmostApp,
-        fallback_eligibility: FallbackEligibility,
-    ) -> Result<crate::accessibility_focus::FocusedFieldSnapshot, FocusRejectReason> {
-        debug_assert_eq!(
-            crate::accessibility_focus::FOCUSED_FIELD_ATTRIBUTE_ALLOWLIST,
-            ["AXRole", "AXSubrole", "AXPosition", "AXSize", "AXWindow"],
-        );
-        let app_element = unsafe { AXUIElementCreateApplication(target.process_id) };
-        if app_element.is_null() {
-            return Err(FocusRejectReason::StaleElement);
-        }
-        let result = (|| {
-            let focused = copy_ui_element_attribute(app_element, "AXFocusedUIElement")?;
-            let role = copy_string_attribute(focused, "AXRole");
-            let subrole = copy_optional_string_attribute(focused, "AXSubrole");
-            let position = copy_point_attribute(focused, "AXPosition");
-            let size = copy_size_attribute(focused, "AXSize");
-            let window = copy_ui_element_attribute(focused, "AXWindow");
-            let mut editable = false;
-            // Privacy boundary: query whether AXValue is settable, but never copy/read AXValue.
-            let value_attribute = CFString::from_static_string("AXValue");
-            let editable_status = unsafe {
-                AXUIElementIsAttributeSettable(
-                    focused,
-                    value_attribute.as_concrete_TypeRef(),
-                    &mut editable,
-                )
-            };
-            let frame = position.zip(size).map(|(point, size)| AxFrame {
-                x: point.x,
-                y: point.y,
-                width: size.width,
-                height: size.height,
-            });
-            let screens = active_screen_frames();
-            let observation = FocusedFieldObservation {
-                permission_granted: true,
-                fallback_eligibility,
-                app: AppIdentity {
-                    bundle_id: target.bundle_id.clone(),
-                    process_id: target.process_id,
-                    live: frontmost::target_is_running(target),
-                },
-                role,
-                subrole,
-                editable: editable_status == AX_ERROR_SUCCESS && editable,
-                frame,
-                element_valid: true,
-                window_valid: window.is_ok(),
-                observed_at: Instant::now(),
-            };
-            if let Ok(window) = window {
-                unsafe { CFRelease(window) }
-            }
-            unsafe { CFRelease(focused.cast()) }
-            classify_focused_field(
-                observation,
-                &screens,
-                crate::frontmost::APP_BUNDLE_ID,
-                Instant::now(),
-            )
-        })();
-        unsafe { CFRelease(app_element.cast()) }
-        result
-    }
-
     fn copy_attribute(
         element: AXUIElementRef,
         attribute: CFStringRef,
@@ -1476,102 +1426,18 @@ mod macos {
         }
     }
 
-    fn copy_string_attribute(element: AXUIElementRef, attribute: &'static str) -> Option<String> {
-        copy_optional_string_attribute(element, attribute)
-    }
-
-    fn copy_optional_string_attribute(
-        element: AXUIElementRef,
-        attribute: &'static str,
-    ) -> Option<String> {
-        let value = copy_named_attribute(element, attribute).ok()?;
-        let value = unsafe {
-            validate_copied_type_with(
-                value,
-                CFString::type_id(),
-                |value| CFGetTypeID(value.cast()),
-                |value| CFRelease(value.cast()),
-            )?
-        };
-        let string = unsafe { CFString::wrap_under_create_rule(value.cast()) }.to_string();
-        (!string.is_empty()).then_some(string)
-    }
-
-    fn copy_point_attribute(element: AXUIElementRef, attribute: &'static str) -> Option<CGPoint> {
-        let value = copy_named_attribute(element, attribute).ok()?;
-        let value = unsafe {
-            validate_ax_value_with(
-                value,
-                AXValueGetTypeID(),
-                AX_VALUE_CGPOINT,
-                |value| CFGetTypeID(value.cast()),
-                |value| AXValueGetType(value.cast()),
-                |value| CFRelease(value.cast()),
-            )?
-        };
-        let mut point = CGPoint::new(0.0, 0.0);
-        let copied = unsafe {
-            AXValueGetValue(
-                value.cast(),
-                AX_VALUE_CGPOINT,
-                (&mut point as *mut CGPoint).cast(),
-            )
-        };
-        unsafe { CFRelease(value) }
-        copied.then_some(point)
-    }
-
-    fn copy_size_attribute(element: AXUIElementRef, attribute: &'static str) -> Option<CGSize> {
-        let value = copy_named_attribute(element, attribute).ok()?;
-        let value = unsafe {
-            validate_ax_value_with(
-                value,
-                AXValueGetTypeID(),
-                AX_VALUE_CGSIZE,
-                |value| CFGetTypeID(value.cast()),
-                |value| AXValueGetType(value.cast()),
-                |value| CFRelease(value.cast()),
-            )?
-        };
-        let mut size = CGSize::new(0.0, 0.0);
-        let copied = unsafe {
-            AXValueGetValue(
-                value.cast(),
-                AX_VALUE_CGSIZE,
-                (&mut size as *mut CGSize).cast(),
-            )
-        };
-        unsafe { CFRelease(value) }
-        copied.then_some(size)
-    }
-
-    fn active_screen_frames() -> Vec<ScreenFrame> {
-        CGDisplay::active_displays()
-            .unwrap_or_default()
-            .into_iter()
-            .map(CGDisplay::new)
-            .map(|display| display.bounds())
-            .map(|bounds| ScreenFrame {
-                x: bounds.origin.x,
-                y: bounds.origin.y,
-                width: bounds.size.width,
-                height: bounds.size.height,
-            })
-            .collect()
-    }
-
     fn schedule_panel_show(
         app: &tauri::AppHandle,
         controller: &AutoFillFloatingController,
         generation: u64,
-        snapshot: crate::accessibility_focus::FocusedFieldSnapshot,
+        detected: crate::autofill_ax_context::CapturedAxContext,
         target: frontmost::FrontmostApp,
     ) {
         let app_for_panel = app.clone();
         let controller = controller.clone();
         let primary_max_y = CGDisplay::main().bounds().size.height;
-        let field = ax_to_appkit(snapshot.frame, primary_max_y);
-        let bundle_id = snapshot.app.bundle_id;
+        let field = ax_to_appkit(detected.focused.frame, primary_max_y);
+        let bundle_id = detected.focused.app.bundle_id.clone();
         let _ = app.run_on_main_thread(move || {
             let Some(mtm) = MainThreadMarker::new() else {
                 return;
@@ -1596,7 +1462,12 @@ mod macos {
                 hide_panel();
                 return;
             };
-            if controller.publish_visible(generation, target.clone(), panel_frame) {
+            if controller.publish_visible_with_context(
+                generation,
+                target.clone(),
+                panel_frame,
+                detected,
+            ) {
                 show_panel(
                     &app_for_panel,
                     panel_frame,
@@ -1763,10 +1634,10 @@ mod macos {
                 target.bundle_id, "com.sommir.barwarden.task8-ax-fixture",
                 "launch the Task 8 fixture immediately before this smoke"
             );
-            let snapshot = read_focused_field(&target, FallbackEligibility::SystemUnsupported)
+            let snapshot = crate::autofill_ax_context::capture_native_fill_context(&target, 1)
                 .expect("reliable focused field snapshot");
-            assert!(snapshot.reliable);
-            assert!(snapshot.secure);
+            assert!(snapshot.focused.reliable);
+            assert!(snapshot.focused.secure);
 
             let controller = AutoFillFloatingController::default();
             controller.set_fallback(AccessibilityFallback::Unsupported);
@@ -2240,47 +2111,6 @@ mod tests {
                 "invalid diagnostic bundle id: {invalid:?}",
             );
         }
-    }
-
-    #[test]
-    fn copied_ax_values_reject_wrong_cf_or_ax_types_and_release_exactly_once() {
-        use std::ffi::c_void;
-
-        let value = 1usize as *const c_void;
-        let releases = std::cell::Cell::new(0);
-        assert_eq!(
-            validate_copied_type_with(value, 7, |_| 9, |_| releases.set(releases.get() + 1),),
-            None,
-        );
-        assert_eq!(releases.get(), 1);
-
-        let releases = std::cell::Cell::new(0);
-        assert_eq!(
-            validate_ax_value_with(
-                value,
-                7,
-                2,
-                |_| 7,
-                |_| 1,
-                |_| releases.set(releases.get() + 1),
-            ),
-            None,
-        );
-        assert_eq!(releases.get(), 1);
-
-        let releases = std::cell::Cell::new(0);
-        assert_eq!(
-            validate_ax_value_with(
-                value,
-                7,
-                2,
-                |_| 7,
-                |_| 2,
-                |_| releases.set(releases.get() + 1),
-            ),
-            Some(value),
-        );
-        assert_eq!(releases.get(), 0);
     }
 
     #[test]

@@ -1,12 +1,47 @@
 #[cfg(test)]
 use serde::Serialize;
+use std::ffi::c_void;
 use std::time::{Duration, Instant};
 
 pub const AX_TEXT_FIELD: &str = "AXTextField";
 pub const AX_SECURE_TEXT_FIELD: &str = "AXSecureTextField";
-pub const FOCUSED_FIELD_ATTRIBUTE_ALLOWLIST: [&str; 5] =
-    ["AXRole", "AXSubrole", "AXPosition", "AXSize", "AXWindow"];
 const MAX_OBSERVATION_AGE: Duration = Duration::from_millis(500);
+
+pub(crate) fn validate_copied_type_with(
+    value: *const c_void,
+    expected_type: usize,
+    type_id: impl FnOnce(*const c_void) -> usize,
+    release: impl FnOnce(*const c_void),
+) -> Option<*const c_void> {
+    if value.is_null() {
+        return None;
+    }
+    if type_id(value) == expected_type {
+        Some(value)
+    } else {
+        release(value);
+        None
+    }
+}
+
+pub(crate) fn validate_ax_value_with(
+    value: *const c_void,
+    expected_cf_type: usize,
+    expected_ax_type: i32,
+    type_id: impl FnOnce(*const c_void) -> usize,
+    ax_value_type: impl FnOnce(*const c_void) -> i32,
+    release: impl FnOnce(*const c_void),
+) -> Option<*const c_void> {
+    if value.is_null() {
+        return None;
+    }
+    if type_id(value) == expected_cf_type && ax_value_type(value) == expected_ax_type {
+        Some(value)
+    } else {
+        release(value);
+        None
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AxFrame {
@@ -41,6 +76,7 @@ pub struct AppIdentity {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
 pub enum FallbackEligibility {
     SystemAvailableOrUnknown,
     SystemUnsupported,
@@ -243,6 +279,45 @@ mod tests {
     use super::*;
     use std::time::{Duration, Instant};
 
+    #[test]
+    fn wrong_cf_and_ax_types_release_copied_values_exactly_once() {
+        let value = 1usize as *const c_void;
+        let releases = std::cell::Cell::new(0);
+        assert_eq!(
+            validate_copied_type_with(value, 7, |_| 9, |_| releases.set(releases.get() + 1)),
+            None,
+        );
+        assert_eq!(releases.get(), 1);
+
+        let releases = std::cell::Cell::new(0);
+        assert_eq!(
+            validate_ax_value_with(
+                value,
+                7,
+                2,
+                |_| 7,
+                |_| 1,
+                |_| releases.set(releases.get() + 1),
+            ),
+            None,
+        );
+        assert_eq!(releases.get(), 1);
+
+        let releases = std::cell::Cell::new(0);
+        assert_eq!(
+            validate_ax_value_with(
+                value,
+                7,
+                2,
+                |_| 7,
+                |_| 2,
+                |_| releases.set(releases.get() + 1),
+            ),
+            Some(value),
+        );
+        assert_eq!(releases.get(), 0);
+    }
+
     fn screen() -> ScreenFrame {
         ScreenFrame {
             x: 0.0,
@@ -425,24 +500,6 @@ mod tests {
                 classify_focused_field(candidate, &[screen()], "self", Instant::now()),
                 Err(FocusRejectReason::UnreliableGeometry | FocusRejectReason::Offscreen),
             ));
-        }
-    }
-
-    #[test]
-    fn native_reader_allowlist_contains_no_field_content_attributes() {
-        assert_eq!(
-            FOCUSED_FIELD_ATTRIBUTE_ALLOWLIST,
-            ["AXRole", "AXSubrole", "AXPosition", "AXSize", "AXWindow"],
-        );
-        for forbidden in [
-            "AXValue",
-            "AXSelectedText",
-            "AXPlaceholderValue",
-            "AXTitle",
-            "AXDescription",
-            "AXIdentifier",
-        ] {
-            assert!(!FOCUSED_FIELD_ATTRIBUTE_ALLOWLIST.contains(&forbidden));
         }
     }
 
