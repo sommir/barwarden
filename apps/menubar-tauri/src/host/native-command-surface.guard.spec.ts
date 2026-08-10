@@ -22,6 +22,7 @@ const allowedCommands = [
   "autofill_query_candidates",
   "autofill_release_secret",
   "autofill_replace_projection",
+  "autofill_reset_projection_for_reprojection",
   "autofill_request_accessibility_permission",
   "autofill_set_accessibility_fallback",
   "biometric_disable",

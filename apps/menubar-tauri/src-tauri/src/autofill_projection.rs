@@ -636,6 +636,16 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         self.lock()
     }
 
+    pub fn reset_for_reprojection(&self, owner: &ProjectionOwner) -> Result<(), ProjectionError> {
+        if owner.account_id.is_empty() {
+            return Err(ProjectionError::StaleBinding);
+        }
+        let mut authority = self.authority.lock().map_err(|_| ProjectionError::Io)?;
+        authority.binding = None;
+        authority.invalidated_at = None;
+        self.lock()
+    }
+
     fn begin_recovery_ledger(
         &self,
         artifacts: impl IntoIterator<Item = String>,
@@ -1292,6 +1302,25 @@ pub fn autofill_lock_projection(
     })
 }
 
+#[tauri::command]
+pub fn autofill_reset_projection_for_reprojection(
+    manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
+    broker: tauri::State<'_, SessionBroker>,
+    receipts: tauri::State<'_, std::sync::Arc<AutoFillRepromptReceiptStore>>,
+) -> Result<(), &'static str> {
+    run_projection_lifecycle_with_receipt_clear(&receipts, || {
+        let context = broker.projection_context().map_err(|_| "stale_binding")?;
+        let owner = ProjectionOwner {
+            process_generation: context.process_generation,
+            ownership_epoch: context.ownership_epoch,
+            account_id: context.active_account_id.unwrap_or_default(),
+        };
+        manager
+            .reset_for_reprojection(&owner)
+            .map_err(command_error)
+    })
+}
+
 fn validate_input(input: &AutoFillProjectionInput) -> Result<(), ProjectionError> {
     let active_cipher_ids: HashSet<&str> = input
         .logins
@@ -1778,6 +1807,34 @@ mod tests {
         );
         assert_eq!(agent.provisions.lock().unwrap().len(), 0);
         assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn setup_reprojection_lock_allows_same_owner_to_capture_a_fresh_binding() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        let owner = ProjectionOwner::unlocked("process-1", 7, "account-a");
+        let original = manager.capture_binding("account-a", &owner).unwrap();
+        let original_receipt = manager
+            .replace_bound(input("account-a", 1), &original.token, &owner)
+            .unwrap();
+
+        manager.reset_for_reprojection(&owner).unwrap();
+        let replacement = manager.capture_binding("account-a", &owner).unwrap();
+
+        assert_ne!(replacement.token, original.token);
+        assert_eq!(
+            manager.replace_bound(input("account-a", 2), &original.token, &owner),
+            Err(ProjectionError::StaleBinding)
+        );
+        let receipt = manager
+            .replace_bound(input("account-a", 2), &replacement.token, &owner)
+            .unwrap();
+        assert_eq!(receipt.vault_revision, 1);
+        assert_ne!(receipt.generation, original_receipt.generation);
+        assert_eq!(agent.locks.load(Ordering::SeqCst), 1);
         fs::remove_dir_all(root).unwrap();
     }
 

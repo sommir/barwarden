@@ -32,7 +32,15 @@ enum AppPresetCatalog {
     }
 
     static func bundled(in bundle: Bundle = .main) -> [AppPreset] {
-        guard let url = bundle.url(forResource: "AppPresets", withExtension: "json"),
+        bundled(bundleResourceURL: bundle.resourceURL, executableURL: bundle.executableURL)
+    }
+
+    static func bundled(bundleResourceURL: URL?, executableURL: URL?) -> [AppPreset] {
+        guard let url = agentResourceURL(
+            named: "AppPresets.json",
+            bundleResourceURL: bundleResourceURL,
+            executableURL: executableURL
+        ),
               let data = try? Data(contentsOf: url),
               let presets = try? decode(data) else { return [] }
         return presets
@@ -85,7 +93,15 @@ struct DomainMatchRules: Equatable {
     }
 
     static func bundled(in bundle: Bundle = .main) -> DomainMatchRules {
-        guard let url = bundle.url(forResource: "DomainMatchRules", withExtension: "json"),
+        bundled(bundleResourceURL: bundle.resourceURL, executableURL: bundle.executableURL)
+    }
+
+    static func bundled(bundleResourceURL: URL?, executableURL: URL?) -> DomainMatchRules {
+        guard let url = agentResourceURL(
+            named: "DomainMatchRules.json",
+            bundleResourceURL: bundleResourceURL,
+            executableURL: executableURL
+        ),
               let data = try? Data(contentsOf: url),
               let rules = try? decode(data) else { return .empty }
         return rules
@@ -122,6 +138,22 @@ struct DomainMatchRules: Equatable {
                     .contains($0)
             }
     }
+}
+
+private func agentResourceURL(
+    named name: String,
+    bundleResourceURL: URL?,
+    executableURL: URL?
+) -> URL? {
+    let candidates = [
+        bundleResourceURL?.appendingPathComponent(name, isDirectory: false),
+        executableURL?
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Resources/BarwardenAutoFill", isDirectory: true)
+            .appendingPathComponent(name, isDirectory: false),
+    ]
+    return candidates.compactMap { $0 }.first { FileManager.default.isReadableFile(atPath: $0.path) }
 }
 
 struct UserAppBinding: Codable, Equatable {

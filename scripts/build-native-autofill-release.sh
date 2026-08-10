@@ -148,7 +148,8 @@ ASSEMBLY_ROOT="$WORK_ROOT/assembly"
 APP_PATH="$ASSEMBLY_ROOT/$APP_NAME"
 /bin/mkdir -p "$ASSEMBLY_ROOT"
 run_or_fail NATIVE_AUTOFILL_APP_STAGE_FAILED /usr/bin/ditto --norsrc --noqtn "$MAIN_APP_SOURCE" "$APP_PATH"
-/bin/mkdir -p "$APP_PATH/Contents/PlugIns" "$APP_PATH/Contents/Helpers" "$APP_PATH/Contents/Library/LaunchAgents"
+/bin/mkdir -p "$APP_PATH/Contents/PlugIns" "$APP_PATH/Contents/Helpers" "$APP_PATH/Contents/Library/LaunchAgents" \
+  "$APP_PATH/Contents/Resources/BarwardenAutoFill"
 run_or_fail NATIVE_AUTOFILL_PROVIDER_EMBED_FAILED \
   /usr/bin/ditto --norsrc --noqtn "$SIDECAR_STAGING/$PROVIDER_NAME" "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME"
 run_or_fail NATIVE_AUTOFILL_AGENT_EMBED_FAILED \
@@ -157,6 +158,14 @@ run_or_fail NATIVE_AUTOFILL_LAUNCH_AGENT_EMBED_FAILED \
   /usr/bin/ditto --norsrc --noqtn \
   "$REPOSITORY_ROOT/apps/macos-autofill/Agent/com.sommir.barwarden.autofill-agent.plist" \
   "$APP_PATH/Contents/Library/LaunchAgents/com.sommir.barwarden.autofill-agent.plist"
+run_or_fail NATIVE_AUTOFILL_AGENT_EMBED_FAILED \
+  /usr/bin/ditto --norsrc --noqtn \
+  "$REPOSITORY_ROOT/apps/macos-autofill/Agent/AppPresets.json" \
+  "$APP_PATH/Contents/Resources/BarwardenAutoFill/AppPresets.json"
+run_or_fail NATIVE_AUTOFILL_AGENT_EMBED_FAILED \
+  /usr/bin/ditto --norsrc --noqtn \
+  "$REPOSITORY_ROOT/apps/macos-autofill/Agent/DomainMatchRules.json" \
+  "$APP_PATH/Contents/Resources/BarwardenAutoFill/DomainMatchRules.json"
 run_or_fail NATIVE_AUTOFILL_PROVIDER_PROFILE_EMBED_FAILED \
   /usr/bin/ditto --norsrc --noqtn "$NATIVE_AUTOFILL_PROVIDER_PROFILE" \
   "$APP_PATH/Contents/PlugIns/$PROVIDER_NAME/Contents/embedded.provisionprofile"

@@ -1408,13 +1408,25 @@ export class AuthFacade {
     } catch {
       return;
     }
+    let published = false;
     try {
-      await broker.mutate({
+      const result = await broker.mutate({
         type: "unlocked",
         activeAccountId: accountId,
         sharedSnapshot,
       });
+      published = result.authorization === "unlocked" && result.activeAccountId === accountId;
     } catch {}
+    if (!published || !this.projectionLifecycle) return;
+    try {
+      await this.boundedRead(
+        this.projectionLifecycle.reprojectCurrent(),
+        "Publish AutoFill projection",
+      );
+    } catch {
+      // AutoFill remains fail-closed without preventing the vault itself from
+      // unlocking. A later explicit AutoFill entry can retry the projection.
+    }
   }
 
   private broadcastProcessMutation(
@@ -1595,6 +1607,7 @@ export class AuthFacade {
       await this.activatePersistedPinAfterMasterPassword();
       this.store.restore({ ...candidateState, vaultOwnerAccountId });
       this.finishAuthentication();
+      await this.publishCurrentUnlockedState();
       return "unlocked";
     } catch (error) {
       if (error instanceof AuthTimeoutHandledError || !this.isCurrentOperation(epoch)) {

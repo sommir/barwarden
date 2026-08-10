@@ -1,10 +1,16 @@
-import { Inject, Injectable, InjectionToken } from "@angular/core";
+import { Inject, Injectable, InjectionToken, Optional } from "@angular/core";
 
 import type { AutoFillAgentRegistrationStatus } from "../../host/tauri-host.service";
 import { PopupStateStore } from "../popup-state";
+import { AutoFillAccessibilityService } from "./autofill-accessibility.service";
 import { AutoFillProjectionService } from "./autofill-projection.service";
 
-export type AutoFillSetupState = "disabled" | "ready" | "requiresApproval" | "unavailable";
+export type AutoFillSetupState =
+  | "disabled"
+  | "ready"
+  | "requiresApproval"
+  | "requiresAccessibility"
+  | "unavailable";
 
 export interface AutoFillSetupHost {
   autofillAgentRegistrationStatus(): Promise<AutoFillAgentRegistrationStatus>;
@@ -58,12 +64,14 @@ export class AutoFillSetupService {
   private state: AutoFillSetupState = "disabled";
   private operationTail: Promise<void> = Promise.resolve();
   private disabling = false;
+  private pendingEnabledCleanupTarget: AutoFillCleanupTarget | null = null;
 
   constructor(
     @Inject(AUTOFILL_SETUP_HOST) private readonly host: AutoFillSetupHost,
     @Inject(AUTOFILL_SETUP_STORAGE) private readonly storage: AutoFillSetupStorage,
     private readonly store: PopupStateStore,
     private readonly projection: AutoFillProjectionService,
+    @Optional() private readonly accessibility: AutoFillAccessibilityService | null = null,
   ) {}
 
   blockReason(): AutoFillSetupState {
@@ -81,6 +89,10 @@ export class AutoFillSetupService {
       if (state !== "ready") return state;
       try {
         await this.projection.reprojectCurrent();
+        if (!this.finalizeEnabledCleanupAfterProjection()) {
+          return this.setState("unavailable");
+        }
+        await this.activateFocusedFieldDetection(true);
         return this.setState("ready");
       } catch {
         return this.setState("unavailable");
@@ -98,7 +110,19 @@ export class AutoFillSetupService {
         this.state = "disabled";
         return this.state;
       }
-      return this.performReconcile();
+      const state = await this.performReconcile();
+      if (state !== "ready") return state;
+      if (this.pendingEnabledCleanupTarget && this.store.snapshot().isUnlocked) {
+        try {
+          await this.projection.reprojectCurrent();
+          this.finalizeEnabledCleanupAfterProjection();
+        } catch {
+          // Focused-field detection remains useful while the broker finishes
+          // publishing unlocked authority. The explicit picker entry retries.
+        }
+      }
+      await this.activateFocusedFieldDetection(false);
+      return this.setState("ready");
     });
   }
 
@@ -132,7 +156,20 @@ export class AutoFillSetupService {
   }
 
   private async finishPendingCleanup(target: AutoFillCleanupTarget): Promise<boolean> {
-    const complete = await this.performCleanup(target);
+    if (this.storage.readEnabled()) {
+      if (target.accountId === null) return false;
+      const cleanupAgentReady = await this.restoreAgentForPendingCleanup();
+      if (!cleanupAgentReady || !await this.performEnabledCleanup(target)) return false;
+      this.pendingEnabledCleanupTarget = target;
+      return true;
+    }
+    let complete = await this.performCleanup(target);
+    if (!complete) {
+      if (target.accountId === null) return false;
+      const cleanupAgentReady = await this.restoreAgentForPendingCleanup();
+      if (!cleanupAgentReady) return false;
+      complete = await this.performCleanup(target);
+    }
     if (!complete) return false;
     try {
       this.storage.writeCleanupTarget(null);
@@ -143,11 +180,54 @@ export class AutoFillSetupService {
   }
 
   private async performCleanup(target: AutoFillCleanupTarget): Promise<boolean> {
+    return this.performCleanupOperations(target, true);
+  }
+
+  private async performEnabledCleanup(target: AutoFillCleanupTarget): Promise<boolean> {
+    if (!target.accountId) return false;
+    try {
+      await this.projection.resetForReprojection();
+    } catch {
+      return false;
+    }
+    if (this.accessibility) {
+      try {
+        await this.accessibility.stopForSystemAutoFill();
+      } catch {
+        // The explicit picker and system Credential Provider do not depend on
+        // the optional focused-field floating action. Keep core AutoFill
+        // available while its permission/status UI remains independently
+        // repairable.
+      }
+    }
+    return true;
+  }
+
+  private finalizeEnabledCleanupAfterProjection(): boolean {
+    if (!this.pendingEnabledCleanupTarget) return true;
+    try {
+      this.storage.writeCleanupTarget(null);
+      this.pendingEnabledCleanupTarget = null;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async performCleanupOperations(
+    target: AutoFillCleanupTarget,
+    unregister: boolean,
+  ): Promise<boolean> {
     const accountId = target.accountId;
     const operations: Array<() => Promise<unknown>> = [
+      ...(
+        this.accessibility
+          ? [() => this.accessibility!.stopForSystemAutoFill()]
+          : []
+      ),
       () => this.host.autofillAgentLock(),
       ...(accountId ? [() => this.host.autofillClearProjection(accountId)] : []),
-      () => this.host.autofillAgentUnregister(),
+      ...(unregister ? [() => this.host.autofillAgentUnregister()] : []),
     ];
     let failed = accountId === null;
     for (const operation of operations) {
@@ -160,10 +240,55 @@ export class AutoFillSetupService {
     return !failed;
   }
 
+  private async restoreAgentForPendingCleanup(): Promise<boolean> {
+    let registration: AutoFillAgentRegistrationStatus | null = null;
+    try {
+      registration = await this.host.autofillAgentRegistrationStatus();
+    } catch {
+      // A live authenticated probe below is authoritative when Service
+      // Management is briefly unavailable after an interrupted update.
+    }
+    if (registration === "requiresApproval") return false;
+    if (registration !== "enabled") {
+      try {
+        registration = await this.host.autofillAgentRegister();
+      } catch {
+        registration = null;
+      }
+    }
+    if (registration === "requiresApproval") return false;
+    try {
+      return isSuccessfulProbe(await this.host.autofillAgentProbe());
+    } catch {
+      return false;
+    }
+  }
+
   private enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
     const pending = this.operationTail.then(operation);
     this.operationTail = pending.then(() => undefined, () => undefined);
     return pending;
+  }
+
+  private async activateFocusedFieldDetection(promptFromUserAction: boolean): Promise<boolean> {
+    if (!this.accessibility) return true;
+    try {
+      let status = await this.accessibility.status();
+      if (status.permission !== "granted" && promptFromUserAction) {
+        status = await this.accessibility.requestPermissionFromUserAction();
+      }
+      if (
+        status.permission !== "granted"
+        || this.disabling
+        || !this.storage.readEnabled()
+      ) {
+        return false;
+      }
+      await this.accessibility.startUnsupportedFallback();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async performReconcile(): Promise<AutoFillSetupState> {
@@ -188,12 +313,30 @@ export class AutoFillSetupService {
     if (registration === "requiresApproval") {
       return this.setState("requiresApproval");
     }
-    try {
-      const probe = await this.host.autofillAgentProbe();
-      if (!isSuccessfulProbe(probe)) return this.setState("unavailable");
+    if (await this.probeAgent()) return this.setState("ready");
+    if (registration === "enabled" && await this.replaceStaleAgentRegistration()) {
       return this.setState("ready");
+    }
+    return this.setState("unavailable");
+  }
+
+  private async probeAgent(): Promise<boolean> {
+    try {
+      return isSuccessfulProbe(await this.host.autofillAgentProbe());
     } catch {
-      return this.setState("unavailable");
+      return false;
+    }
+  }
+
+  private async replaceStaleAgentRegistration(): Promise<boolean> {
+    try {
+      const unregistered = await this.host.autofillAgentUnregister();
+      if (unregistered === "requiresApproval") return false;
+      const registered = await this.host.autofillAgentRegister();
+      if (registered === "requiresApproval") return false;
+      return this.probeAgent();
+    } catch {
+      return false;
     }
   }
 

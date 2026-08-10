@@ -209,6 +209,24 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
+  it("retries AutoFill setup when a locked vault becomes unlocked", async () => {
+    const store = new PopupStateStore();
+    const recoverAtStartup = vi.fn(async () => "ready" as const);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn().mockResolvedValue(true), url: "/lock", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup },
+    ]) as AppComponent;
+
+    store.setUnlocked("user@example.com");
+
+    await vi.waitFor(() => expect(recoverAtStartup).toHaveBeenCalledOnce());
+    component.ngOnDestroy();
+  });
+
   it("does not route away while login temporarily hides a synchronized candidate state", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");

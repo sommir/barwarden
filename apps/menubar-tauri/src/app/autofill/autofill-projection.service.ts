@@ -7,6 +7,7 @@ import {
   clearNativeAutoFillProjection,
   lockNativeAutoFillProjection,
   replaceNativeAutoFillProjection,
+  resetNativeAutoFillProjectionForReprojection,
 } from "../../host/autofill-projection.host";
 import { PopupStateStore, type PopupState } from "../popup-state";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
@@ -24,6 +25,7 @@ export interface AutoFillProjectionHost {
   replaceProjection(input: AutoFillProjectionInput, binding: AutoFillProjectionBinding): Promise<void>;
   clearProjection(accountId: string): Promise<void>;
   lockProjection(): Promise<void>;
+  resetProjection(): Promise<void>;
 }
 
 export const AUTOFILL_PROJECTION_HOST = new InjectionToken<AutoFillProjectionHost | null>(
@@ -41,6 +43,7 @@ const noopHost: AutoFillProjectionHost = {
   replaceProjection: async () => undefined,
   clearProjection: async () => undefined,
   lockProjection: async () => undefined,
+  resetProjection: async () => undefined,
 };
 
 @Injectable({ providedIn: "root" })
@@ -86,6 +89,11 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
   async invalidateAndLock(): Promise<void> {
     this.invalidateLifecycle();
     await this.enqueue(() => this.lockWithRetry());
+  }
+
+  async resetForReprojection(): Promise<void> {
+    this.invalidateLifecycle();
+    await this.enqueue(() => this.resetWithRetry());
   }
 
   async reprojectCurrent(): Promise<void> {
@@ -224,6 +232,19 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     throw lastError;
   }
 
+  private async resetWithRetry(): Promise<void> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await this.host.resetProjection();
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+
   private enqueue(operation: () => Promise<void>): Promise<void> {
     const pending = this.operationTail.then(operation);
     this.operationTail = pending.catch(() => undefined);
@@ -251,6 +272,11 @@ export class NativeAutoFillProjectionHost implements AutoFillProjectionHost {
 
   lockProjection(): Promise<void> {
     return lockNativeAutoFillProjection();
+  }
+
+
+  resetProjection(): Promise<void> {
+    return resetNativeAutoFillProjectionForReprojection();
   }
 }
 

@@ -783,6 +783,11 @@ describe("AuthFacade", () => {
 
   it("maps Identity two-factor responses into the official 2FA challenge state with only supported providers", async () => {
     const store = new PopupStateStore();
+    const broker = new FakeProcessSessionBroker(brokerSnapshot());
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => undefined),
+    };
     const login = vi.fn(async (request: any) => {
       if (!request.twoFactor) {
         throw new Error(JSON.stringify({
@@ -801,6 +806,19 @@ describe("AuthFacade", () => {
       store,
       { login },
       { sync: async () => emptySyncResult() },
+      null,
+      undefined,
+      accountPort({
+        saveAccount: async () => storedAccount("account-two-factor", "user@example.com", true),
+      }),
+      undefined,
+      null,
+      undefined,
+      null,
+      null,
+      null,
+      broker,
+      projectionLifecycle,
     );
 
     await facade.login({
@@ -829,6 +847,11 @@ describe("AuthFacade", () => {
     expect(store.snapshot().isUnlocked).toBe(true);
     expect(store.snapshot().authChallenge).toBeNull();
     expect(facade.authChallengeExpiresAt()).toBeNull();
+    expect(broker.mutations.at(-1)).toMatchObject({
+      type: "unlocked",
+      activeAccountId: store.snapshot().vaultOwnerAccountId,
+    });
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
   });
 
   it("does not replay a cleared master-password error while a successful two-factor login is persisted", async () => {
@@ -2266,6 +2289,52 @@ describe("AuthFacade", () => {
       broker.mutations.find((mutation) => mutation.type === "unlocked")
         ?.sharedSnapshot,
     ).not.toHaveProperty("activeSession");
+  });
+
+  it("reprojects only after the broker acknowledges unlocked authority", async () => {
+    const events: string[] = [];
+    const broker = new FakeProcessSessionBroker(brokerSnapshot());
+    const mutate = broker.mutate.bind(broker);
+    vi.spyOn(broker, "mutate").mockImplementation(async (mutation) => {
+      events.push("broker-unlocked");
+      return mutate(mutation);
+    });
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => {
+        events.push("projection");
+        throw new Error("private projection detail");
+      }),
+    };
+    const store = new PopupStateStore();
+    const activeSession = session("publish-before-projection");
+    store.setLockedAccount("shared@example.com", "https://vault.shared.example.com");
+    store.setActiveSession(activeSession);
+    store.setUnlocked("shared@example.com");
+    const facade = new AuthFacade(
+      store,
+      null,
+      syncPort(),
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      null,
+      null,
+      broker,
+      projectionLifecycle,
+    );
+    setRuntimeAccount(facade, "shared");
+
+    await expect((
+      facade as unknown as { publishCurrentUnlockedState(): Promise<void> }
+    ).publishCurrentUnlockedState()).resolves.toBeUndefined();
+
+    expect(events).toEqual(["broker-unlocked", "projection"]);
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
   });
 
   it("classifies an oversized local projection as deterministic without calling the broker", async () => {

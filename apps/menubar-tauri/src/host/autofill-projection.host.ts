@@ -15,3 +15,7 @@ export function clearNativeAutoFillProjection(accountId: string): Promise<void> 
 export function lockNativeAutoFillProjection(): Promise<void> {
   return invoke("autofill_lock_projection");
 }
+
+export function resetNativeAutoFillProjectionForReprojection(): Promise<void> {
+  return invoke("autofill_reset_projection_for_reprojection");
+}

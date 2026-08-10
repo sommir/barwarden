@@ -22,6 +22,7 @@ import {
   type AutoFillSecretField,
   type RankedAutoFillCandidate,
 } from "./autofill-candidate.service";
+import { AutoFillBindingsService } from "./autofill-bindings.service";
 import {
   AUTOFILL_NATIVE_HOST,
   type AutoFillAgentSessionOutcome,
@@ -113,12 +114,11 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
           }
           <button
             class="autofill-picker__turn-off"
-            data-testid="autofill-turn-off"
+            data-testid="autofill-close"
             type="button"
-            [disabled]="setupActionPending"
-            [attr.aria-label]="'i18nAutofillTurnOff' | i18n"
-            [title]="'i18nAutofillTurnOff' | i18n"
-            (click)="turnOffAutoFill()"
+            [attr.aria-label]="'close' | i18n"
+            [title]="'close' | i18n"
+            (click)="backToVault()"
           ><i class="bwi bwi-close" aria-hidden="true"></i></button>
         </div>
       }
@@ -138,6 +138,8 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
             <p role="status">{{ statusMessage }}</p>
           } @else if (setupRequiresApproval) {
             <p>{{ "i18nAutofillApprovalDescription" | i18n }}</p>
+          } @else if (setupRequiresAccessibility) {
+            <p>{{ "i18nAutofillAccessibilityDescription" | i18n }}</p>
           } @else {
             <p>{{ "i18nAutofillRepairDescription" | i18n }}</p>
           }
@@ -325,6 +327,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   shortcutLabel = "";
   shortcutUnavailable = false;
   setupRequiresApproval = false;
+  setupRequiresAccessibility = false;
   setupActionPending = false;
   pendingMismatch: { action: SecretAction; field: AutoFillSecretField } | null = null;
   pendingProtected: PendingProtectedAction | null = null;
@@ -345,6 +348,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   constructor(
     private readonly store: PopupStateStore,
     private readonly candidatesService: AutoFillCandidateService,
+    private readonly bindings: AutoFillBindingsService,
     @Inject(AUTOFILL_NATIVE_HOST) private readonly native: AutoFillNativeHost,
     private readonly auth: AuthFacade,
     private readonly router: Router,
@@ -388,8 +392,13 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       return;
     }
     const setupState = this.setup?.blockReason();
-    if (setupState === "requiresApproval" || setupState === "unavailable") {
+    if (
+      setupState === "requiresApproval"
+      || setupState === "requiresAccessibility"
+      || setupState === "unavailable"
+    ) {
       this.setupRequiresApproval = setupState === "requiresApproval";
+      this.setupRequiresAccessibility = setupState === "requiresAccessibility";
       this.mode = "repair";
       this.markIfAlive();
       return;
@@ -443,16 +452,19 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       if (!this.componentAlive) return;
       if (setupState !== "ready") {
         this.setupRequiresApproval = setupState === "requiresApproval";
+        this.setupRequiresAccessibility = setupState === "requiresAccessibility";
         this.mode = "repair";
         this.statusMessage = translateOfficialMessage("i18nAutofillStillNeedsAttention");
         return;
       }
       this.setupRequiresApproval = false;
+      this.setupRequiresAccessibility = false;
       this.setupActionPending = false;
       await this.initialize();
     } catch {
       if (!this.componentAlive) return;
       this.setupRequiresApproval = false;
+      this.setupRequiresAccessibility = false;
       this.mode = "repair";
       this.statusMessage = translateOfficialMessage("i18nAutofillRecoveryFailed");
     } finally {
@@ -469,6 +481,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.setupActionPending = true;
     this.mode = "repair";
     this.setupRequiresApproval = false;
+    this.setupRequiresAccessibility = false;
     this.statusMessage = translateOfficialMessage("i18nAutofillTurningOff");
     this.markIfAlive();
     try {
@@ -951,9 +964,21 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       } else {
         try {
           await this.native.pasteText(value, 30);
-          this.commitOperation(operation, () => {
+          const delivered = this.commitOperation(operation, () => {
             this.statusMessage = translateOfficialMessage("i18nAutofillFilled");
           });
+          if (delivered) {
+            this.bindings.bind(operation.accountId, operation.bundleId, operation.candidateId);
+            this.bindings.recordSuccessfulSelection({
+              accountId: operation.accountId,
+              bundleId: operation.bundleId,
+              serviceIdentifiers: [],
+              cipherId: operation.candidateId,
+              selectedAt: new Date().toISOString(),
+              explicitUserAction: true,
+              succeeded: true,
+            });
+          }
         } catch (error) {
           this.commitOperation(operation, () => {
             this.statusMessage = translateOfficialMessage(error instanceof PasteError && error.valueCopied

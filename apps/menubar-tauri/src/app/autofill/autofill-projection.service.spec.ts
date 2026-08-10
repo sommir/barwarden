@@ -297,6 +297,17 @@ describe("AutoFillProjectionService", () => {
     fixture.service.destroy();
   });
 
+  it("uses the dedicated setup reset so the current owner can be reprojected", async () => {
+    const host = new RecordingProjectionHost();
+    const fixture = createFixture(host);
+
+    await fixture.service.resetForReprojection();
+
+    expect(host.resetAttempts).toBe(1);
+    expect(host.lockAttempts).toBe(0);
+    fixture.service.destroy();
+  });
+
   it("explicitly reprojects the current owner after an acknowledged switch abort", async () => {
     const fixture = createFixture();
     fixture.store.setActiveSession(session);
@@ -390,6 +401,7 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
   clearFailures = 0;
   lockAttempts = 0;
   lockFailures = 0;
+  resetAttempts = 0;
   maximumConcurrentReplacements = 0;
   onCaptureBinding: (() => void) | null = null;
   private concurrentReplacements = 0;
@@ -430,6 +442,10 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
       this.lockFailures -= 1;
       throw new Error("transient lock failure");
     }
+  }
+
+  async resetProjection(): Promise<void> {
+    this.resetAttempts += 1;
   }
 }
 
@@ -497,5 +513,10 @@ class SharedAuthoritativeProjectionHost implements AutoFillProjectionHost {
   async lockProjection(): Promise<void> {
     this.epoch += 1;
     this.activeAccountId = null;
+  }
+
+
+  async resetProjection(): Promise<void> {
+    this.epoch += 1;
   }
 }

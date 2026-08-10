@@ -1,5 +1,5 @@
 use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use serde::Serialize;
 
@@ -82,7 +82,6 @@ impl TargetAppStore {
 }
 
 static LAST_TARGET_APP: OnceLock<TargetAppStore> = OnceLock::new();
-const AUTOFILL_CONTEXT_MAX_AGE: Duration = Duration::from_secs(30);
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "status", rename_all = "kebab-case")]
@@ -115,7 +114,7 @@ pub fn autofill_entry_context() -> AutoFillEntryContextOutcome {
 
 fn autofill_context_with<IsRunning>(
     target: Option<FrontmostApp>,
-    now: Instant,
+    _now: Instant,
     is_running: IsRunning,
 ) -> AutoFillEntryContextOutcome
 where
@@ -124,10 +123,7 @@ where
     let Some(target) = target else {
         return AutoFillEntryContextOutcome::Unavailable;
     };
-    let is_fresh = now
-        .checked_duration_since(target.captured_at)
-        .is_some_and(|age| age <= AUTOFILL_CONTEXT_MAX_AGE);
-    if !is_fresh || !is_running(&target) {
+    if !is_running(&target) {
         return AutoFillEntryContextOutcome::Unavailable;
     }
     AutoFillEntryContextOutcome::Available {
@@ -394,28 +390,20 @@ mod tests {
     }
 
     #[test]
-    fn autofill_context_exposes_only_fresh_live_external_app_metadata() {
+    fn autofill_context_keeps_the_exact_live_target_available_for_the_picker_session() {
         let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
         let captured_at = target.captured_at;
 
         assert_eq!(
             autofill_context_with(
                 Some(target.clone()),
-                captured_at + std::time::Duration::from_secs(29),
+                captured_at + std::time::Duration::from_secs(3_600),
                 |_| true,
             ),
             AutoFillEntryContextOutcome::Available {
                 bundle_id: "com.example.target".to_owned(),
                 app_name: "Example".to_owned(),
             }
-        );
-        assert_eq!(
-            autofill_context_with(
-                Some(target.clone()),
-                captured_at + std::time::Duration::from_secs(31),
-                |_| true,
-            ),
-            AutoFillEntryContextOutcome::Unavailable,
         );
         assert_eq!(
             autofill_context_with(Some(target), captured_at, |_| false),

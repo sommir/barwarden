@@ -1,5 +1,9 @@
 [
   {
+    "bundleId": "com.bitwarden.desktop",
+    "services": ["bitwarden.com", "vault.bitwarden.com"]
+  },
+  {
     "bundleId": "com.github.GitHubClient",
     "services": ["github.com"]
   },

@@ -132,6 +132,7 @@ fn main() {
             autofill_projection::autofill_replace_projection,
             autofill_projection::autofill_clear_projection,
             autofill_projection::autofill_lock_projection,
+            autofill_projection::autofill_reset_projection_for_reprojection,
             clipboard::copy_text,
             paste::paste_text,
             keychain::secure_get,

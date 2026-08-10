@@ -541,6 +541,69 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertThrowsError(try AppPresetCatalog.decode(passwordItem))
     }
 
+    func testShippedBitwardenDesktopPresetRanksBitwardenVaultLoginAsExact() throws {
+        let presetURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Agent/AppPresets.json")
+        let presets = try AppPresetCatalog.decode(Data(contentsOf: presetURL))
+        let ranked = MatchingEngine(presets: presets, domainRules: .empty).rank(
+            accountID: "account-a",
+            logins: [login(
+                "bitwarden-login",
+                name: "Bitwarden",
+                uris: [("https://vault.bitwarden.com", .domain)]
+            )],
+            context: NativeAutoFillContext(
+                bundleID: "com.bitwarden.desktop",
+                appName: "Bitwarden",
+                serviceIdentifiers: [],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.first?.group, .exact)
+        XCTAssertEqual(ranked.first?.reason, "app_preset")
+        XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, false)
+    }
+
+    func testRawAgentLoadsMatchingResourcesFromTheOuterApplicationBundle() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let executable = root
+            .appendingPathComponent("Contents/Helpers/BarwardenAutoFillAgent")
+        let resources = root
+            .appendingPathComponent("Contents/Resources/BarwardenAutoFill", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: executable.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let sourceRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Agent", isDirectory: true)
+        try FileManager.default.copyItem(
+            at: sourceRoot.appendingPathComponent("AppPresets.json"),
+            to: resources.appendingPathComponent("AppPresets.json")
+        )
+        try FileManager.default.copyItem(
+            at: sourceRoot.appendingPathComponent("DomainMatchRules.json"),
+            to: resources.appendingPathComponent("DomainMatchRules.json")
+        )
+
+        let presets = AppPresetCatalog.bundled(bundleResourceURL: nil, executableURL: executable)
+        let rules = DomainMatchRules.bundled(bundleResourceURL: nil, executableURL: executable)
+
+        XCTAssertTrue(presets.contains { $0.bundleID == "com.bitwarden.desktop" })
+        XCTAssertFalse(rules.allowedRegistrableDomains.isEmpty)
+        XCTAssertFalse(rules.privateSuffixes.isEmpty)
+    }
+
     func testProjectionDecodesAccountScopedBindingsHistoryAndRecentMetadata() throws {
         let projection = try JSONDecoder().decode(AutoFillProjection.self, from: Data("""
         {

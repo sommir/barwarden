@@ -17,6 +17,7 @@ import {
   AUTOFILL_CANDIDATE_HOST,
   type AutoFillCandidateHost,
 } from "./autofill-candidate.service";
+import { AutoFillBindingsService } from "./autofill-bindings.service";
 import {
   AUTOFILL_NATIVE_HOST,
   type AutoFillNativeHost,
@@ -237,7 +238,8 @@ describe("AutoFillPickerComponent", () => {
 
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain("未检测到可填入的输入框");
-    expect(text).toContain("返回目标应用并聚焦输入框后，按 ⌥B 再试一次");
+    expect(text).toContain("返回目标应用并聚焦输入框后，再按已设置的自动填充快捷键");
+    expect(text).not.toContain("⌥B");
     expect(text).not.toContain("Target app unavailable");
     const back = fixture.nativeElement.querySelector(
       '[data-testid="autofill-back-vault"]',
@@ -259,6 +261,22 @@ describe("AutoFillPickerComponent", () => {
 
     expect(fixture.nativeElement.textContent).toContain("系统设置 > 通用 > 登录项");
     expect(fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]')).not.toBeNull();
+    expect(nativeHost.entryContext).not.toHaveBeenCalled();
+    expect(nativeHost.agentSession).not.toHaveBeenCalled();
+    expect(candidateHost.queryCandidates).not.toHaveBeenCalled();
+  });
+
+  it("shows focused-field permission guidance instead of silently hiding app AutoFill", async () => {
+    TestBed.overrideProvider(AutoFillSetupService, {
+      useValue: { blockReason: () => "requiresAccessibility" },
+    });
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("repair"));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain("辅助功能");
     expect(nativeHost.entryContext).not.toHaveBeenCalled();
     expect(nativeHost.agentSession).not.toHaveBeenCalled();
     expect(candidateHost.queryCandidates).not.toHaveBeenCalled();
@@ -314,39 +332,38 @@ describe("AutoFillPickerComponent", () => {
     expect(candidateHost.queryCandidates).not.toHaveBeenCalled();
   });
 
-  it("awaits Turn Off AutoFill from the normal picker and shows a fixed success state", async () => {
-    let finishDisable: (() => void) | undefined;
-    const disable = vi.fn(() => new Promise<void>((resolve) => { finishDisable = resolve; }));
+  it("closes the normal picker without disabling AutoFill", async () => {
+    const disable = vi.fn(async () => undefined);
     TestBed.overrideProvider(AutoFillSetupService, {
       useValue: { blockReason: () => "ready", enableFromEntry: vi.fn(), disable },
     });
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
     const fixture = TestBed.createComponent(AutoFillPickerComponent);
     fixture.detectChanges();
     await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
     fixture.detectChanges();
 
-    (fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain("正在关闭自动填充");
+    const close = fixture.nativeElement.querySelector('[data-testid="autofill-close"]') as HTMLButtonElement;
+    expect(close).not.toBeNull();
+    expect(close.getAttribute("aria-label")).toBe("关闭");
+    close.click();
 
-    finishDisable?.();
-    await vi.waitFor(() => expect(fixture.nativeElement.textContent).toContain("自动填充已关闭。"));
-    expect(disable).toHaveBeenCalledOnce();
-    expect(fixture.componentInstance.mode).toBe("repair");
-    expect(fixture.nativeElement.querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(navigate).toHaveBeenCalledWith("/tabs/vault", { replaceUrl: true });
+    expect(disable).not.toHaveBeenCalled();
   });
 
   it("shows a fixed Turn Off failure without native error details", async () => {
     TestBed.overrideProvider(AutoFillSetupService, {
       useValue: {
-        blockReason: () => "ready",
+        blockReason: () => "requiresApproval",
         enableFromEntry: vi.fn(),
         disable: vi.fn(async () => { throw new Error("private native detail"); }),
       },
     });
     const fixture = TestBed.createComponent(AutoFillPickerComponent);
     fixture.detectChanges();
-    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("repair"));
     fixture.detectChanges();
 
     (fixture.nativeElement.querySelector('[data-testid="autofill-turn-off"]') as HTMLButtonElement).click();
@@ -465,6 +482,24 @@ describe("AutoFillPickerComponent", () => {
     expect(nativeHost.pasteText).toHaveBeenCalledOnce();
     expect(nativeHost.pasteText).toHaveBeenCalledWith("one-secret", 30);
     expect(nativeHost.copyText).not.toHaveBeenCalled();
+  });
+
+  it("binds an explicitly filled account to the target app after delivery succeeds", async () => {
+    const bindings = TestBed.inject(AutoFillBindingsService);
+    const fixture = TestBed.createComponent(AutoFillPickerComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.mode).toBe("ready"));
+    fixture.componentInstance.selectIndex(0);
+
+    await fixture.componentInstance.perform("fill", "password");
+
+    expect(bindings.bindingFor("account-a", "com.example.App")).toBe(demoVaultItems[0].id);
+    expect(bindings.snapshot("account-a").history).toEqual([
+      expect.objectContaining({
+        cipherId: demoVaultItems[0].id,
+        successfulSelectionCount: 1,
+      }),
+    ]);
   });
 
   it("supersedes a delayed field query when selection changes before secret release", async () => {

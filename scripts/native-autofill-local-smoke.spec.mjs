@@ -26,6 +26,15 @@ test("local builder is rejected without the explicit local-smoke-only gate", () 
   assert.equal(result.stderr.trim(), "NATIVE_AUTOFILL_LOCAL_SMOKE_MODE_REQUIRED");
 });
 
+test("local and release builders package the Agent matching catalogs beside the raw helper", () => {
+  for (const path of [builder, join(root, "scripts/build-native-autofill-release.sh")]) {
+    const source = readFileSync(path, "utf8");
+    assert.match(source, /Contents\/Resources\/BarwardenAutoFill/u, basename(path));
+    assert.match(source, /Agent\/AppPresets\.json/u, basename(path));
+    assert.match(source, /Agent\/DomainMatchRules\.json/u, basename(path));
+  }
+});
+
 test("local builder preflight accepts only explicit external references and warns on a missing Provider profile", () => {
   const directory = mkdtempSync("/private/tmp/barwarden-local-smoke-preflight-");
   try {

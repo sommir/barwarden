@@ -241,6 +241,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     let wasUnlocked = this.store.snapshot().isUnlocked;
     this.lockRouteSubscription = this.store.state$.subscribe((state) => {
+      const becameUnlocked = !wasUnlocked && state.isUnlocked;
       const shouldNavigateToUnlock =
         wasUnlocked &&
         !state.isUnlocked &&
@@ -248,6 +249,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         !this.evidenceMode &&
         this.router.url !== "/lock";
       wasUnlocked = state.isUnlocked;
+      if (becameUnlocked) {
+        const recoverAutoFill = this.autoFillSetup?.recoverAtStartup;
+        if (typeof recoverAutoFill === "function") {
+          void recoverAutoFill.call(this.autoFillSetup).catch(() => undefined);
+        }
+      }
       if (shouldNavigateToUnlock) {
         void this.router.navigateByUrl("/lock", { replaceUrl: true });
       }
