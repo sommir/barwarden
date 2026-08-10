@@ -414,7 +414,11 @@ fn has_any_score(scores: &[u16; KIND_COUNT]) -> bool {
 }
 
 fn within_evidence_limit(text: &str) -> bool {
-    text.chars().count() <= MAX_EVIDENCE_SCALARS
+    has_at_most_evidence_scalars(text.chars())
+}
+
+fn has_at_most_evidence_scalars(scalars: impl Iterator<Item = char>) -> bool {
+    scalars.take(MAX_EVIDENCE_SCALARS + 1).count() <= MAX_EVIDENCE_SCALARS
 }
 
 fn normalize(text: &str) -> String {
@@ -550,11 +554,13 @@ fn kind_for_index(index: usize) -> DetectedFieldKind {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_fields, detect_action, DetectedAction, DetectedFieldKind, FieldConfidence,
-        SemanticFieldObservation,
+        classify_fields, detect_action, has_at_most_evidence_scalars, DetectedAction,
+        DetectedFieldKind, FieldConfidence, SemanticFieldObservation, MAX_EVIDENCE_SCALARS,
     };
     use crate::accessibility_focus::AxFrame;
     use crate::autofill_contract::AutoFillSecretField;
+    use std::cell::Cell;
+    use std::rc::Rc;
 
     #[derive(Clone)]
     struct FieldFixture(SemanticFieldObservation);
@@ -1008,5 +1014,35 @@ mod tests {
             (detected[1].kind, detected[1].score),
             (DetectedFieldKind::Unknown, 0)
         );
+    }
+
+    #[test]
+    fn scalar_limit_stops_after_the_first_scalar_beyond_the_cap() {
+        let consumed = Rc::new(Cell::new(0));
+        let iterator = CountingScalars {
+            remaining: MAX_EVIDENCE_SCALARS + 100,
+            consumed: consumed.clone(),
+        };
+
+        assert!(!has_at_most_evidence_scalars(iterator));
+        assert_eq!(consumed.get(), MAX_EVIDENCE_SCALARS + 1);
+    }
+
+    struct CountingScalars {
+        remaining: usize,
+        consumed: Rc<Cell<usize>>,
+    }
+
+    impl Iterator for CountingScalars {
+        type Item = char;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.remaining == 0 {
+                return None;
+            }
+            self.remaining -= 1;
+            self.consumed.set(self.consumed.get() + 1);
+            Some('界')
+        }
     }
 }
