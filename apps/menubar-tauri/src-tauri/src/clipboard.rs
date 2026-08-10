@@ -56,7 +56,7 @@ impl ClipboardGeneration {
         generation != u64::MAX && self.current.load(Ordering::Acquire) == generation
     }
 
-    fn lock_operation(&self) -> Result<MutexGuard<'_, ()>, String> {
+    pub(crate) fn lock_operation(&self) -> Result<MutexGuard<'_, ()>, String> {
         #[cfg(test)]
         match self.operation_lock.try_lock() {
             Ok(operation) => return Ok(operation),

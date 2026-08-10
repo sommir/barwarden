@@ -25,6 +25,19 @@ pub enum BeginRepromptOutcome {
     Unavailable,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BatchBeginRequest {
+    scopes: Vec<AutoFillRepromptScope>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BatchCancelRequest {
+    scopes: Vec<AutoFillRepromptScope>,
+    receipt: String,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ReceiptStatus {
     Pending,
@@ -38,6 +51,25 @@ struct ReceiptRecord {
     verify_url: String,
     expires_at: Instant,
     status: ReceiptStatus,
+}
+
+pub(crate) struct ReservedRepromptReceipt {
+    record: ReceiptRecord,
+    reserved_at: Instant,
+}
+
+impl ReservedRepromptReceipt {
+    pub(crate) fn consume_verified_batch(self, scopes: &[AutoFillRepromptScope]) -> bool {
+        canonicalize_scopes(scopes.to_vec()).is_ok_and(|scopes| {
+            self.record.expires_at > self.reserved_at
+                && self.record.status == ReceiptStatus::Verified
+                && self.record.scopes == scopes
+        })
+    }
+
+    fn cancel_batch(self, scopes: &[AutoFillRepromptScope]) -> bool {
+        canonicalize_scopes(scopes.to_vec()).is_ok_and(|scopes| self.record.scopes == scopes)
+    }
 }
 
 type Clock = Arc<dyn Fn() -> Instant + Send + Sync>;
@@ -206,6 +238,15 @@ impl AutoFillRepromptReceiptStore {
             .unwrap_or(false)
     }
 
+    pub(crate) fn reserve_identified(&self, receipt: &str) -> Option<ReservedRepromptReceipt> {
+        let reserved_at = (self.clock)();
+        let record = self.records.lock().ok()?.remove(receipt)?;
+        Some(ReservedRepromptReceipt {
+            record,
+            reserved_at,
+        })
+    }
+
     pub fn clear(&self) {
         if let Ok(mut records) = self.records.lock() {
             records.clear();
@@ -326,9 +367,71 @@ pub fn autofill_begin_batch_reprompt(
     window: tauri::WebviewWindow,
     broker: tauri::State<'_, SessionBroker>,
     receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
-    scopes: Vec<AutoFillRepromptScope>,
+    request: serde_json::Value,
 ) -> BeginRepromptOutcome {
-    begin_batch_reprompt_for_window(window.label(), &broker, &receipts, scopes)
+    begin_batch_reprompt_raw_for_window(window.label(), &broker, &receipts, request)
+}
+
+fn batch_raw_envelope_within_limits(raw: &serde_json::Value) -> bool {
+    fn visit(
+        value: &serde_json::Value,
+        depth: usize,
+        nodes: &mut usize,
+        string_bytes: &mut usize,
+    ) -> bool {
+        *nodes = nodes.saturating_add(1);
+        if depth > 6 || *nodes > 96 {
+            return false;
+        }
+        match value {
+            serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {
+                true
+            }
+            serde_json::Value::String(value) => {
+                *string_bytes = string_bytes.saturating_add(value.len());
+                value.len() <= 16_384 && *string_bytes <= 32 * 1024
+            }
+            serde_json::Value::Array(values) => {
+                values.len() <= 4
+                    && values
+                        .iter()
+                        .all(|value| visit(value, depth + 1, nodes, string_bytes))
+            }
+            serde_json::Value::Object(values) => {
+                values.len() <= 8
+                    && values.iter().all(|(key, value)| {
+                        key.len() <= 64 && visit(value, depth + 1, nodes, string_bytes)
+                    })
+            }
+        }
+    }
+
+    let mut nodes = 0;
+    let mut string_bytes = 0;
+    raw.is_object() && visit(raw, 0, &mut nodes, &mut string_bytes)
+}
+
+fn bounded_raw_receipt(raw: &serde_json::Value) -> Option<String> {
+    raw.as_object()?
+        .get("receipt")?
+        .as_str()
+        .filter(|receipt| !receipt.trim().is_empty() && receipt.len() <= 512)
+        .map(str::to_owned)
+}
+
+fn begin_batch_reprompt_raw_for_window(
+    window_label: &str,
+    broker: &SessionBroker,
+    receipts: &AutoFillRepromptReceiptStore,
+    raw: serde_json::Value,
+) -> BeginRepromptOutcome {
+    if !is_main_picker_window(window_label) || !batch_raw_envelope_within_limits(&raw) {
+        return BeginRepromptOutcome::Unavailable;
+    }
+    let Ok(request) = serde_json::from_value::<BatchBeginRequest>(raw) else {
+        return BeginRepromptOutcome::Unavailable;
+    };
+    begin_batch_reprompt_for_window(window_label, broker, receipts, request.scopes)
 }
 
 fn begin_batch_reprompt_for_window(
@@ -365,12 +468,36 @@ pub fn autofill_cancel_reprompt(
 pub fn autofill_cancel_batch_reprompt(
     window: tauri::WebviewWindow,
     receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
-    scopes: Vec<AutoFillRepromptScope>,
-    receipt: String,
+    request: serde_json::Value,
 ) -> Result<(), &'static str> {
-    cancel_batch_reprompt_for_window(window.label(), &receipts, scopes, receipt)
+    cancel_batch_reprompt_raw_for_window(window.label(), &receipts, request)
 }
 
+fn cancel_batch_reprompt_raw_for_window(
+    window_label: &str,
+    receipts: &AutoFillRepromptReceiptStore,
+    raw: serde_json::Value,
+) -> Result<(), &'static str> {
+    let receipt = bounded_raw_receipt(&raw);
+    let reserved = receipt
+        .as_deref()
+        .and_then(|receipt| receipts.reserve_identified(receipt));
+    if !is_main_picker_window(window_label) || !batch_raw_envelope_within_limits(&raw) {
+        return Err("unavailable");
+    }
+    let request = match serde_json::from_value::<BatchCancelRequest>(raw) {
+        Ok(request) => request,
+        Err(_) => return Err("unavailable"),
+    };
+    if receipt.as_deref() != Some(request.receipt.as_str())
+        || reserved.is_none_or(|reserved| !reserved.cancel_batch(&request.scopes))
+    {
+        return Err("unavailable");
+    }
+    Ok(())
+}
+
+#[allow(dead_code)] // Strict typed compatibility/test seam behind the raw Tauri boundary.
 fn cancel_batch_reprompt_for_window(
     window_label: &str,
     receipts: &AutoFillRepromptReceiptStore,
@@ -779,5 +906,120 @@ mod tests {
         )
         .is_err());
         assert!(cancel_batch_reprompt_for_window("main", &receipts, scopes, receipt,).is_err());
+    }
+
+    #[test]
+    fn raw_batch_cancel_boundary_burns_receipt_before_strict_decode_failure() {
+        let scopes = vec![scope(AutoFillSecretField::Password)];
+        for mutation in [
+            "unknown-root",
+            "unknown-nested",
+            "invalid-enum",
+            "oversized",
+            "wrong-window",
+        ] {
+            let receipts = AutoFillRepromptReceiptStore::default();
+            let receipt = receipts
+                .begin_batch(
+                    scopes.clone(),
+                    "https://api.example/accounts/verify-password".to_owned(),
+                )
+                .unwrap();
+            let mut raw = serde_json::json!({
+                "scopes": scopes,
+                "receipt": receipt,
+            });
+            match mutation {
+                "unknown-root" => raw["secret"] = "x".into(),
+                "unknown-nested" => raw["scopes"][0]["secret"] = "x".into(),
+                "invalid-enum" => raw["scopes"][0]["field"] = "card".into(),
+                "oversized" => raw["scopes"][0]["candidateId"] = "x".repeat(70_000).into(),
+                "wrong-window" => {}
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                cancel_batch_reprompt_raw_for_window(
+                    if mutation == "wrong-window" {
+                        "main-copy"
+                    } else {
+                        "main"
+                    },
+                    &receipts,
+                    raw,
+                ),
+                Err("unavailable")
+            );
+            assert!(!receipts.cancel_batch(&receipt, &scopes));
+        }
+    }
+
+    #[test]
+    fn raw_batch_begin_boundary_gates_main_then_strictly_decodes_bounded_scopes() {
+        let broker = SessionBroker::new("process-a");
+        broker.attach("main").unwrap();
+        broker
+            .mutate(
+                "main",
+                SessionBrokerMutation::Unlocked {
+                    active_account_id: "account-a".to_owned(),
+                    shared_snapshot: None,
+                },
+            )
+            .unwrap();
+        broker
+            .set_session_handoff(
+                "main",
+                json!({
+                    "environment": { "apiUrl": "https://vault.example/api/" },
+                    "token": {
+                        "accessToken": "token",
+                        "refreshToken": "refresh",
+                        "tokenType": "Bearer",
+                        "expiresIn": 3600
+                    }
+                }),
+            )
+            .unwrap();
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let valid = json!({ "scopes": [scope(AutoFillSecretField::Password)] });
+        assert!(matches!(
+            begin_batch_reprompt_raw_for_window("main", &broker, &receipts, valid.clone()),
+            BeginRepromptOutcome::Pending { .. }
+        ));
+        assert_eq!(
+            begin_batch_reprompt_raw_for_window("main-copy", &broker, &receipts, valid),
+            BeginRepromptOutcome::Unavailable
+        );
+
+        for raw in [
+            json!({ "scopes": [scope(AutoFillSecretField::Password)], "unknown": true }),
+            json!({ "scopes": [{
+                "accountId": "account-a",
+                "candidateId": "cipher-a",
+                "field": "password",
+                "generation": "00000000-0000-4000-8000-000000000004",
+                "contextToken": "context-a",
+                "unknown": true
+            }] }),
+            json!({ "scopes": [{
+                "accountId": "account-a",
+                "candidateId": "cipher-a",
+                "field": "card",
+                "generation": "00000000-0000-4000-8000-000000000004",
+                "contextToken": "context-a"
+            }] }),
+            json!({ "scopes": [{
+                "accountId": "account-a",
+                "candidateId": "x".repeat(70_000),
+                "field": "password",
+                "generation": "00000000-0000-4000-8000-000000000004",
+                "contextToken": "context-a"
+            }] }),
+        ] {
+            assert_eq!(
+                begin_batch_reprompt_raw_for_window("main", &broker, &receipts, raw),
+                BeginRepromptOutcome::Unavailable
+            );
+        }
     }
 }

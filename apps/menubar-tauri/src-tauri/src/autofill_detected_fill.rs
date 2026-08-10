@@ -2,7 +2,6 @@ use crate::autofill_ax_context::{
     CapturedFieldFingerprint, CapturedFillPlan, DetectedFillContextStore,
 };
 use crate::autofill_contract::{AgentErrorCode, AutoFillSecretField};
-use crate::autofill_field_context::DetectedAction;
 use crate::autofill_reprompt::{
     is_main_picker_window, AutoFillRepromptReceiptStore, AutoFillRepromptScope,
 };
@@ -132,7 +131,9 @@ pub(crate) trait ExactAxFillPort {
     ) -> Result<(), ExactAxFillError>;
 }
 
-struct NativeExactAxFillPort;
+struct NativeExactAxFillPort {
+    clipboard_generation: crate::clipboard::ClipboardGeneration,
+}
 
 impl ExactAxFillPort for NativeExactAxFillPort {
     fn set_value_exact(
@@ -152,7 +153,12 @@ impl ExactAxFillPort for NativeExactAxFillPort {
         _field: AutoFillSecretField,
         value: &str,
     ) -> Result<(), ExactAxFillError> {
-        crate::autofill_ax_context::focus_and_paste_exact(plan, fingerprint, value)
+        crate::autofill_ax_context::focus_and_paste_exact(
+            plan,
+            fingerprint,
+            value,
+            &self.clipboard_generation,
+        )
     }
 }
 
@@ -200,25 +206,159 @@ fn canonical_authorizations(
     Ok(authorizations)
 }
 
-fn fingerprint_for_field<'a>(
-    plan: &'a CapturedFillPlan,
-    field: AutoFillSecretField,
-) -> Option<&'a CapturedFieldFingerprint> {
-    plan.fields
-        .iter()
-        .find(|fingerprint| fingerprint.secret_field == Some(field))
-        .or_else(|| match plan.action {
-            DetectedAction::Choose if plan.requested.len() == 1 => {
-                plan.fields.iter().find(|fingerprint| fingerprint.focused)
-            }
-            _ => None,
-        })
-}
-
 fn error(code: &'static str) -> DetectedFillOutcome {
     DetectedFillOutcome::Error { code }
 }
 
+fn bounded_root_string<'a>(raw: &'a serde_json::Value, key: &str) -> Option<&'a str> {
+    raw.as_object()?
+        .get(key)?
+        .as_str()
+        .filter(|value| !value.trim().is_empty() && value.len() <= 512)
+}
+
+fn raw_fill_envelope_within_limits(raw: &serde_json::Value) -> bool {
+    fn visit(
+        value: &serde_json::Value,
+        depth: usize,
+        nodes: &mut usize,
+        string_bytes: &mut usize,
+    ) -> bool {
+        *nodes = nodes.saturating_add(1);
+        if depth > 8 || *nodes > 128 {
+            return false;
+        }
+        match value {
+            serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {
+                true
+            }
+            serde_json::Value::String(value) => {
+                *string_bytes = string_bytes.saturating_add(value.len());
+                value.len() <= MAXIMUM_SECRET_BYTES && *string_bytes <= 64 * 1024
+            }
+            serde_json::Value::Array(values) => {
+                values.len() <= 8
+                    && values
+                        .iter()
+                        .all(|value| visit(value, depth + 1, nodes, string_bytes))
+            }
+            serde_json::Value::Object(values) => {
+                values.len() <= 16
+                    && values.iter().all(|(key, value)| {
+                        key.len() <= 64 && visit(value, depth + 1, nodes, string_bytes)
+                    })
+            }
+        }
+    }
+
+    let mut nodes = 0;
+    let mut string_bytes = 0;
+    raw.is_object() && visit(raw, 0, &mut nodes, &mut string_bytes)
+}
+
+fn burn_raw_fill_credentials(
+    contexts: &DetectedFillContextStore,
+    receipts: &AutoFillRepromptReceiptStore,
+    context_token: Option<&str>,
+    receipt: Option<&str>,
+) {
+    if let Some(context_token) = context_token {
+        let _ = contexts.reserve_identified(context_token);
+    }
+    if let Some(receipt) = receipt {
+        let _ = receipts.reserve_identified(receipt);
+    }
+}
+
+pub(crate) fn perform_detected_fill_raw_with<Release, Port>(
+    window_label: &str,
+    contexts: &DetectedFillContextStore,
+    receipts: &AutoFillRepromptReceiptStore,
+    raw: serde_json::Value,
+    release_secret: &mut Release,
+    port: &mut Port,
+) -> DetectedFillOutcome
+where
+    Release: FnMut(AutoFillRepromptScope, bool, bool) -> Result<CollectedSecret, AgentErrorCode>,
+    Port: ExactAxFillPort,
+{
+    let context_token = bounded_root_string(&raw, "fillContextToken").map(str::to_owned);
+    let receipt = bounded_root_string(&raw, "repromptReceipt").map(str::to_owned);
+    if !is_main_picker_window(window_label) {
+        burn_raw_fill_credentials(
+            contexts,
+            receipts,
+            context_token.as_deref(),
+            receipt.as_deref(),
+        );
+        return error("unauthorized");
+    }
+    let reserved_context = context_token
+        .as_deref()
+        .and_then(|token| contexts.reserve_identified(token).ok());
+    let reserved_receipt = receipt
+        .as_deref()
+        .and_then(|receipt| receipts.reserve_identified(receipt));
+    if !raw_fill_envelope_within_limits(&raw) {
+        return error("invalid-request");
+    }
+    let request = match serde_json::from_value::<DetectedFillRequest>(raw) {
+        Ok(request) => request,
+        Err(_) => return error("invalid-request"),
+    };
+    let DetectedFillRequest {
+        fill_context_token,
+        authorizations,
+        reprompt_receipt,
+    } = request;
+    if context_token.as_deref() != Some(fill_context_token.as_str())
+        || receipt.as_deref() != reprompt_receipt.as_deref()
+        || fill_context_token.trim().is_empty()
+        || fill_context_token.len() > 512
+        || reprompt_receipt
+            .as_ref()
+            .is_some_and(|receipt| receipt.trim().is_empty() || receipt.len() > 512)
+    {
+        return error("invalid-request");
+    }
+    let mut requested = authorizations
+        .iter()
+        .map(|authorization| authorization.scope.field)
+        .collect::<Vec<_>>();
+    requested.sort_unstable();
+    let plan = match reserved_context
+        .and_then(|reserved| contexts.validate_reserved(reserved, &requested).ok())
+    {
+        Some(plan) => plan,
+        None => return error("stale-context"),
+    };
+    let authorizations = match canonical_authorizations(authorizations) {
+        Ok(authorizations) => authorizations,
+        Err(()) => return error("invalid-request"),
+    };
+    let scopes = authorizations
+        .iter()
+        .map(|authorization| authorization.scope.clone())
+        .collect::<Vec<_>>();
+    let reprompt_verified = match reprompt_receipt {
+        Some(_)
+            if reserved_receipt.is_some_and(|receipt| receipt.consume_verified_batch(&scopes)) =>
+        {
+            true
+        }
+        Some(_) => return error("reprompt-failed"),
+        None => false,
+    };
+    execute_taken_fill(
+        plan,
+        authorizations,
+        reprompt_verified,
+        release_secret,
+        port,
+    )
+}
+
+#[allow(dead_code)] // Typed test seam; the Tauri boundary intentionally accepts bounded raw JSON.
 pub(crate) fn perform_detected_fill_with<Release, Port>(
     window_label: &str,
     contexts: &DetectedFillContextStore,
@@ -288,6 +428,26 @@ where
         None => false,
     };
 
+    execute_taken_fill(
+        plan,
+        authorizations,
+        reprompt_verified,
+        release_secret,
+        port,
+    )
+}
+
+fn execute_taken_fill<Release, Port>(
+    plan: CapturedFillPlan,
+    authorizations: Vec<DetectedFillAuthorization>,
+    reprompt_verified: bool,
+    release_secret: &mut Release,
+    port: &mut Port,
+) -> DetectedFillOutcome
+where
+    Release: FnMut(AutoFillRepromptScope, bool, bool) -> Result<CollectedSecret, AgentErrorCode>,
+    Port: ExactAxFillPort,
+{
     let mut secrets = Vec::with_capacity(authorizations.len());
     for authorization in authorizations {
         let expected_field = authorization.scope.field;
@@ -308,7 +468,7 @@ where
 
     let mut filled = Vec::with_capacity(secrets.len());
     for secret in &secrets {
-        let Some(fingerprint) = fingerprint_for_field(&plan, secret.field) else {
+        let Some(fingerprint) = plan.fingerprint_for_field(secret.field) else {
             return DetectedFillOutcome::Partial {
                 filled,
                 failed: secret.field,
@@ -340,12 +500,16 @@ pub fn autofill_fill_detected(
     window: tauri::WebviewWindow,
     contexts: tauri::State<'_, DetectedFillContextStore>,
     receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
-    request: DetectedFillRequest,
+    clipboard_generation: tauri::State<'_, crate::clipboard::ClipboardGeneration>,
+    request: serde_json::Value,
 ) -> DetectedFillOutcome {
-    let client = crate::autofill_ipc::AgentClient::system_default();
+    let mut client = None;
     let mut release =
         |scope: AutoFillRepromptScope, mismatch_confirmed: bool, reprompt_verified: bool| {
-            let client = client.as_ref().map_err(|code| *code)?;
+            let client = client
+                .get_or_insert_with(crate::autofill_ipc::AgentClient::system_default)
+                .as_ref()
+                .map_err(|code| *code)?;
             crate::autofill_ipc::perform_secret_with_verified_scope(
                 client,
                 scope,
@@ -354,13 +518,15 @@ pub fn autofill_fill_detected(
             )
             .map(|(field, value)| CollectedSecret::new(field, value))
         };
-    perform_detected_fill_with(
+    perform_detected_fill_raw_with(
         window.label(),
         &contexts,
         &receipts,
         request,
         &mut release,
-        &mut NativeExactAxFillPort,
+        &mut NativeExactAxFillPort {
+            clipboard_generation: clipboard_generation.inner().clone(),
+        },
     )
 }
 
@@ -369,7 +535,7 @@ mod tests {
     use super::*;
     use crate::accessibility_focus::AxFrame;
     use crate::autofill_ax_context::{
-        CapturedFieldFingerprint, DetectedFillContextStore, ObserverGeneration,
+        CapturedFieldFingerprint, DetectedFillContextStore, ObserverGeneration, OpaqueAxIdentity,
     };
     use crate::autofill_contract::{AgentErrorCode, AutoFillSecretField};
     use crate::autofill_field_context::{DetectedAction, DetectedFieldKind, FieldConfidence};
@@ -394,6 +560,8 @@ mod tests {
 
     struct RecordingAxPort {
         actions: Vec<TestAction>,
+        targeted_focused: Vec<bool>,
+        targeted_x: Vec<f64>,
         unsupported: Option<AutoFillSecretField>,
         failures: Vec<(AutoFillSecretField, ExactAxFillError)>,
         events: Option<Arc<Mutex<Vec<(bool, AutoFillSecretField)>>>>,
@@ -403,6 +571,8 @@ mod tests {
         fn default() -> Self {
             Self {
                 actions: Vec::new(),
+                targeted_focused: Vec::new(),
+                targeted_x: Vec::new(),
                 unsupported: None,
                 failures: Vec::new(),
                 events: None,
@@ -414,7 +584,7 @@ mod tests {
         fn set_value_exact(
             &mut self,
             _plan: &crate::autofill_ax_context::CapturedFillPlan,
-            _fingerprint: &CapturedFieldFingerprint,
+            fingerprint: &CapturedFieldFingerprint,
             field: AutoFillSecretField,
             _value: &str,
         ) -> Result<ExactSetValueOutcome, ExactAxFillError> {
@@ -431,6 +601,8 @@ mod tests {
             if let Some(events) = &self.events {
                 events.lock().unwrap().push((true, field));
             }
+            self.targeted_focused.push(fingerprint.focused);
+            self.targeted_x.push(fingerprint.frame.x);
             self.actions.push(TestAction::SetValue(field));
             Ok(ExactSetValueOutcome::Written)
         }
@@ -438,7 +610,7 @@ mod tests {
         fn focus_and_paste_exact(
             &mut self,
             _plan: &crate::autofill_ax_context::CapturedFillPlan,
-            _fingerprint: &CapturedFieldFingerprint,
+            fingerprint: &CapturedFieldFingerprint,
             field: AutoFillSecretField,
             _value: &str,
         ) -> Result<(), ExactAxFillError> {
@@ -452,6 +624,8 @@ mod tests {
             if let Some(events) = &self.events {
                 events.lock().unwrap().push((true, field));
             }
+            self.targeted_focused.push(fingerprint.focused);
+            self.targeted_x.push(fingerprint.frame.x);
             self.actions.push(TestAction::FocusAndPaste(field));
             Ok(())
         }
@@ -477,6 +651,10 @@ mod tests {
                 width: 800.0,
                 height: 600.0,
             },
+            container_path: vec![1],
+            traversal_path: vec![1, field as u8 as u16 + 1],
+            window_identity: OpaqueAxIdentity::for_test(1),
+            element_identity: OpaqueAxIdentity::for_test(10 + field as u8 as u64),
             kind: match field {
                 AutoFillSecretField::Username => DetectedFieldKind::Username,
                 AutoFillSecretField::Password => DetectedFieldKind::Password,
@@ -504,6 +682,23 @@ mod tests {
             scope: scope(field),
             mismatch_confirmed: false,
         }
+    }
+
+    fn raw_request(request: &DetectedFillRequest) -> serde_json::Value {
+        serde_json::json!({
+            "fillContextToken": request.fill_context_token,
+            "authorizations": request.authorizations.iter().map(|authorization| serde_json::json!({
+                "scope": {
+                    "accountId": authorization.scope.account_id,
+                    "candidateId": authorization.scope.candidate_id,
+                    "field": authorization.scope.field,
+                    "generation": authorization.scope.generation,
+                    "contextToken": authorization.scope.context_token,
+                },
+                "mismatchConfirmed": authorization.mismatch_confirmed,
+            })).collect::<Vec<_>>(),
+            "repromptReceipt": request.reprompt_receipt,
+        })
     }
 
     fn fixture(
@@ -604,6 +799,139 @@ mod tests {
             action,
             TestAction::PressReturn | TestAction::PressTab | TestAction::PressButton
         )));
+    }
+
+    #[test]
+    fn choose_binds_the_one_requested_field_to_the_unique_focused_element_even_if_unknown() {
+        let generation = ObserverGeneration::new(7);
+        let contexts = DetectedFillContextStore::for_test_with_generation(
+            generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let mut semantic_username = fingerprint(AutoFillSecretField::Username, false);
+        semantic_username.frame.x = 10.0;
+        let mut focused_unknown = fingerprint(AutoFillSecretField::Password, true);
+        focused_unknown.frame.x = 90.0;
+        focused_unknown.kind = DetectedFieldKind::Unknown;
+        focused_unknown.secret_field = None;
+        let presentation = contexts
+            .try_insert(
+                test_frontmost_app("com.example.Login", 42, 7),
+                vec![semantic_username, focused_unknown],
+                DetectedAction::Choose,
+            )
+            .unwrap();
+        let request = DetectedFillRequest {
+            fill_context_token: presentation.fill_context_token,
+            authorizations: vec![authorization(AutoFillSecretField::Username)],
+            reprompt_receipt: None,
+        };
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let mut release =
+            |scope: AutoFillRepromptScope, _: bool, _: bool| Ok(released(scope.field));
+        let mut port = RecordingAxPort::default();
+
+        assert_eq!(
+            perform_detected_fill_with(
+                "main",
+                &contexts,
+                &receipts,
+                request,
+                &mut release,
+                &mut port,
+            ),
+            DetectedFillOutcome::Success {
+                fields: vec![AutoFillSecretField::Username]
+            }
+        );
+        assert_eq!(port.targeted_focused, vec![true]);
+    }
+
+    #[test]
+    fn form_binds_only_fields_from_the_unique_action_selected_container() {
+        let generation = ObserverGeneration::new(7);
+        let contexts = DetectedFillContextStore::for_test_with_generation(
+            generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let mut unrelated_username = fingerprint(AutoFillSecretField::Username, false);
+        unrelated_username.frame.x = 10.0;
+        unrelated_username.container_path = vec![1];
+        let mut selected_username = fingerprint(AutoFillSecretField::Username, false);
+        selected_username.frame.x = 50.0;
+        selected_username.container_path = vec![2];
+        selected_username.traversal_path = vec![2, 1];
+        selected_username.element_identity = OpaqueAxIdentity::for_test(21);
+        let mut selected_password = fingerprint(AutoFillSecretField::Password, true);
+        selected_password.frame.x = 60.0;
+        selected_password.container_path = vec![2];
+        selected_password.traversal_path = vec![2, 2];
+        let presentation = contexts
+            .try_insert(
+                test_frontmost_app("com.example.Login", 42, 7),
+                vec![unrelated_username, selected_username, selected_password],
+                DetectedAction::Form {
+                    fields: vec![AutoFillSecretField::Username, AutoFillSecretField::Password],
+                },
+            )
+            .unwrap();
+        let request = DetectedFillRequest {
+            fill_context_token: presentation.fill_context_token,
+            authorizations: vec![
+                authorization(AutoFillSecretField::Username),
+                authorization(AutoFillSecretField::Password),
+            ],
+            reprompt_receipt: None,
+        };
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let mut release =
+            |scope: AutoFillRepromptScope, _: bool, _: bool| Ok(released(scope.field));
+        let mut port = RecordingAxPort::default();
+
+        assert!(matches!(
+            perform_detected_fill_with(
+                "main",
+                &contexts,
+                &receipts,
+                request,
+                &mut release,
+                &mut port,
+            ),
+            DetectedFillOutcome::Success { .. }
+        ));
+        assert_eq!(port.targeted_x, vec![50.0, 60.0]);
+    }
+
+    #[test]
+    fn form_rejects_duplicate_or_ambiguous_container_bindings_before_secret_release() {
+        let generation = ObserverGeneration::new(7);
+        let contexts = DetectedFillContextStore::for_test_with_generation(
+            generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let mut username_one = fingerprint(AutoFillSecretField::Username, false);
+        username_one.element_identity = OpaqueAxIdentity::for_test(40);
+        let mut username_two = username_one.clone();
+        username_two.element_identity = OpaqueAxIdentity::for_test(41);
+        username_two.traversal_path = vec![1, 8];
+        let mut password = fingerprint(AutoFillSecretField::Password, true);
+        password.element_identity = OpaqueAxIdentity::for_test(42);
+
+        assert_eq!(
+            contexts
+                .try_insert(
+                    test_frontmost_app("com.example.Login", 42, 7),
+                    vec![username_one, username_two, password],
+                    DetectedAction::Form {
+                        fields: vec![AutoFillSecretField::Username, AutoFillSecretField::Password,],
+                    },
+                )
+                .unwrap_err(),
+            crate::autofill_ax_context::DetectedFillError::StaleField
+        );
     }
 
     #[test]
@@ -965,6 +1293,133 @@ mod tests {
         assert_eq!(
             serialized,
             r#"{"status":"partial","filled":["username"],"failed":"password","code":"fill-failed"}"#
+        );
+    }
+
+    #[test]
+    fn raw_fill_boundary_burns_identifiable_context_before_strict_decode_failure() {
+        for mutation in [
+            "unknown-root",
+            "unknown-nested",
+            "invalid-enum",
+            "oversized",
+        ] {
+            let (contexts, request) = fixture(&[AutoFillSecretField::Password]);
+            let token = request.fill_context_token.clone();
+            let mut raw = raw_request(&request);
+            match mutation {
+                "unknown-root" => {
+                    raw.as_object_mut()
+                        .unwrap()
+                        .insert("secret".into(), "x".into());
+                }
+                "unknown-nested" => {
+                    raw["authorizations"][0]["scope"]["secret"] = "x".into();
+                }
+                "invalid-enum" => raw["authorizations"][0]["scope"]["field"] = "card".into(),
+                "oversized" => {
+                    raw["authorizations"][0]["scope"]["accountId"] = "x".repeat(70_000).into();
+                }
+                _ => unreachable!(),
+            }
+            let receipts = AutoFillRepromptReceiptStore::default();
+            let mut release =
+                |scope: AutoFillRepromptScope, _: bool, _: bool| Ok(released(scope.field));
+            let mut port = RecordingAxPort::default();
+
+            assert_eq!(
+                perform_detected_fill_raw_with(
+                    "main",
+                    &contexts,
+                    &receipts,
+                    raw,
+                    &mut release,
+                    &mut port,
+                ),
+                DetectedFillOutcome::Error {
+                    code: "invalid-request"
+                }
+            );
+            assert_eq!(
+                contexts
+                    .take(&token, &[AutoFillSecretField::Password])
+                    .unwrap_err(),
+                crate::autofill_ax_context::DetectedFillError::InvalidToken
+            );
+            assert!(port.actions.is_empty());
+        }
+    }
+
+    #[test]
+    fn raw_fill_boundary_gates_exact_main_and_burns_identifiable_receipt() {
+        let (contexts, mut request) = fixture(&[AutoFillSecretField::Password]);
+        let token = request.fill_context_token.clone();
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let scopes = vec![scope(AutoFillSecretField::Password)];
+        let receipt = receipts
+            .begin_batch(
+                scopes.clone(),
+                "https://api.example/accounts/verify-password".to_owned(),
+            )
+            .unwrap();
+        request.reprompt_receipt = Some(receipt.clone());
+        let mut raw = raw_request(&request);
+        raw["unknown"] = true.into();
+        let mut release =
+            |scope: AutoFillRepromptScope, _: bool, _: bool| Ok(released(scope.field));
+        let mut port = RecordingAxPort::default();
+
+        assert_eq!(
+            perform_detected_fill_raw_with(
+                "main-copy",
+                &contexts,
+                &receipts,
+                raw,
+                &mut release,
+                &mut port,
+            ),
+            DetectedFillOutcome::Error {
+                code: "unauthorized"
+            }
+        );
+        assert_eq!(
+            contexts
+                .take(&token, &[AutoFillSecretField::Password])
+                .unwrap_err(),
+            crate::autofill_ax_context::DetectedFillError::InvalidToken
+        );
+        assert!(!receipts.cancel_batch(&receipt, &scopes));
+        assert!(port.actions.is_empty());
+    }
+
+    #[test]
+    fn valid_raw_fill_boundary_preserves_field_scoped_release_and_exact_write() {
+        let (contexts, request) = fixture(&[AutoFillSecretField::Password]);
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let mut released_fields = Vec::new();
+        let mut release = |scope: AutoFillRepromptScope, _: bool, _: bool| {
+            released_fields.push(scope.field);
+            Ok(released(scope.field))
+        };
+        let mut port = RecordingAxPort::default();
+
+        assert_eq!(
+            perform_detected_fill_raw_with(
+                "main",
+                &contexts,
+                &receipts,
+                raw_request(&request),
+                &mut release,
+                &mut port,
+            ),
+            DetectedFillOutcome::Success {
+                fields: vec![AutoFillSecretField::Password]
+            }
+        );
+        assert_eq!(released_fields, vec![AutoFillSecretField::Password]);
+        assert_eq!(
+            port.actions,
+            vec![TestAction::SetValue(AutoFillSecretField::Password)]
         );
     }
 }

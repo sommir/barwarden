@@ -2660,7 +2660,9 @@ mod tests {
     #[test]
     fn consuming_visible_context_rebinds_it_to_the_shared_generation() {
         use crate::accessibility_focus::{AppIdentity, AxFrame, FocusedFieldSnapshot};
-        use crate::autofill_ax_context::{CapturedAxContext, CapturedFieldFingerprint};
+        use crate::autofill_ax_context::{
+            CapturedAxContext, CapturedFieldFingerprint, OpaqueAxIdentity,
+        };
         use crate::autofill_contract::AutoFillSecretField;
         use crate::autofill_field_context::{DetectedAction, DetectedFieldKind, FieldConfidence};
 
@@ -2701,6 +2703,10 @@ mod tests {
                     width: 800.0,
                     height: 600.0,
                 },
+                container_path: vec![1],
+                traversal_path: vec![1, 1],
+                window_identity: OpaqueAxIdentity::for_test(1),
+                element_identity: OpaqueAxIdentity::for_test(2),
                 kind: DetectedFieldKind::Password,
                 secret_field: Some(AutoFillSecretField::Password),
                 confidence: FieldConfidence::High,

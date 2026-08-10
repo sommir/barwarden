@@ -15,6 +15,74 @@ use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use zeroize::Zeroizing;
+
+#[derive(Clone)]
+pub(crate) enum OpaqueAxIdentity {
+    #[cfg(target_os = "macos")]
+    Native(Arc<NativeAxLogicalIdentity>),
+    #[cfg(test)]
+    Test(u64),
+    #[cfg(not(any(target_os = "macos", test)))]
+    Unavailable,
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) struct NativeAxLogicalIdentity(*const std::ffi::c_void);
+
+#[cfg(target_os = "macos")]
+impl NativeAxLogicalIdentity {
+    fn retain_borrowed(value: *const std::ffi::c_void) -> Self {
+        unsafe { core_foundation::base::CFRetain(value.cast()) };
+        Self(value)
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Drop for NativeAxLogicalIdentity {
+    fn drop(&mut self) {
+        unsafe { core_foundation::base::CFRelease(self.0.cast()) };
+    }
+}
+
+// AXUIElementRef is a retained Core Foundation object; CFEqual/retain/release are thread-safe for
+// this opaque identity use, and no AX attribute access is performed through the stored pointer.
+#[cfg(target_os = "macos")]
+unsafe impl Send for NativeAxLogicalIdentity {}
+#[cfg(target_os = "macos")]
+unsafe impl Sync for NativeAxLogicalIdentity {}
+
+impl PartialEq for OpaqueAxIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            #[cfg(target_os = "macos")]
+            (Self::Native(left), Self::Native(right)) => unsafe {
+                core_foundation::base::CFEqual(left.0.cast(), right.0.cast()) != 0
+            },
+            #[cfg(test)]
+            (Self::Test(left), Self::Test(right)) => left == right,
+            #[cfg(not(any(target_os = "macos", test)))]
+            (Self::Unavailable, Self::Unavailable) => true,
+            #[allow(unreachable_patterns)]
+            _ => false,
+        }
+    }
+}
+
+impl Eq for OpaqueAxIdentity {}
+
+impl fmt::Debug for OpaqueAxIdentity {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("OpaqueAxIdentity(..)")
+    }
+}
+
+impl OpaqueAxIdentity {
+    #[cfg(test)]
+    pub(crate) fn for_test(value: u64) -> Self {
+        Self::Test(value)
+    }
+}
 
 const MAX_ANCESTORS: usize = 3;
 const MAX_DESCENDANTS: usize = 256;
@@ -42,6 +110,7 @@ pub trait AxMetadataPort {
     fn frame(&mut self, element: &Self::Element) -> Option<AxFrame>;
     fn value_settable(&mut self, element: &Self::Element) -> bool;
     fn caret_frame(&mut self, element: &Self::Element) -> Option<AxFrame>;
+    fn logical_identity(&self, element: &Self::Element) -> OpaqueAxIdentity;
     fn now(&self) -> Instant;
     fn metadata_valid(&self) -> bool {
         true
@@ -85,6 +154,10 @@ pub struct CapturedFieldFingerprint {
     pub role: String,
     pub frame: AxFrame,
     pub window_frame: AxFrame,
+    pub(crate) container_path: Vec<u16>,
+    pub(crate) traversal_path: Vec<u16>,
+    pub(crate) window_identity: OpaqueAxIdentity,
+    pub(crate) element_identity: OpaqueAxIdentity,
     pub kind: DetectedFieldKind,
     pub secret_field: Option<AutoFillSecretField>,
     pub confidence: FieldConfidence,
@@ -169,7 +242,28 @@ pub struct CapturedFillPlan {
     pub fields: Vec<CapturedFieldFingerprint>,
     pub action: DetectedAction,
     pub requested: Vec<AutoFillSecretField>,
+    pub(crate) bindings: Vec<CapturedFillBinding>,
     pub(crate) observer_generation: ObserverGeneration,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct CapturedFillBinding {
+    pub(crate) field: AutoFillSecretField,
+    pub(crate) fingerprint: CapturedFieldFingerprint,
+}
+
+impl CapturedFillPlan {
+    pub(crate) fn fingerprint_for_field(
+        &self,
+        field: AutoFillSecretField,
+    ) -> Option<&CapturedFieldFingerprint> {
+        let mut matches = self
+            .bindings
+            .iter()
+            .filter(|binding| binding.field == field);
+        let binding = matches.next()?;
+        matches.next().is_none().then_some(&binding.fingerprint)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -209,7 +303,16 @@ struct StoredFillContext {
     target: FrontmostApp,
     fields: Vec<CapturedFieldFingerprint>,
     action: DetectedAction,
+    action_bindings: StoredActionBindings,
     deadline: Instant,
+}
+
+pub(crate) struct ReservedFillContext(StoredFillContext);
+
+#[derive(Clone)]
+enum StoredActionBindings {
+    Fixed(Vec<CapturedFillBinding>),
+    Choose(CapturedFieldFingerprint),
 }
 
 type Clock = dyn Fn() -> Instant + Send + Sync;
@@ -270,6 +373,8 @@ impl DetectedFillContextStore {
         action: DetectedAction,
     ) -> Result<FillContextPresentation, DetectedFillError> {
         validate_inserted_fingerprints(&target, &fields)?;
+        let action_bindings =
+            capture_action_bindings(&fields, &action).ok_or(DetectedFillError::StaleField)?;
         if fields
             .first()
             .is_none_or(|field| field.observer_generation != self.observer_generation.current())
@@ -293,6 +398,7 @@ impl DetectedFillContextStore {
                 target,
                 fields,
                 action,
+                action_bindings,
                 deadline: now + CONTEXT_LIFETIME,
             },
         );
@@ -304,6 +410,14 @@ impl DetectedFillContextStore {
         token: &str,
         requested: &[AutoFillSecretField],
     ) -> Result<CapturedFillPlan, DetectedFillError> {
+        let reserved = self.reserve_identified(token)?;
+        self.validate_reserved(reserved, requested)
+    }
+
+    pub(crate) fn reserve_identified(
+        &self,
+        token: &str,
+    ) -> Result<ReservedFillContext, DetectedFillError> {
         let record = self
             .records
             .lock()
@@ -313,9 +427,17 @@ impl DetectedFillContextStore {
         if (self.clock)() >= record.deadline {
             return Err(DetectedFillError::Expired);
         }
-        if !requested_fields_allowed(requested, &record.fields, &record.action) {
-            return Err(DetectedFillError::WrongFieldSubset);
-        }
+        Ok(ReservedFillContext(record))
+    }
+
+    pub(crate) fn validate_reserved(
+        &self,
+        reserved: ReservedFillContext,
+        requested: &[AutoFillSecretField],
+    ) -> Result<CapturedFillPlan, DetectedFillError> {
+        let record = reserved.0;
+        let bindings = bindings_for_request(requested, &record.action, &record.action_bindings)
+            .ok_or(DetectedFillError::WrongFieldSubset)?;
         let generation = self.observer_generation.current();
         if record
             .fields
@@ -333,6 +455,7 @@ impl DetectedFillContextStore {
             fields: record.fields,
             action: record.action,
             requested: requested.to_vec(),
+            bindings,
             observer_generation: self.observer_generation.clone(),
         })
     }
@@ -404,6 +527,7 @@ fn validate_inserted_fingerprints(
     };
     if fields.len() > MAX_FIELDS
         || fields.iter().filter(|field| field.focused).count() != 1
+        || has_duplicate_element_identity(fields)
         || fields.iter().any(|field| {
             field.observer_generation != first.observer_generation
                 || !valid_frame(&field.frame)
@@ -413,13 +537,22 @@ fn validate_inserted_fingerprints(
         return Err(DetectedFillError::StaleField);
     }
     if !valid_frame(&first.window_frame)
-        || fields
-            .iter()
-            .any(|field| field.window_frame != first.window_frame)
+        || fields.iter().any(|field| {
+            field.window_frame != first.window_frame
+                || field.window_identity != first.window_identity
+        })
     {
         return Err(DetectedFillError::StaleWindow);
     }
     Ok(())
+}
+
+fn has_duplicate_element_identity(fields: &[CapturedFieldFingerprint]) -> bool {
+    fields.iter().enumerate().any(|(index, field)| {
+        fields[..index]
+            .iter()
+            .any(|previous| previous.element_identity == field.element_identity)
+    })
 }
 
 #[allow(dead_code)] // Called by `take`, which Task 4 registers on the command surface.
@@ -428,6 +561,38 @@ fn requested_fields_allowed(
     fields: &[CapturedFieldFingerprint],
     action: &DetectedAction,
 ) -> bool {
+    capture_action_bindings(fields, action)
+        .and_then(|bindings| bindings_for_request(requested, action, &bindings))
+        .is_some()
+}
+
+fn capture_action_bindings(
+    fields: &[CapturedFieldFingerprint],
+    action: &DetectedAction,
+) -> Option<StoredActionBindings> {
+    match action {
+        DetectedAction::Field { field } => {
+            resolve_action_bindings(&[*field], fields, action).map(StoredActionBindings::Fixed)
+        }
+        DetectedAction::Form { fields: allowed } => {
+            resolve_action_bindings(allowed, fields, action).map(StoredActionBindings::Fixed)
+        }
+        DetectedAction::Choose => {
+            let mut focused = fields.iter().filter(|field| field.focused);
+            let fingerprint = focused.next()?;
+            if focused.next().is_some() {
+                return None;
+            }
+            Some(StoredActionBindings::Choose(fingerprint.clone()))
+        }
+    }
+}
+
+fn bindings_for_request(
+    requested: &[AutoFillSecretField],
+    action: &DetectedAction,
+    captured: &StoredActionBindings,
+) -> Option<Vec<CapturedFillBinding>> {
     if requested.is_empty()
         || requested.len() > 3
         || requested
@@ -435,20 +600,134 @@ fn requested_fields_allowed(
             .enumerate()
             .any(|(index, field)| requested[..index].contains(field))
     {
-        return false;
+        return None;
     }
-    match action {
-        DetectedAction::Field { field } => requested == [*field],
-        DetectedAction::Form { fields: allowed } => {
-            requested.iter().all(|field| allowed.contains(field))
-                && requested.iter().all(|field| {
-                    fields
-                        .iter()
-                        .any(|captured| captured.secret_field == Some(*field))
-                })
+    match (action, captured) {
+        (DetectedAction::Field { field }, StoredActionBindings::Fixed(bindings))
+            if requested == [*field] =>
+        {
+            Some(bindings.clone())
         }
-        DetectedAction::Choose => requested.len() == 1 && fields.iter().any(|field| field.focused),
+        (DetectedAction::Form { fields: allowed }, StoredActionBindings::Fixed(bindings))
+            if requested.iter().all(|field| allowed.contains(field)) =>
+        {
+            let mut result = Vec::with_capacity(requested.len());
+            for field in requested {
+                let mut matches = bindings.iter().filter(|binding| binding.field == *field);
+                let binding = matches.next()?;
+                if matches.next().is_some() {
+                    return None;
+                }
+                result.push(binding.clone());
+            }
+            Some(result)
+        }
+        (DetectedAction::Choose, StoredActionBindings::Choose(fingerprint))
+            if requested.len() == 1 =>
+        {
+            Some(vec![CapturedFillBinding {
+                field: requested[0],
+                fingerprint: fingerprint.clone(),
+            }])
+        }
+        _ => None,
     }
+}
+
+fn resolve_action_bindings(
+    requested: &[AutoFillSecretField],
+    fields: &[CapturedFieldFingerprint],
+    action: &DetectedAction,
+) -> Option<Vec<CapturedFillBinding>> {
+    if requested.is_empty()
+        || requested.len() > 3
+        || requested
+            .iter()
+            .enumerate()
+            .any(|(index, field)| requested[..index].contains(field))
+    {
+        return None;
+    }
+    let bound = match action {
+        DetectedAction::Field { field } if requested == [*field] => {
+            let mut matches = fields
+                .iter()
+                .filter(|captured| captured.focused && captured.secret_field == Some(*field));
+            let fingerprint = matches.next()?;
+            if matches.next().is_some() {
+                return None;
+            }
+            vec![CapturedFillBinding {
+                field: *field,
+                fingerprint: fingerprint.clone(),
+            }]
+        }
+        DetectedAction::Form { fields: allowed }
+            if requested.iter().all(|field| allowed.contains(field)) =>
+        {
+            let mut paths = fields
+                .iter()
+                .map(|field| field.container_path.as_slice())
+                .filter(|path| !path.is_empty())
+                .collect::<Vec<_>>();
+            paths.sort_unstable();
+            paths.dedup();
+            let mut matching_groups = Vec::new();
+            for path in paths {
+                let group = fields
+                    .iter()
+                    .filter(|field| field.container_path == path)
+                    .collect::<Vec<_>>();
+                if group.iter().filter(|field| field.focused).count() != 1 {
+                    continue;
+                }
+                let mut group_fields = group
+                    .iter()
+                    .filter_map(|field| field.secret_field)
+                    .collect::<Vec<_>>();
+                group_fields.sort_unstable();
+                let mut canonical_allowed = allowed.clone();
+                canonical_allowed.sort_unstable();
+                if group_fields != canonical_allowed
+                    || group_fields.windows(2).any(|pair| pair[0] == pair[1])
+                {
+                    continue;
+                }
+                let mut bindings = Vec::with_capacity(requested.len());
+                for requested_field in requested {
+                    let mut matches = group
+                        .iter()
+                        .filter(|captured| captured.secret_field == Some(*requested_field));
+                    let fingerprint = *matches.next()?;
+                    if matches.next().is_some() {
+                        return None;
+                    }
+                    bindings.push(CapturedFillBinding {
+                        field: *requested_field,
+                        fingerprint: fingerprint.clone(),
+                    });
+                }
+                matching_groups.push(bindings);
+            }
+            if matching_groups.len() != 1 {
+                return None;
+            }
+            matching_groups.pop()?
+        }
+        DetectedAction::Choose if requested.len() == 1 => {
+            let mut focused = fields.iter().filter(|field| field.focused);
+            let fingerprint = focused.next()?;
+            if focused.next().is_some() {
+                return None;
+            }
+            vec![CapturedFillBinding {
+                field: requested[0],
+                fingerprint: fingerprint.clone(),
+            }]
+        }
+        _ => return None,
+    };
+    Some(bound)
 }
 
 fn presentation_for(
@@ -529,6 +808,9 @@ fn validate_current_fingerprints(
     if stored.len() != current.len() {
         return Err(DetectedFillError::StaleField);
     }
+    if has_duplicate_element_identity(stored) || has_duplicate_element_identity(current) {
+        return Err(DetectedFillError::StaleField);
+    }
     let mut matched = vec![false; current.len()];
     for expected in stored {
         let Some(index) = current
@@ -536,10 +818,10 @@ fn validate_current_fingerprints(
             .enumerate()
             .position(|(index, actual)| !matched[index] && actual == expected)
         else {
-            if current
-                .iter()
-                .any(|actual| actual.window_frame != expected.window_frame)
-            {
+            if current.iter().any(|actual| {
+                actual.window_frame != expected.window_frame
+                    || actual.window_identity != expected.window_identity
+            }) {
                 return Err(DetectedFillError::StaleWindow);
             }
             return Err(DetectedFillError::StaleField);
@@ -571,19 +853,23 @@ pub(crate) fn exact_fill_element_index(
     {
         return Err(ExactAxFillError::ProcessChanged);
     }
-    if stored
-        .iter()
-        .chain(current)
-        .any(|field| field.window_frame != expected.window_frame)
-    {
+    if stored.iter().chain(current).any(|field| {
+        field.window_frame != expected.window_frame
+            || field.window_identity != expected.window_identity
+    }) {
         return Err(ExactAxFillError::WindowChanged);
     }
     validate_current_fingerprints(stored, current, observer_generation)
         .map_err(|_| ExactAxFillError::FrameChanged)?;
-    current
+    let mut matches = current
         .iter()
-        .position(|field| field == expected)
-        .ok_or(ExactAxFillError::FrameChanged)
+        .enumerate()
+        .filter(|(_, field)| *field == expected);
+    let (index, _) = matches.next().ok_or(ExactAxFillError::FrameChanged)?;
+    if matches.next().is_some() {
+        return Err(ExactAxFillError::FrameChanged);
+    }
+    Ok(index)
 }
 
 fn inspect_bounded_child_entries<T>(
@@ -599,6 +885,172 @@ fn inspect_bounded_child_entries<T>(
         }
     }
     Ok(inspected)
+}
+
+struct ClipboardFlavorSnapshot {
+    type_name: String,
+    data: Zeroizing<Vec<u8>>,
+}
+
+struct ClipboardItemSnapshot {
+    flavors: Vec<ClipboardFlavorSnapshot>,
+}
+
+struct ClipboardSnapshot {
+    items: Vec<ClipboardItemSnapshot>,
+}
+
+impl ClipboardSnapshot {
+    #[cfg(test)]
+    fn from_plain_items(items: Vec<Vec<(String, Vec<u8>)>>) -> Self {
+        Self {
+            items: items
+                .into_iter()
+                .map(|flavors| ClipboardItemSnapshot {
+                    flavors: flavors
+                        .into_iter()
+                        .map(|(type_name, data)| ClipboardFlavorSnapshot {
+                            type_name,
+                            data: Zeroizing::new(data),
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+
+    #[cfg(test)]
+    fn to_plain_items(&self) -> Vec<Vec<(String, Vec<u8>)>> {
+        self.items
+            .iter()
+            .map(|item| {
+                item.flavors
+                    .iter()
+                    .map(|flavor| (flavor.type_name.clone(), flavor.data.to_vec()))
+                    .collect()
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ClipboardRestoreDisposition {
+    Restored,
+    ExternalMutationPreserved,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ClipboardWriteError {
+    Untouched,
+    Owned(isize),
+}
+
+trait SecureClipboardPort {
+    fn snapshot_all(&mut self) -> Result<ClipboardSnapshot, ()>;
+    fn write_secret(&mut self, value: &str) -> Result<isize, ClipboardWriteError>;
+    fn restore_if_unchanged(
+        &mut self,
+        owned_generation: isize,
+        snapshot: &ClipboardSnapshot,
+    ) -> Result<ClipboardRestoreDisposition, ()>;
+    fn clear_if_unchanged(&mut self, owned_generation: isize) -> Result<bool, ()>;
+}
+
+struct ClipboardRestorationGuard<'a, P: SecureClipboardPort> {
+    clipboard: &'a mut P,
+    snapshot: Option<ClipboardSnapshot>,
+    owned_generation: Option<isize>,
+}
+
+impl<P: SecureClipboardPort> ClipboardRestorationGuard<'_, P> {
+    fn cleanup(&mut self) -> Result<(), ()> {
+        let Some(owned_generation) = self.owned_generation.take() else {
+            return Ok(());
+        };
+        let Some(snapshot) = self.snapshot.take() else {
+            return Ok(());
+        };
+        match self
+            .clipboard
+            .restore_if_unchanged(owned_generation, &snapshot)
+        {
+            Ok(
+                ClipboardRestoreDisposition::Restored
+                | ClipboardRestoreDisposition::ExternalMutationPreserved,
+            ) => Ok(()),
+            Err(()) => {
+                let _ = self.clipboard.clear_if_unchanged(owned_generation);
+                Err(())
+            }
+        }
+    }
+}
+
+impl<P: SecureClipboardPort> Drop for ClipboardRestorationGuard<'_, P> {
+    fn drop(&mut self) {
+        let _ = self.cleanup();
+    }
+}
+
+static CLIPBOARD_TRANSACTION_LOCK: Mutex<()> = Mutex::new(());
+const PASTE_EVENT_COMPLETION_DEADLINE: Duration = Duration::from_millis(250);
+
+fn exact_paste_event_with(
+    deadline: Instant,
+    mut focus: impl FnMut() -> Result<(), ()>,
+    mut revalidate: impl FnMut() -> Result<(), ()>,
+    mut post_and_confirm_enqueued: impl FnMut() -> Result<(), ()>,
+    mut now: impl FnMut() -> Instant,
+) -> Result<(), ()> {
+    if now() > deadline {
+        return Err(());
+    }
+    focus()?;
+    revalidate()?;
+    if now() > deadline {
+        return Err(());
+    }
+    revalidate()?;
+    post_and_confirm_enqueued()?;
+    (now() <= deadline).then_some(()).ok_or(())
+}
+
+fn guarded_paste_transaction<P: SecureClipboardPort>(
+    clipboard: &mut P,
+    value: &str,
+    focus_revalidate_and_post: impl FnMut(Instant) -> Result<(), ()>,
+) -> Result<(), ()> {
+    guarded_paste_transaction_with_clock(clipboard, value, focus_revalidate_and_post, Instant::now)
+}
+
+fn guarded_paste_transaction_with_clock<P: SecureClipboardPort>(
+    clipboard: &mut P,
+    value: &str,
+    mut focus_revalidate_and_post: impl FnMut(Instant) -> Result<(), ()>,
+    mut now: impl FnMut() -> Instant,
+) -> Result<(), ()> {
+    let _serialized = CLIPBOARD_TRANSACTION_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let snapshot = clipboard.snapshot_all()?;
+    let mut guard = ClipboardRestorationGuard {
+        clipboard,
+        snapshot: Some(snapshot),
+        owned_generation: None,
+    };
+    guard.owned_generation = match guard.clipboard.write_secret(value) {
+        Ok(generation) => Some(generation),
+        Err(ClipboardWriteError::Untouched) => return Err(()),
+        Err(ClipboardWriteError::Owned(generation)) => {
+            guard.owned_generation = Some(generation);
+            return Err(());
+        }
+    };
+    let deadline = now() + PASTE_EVENT_COMPLETION_DEADLINE;
+    if focus_revalidate_and_post(deadline).is_err() || now() > deadline {
+        return Err(());
+    }
+    guard.cleanup()
 }
 
 #[cfg(target_os = "macos")]
@@ -617,6 +1069,12 @@ mod macos {
     use core_graphics::event::{CGEvent, CGEventFlags};
     use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
     use core_graphics::geometry::{CGPoint, CGRect, CGSize};
+    use objc2::rc::Retained;
+    use objc2::runtime::ProtocolObject;
+    use objc2_app_kit::{
+        NSPasteboard, NSPasteboardItem, NSPasteboardTypeString, NSPasteboardWriting,
+    };
+    use objc2_foundation::{NSArray, NSData, NSString};
     use std::ffi::c_void;
     use std::ptr;
 
@@ -633,6 +1091,131 @@ mod macos {
     const AX_VALUE_CFRANGE: i32 = 4;
     const MAX_UTF16_UNITS: CFIndex = (MAX_SEMANTIC_SCALARS * 2) as CFIndex;
     const MAX_UTF8_BYTES: usize = MAX_SEMANTIC_SCALARS * 4;
+    const MAX_CLIPBOARD_ITEMS: usize = 128;
+    const MAX_CLIPBOARD_FLAVORS: usize = 256;
+    const MAX_CLIPBOARD_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
+
+    struct NativeSecureClipboard {
+        pasteboard: Retained<NSPasteboard>,
+    }
+
+    impl NativeSecureClipboard {
+        fn new() -> Self {
+            Self {
+                pasteboard: NSPasteboard::generalPasteboard(),
+            }
+        }
+
+        fn restore_items_if_unchanged(
+            &self,
+            snapshot: &ClipboardSnapshot,
+            owned_generation: isize,
+        ) -> Result<ClipboardRestoreDisposition, ()> {
+            let mut items = Vec::with_capacity(snapshot.items.len());
+            for item_snapshot in &snapshot.items {
+                let item = NSPasteboardItem::new();
+                for flavor in &item_snapshot.flavors {
+                    let type_name = NSString::from_str(&flavor.type_name);
+                    let data = NSData::with_bytes(&flavor.data);
+                    if !item.setData_forType(&data, &type_name) {
+                        return Err(());
+                    }
+                }
+                items.push(ProtocolObject::<dyn NSPasteboardWriting>::from_retained(
+                    item,
+                ));
+            }
+            let items = NSArray::from_retained_slice(&items);
+            if self.pasteboard.changeCount() != owned_generation {
+                return Ok(ClipboardRestoreDisposition::ExternalMutationPreserved);
+            }
+            self.pasteboard.clearContents();
+            self.pasteboard
+                .writeObjects(&items)
+                .then_some(ClipboardRestoreDisposition::Restored)
+                .ok_or(())
+        }
+    }
+
+    impl SecureClipboardPort for NativeSecureClipboard {
+        fn snapshot_all(&mut self) -> Result<ClipboardSnapshot, ()> {
+            let Some(items) = self.pasteboard.pasteboardItems() else {
+                return Ok(ClipboardSnapshot { items: Vec::new() });
+            };
+            if items.count() > MAX_CLIPBOARD_ITEMS {
+                return Err(());
+            }
+            let mut total_flavors = 0_usize;
+            let mut total_bytes = 0_usize;
+            let mut snapshot_items = Vec::with_capacity(items.count());
+            for item_index in 0..items.count() {
+                let item = items.objectAtIndex(item_index);
+                let types = item.types();
+                total_flavors = total_flavors.checked_add(types.count()).ok_or(())?;
+                if total_flavors > MAX_CLIPBOARD_FLAVORS {
+                    return Err(());
+                }
+                let mut flavors = Vec::with_capacity(types.count());
+                for type_index in 0..types.count() {
+                    let type_name = types.objectAtIndex(type_index);
+                    let data = item.dataForType(&type_name).ok_or(())?.to_vec();
+                    total_bytes = total_bytes.checked_add(data.len()).ok_or(())?;
+                    if total_bytes > MAX_CLIPBOARD_SNAPSHOT_BYTES {
+                        return Err(());
+                    }
+                    flavors.push(ClipboardFlavorSnapshot {
+                        type_name: type_name.to_string(),
+                        data: Zeroizing::new(data),
+                    });
+                }
+                snapshot_items.push(ClipboardItemSnapshot { flavors });
+            }
+            Ok(ClipboardSnapshot {
+                items: snapshot_items,
+            })
+        }
+
+        fn write_secret(&mut self, value: &str) -> Result<isize, ClipboardWriteError> {
+            let item = NSPasteboardItem::new();
+            let value = NSString::from_str(value);
+            if !item.setString_forType(&value, unsafe { NSPasteboardTypeString }) {
+                return Err(ClipboardWriteError::Untouched);
+            }
+            let empty = NSData::with_bytes(&[]);
+            for marker in [
+                "org.nspasteboard.TransientType",
+                "org.nspasteboard.ConcealedType",
+            ] {
+                let marker = NSString::from_str(marker);
+                if !item.setData_forType(&empty, &marker) {
+                    return Err(ClipboardWriteError::Untouched);
+                }
+            }
+            let item = ProtocolObject::<dyn NSPasteboardWriting>::from_retained(item);
+            let items = NSArray::from_retained_slice(&[item]);
+            self.pasteboard.clearContents();
+            if !self.pasteboard.writeObjects(&items) {
+                return Err(ClipboardWriteError::Owned(self.pasteboard.changeCount()));
+            }
+            Ok(self.pasteboard.changeCount())
+        }
+
+        fn restore_if_unchanged(
+            &mut self,
+            owned_generation: isize,
+            snapshot: &ClipboardSnapshot,
+        ) -> Result<ClipboardRestoreDisposition, ()> {
+            self.restore_items_if_unchanged(snapshot, owned_generation)
+        }
+
+        fn clear_if_unchanged(&mut self, owned_generation: isize) -> Result<bool, ()> {
+            if self.pasteboard.changeCount() != owned_generation {
+                return Ok(false);
+            }
+            self.pasteboard.clearContents();
+            Ok(true)
+        }
+    }
 
     #[link(name = "ApplicationServices", kind = "framework")]
     unsafe extern "C" {
@@ -671,8 +1254,16 @@ mod macos {
         fn AXValueGetType(value: AXValueRef) -> i32;
     }
 
-    #[derive(Debug, Eq, PartialEq)]
+    #[derive(Debug)]
     pub struct NativeAxElement(AXUIElementRef);
+
+    impl PartialEq for NativeAxElement {
+        fn eq(&self, other: &Self) -> bool {
+            unsafe { core_foundation::base::CFEqual(self.0.cast(), other.0.cast()) != 0 }
+        }
+    }
+
+    impl Eq for NativeAxElement {}
 
     impl Clone for NativeAxElement {
         fn clone(&self) -> Self {
@@ -970,6 +1561,12 @@ mod macos {
             })
         }
 
+        fn logical_identity(&self, element: &Self::Element) -> OpaqueAxIdentity {
+            OpaqueAxIdentity::Native(Arc::new(NativeAxLogicalIdentity::retain_borrowed(
+                element.0,
+            )))
+        }
+
         fn now(&self) -> Instant {
             Instant::now()
         }
@@ -1155,55 +1752,71 @@ mod macos {
         plan: &CapturedFillPlan,
         fingerprint: &CapturedFieldFingerprint,
         value: &str,
+        clipboard_generation: &crate::clipboard::ClipboardGeneration,
     ) -> Result<(), crate::autofill_detected_fill::ExactAxFillError> {
         use crate::autofill_detected_fill::ExactAxFillError;
 
-        let element = reacquire_exact_element(plan, &plan.fields, fingerprint)?;
-        let focused_attribute = CFString::from_static_string("AXFocused");
-        let focused_value = CFBoolean::true_value();
-        if unsafe {
-            AXUIElementSetAttributeValue(
-                element.0,
-                focused_attribute.as_concrete_TypeRef(),
-                focused_value.as_concrete_TypeRef().cast(),
-            )
-        } != AX_ERROR_SUCCESS
-        {
-            return Err(ExactAxFillError::PasteFailed);
-        }
-
-        let Some(index) = plan.fields.iter().position(|field| field == fingerprint) else {
+        let mut matches = plan
+            .fields
+            .iter()
+            .enumerate()
+            .filter(|(_, field)| field.element_identity == fingerprint.element_identity);
+        let Some((index, _)) = matches.next() else {
             return Err(ExactAxFillError::FrameChanged);
         };
+        if matches.next().is_some() {
+            return Err(ExactAxFillError::FrameChanged);
+        }
         let mut focused_fields = plan.fields.clone();
         for field in &mut focused_fields {
             field.focused = false;
         }
         focused_fields[index].focused = true;
         let focused_fingerprint = focused_fields[index].clone();
-        let _focused_element =
-            reacquire_exact_element(plan, &focused_fields, &focused_fingerprint)?;
-        if plan.observer_generation.current() != fingerprint.observer_generation
-            || !crate::frontmost::target_is_running(&plan.target)
-        {
-            return Err(ExactAxFillError::GenerationChanged);
-        }
-
         let (down, up) = command_v_events().map_err(|_| ExactAxFillError::PasteFailed)?;
-        let mut clipboard = arboard::Clipboard::new().map_err(|_| ExactAxFillError::PasteFailed)?;
-        let previous = clipboard.get_text().ok();
-        clipboard
-            .set_text(value)
+        let _shared_clipboard_transaction = clipboard_generation
+            .lock_operation()
             .map_err(|_| ExactAxFillError::PasteFailed)?;
-        down.post_to_pid(plan.target.process_id);
-        up.post_to_pid(plan.target.process_id);
-        std::thread::sleep(Duration::from_millis(50));
-        if let Some(previous) = previous {
-            let _ = clipboard.set_text(previous);
-        } else {
-            let _ = clipboard.set_text("");
-        }
-        Ok(())
+        let mut clipboard = NativeSecureClipboard::new();
+        guarded_paste_transaction(&mut clipboard, value, |deadline| {
+            exact_paste_event_with(
+                deadline,
+                || {
+                    let element =
+                        reacquire_exact_element(plan, &plan.fields, fingerprint).map_err(|_| ())?;
+                    let focused_attribute = CFString::from_static_string("AXFocused");
+                    let focused_value = CFBoolean::true_value();
+                    (unsafe {
+                        AXUIElementSetAttributeValue(
+                            element.0,
+                            focused_attribute.as_concrete_TypeRef(),
+                            focused_value.as_concrete_TypeRef().cast(),
+                        )
+                    } == AX_ERROR_SUCCESS)
+                        .then_some(())
+                        .ok_or(())
+                },
+                || {
+                    if plan.observer_generation.current() != fingerprint.observer_generation
+                        || !crate::frontmost::target_is_running(&plan.target)
+                    {
+                        return Err(());
+                    }
+                    // Reacquire the exact focused element twice; the second check is immediately
+                    // adjacent to the event enqueue and rejects every observable focus seam.
+                    reacquire_exact_element(plan, &focused_fields, &focused_fingerprint)
+                        .map(|_| ())
+                        .map_err(|_| ())
+                },
+                || {
+                    down.post_to_pid(plan.target.process_id);
+                    up.post_to_pid(plan.target.process_id);
+                    Ok(())
+                },
+                Instant::now,
+            )
+        })
+        .map_err(|_| ExactAxFillError::PasteFailed)
     }
 }
 
@@ -1239,6 +1852,7 @@ pub(crate) fn focus_and_paste_exact(
     _plan: &CapturedFillPlan,
     _fingerprint: &CapturedFieldFingerprint,
     _value: &str,
+    _clipboard_generation: &crate::clipboard::ClipboardGeneration,
 ) -> Result<(), crate::autofill_detected_fill::ExactAxFillError> {
     Err(crate::autofill_detected_fill::ExactAxFillError::TargetChanged)
 }
@@ -1300,11 +1914,12 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
             queue.push_back((child, child_path));
         }
     }
-    let focused_container_path = descendants
+    let focused_traversal_path = descendants
         .iter()
         .find(|(element, _)| *element == focused_element)
-        .map(|(_, path)| container_path(path))
+        .map(|(_, path)| path.clone())
         .unwrap_or_else(|| vec![0]);
+    let focused_container_path = container_path(&focused_traversal_path);
     ensure_metadata_valid(port)?;
 
     check_budget(port, started)?;
@@ -1353,6 +1968,7 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
 
     let mut observations = Vec::new();
     let mut observation_elements = vec![focused_element.clone()];
+    let mut observation_paths = vec![focused_traversal_path];
     observations.push(semantic_observation(
         focused_strings,
         focused_frame,
@@ -1389,6 +2005,7 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
             container_path(&path),
         ));
         observation_elements.push(element);
+        observation_paths.push(path);
     }
     if observations.is_empty() {
         return Err(AxContextError::NoWritableField);
@@ -1396,16 +2013,23 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
     check_budget(port, started)?;
     let detected = classify_fields(&observations);
     let action = detect_action(&detected);
+    let window_identity = port.logical_identity(&window);
     let fields = observations
         .iter()
         .zip(detected.iter())
-        .map(|(observation, detected)| {
+        .zip(observation_elements.iter())
+        .zip(observation_paths)
+        .map(|(((observation, detected), element), traversal_path)| {
             let _internal_score = detected.score;
             CapturedFieldFingerprint {
                 process_id: target.process_id,
                 role: observation.role.clone(),
                 frame: observation.frame,
                 window_frame,
+                container_path: observation.container_path.clone(),
+                traversal_path,
+                window_identity: window_identity.clone(),
+                element_identity: port.logical_identity(element),
                 kind: detected.kind,
                 secret_field: detected.secret_field,
                 confidence: detected.confidence,
@@ -1577,6 +2201,76 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
 
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct FakeClipboardState {
+        items: Vec<Vec<(String, Vec<u8>)>>,
+        generation: isize,
+        clears: usize,
+    }
+
+    struct FakeSecureClipboard {
+        state: Arc<Mutex<FakeClipboardState>>,
+        fail_restore: bool,
+        fail_write: Option<ClipboardWriteError>,
+        external_on_untouched_failure: bool,
+    }
+
+    impl SecureClipboardPort for FakeSecureClipboard {
+        fn snapshot_all(&mut self) -> Result<ClipboardSnapshot, ()> {
+            let state = self.state.lock().unwrap();
+            Ok(ClipboardSnapshot::from_plain_items(state.items.clone()))
+        }
+
+        fn write_secret(&mut self, value: &str) -> Result<isize, ClipboardWriteError> {
+            let mut state = self.state.lock().unwrap();
+            if let Some(error) = self.fail_write {
+                if self.external_on_untouched_failure {
+                    state.generation += 1;
+                    state.items = vec![vec![("external".to_owned(), b"new".to_vec())]];
+                }
+                return Err(error);
+            }
+            state.generation += 1;
+            state.items = vec![vec![
+                (
+                    "public.utf8-plain-text".to_owned(),
+                    value.as_bytes().to_vec(),
+                ),
+                ("org.nspasteboard.TransientType".to_owned(), Vec::new()),
+                ("org.nspasteboard.ConcealedType".to_owned(), Vec::new()),
+            ]];
+            Ok(state.generation)
+        }
+
+        fn restore_if_unchanged(
+            &mut self,
+            owned_generation: isize,
+            snapshot: &ClipboardSnapshot,
+        ) -> Result<ClipboardRestoreDisposition, ()> {
+            let mut state = self.state.lock().unwrap();
+            if state.generation != owned_generation {
+                return Ok(ClipboardRestoreDisposition::ExternalMutationPreserved);
+            }
+            if self.fail_restore {
+                return Err(());
+            }
+            state.generation += 1;
+            state.items = snapshot.to_plain_items();
+            Ok(ClipboardRestoreDisposition::Restored)
+        }
+
+        fn clear_if_unchanged(&mut self, owned_generation: isize) -> Result<bool, ()> {
+            let mut state = self.state.lock().unwrap();
+            if state.generation != owned_generation {
+                return Ok(false);
+            }
+            state.generation += 1;
+            state.items.clear();
+            state.clears += 1;
+            Ok(true)
+        }
+    }
+
     #[derive(Clone, Debug, Eq, Hash, PartialEq)]
     struct Element(u16);
 
@@ -1720,6 +2414,10 @@ mod tests {
             self.caret
         }
 
+        fn logical_identity(&self, element: &Self::Element) -> OpaqueAxIdentity {
+            OpaqueAxIdentity::for_test(u64::from(element.0))
+        }
+
         fn now(&self) -> Instant {
             let call = self.now_calls.get();
             self.now_calls.set(call + 1);
@@ -1762,6 +2460,10 @@ mod tests {
                 width: 800.0,
                 height: 600.0,
             },
+            container_path: vec![1],
+            traversal_path: vec![1, field as u8 as u16 + 1],
+            window_identity: OpaqueAxIdentity::for_test(1),
+            element_identity: OpaqueAxIdentity::for_test(10 + field as u8 as u64),
             kind: if field == AutoFillSecretField::Password {
                 DetectedFieldKind::Password
             } else {
@@ -2457,5 +3159,259 @@ mod tests {
                 Err(expected_error)
             );
         }
+    }
+
+    #[test]
+    fn exact_fill_rejects_duplicate_indistinguishable_element_fingerprints() {
+        let password = fingerprint(AutoFillSecretField::Password, true);
+        let stored = vec![password.clone(), password.clone()];
+        let current = stored.clone();
+
+        assert_eq!(
+            exact_fill_element_index(&stored, &current, &password, 7),
+            Err(crate::autofill_detected_fill::ExactAxFillError::FrameChanged)
+        );
+    }
+
+    #[test]
+    fn exact_fill_uses_opaque_element_and_window_identity_across_reordering() {
+        let first = fingerprint(AutoFillSecretField::Password, true);
+        let mut overlapping = first.clone();
+        overlapping.element_identity = OpaqueAxIdentity::for_test(99);
+        overlapping.traversal_path = vec![1, 9];
+        let stored = vec![first.clone(), overlapping.clone()];
+        let current = vec![overlapping.clone(), first.clone()];
+
+        assert_eq!(
+            exact_fill_element_index(&stored, &current, &overlapping, 7),
+            Ok(0)
+        );
+
+        let mut other_window = current.clone();
+        for field in &mut other_window {
+            field.window_identity = OpaqueAxIdentity::for_test(88);
+        }
+        assert_eq!(
+            exact_fill_element_index(&stored, &other_window, &overlapping, 7),
+            Err(crate::autofill_detected_fill::ExactAxFillError::WindowChanged)
+        );
+    }
+
+    #[test]
+    fn exact_fill_rejects_pid_reuse_identity_change_and_focus_switch() {
+        let password = fingerprint(AutoFillSecretField::Password, true);
+        let stored = vec![password.clone()];
+
+        let mut reused_pid = password.clone();
+        reused_pid.window_identity = OpaqueAxIdentity::for_test(77);
+        reused_pid.element_identity = OpaqueAxIdentity::for_test(78);
+        assert_eq!(
+            exact_fill_element_index(&stored, &[reused_pid], &password, 7),
+            Err(crate::autofill_detected_fill::ExactAxFillError::WindowChanged)
+        );
+
+        let mut focus_switched = password.clone();
+        focus_switched.focused = false;
+        assert_eq!(
+            exact_fill_element_index(&stored, &[focus_switched], &password, 7),
+            Err(crate::autofill_detected_fill::ExactAxFillError::FrameChanged)
+        );
+    }
+
+    #[test]
+    fn guarded_paste_restores_every_clipboard_item_and_non_text_flavor() {
+        let original = vec![
+            vec![
+                ("public.utf8-plain-text".to_owned(), b"public".to_vec()),
+                ("public.png".to_owned(), vec![0, 1, 2, 3]),
+            ],
+            vec![("com.example.custom".to_owned(), vec![9, 8, 7])],
+        ];
+        let state = Arc::new(Mutex::new(FakeClipboardState {
+            items: original.clone(),
+            generation: 4,
+            clears: 0,
+        }));
+        let mut clipboard = FakeSecureClipboard {
+            state: Arc::clone(&state),
+            fail_restore: false,
+            fail_write: None,
+            external_on_untouched_failure: false,
+        };
+        let sequence = Arc::new(Mutex::new(Vec::new()));
+        let observed = Arc::clone(&sequence);
+
+        assert_eq!(
+            guarded_paste_transaction(&mut clipboard, "owned-secret", move |_| {
+                observed
+                    .lock()
+                    .unwrap()
+                    .extend(["focus", "revalidate", "post"]);
+                Ok(())
+            }),
+            Ok(())
+        );
+        assert_eq!(state.lock().unwrap().items, original);
+        assert_eq!(
+            *sequence.lock().unwrap(),
+            vec!["focus", "revalidate", "post"]
+        );
+    }
+
+    #[test]
+    fn guarded_paste_preserves_external_mutation_and_cleans_up_on_failures_and_panic() {
+        let original = vec![vec![("public.png".to_owned(), vec![1, 2, 3])]];
+        for mode in ["event", "restore", "panic"] {
+            let state = Arc::new(Mutex::new(FakeClipboardState {
+                items: original.clone(),
+                generation: 10,
+                clears: 0,
+            }));
+            let mut clipboard = FakeSecureClipboard {
+                state: Arc::clone(&state),
+                fail_restore: mode == "restore",
+                fail_write: None,
+                external_on_untouched_failure: false,
+            };
+            let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                guarded_paste_transaction(&mut clipboard, "owned-secret", |_| match mode {
+                    "event" => Err(()),
+                    "panic" => panic!("injected panic after clipboard write"),
+                    _ => Ok(()),
+                })
+            }));
+            if mode == "panic" {
+                assert!(run.is_err());
+                assert_eq!(state.lock().unwrap().items, original);
+            } else if mode == "restore" {
+                assert_eq!(run.unwrap(), Err(()));
+                let state = state.lock().unwrap();
+                assert!(state.items.is_empty());
+                assert_eq!(state.clears, 1);
+            } else {
+                assert_eq!(run.unwrap(), Err(()));
+                assert_eq!(state.lock().unwrap().items, original);
+            }
+        }
+
+        let state = Arc::new(Mutex::new(FakeClipboardState {
+            items: original,
+            generation: 20,
+            clears: 0,
+        }));
+        let mut clipboard = FakeSecureClipboard {
+            state: Arc::clone(&state),
+            fail_restore: false,
+            fail_write: None,
+            external_on_untouched_failure: false,
+        };
+        assert_eq!(
+            guarded_paste_transaction(&mut clipboard, "owned-secret", |_| {
+                let mut state = state.lock().unwrap();
+                state.generation += 1;
+                state.items = vec![vec![("external".to_owned(), b"new".to_vec())]];
+                Ok(())
+            }),
+            Ok(())
+        );
+        assert_eq!(
+            state.lock().unwrap().items,
+            vec![vec![("external".to_owned(), b"new".to_vec())]]
+        );
+    }
+
+    #[test]
+    fn guarded_paste_delayed_event_completion_fails_and_restores_before_return() {
+        let original = vec![vec![("public.png".to_owned(), vec![4, 5, 6])]];
+        let state = Arc::new(Mutex::new(FakeClipboardState {
+            items: original.clone(),
+            generation: 30,
+            clears: 0,
+        }));
+        let mut clipboard = FakeSecureClipboard {
+            state: Arc::clone(&state),
+            fail_restore: false,
+            fail_write: None,
+            external_on_untouched_failure: false,
+        };
+        let started = Instant::now();
+        let calls = Cell::new(0);
+
+        assert_eq!(
+            guarded_paste_transaction_with_clock(
+                &mut clipboard,
+                "owned-secret",
+                |_| Ok(()),
+                || {
+                    let call = calls.get();
+                    calls.set(call + 1);
+                    started
+                        + if call == 0 {
+                            Duration::ZERO
+                        } else {
+                            PASTE_EVENT_COMPLETION_DEADLINE + Duration::from_millis(1)
+                        }
+                },
+            ),
+            Err(())
+        );
+        assert_eq!(state.lock().unwrap().items, original);
+    }
+
+    #[test]
+    fn exact_paste_event_revalidates_focus_at_every_pre_post_seam() {
+        for fail_at in ["focus", "first-revalidate", "final-revalidate", "event"] {
+            let sequence = std::cell::RefCell::new(Vec::new());
+            let validations = Cell::new(0);
+            let result = exact_paste_event_with(
+                Instant::now() + Duration::from_secs(1),
+                || {
+                    sequence.borrow_mut().push("focus");
+                    (fail_at != "focus").then_some(()).ok_or(())
+                },
+                || {
+                    sequence.borrow_mut().push("revalidate");
+                    let call = validations.get();
+                    validations.set(call + 1);
+                    match (fail_at, call) {
+                        ("first-revalidate", 0) | ("final-revalidate", 1) => Err(()),
+                        _ => Ok(()),
+                    }
+                },
+                || {
+                    sequence.borrow_mut().push("post");
+                    (fail_at != "event").then_some(()).ok_or(())
+                },
+                Instant::now,
+            );
+            assert_eq!(result, Err(()));
+            if fail_at != "event" {
+                assert!(!sequence.borrow().contains(&"post"));
+            }
+        }
+    }
+
+    #[test]
+    fn clipboard_write_failure_never_claims_or_overwrites_an_external_generation() {
+        let state = Arc::new(Mutex::new(FakeClipboardState {
+            items: vec![vec![("original".to_owned(), b"old".to_vec())]],
+            generation: 40,
+            clears: 0,
+        }));
+        let mut clipboard = FakeSecureClipboard {
+            state: Arc::clone(&state),
+            fail_restore: false,
+            fail_write: Some(ClipboardWriteError::Untouched),
+            external_on_untouched_failure: true,
+        };
+
+        assert_eq!(
+            guarded_paste_transaction(&mut clipboard, "owned-secret", |_| Ok(())),
+            Err(())
+        );
+        assert_eq!(
+            state.lock().unwrap().items,
+            vec![vec![("external".to_owned(), b"new".to_vec())]]
+        );
     }
 }

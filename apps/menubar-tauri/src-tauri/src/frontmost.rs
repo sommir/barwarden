@@ -558,6 +558,7 @@ mod tests {
         use crate::accessibility_focus::AxFrame;
         use crate::autofill_ax_context::{
             CapturedFieldFingerprint, DetectedFillContextStore, ObserverGeneration,
+            OpaqueAxIdentity,
         };
         use crate::autofill_field_context::{DetectedFieldKind, FieldConfidence};
         use std::cell::Cell;
@@ -587,6 +588,10 @@ mod tests {
                     width: 800.0,
                     height: 600.0,
                 },
+                container_path: vec![1],
+                traversal_path: vec![1, 1],
+                window_identity: OpaqueAxIdentity::for_test(1),
+                element_identity: OpaqueAxIdentity::for_test(2),
                 kind: DetectedFieldKind::Password,
                 secret_field: Some(AutoFillSecretField::Password),
                 confidence: FieldConfidence::High,
@@ -616,6 +621,10 @@ mod tests {
                     width: 800.0,
                     height: 600.0,
                 },
+                container_path: vec![1],
+                traversal_path: vec![1, 1],
+                window_identity: OpaqueAxIdentity::for_test(1),
+                element_identity: OpaqueAxIdentity::for_test(2),
                 kind: DetectedFieldKind::Password,
                 secret_field: Some(AutoFillSecretField::Password),
                 confidence: FieldConfidence::High,
