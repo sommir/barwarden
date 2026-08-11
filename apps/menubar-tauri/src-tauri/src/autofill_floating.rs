@@ -1923,6 +1923,7 @@ mod macos {
             )
         };
         button.setBordered(false);
+        button.setRefusesFirstResponder(true);
         button.setImageScaling(NSImageScaling::ScaleProportionallyDown);
         button.setFrame(NSRect::new(
             NSPoint::new(PILL_BUTTON_FRAME.0, PILL_BUTTON_FRAME.1),
@@ -2155,6 +2156,18 @@ mod macos {
             if hit_address != button_address {
                 return Err(
                     "badge must pass pointer events through to the full-pill button".to_owned(),
+                );
+            }
+            if content.button.needsPanelToBecomeKey() {
+                return Err(
+                    "full-pill button must handle clicks without making the nonactivating panel key"
+                        .to_owned(),
+                );
+            }
+            if content.button.acceptsFirstResponder() {
+                return Err(
+                    "full-pill button must not take keyboard focus from the target field"
+                        .to_owned(),
                 );
             }
 

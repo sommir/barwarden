@@ -121,10 +121,29 @@ The Web build emitted only the recorded baseline warnings for browser-externaliz
 
 - Security/privacy: new runtime behavior only strengthens strict projections and recognizes the already-read secure subrole. No plaintext secret/value, raw AX metadata, selected text, pixel data, OCR result, PID, or geometry crosses entry/candidate/fill responses.
 - Race safety: every release/write barrier remains one-shot; all secrets are collected before the first write; release failure yields zero writes; first write failure yields the exact canonical partial result and stops.
-- Scope: changed production files are limited to the secure-subrole classifier and local TypeScript/host decoders. No Tauri production config, entitlement, Xcode target, browser code, release flow, or persistence surface changed.
+- Scope: changed production files are limited to the secure-subrole classifier, local TypeScript/host decoders, and the nonactivating pill button's first-responder flag. No Tauri production config, entitlement, Xcode target, browser code, release flow, or persistence surface changed.
 - Recovery: the host decoder edit required only its expected manifest hash update; the recovery guard and full regression remain green.
 
 No automated blocker remains. The seven Rust warnings are pre-existing unused internal helpers and are unrelated to the Task 8 changes.
+
+## Signed macOS 26 focused-field smoke and pill activation fix
+
+The root signed the local-only app with the authorized Developer ID identity in an isolated disposable Keychain, kept notarization/profile/DMG/promotion disabled, installed it at the recoverable fixed test location, and launched the matching Agent from that bundle. No signing identity value, private-key material, secret field value, password, or TOTP seed was written to this report or captured as evidence.
+
+The first signed Termius run established a real AppKit interaction defect: the 34×30 nonactivating pill was visible above the focused Email field, but its full-pill `NSButton` still accepted first-responder focus. That contradicted the panel's nonactivating contract and could consume the target field focus instead of reliably opening the picker. The focused renderer contract was first made RED with the fixed failure `full-pill button must not take keyboard focus from the target field`. Production now calls `setRefusesFirstResponder(true)` on the full-pill button; the existing `needsPanelToBecomeKey == false` contract is also asserted.
+
+Fresh GREEN evidence:
+
+- the genuine AppKit light/dark pill fixture renders successfully and its badge hit still resolves to the full-pill button;
+- `cargo fmt --check` and `cargo check` pass with only the same seven pre-existing dead-code warnings;
+- unrestricted `cargo test` passes `337 passed / 7 ignored / 0 failed` (the first sandbox run had only the three expected Unix-socket permission failures, then passed outside the sandbox);
+- the signed macOS 26 app and Agent are both live from the fixed installation;
+- Accessibility permission is enabled for the exact signed local-smoke app;
+- focusing Termius's Email control produces an on-screen 34×30 pill above the field without reading its value;
+- invoking the pill opens `#/autofill-picker`, classifies the control as `username`, and ranks the `Termius` Login first in `相关账户` with the fixed app-name reason;
+- no candidate secret was released, no value was inserted, and no Return/Tab/submit action was sent during this privacy-safe smoke.
+
+This closes the signed live entry/context/ranking slice on macOS 26. It does not claim a live password/TOTP insertion or the full release/notarization matrix; those remain deliberately separate from this no-secret UI verification.
 
 ## Exact prerequisites for the root signed local smoke
 
