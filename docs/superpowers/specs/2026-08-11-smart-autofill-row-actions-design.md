@@ -33,6 +33,8 @@ Make the macOS AutoFill picker communicate what each Login can provide without a
 
 - Reuse the existing Bitwarden icon library (`bwi-user`, `bwi-lock`, `bwi-clock`) and current picker typography, spacing, borders, focus treatment, and color tokens.
 - The capability group and “填入” remain readable at the 480×600 popup size, do not overlap long candidate names, and retain high-contrast/reduced-motion behavior.
+- Treat each candidate as one continuous interactive surface. Pointer hover, keyboard highlight, focus-within, and selected state apply one uninterrupted background and one outer outline across the Login body, capability icons, and “填入” action.
+- The row body and trailing action area must not draw separate borders, radii, or opaque backgrounds that visually cut the highlighted row into pieces. Individual buttons may retain a subtle local hover/focus affordance, but it must remain inside the continuous outer row treatment.
 - The selected visual reference is the user-provided Termius picker screenshot annotated on 2026-08-11.
 
 ## Verification
@@ -40,4 +42,5 @@ Make the macOS AutoFill picker communicate what each Login can provide without a
 - Component tests must first fail when the visible context chip remains, capability icons are filtered down to only the detected field, or the primary label is field-specific.
 - Interaction tests must prove one “填入” click sends the exact recognized field scope for username, password, TOTP, and form contexts, with no plaintext fallback.
 - Tests must cover missing candidate fields, low-confidence fail-closed behavior, keyboard activation, and accessible capability labels.
+- Interaction and rendered QA must verify that moving between the row body, capability area, and “填入” action never breaks the candidate highlight, and that keyboard highlight/focus uses the same continuous outer surface.
 - Render the real Angular picker at 480×600, compare it side by side with the selected screenshot, and run the focused suites, recovery/command guards, and production web build before completion.
