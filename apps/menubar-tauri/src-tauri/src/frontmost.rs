@@ -119,6 +119,19 @@ impl TargetAppStore {
             .map(|stored| stored.target.clone())
     }
 
+    fn clear_if_matches(&self, target: &FrontmostApp) {
+        let mut stored = self
+            .target
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if stored
+            .as_ref()
+            .is_some_and(|stored| stored.target == *target)
+        {
+            *stored = None;
+        }
+    }
+
     fn snapshot(
         &self,
     ) -> Option<(
@@ -188,6 +201,10 @@ pub(crate) fn replace_target_app_with_context(
     fill_context: crate::autofill_ax_context::FillContextPresentation,
 ) {
     target_app_store().replace_with_context(target, fill_context);
+}
+
+pub(crate) fn clear_target_app_if_matches(target: &FrontmostApp) {
+    target_app_store().clear_if_matches(target);
 }
 
 #[tauri::command]
@@ -519,6 +536,21 @@ mod tests {
         assert_eq!(store.current_fill_context(), Some(context));
 
         store.replace_preserving_context(app_instance("com.example.target", 42, 200));
+        assert_eq!(store.current_fill_context(), None);
+    }
+
+    #[test]
+    fn failed_popup_clears_only_the_exact_target_and_context() {
+        let store = TargetAppStore::default();
+        let original = app_instance("com.example.target", 42, 100);
+        let replacement = app_instance("com.example.target", 42, 200);
+        store.replace_with_context(original.clone(), fill_context("original-token"));
+
+        store.clear_if_matches(&replacement);
+        assert_eq!(store.current(), Some(original.clone()));
+
+        store.clear_if_matches(&original);
+        assert_eq!(store.current(), None);
         assert_eq!(store.current_fill_context(), None);
     }
 

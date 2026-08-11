@@ -466,6 +466,88 @@ struct ConsumedVisibleTarget {
     detected: Option<crate::autofill_ax_context::CapturedAxContext>,
 }
 
+const FLOATING_CLICK_CAPTURE_ATTEMPTS: usize = 3;
+
+fn is_transient_click_capture_error(error: crate::autofill_ax_context::AxContextError) -> bool {
+    use crate::accessibility_focus::FocusRejectReason;
+    use crate::autofill_ax_context::AxContextError;
+
+    matches!(
+        error,
+        AxContextError::TimeBudgetExceeded
+            | AxContextError::MissingWindow
+            | AxContextError::NoWritableField
+            | AxContextError::Focus(
+                FocusRejectReason::StaleElement
+                    | FocusRejectReason::StaleWindow
+                    | FocusRejectReason::StaleObservation
+                    | FocusRejectReason::MissingFrame
+            )
+    )
+}
+
+fn prepare_floating_click_with<Exact, Capture>(
+    controller: &AutoFillFloatingController,
+    contexts: &crate::autofill_ax_context::DetectedFillContextStore,
+    context: &FloatingClickContext,
+    mut is_exact_frontmost: Exact,
+    mut capture: Capture,
+) -> Result<crate::autofill_ax_context::FillContextPresentation, &'static str>
+where
+    Exact: FnMut(&crate::frontmost::FrontmostApp) -> bool,
+    Capture: FnMut(
+        &crate::frontmost::FrontmostApp,
+        u64,
+    ) -> Result<
+        crate::autofill_ax_context::CapturedAxContext,
+        crate::autofill_ax_context::AxContextError,
+    >,
+{
+    if !is_exact_frontmost(&context.target) {
+        return Err("target-changed");
+    }
+
+    let consumed = controller.consume_visible(context);
+    if !is_exact_frontmost(&context.target) {
+        return Err("target-changed");
+    }
+
+    if let Some(visible) = consumed {
+        if visible.target != context.target {
+            return Err("target-changed");
+        }
+        if let Some(detected) = visible.detected {
+            match contexts.try_insert(context.target.clone(), detected.fields, detected.action) {
+                Ok(presentation) => return Ok(presentation),
+                Err(crate::autofill_ax_context::DetectedFillError::StaleGeneration) => {}
+                Err(_) => return Err("context-unavailable"),
+            }
+        }
+    }
+
+    for _ in 0..FLOATING_CLICK_CAPTURE_ATTEMPTS {
+        if !is_exact_frontmost(&context.target) {
+            return Err("target-changed");
+        }
+        let generation = controller.generation();
+        let detected = match capture(&context.target, generation) {
+            Ok(detected) => detected,
+            Err(error) if is_transient_click_capture_error(error) => continue,
+            Err(_) => return Err("context-unavailable"),
+        };
+        if controller.generation() != generation || !is_exact_frontmost(&context.target) {
+            continue;
+        }
+        match contexts.try_insert(context.target.clone(), detected.fields, detected.action) {
+            Ok(presentation) => return Ok(presentation),
+            Err(crate::autofill_ax_context::DetectedFillError::StaleGeneration) => continue,
+            Err(_) => return Err("context-unavailable"),
+        }
+    }
+
+    Err("context-unavailable")
+}
+
 struct ControllerState {
     fallback: AccessibilityFallback,
     permission: AccessibilityPermission,
@@ -1098,41 +1180,41 @@ mod macos {
                     hide_panel();
                     return;
                 };
-                let Some(visible) = controller.consume_visible(&context) else {
-                    hide_panel();
-                    return;
-                };
-                let target = visible.target;
-                hide_panel();
-                let still_exact_frontmost = frontmost::target_is_running(&target)
-                    && frontmost::current_frontmost_app()
-                        .ok()
-                        .flatten()
-                        .is_some_and(|current| current == target);
-                if !still_exact_frontmost {
-                    return;
-                }
-                let Some(detected) = visible.detected else {
-                    return;
-                };
                 let Some(contexts) = app.try_state::<
                     crate::autofill_ax_context::DetectedFillContextStore,
                 >() else {
+                    hide_panel();
                     return;
                 };
-                let Ok(presentation) = contexts.try_insert(
-                    target.clone(),
-                    detected.fields,
-                    detected.action,
-                ) else {
+                let target = context.target.clone();
+                let prepared = prepare_floating_click_with(
+                    &controller,
+                    &contexts,
+                    &context,
+                    |target| {
+                        frontmost::target_is_running(target)
+                            && frontmost::current_frontmost_app()
+                                .ok()
+                                .flatten()
+                                .is_some_and(|current| current == *target)
+                    },
+                    crate::autofill_ax_context::capture_native_fill_context,
+                );
+                hide_panel();
+                let Ok(presentation) = prepared else {
                     return;
                 };
-                frontmost::replace_target_app_with_context(target.clone(), presentation);
-                let _ = window::show_autofill_picker_window_for_target(
+                frontmost::replace_target_app_with_context(target.clone(), presentation.clone());
+                if window::show_autofill_picker_window_for_target(
                     app,
                     window::PopupEntrySource::AutoFillFloating,
-                    target,
-                );
+                    target.clone(),
+                )
+                .is_err()
+                {
+                    contexts.burn(&presentation.fill_context_token);
+                    frontmost::clear_target_app_if_matches(&target);
+                }
             }
         }
     );
@@ -2297,6 +2379,62 @@ impl ObservationThrottle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
+
+    fn captured_password_context(
+        target: &crate::frontmost::FrontmostApp,
+        generation: u64,
+    ) -> crate::autofill_ax_context::CapturedAxContext {
+        use crate::accessibility_focus::{AppIdentity, AxFrame, FocusedFieldSnapshot};
+        use crate::autofill_ax_context::{CapturedFieldFingerprint, OpaqueAxIdentity};
+        use crate::autofill_contract::AutoFillSecretField;
+        use crate::autofill_field_context::{DetectedAction, DetectedFieldKind, FieldConfidence};
+
+        let field = AxFrame {
+            x: 100.0,
+            y: 100.0,
+            width: 180.0,
+            height: 24.0,
+        };
+        crate::autofill_ax_context::CapturedAxContext {
+            focused: FocusedFieldSnapshot {
+                app: AppIdentity {
+                    bundle_id: target.bundle_id.clone(),
+                    process_id: target.process_id,
+                    live: true,
+                },
+                role: "AXSecureTextField".to_owned(),
+                subrole: None,
+                frame: field,
+                secure: true,
+                reliable: true,
+            },
+            caret_frame: None,
+            fields: vec![CapturedFieldFingerprint {
+                process_id: target.process_id,
+                role: "AXSecureTextField".to_owned(),
+                frame: field,
+                window_frame: AxFrame {
+                    x: 20.0,
+                    y: 20.0,
+                    width: 800.0,
+                    height: 600.0,
+                },
+                container_path: vec![1],
+                traversal_path: vec![1, 1],
+                window_identity: OpaqueAxIdentity::for_test(1),
+                element_identity: OpaqueAxIdentity::for_test(2),
+                kind: DetectedFieldKind::Password,
+                secret_field: Some(AutoFillSecretField::Password),
+                confidence: FieldConfidence::High,
+                focused: true,
+                observer_generation: generation,
+            }],
+            action: DetectedAction::Field {
+                field: AutoFillSecretField::Password,
+            },
+        }
+    }
 
     fn work_area() -> AppKitFrame {
         AppKitFrame {
@@ -2672,64 +2810,13 @@ mod tests {
 
     #[test]
     fn consuming_visible_context_rebinds_it_to_the_shared_generation() {
-        use crate::accessibility_focus::{AppIdentity, AxFrame, FocusedFieldSnapshot};
-        use crate::autofill_ax_context::{
-            CapturedAxContext, CapturedFieldFingerprint, OpaqueAxIdentity,
-        };
-        use crate::autofill_contract::AutoFillSecretField;
-        use crate::autofill_field_context::{DetectedAction, DetectedFieldKind, FieldConfidence};
-
         let observer_generation = crate::autofill_ax_context::ObserverGeneration::default();
         let controller =
             AutoFillFloatingController::with_observer_generation(observer_generation.clone());
         controller.set_fallback(AccessibilityFallback::Unsupported);
         let generation = controller.begin_refresh();
         let target = crate::frontmost::test_frontmost_app("com.example.editor", 42, 9);
-        let app = AppIdentity {
-            bundle_id: "com.example.editor".to_owned(),
-            process_id: 42,
-            live: true,
-        };
-        let field = AxFrame {
-            x: 100.0,
-            y: 100.0,
-            width: 180.0,
-            height: 24.0,
-        };
-        let detected = CapturedAxContext {
-            focused: FocusedFieldSnapshot {
-                app,
-                role: "AXSecureTextField".to_owned(),
-                subrole: None,
-                frame: field,
-                secure: true,
-                reliable: true,
-            },
-            caret_frame: None,
-            fields: vec![CapturedFieldFingerprint {
-                process_id: 42,
-                role: "AXSecureTextField".to_owned(),
-                frame: field,
-                window_frame: AxFrame {
-                    x: 20.0,
-                    y: 20.0,
-                    width: 800.0,
-                    height: 600.0,
-                },
-                container_path: vec![1],
-                traversal_path: vec![1, 1],
-                window_identity: OpaqueAxIdentity::for_test(1),
-                element_identity: OpaqueAxIdentity::for_test(2),
-                kind: DetectedFieldKind::Password,
-                secret_field: Some(AutoFillSecretField::Password),
-                confidence: FieldConfidence::High,
-                focused: true,
-                observer_generation: generation,
-            }],
-            action: DetectedAction::Field {
-                field: AutoFillSecretField::Password,
-            },
-        };
+        let detected = captured_password_context(&target, generation);
         assert!(controller.publish_visible_with_context(
             generation,
             target.clone(),
@@ -2751,6 +2838,216 @@ mod tests {
             controller.generation()
         );
         assert_eq!(observer_generation.current(), controller.generation());
+    }
+
+    #[test]
+    fn chrome_layout_invalidation_before_mouse_up_recaptures_the_exact_live_field() {
+        use crate::autofill_ax_context::{DetectedFillContextStore, ObserverGeneration};
+
+        let observer_generation = ObserverGeneration::default();
+        let controller =
+            AutoFillFloatingController::with_observer_generation(observer_generation.clone());
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.google.Chrome", 42, 9);
+        let generation = controller.begin_refresh();
+        let detected = captured_password_context(&target, generation);
+        assert!(controller.publish_visible_with_context(
+            generation,
+            target.clone(),
+            AppKitFrame {
+                x: 5.0,
+                y: 6.0,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
+            },
+            detected,
+        ));
+        let click = FloatingClickContext {
+            generation,
+            target: target.clone(),
+        };
+        controller.observer_invalidated();
+
+        let store = DetectedFillContextStore::for_test_with_generation(
+            observer_generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let mut captures = 0;
+        let presentation = prepare_floating_click_with(
+            &controller,
+            &store,
+            &click,
+            |_| true,
+            |target, generation| {
+                captures += 1;
+                Ok(captured_password_context(target, generation))
+            },
+        )
+        .expect("a visible-but-invalidated Chrome pill should safely recapture");
+
+        assert_eq!(captures, 1);
+        assert!(!presentation.fill_context_token.is_empty());
+    }
+
+    #[test]
+    fn chrome_generation_churn_retries_a_bounded_recapture_instead_of_dropping_the_click() {
+        use crate::autofill_ax_context::{DetectedFillContextStore, ObserverGeneration};
+
+        let observer_generation = ObserverGeneration::default();
+        let controller =
+            AutoFillFloatingController::with_observer_generation(observer_generation.clone());
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.google.Chrome", 42, 9);
+        let click = FloatingClickContext {
+            generation: 0,
+            target: target.clone(),
+        };
+        let store = DetectedFillContextStore::for_test_with_generation(
+            observer_generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let mut captures = 0;
+        let controller_for_capture = controller.clone();
+        let presentation = prepare_floating_click_with(
+            &controller,
+            &store,
+            &click,
+            |_| true,
+            |target, generation| {
+                captures += 1;
+                if captures == 1 {
+                    controller_for_capture.observer_invalidated();
+                }
+                Ok(captured_password_context(target, generation))
+            },
+        )
+        .expect("one transient Chrome AX generation must be retried");
+
+        assert_eq!(captures, 2);
+        assert!(!presentation.fill_context_token.is_empty());
+    }
+
+    #[test]
+    fn chrome_transient_capture_error_retries_but_stops_after_three_attempts() {
+        use crate::autofill_ax_context::{
+            AxContextError, DetectedFillContextStore, ObserverGeneration,
+        };
+
+        let observer_generation = ObserverGeneration::default();
+        let controller =
+            AutoFillFloatingController::with_observer_generation(observer_generation.clone());
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.google.Chrome", 42, 9);
+        let click = FloatingClickContext {
+            generation: 0,
+            target: target.clone(),
+        };
+        let store = DetectedFillContextStore::for_test_with_generation(
+            observer_generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+
+        let mut recovered_captures = 0;
+        let recovered = prepare_floating_click_with(
+            &controller,
+            &store,
+            &click,
+            |_| true,
+            |target, generation| {
+                recovered_captures += 1;
+                if recovered_captures == 1 {
+                    return Err(AxContextError::TimeBudgetExceeded);
+                }
+                Ok(captured_password_context(target, generation))
+            },
+        )
+        .expect("one transient Chrome AX capture error must be retried");
+        assert_eq!(recovered_captures, 2);
+        assert!(!recovered.fill_context_token.is_empty());
+
+        let mut exhausted_captures = 0;
+        assert!(prepare_floating_click_with(
+            &controller,
+            &store,
+            &click,
+            |_| true,
+            |_, _| {
+                exhausted_captures += 1;
+                Err(AxContextError::TimeBudgetExceeded)
+            },
+        )
+        .is_err());
+        assert_eq!(exhausted_captures, FLOATING_CLICK_CAPTURE_ATTEMPTS);
+    }
+
+    #[test]
+    fn exact_frontmost_instance_change_during_capture_burns_the_click() {
+        use crate::autofill_ax_context::{DetectedFillContextStore, ObserverGeneration};
+
+        let observer_generation = ObserverGeneration::default();
+        let controller =
+            AutoFillFloatingController::with_observer_generation(observer_generation.clone());
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.google.Chrome", 42, 9);
+        let click = FloatingClickContext {
+            generation: 0,
+            target: target.clone(),
+        };
+        let store = DetectedFillContextStore::for_test_with_generation(
+            observer_generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let exact = std::cell::Cell::new(true);
+
+        assert!(prepare_floating_click_with(
+            &controller,
+            &store,
+            &click,
+            |_| exact.get(),
+            |target, generation| {
+                exact.set(false);
+                Ok(captured_password_context(target, generation))
+            },
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn stale_pill_never_recaptures_after_the_exact_frontmost_app_changes() {
+        use crate::autofill_ax_context::{DetectedFillContextStore, ObserverGeneration};
+
+        let observer_generation = ObserverGeneration::default();
+        let controller =
+            AutoFillFloatingController::with_observer_generation(observer_generation.clone());
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.google.Chrome", 42, 9);
+        let click = FloatingClickContext {
+            generation: 0,
+            target,
+        };
+        let store = DetectedFillContextStore::for_test_with_generation(
+            observer_generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let mut captures = 0;
+
+        assert!(prepare_floating_click_with(
+            &controller,
+            &store,
+            &click,
+            |_| false,
+            |target, generation| {
+                captures += 1;
+                Ok(captured_password_context(target, generation))
+            },
+        )
+        .is_err());
+        assert_eq!(captures, 0);
     }
 
     #[test]

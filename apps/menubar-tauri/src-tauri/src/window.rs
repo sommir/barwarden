@@ -85,6 +85,19 @@ pub enum PopupToggleAction {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AutoFillPopupShowStrategy {
+    TrayPositioned,
+    ExistingPosition,
+}
+
+fn autofill_popup_show_strategies() -> [AutoFillPopupShowStrategy; 2] {
+    [
+        AutoFillPopupShowStrategy::TrayPositioned,
+        AutoFillPopupShowStrategy::ExistingPosition,
+    ]
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PopoutDockVisibilityAction {
     Show,
     Hide,
@@ -328,7 +341,22 @@ pub fn show_autofill_picker_window_for_target(
 ) -> Result<(), String> {
     debug_assert!(source != PopupEntrySource::Vault);
     frontmost::replace_target_app(target);
-    show_popup_window_after_target_capture(app, None, source)
+    let mut last_error = POPUP_WINDOW_ERROR.to_owned();
+    for strategy in autofill_popup_show_strategies() {
+        let result = match strategy {
+            AutoFillPopupShowStrategy::TrayPositioned => {
+                show_popup_window_after_target_capture(app, None, source)
+            }
+            AutoFillPopupShowStrategy::ExistingPosition => {
+                show_popup_window_at_existing_position(app, source)
+            }
+        };
+        match result {
+            Ok(()) => return Ok(()),
+            Err(error) => last_error = error,
+        }
+    }
+    Err(last_error)
 }
 
 fn show_popup_window_for_entry(
@@ -362,21 +390,125 @@ fn show_popup_window_after_target_capture(
         .window
         .set_position(popup_position)
         .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
-    context
-        .window
-        .show()
+    present_popup_window(app, &context.window, entry_source)
+}
+
+fn show_popup_window_at_existing_position(
+    app: &tauri::AppHandle,
+    entry_source: PopupEntrySource,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(MAIN_WINDOW_LABEL)
+        .ok_or_else(|| POPUP_WINDOW_NOT_FOUND.to_owned())?;
+    let existing_position = window
+        .outer_position()
         .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
-    context
-        .window
-        .set_focus()
+    let size = window
+        .outer_size()
         .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
+    let monitors = window
+        .available_monitors()
+        .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
+    let monitor_geometries: Vec<_> = monitors.iter().map(MonitorGeometry::from).collect();
+    let primary = window
+        .primary_monitor()
+        .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?
+        .as_ref()
+        .map(MonitorGeometry::from)
+        .and_then(|primary| {
+            monitor_geometries.iter().position(|monitor| {
+                monitor.physical_bounds.position == primary.physical_bounds.position
+                    && monitor.physical_bounds.size == primary.physical_bounds.size
+                    && monitor.work_area.position == primary.work_area.position
+                    && monitor.work_area.size == primary.work_area.size
+            })
+        });
+    let safe_position =
+        safe_existing_popup_position(existing_position, size, &monitor_geometries, primary)
+            .ok_or_else(|| POPUP_WINDOW_ERROR.to_owned())?;
+    if safe_position != existing_position {
+        window
+            .set_position(Position::Physical(safe_position))
+            .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
+    }
+    present_popup_window(app, &window, entry_source)
+}
+
+fn present_popup_window(
+    app: &tauri::AppHandle,
+    window: &WebviewWindow,
+    entry_source: PopupEntrySource,
+) -> Result<(), String> {
+    window.show().map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
+    if window.set_focus().is_err() {
+        let _ = window.hide();
+        return Err(POPUP_WINDOW_ERROR.to_owned());
+    }
     let reset_required = app.state::<PopupPresentationState>().take_reset_required();
     // A repaint failure must not prevent users from opening the popup; the
     // frontend treats this event as a best-effort compositor recovery.
-    let _ = context
-        .window
-        .eval(popup_render_recovery_script(reset_required, entry_source));
+    let _ = window.eval(popup_render_recovery_script(reset_required, entry_source));
     Ok(())
+}
+
+fn safe_existing_popup_position(
+    existing_position: PhysicalPosition<i32>,
+    popup_size: PhysicalSize<u32>,
+    monitors: &[MonitorGeometry],
+    primary_monitor_index: Option<usize>,
+) -> Option<PhysicalPosition<i32>> {
+    let popup_rect = PhysicalRect {
+        position: existing_position,
+        size: popup_size,
+    };
+    if monitors.iter().any(|monitor| {
+        valid_scale_factor(monitor.scale_factor)
+            && physical_rect_fully_contains(monitor.work_area, popup_rect)
+    }) {
+        return Some(existing_position);
+    }
+
+    let monitor = primary_monitor_index
+        .and_then(|index| monitors.get(index))
+        .filter(|monitor| valid_scale_factor(monitor.scale_factor))
+        .or_else(|| {
+            monitors
+                .iter()
+                .find(|monitor| valid_scale_factor(monitor.scale_factor))
+        })?;
+    Some(PhysicalPosition::new(
+        clamped_axis_origin(
+            i64::from(existing_position.x),
+            monitor.work_area.position.x,
+            monitor.work_area.size.width,
+            popup_size.width,
+        ),
+        clamped_axis_origin(
+            i64::from(existing_position.y),
+            monitor.work_area.position.y,
+            monitor.work_area.size.height,
+            popup_size.height,
+        ),
+    ))
+}
+
+fn physical_rect_fully_contains(
+    outer: PhysicalRect<i32, u32>,
+    inner: PhysicalRect<i32, u32>,
+) -> bool {
+    let outer_left = i64::from(outer.position.x);
+    let outer_top = i64::from(outer.position.y);
+    let outer_right = outer_left + i64::from(outer.size.width);
+    let outer_bottom = outer_top + i64::from(outer.size.height);
+    let inner_left = i64::from(inner.position.x);
+    let inner_top = i64::from(inner.position.y);
+    let inner_right = inner_left + i64::from(inner.size.width);
+    let inner_bottom = inner_top + i64::from(inner.size.height);
+
+    inner_left >= outer_left
+        && inner_top >= outer_top
+        && inner_right <= outer_right
+        && inner_bottom <= outer_bottom
 }
 
 fn resolve_popup_geometry(
@@ -947,14 +1079,15 @@ fn valid_identifier(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        existing_popout_url, monitor_index_for_tray, monitor_index_for_tray_or_primary,
-        physical_popup_size, popout_dock_visibility_action, popout_url, popup_lifecycle_action,
-        popup_origin, popup_position_for_monitor, popup_render_recovery_script,
-        popup_size_and_position, popup_target_height, popup_toggle_action, sanitize_route,
-        should_hide_after_popup_blur, MonitorGeometry, PopoutDockVisibilityAction,
-        PopupEntrySource, PopupLifecycleAction, PopupLifecycleEvent, PopupPresentationState,
-        PopupToggleAction, PopupVisibilityHold, POPOUT_HEIGHT, POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH,
-        POPOUT_WIDTH, POPUP_WINDOW_ERROR,
+        autofill_popup_show_strategies, existing_popout_url, monitor_index_for_tray,
+        monitor_index_for_tray_or_primary, physical_popup_size, popout_dock_visibility_action,
+        popout_url, popup_lifecycle_action, popup_origin, popup_position_for_monitor,
+        popup_render_recovery_script, popup_size_and_position, popup_target_height,
+        popup_toggle_action, safe_existing_popup_position, sanitize_route,
+        should_hide_after_popup_blur, AutoFillPopupShowStrategy, MonitorGeometry,
+        PopoutDockVisibilityAction, PopupEntrySource, PopupLifecycleAction, PopupLifecycleEvent,
+        PopupPresentationState, PopupToggleAction, PopupVisibilityHold, POPOUT_HEIGHT,
+        POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH, POPOUT_WIDTH, POPUP_WINDOW_ERROR,
     };
     use tauri::{LogicalPosition, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Url};
 
@@ -1300,6 +1433,50 @@ mod tests {
         assert_eq!(
             popup_lifecycle_action("popout", PopupLifecycleEvent::CloseRequested),
             PopupLifecycleAction::Keep,
+        );
+    }
+
+    #[test]
+    fn floating_autofill_open_retries_without_tray_geometry_instead_of_disappearing() {
+        assert_eq!(
+            autofill_popup_show_strategies(),
+            [
+                AutoFillPopupShowStrategy::TrayPositioned,
+                AutoFillPopupShowStrategy::ExistingPosition,
+            ]
+        );
+    }
+
+    #[test]
+    fn floating_autofill_existing_position_is_moved_onto_an_active_monitor() {
+        let monitors = [monitor(0, 0, 1440, 900, 2.0)];
+        assert_eq!(
+            safe_existing_popup_position(
+                PhysicalPosition::new(3000, 200),
+                PhysicalSize::new(480, 600),
+                &monitors,
+                Some(0),
+            ),
+            Some(PhysicalPosition::new(960, 200)),
+        );
+        assert_eq!(
+            safe_existing_popup_position(
+                PhysicalPosition::new(100, 100),
+                PhysicalSize::new(480, 600),
+                &monitors,
+                Some(0),
+            ),
+            Some(PhysicalPosition::new(100, 100)),
+        );
+        assert_eq!(
+            safe_existing_popup_position(
+                PhysicalPosition::new(1439, 100),
+                PhysicalSize::new(480, 600),
+                &monitors,
+                Some(0),
+            ),
+            Some(PhysicalPosition::new(960, 100)),
+            "a one-pixel sliver is not an operable fallback window",
         );
     }
 
