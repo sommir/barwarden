@@ -17,8 +17,12 @@ import { officialCurrentAccountTestProviders } from "../official-ui/official-cur
 import { PopupStateStore } from "../popup-state";
 import { demoFolders, demoVaultItems } from "../vault-demo";
 import { VaultActionsService } from "./vault-actions.service";
-import { VaultAutoFillPageComponent } from "./vault-autofill-page.component";
+import { VaultAutoFillSuggestionsComponent } from "./vault-autofill-suggestions.component";
+import {
+  VAULT_CONTEXTUAL_SECTION,
+} from "./vault-contextual-section-outlet.component";
 import { VaultFacade } from "./vault.facade";
+import { VaultListPageComponent } from "./vault-list-page.component";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -26,7 +30,7 @@ try {
   if (!(error instanceof Error) || !error.message.includes("Cannot set base providers")) throw error;
 }
 
-describe("VaultAutoFillPageComponent", () => {
+describe("vault AutoFill composition", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -78,18 +82,19 @@ describe("VaultAutoFillPageComponent", () => {
       invalidate: vi.fn(),
     };
     await TestBed.configureTestingModule({
-      imports: [VaultAutoFillPageComponent],
+      imports: [VaultListPageComponent],
       providers: [
         provideRouter([]),
         { provide: PopupStateStore, useValue: store },
         { provide: AutoFillVaultContextService, useValue: context },
         { provide: AutoFillFillActionService, useValue: { prepare: vi.fn(), execute: vi.fn(), cancel: vi.fn() } },
+        { provide: VAULT_CONTEXTUAL_SECTION, useValue: VaultAutoFillSuggestionsComponent },
         { provide: VaultActionsService, useValue: {} },
         VaultFacade,
       ],
     }).compileComponents();
 
-    const fixture = TestBed.createComponent(VaultAutoFillPageComponent);
+    const fixture = TestBed.createComponent(VaultListPageComponent);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();

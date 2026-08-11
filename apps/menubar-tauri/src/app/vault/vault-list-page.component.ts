@@ -42,6 +42,7 @@ import { RetainedNewItemDropdownComponent } from "./retained-new-item-dropdown.c
 import { VaultRowActionsAdapter } from "./vault-row-actions.adapter";
 import { VaultSessionService } from "./vault-session.service";
 import { VaultFacade, type VaultMainState } from "./vault.facade";
+import { VaultContextualSectionOutletComponent } from "./vault-contextual-section-outlet.component";
 
 @Component({
   selector: "bw-vault-list-page",
@@ -60,6 +61,7 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
     TypographyDirective,
     VaultFadeInOutComponent,
     VaultFadeInOutSkeletonComponent,
+    VaultContextualSectionOutletComponent,
     VaultHierarchyComponent,
     VaultListItemsContainerComponent,
     VaultLoadingSkeletonComponent,
@@ -107,7 +109,7 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
       }
 
       @if (vaultState === 'ready' || vaultState === 'no-results') {
-        <ng-content select="bw-vault-autofill-suggestions" />
+        <bw-vault-contextual-section-outlet />
       }
 
       @if (showSkeletons) {

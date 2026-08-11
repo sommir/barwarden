@@ -34,7 +34,7 @@ import { NewItemPageComponent } from "./vault/new-item-page.component";
 import { TrashPageComponent } from "./vault/trash-page.component";
 import { VaultAddEditPageComponent } from "./vault/vault-add-edit-page.component";
 import { VaultItemDetailPageComponent } from "./vault/vault-item-detail-page.component";
-import { VaultAutoFillPageComponent } from "./vault/vault-autofill-page.component";
+import { VaultListPageComponent } from "./vault/vault-list-page.component";
 import { VaultPasswordHistoryPageComponent } from "./vault/vault-password-history-page.component";
 import { OtpPageComponent } from "./vault/otp-page.component";
 
@@ -78,7 +78,7 @@ export const routes: Routes = [
     component: PopupShellComponent,
     canMatch: [unlockedOnlyGuard],
     children: [
-      { path: "vault", component: VaultAutoFillPageComponent },
+      { path: "vault", component: VaultListPageComponent },
       { path: "otp", component: OtpPageComponent },
       { path: "generator", component: GeneratorPageComponent },
       { path: "send", component: SendPageComponent },

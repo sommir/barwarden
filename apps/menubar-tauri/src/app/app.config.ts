@@ -55,6 +55,8 @@ import { AUTOFILL_NATIVE_HOST } from "./autofill/autofill-native.host";
 import { TauriHostService } from "../host/tauri-host.service";
 import { AUTOFILL_SETUP_HOST, AutoFillSetupService } from "./autofill/autofill-setup.service";
 import { AutoFillVaultContextService } from "./autofill/autofill-vault-context.service";
+import { VaultAutoFillSuggestionsComponent } from "./vault/vault-autofill-suggestions.component";
+import { VAULT_CONTEXTUAL_SECTION } from "./vault/vault-contextual-section-outlet.component";
 
 const evidenceSearch = globalThis.location?.search ?? "";
 const settingsEvidencePreview = createSettingsEvidencePreview(evidenceSearch);
@@ -77,6 +79,7 @@ export const appConfig: ApplicationConfig = {
     { provide: AUTOFILL_SETUP_HOST, useFactory: () => new TauriHostService() },
     AutoFillSetupService,
     AutoFillVaultContextService,
+    { provide: VAULT_CONTEXTUAL_SECTION, useValue: VaultAutoFillSuggestionsComponent },
     provideAppInitializer(() => {
       inject(SettingsService);
       inject(AutoFillProjectionService);
