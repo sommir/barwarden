@@ -93,25 +93,42 @@ describe("AutoFillPickerComponent contextual actions", () => {
   });
 
   it.each([
-    ["email", "high", "field", ["username"], "autofill-context-username", "用户名", "填入用户名"],
-    ["password", "high", "field", ["password"], "autofill-context-password", "密码", "填入密码"],
-    ["one-time-code", "high", "field", ["totp"], "autofill-context-totp", "验证码", "填入验证码"],
-    ["username", "high", "form", ["username", "password"], "autofill-context-form", "用户名 + 密码", "填入登录表单"],
+    ["email", "high", "field", ["username"]],
+    ["password", "high", "field", ["password"]],
+    ["one-time-code", "high", "field", ["totp"]],
+    ["username", "high", "form", ["username", "password"]],
   ] as const)(
-    "renders a confident %s context with one explicit primary action",
-    async (kind, confidence, mode, fields, testId, label, actionLabel) => {
+    "uses a confident %s context behind one generic Fill action",
+    async (kind, confidence, mode, fields) => {
       activeContext = context({ kind, confidence, mode, fields });
       const fixture = await renderPicker();
       const host = fixture.nativeElement as HTMLElement;
 
       expect(host.querySelector("[data-testid='autofill-field-switcher']")).toBeNull();
-      expect(host.querySelector(`[data-testid='${testId}']`)?.textContent).toContain(label);
-      expect(actionLabels(host)).toEqual([actionLabel]);
+      expect(host.querySelector("[data-testid^='autofill-context-']")).toBeNull();
+      expect(actionLabels(host)).toEqual(["填入"]);
+      expect(capabilityFields(host)).toEqual(["username", "password", "totp"]);
       const primary = host.querySelector("[data-testid^='autofill-primary-action-']") as HTMLButtonElement;
       expect(primary).not.toBeNull();
-      expect(Boolean(primary.querySelector(".bwi-file-text"))).toBe(mode === "form");
+      expect(primary.querySelector(".bwi")).toBeNull();
+
+      primary.click();
+      await vi.waitFor(() => expect(nativeHost.fillDetected).toHaveBeenCalledOnce());
+      expect(nativeHost.fillDetected.mock.calls[0][0].authorizations.map(({ scope }) => scope.field)).toEqual(fields);
     },
   );
+
+  it("shows only the candidate fields that are actually available and authorized", async () => {
+    candidateHost.queryCandidates.mockImplementation(async (request: { field: AutoFillSecretField }) => (
+      request.field === "totp" ? { contextToken: "totp-token", candidates: [] } : response(request.field)
+    ));
+    const fixture = await renderPicker();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(capabilityFields(host)).toEqual(["username", "password"]);
+    expect(host.querySelector("[data-testid^='autofill-capabilities-']")?.getAttribute("aria-label"))
+      .toBe("可填入：用户名、密码");
+  });
 
   it("renders low-confidence choose mode with only available field icon actions", async () => {
     activeContext = context({
@@ -123,7 +140,7 @@ describe("AutoFillPickerComponent contextual actions", () => {
     const fixture = await renderPicker();
     const host = fixture.nativeElement as HTMLElement;
 
-    expect(host.querySelector("[data-testid='autofill-context-choose']")?.textContent).toContain("选择填入字段");
+    expect(host.querySelector("[data-testid^='autofill-context-']")).toBeNull();
     const actions = actionButtons(host);
     expect(actions.map((button) => button.getAttribute("aria-label"))).toEqual(["填入密码", "填入验证码"]);
     expect(actions.map((button) => button.getAttribute("title"))).toEqual(["填入密码", "填入验证码"]);
@@ -164,7 +181,7 @@ describe("AutoFillPickerComponent contextual actions", () => {
 
     expect(host.querySelector(".autofill-picker__expand-actions")).toBeNull();
     expect(actionButtons(host)).toEqual([]);
-    expect(actionLabels(host)).toEqual(["填入密码"]);
+    expect(actionLabels(host)).toEqual(["填入"]);
   });
 
   it("keeps exact, relevant, and other order with fixed localized match reasons", async () => {
@@ -303,13 +320,13 @@ describe("AutoFillPickerComponent contextual actions", () => {
 
     expect(search.isConnected).toBe(true);
     expect(document.activeElement).toBe(search);
-    expect(host.querySelector("[data-testid='autofill-context-form']")?.textContent).toContain("用户名 + 密码");
+    expect(host.querySelector("[data-testid^='autofill-context-']")).toBeNull();
     for (const field of ["username", "password", "totp"] as const) delayed.get(field)?.resolve(response(field));
     await vi.waitFor(() => expect(fixture.componentInstance.query).toBe("git"));
     await fixture.whenStable();
     fixture.detectChanges();
     expect(document.activeElement).toBe(search);
-    expect(host.querySelector("[data-testid='autofill-context-form']")?.textContent).toContain("用户名 + 密码");
+    expect(host.querySelector("[data-testid^='autofill-context-']")).toBeNull();
   });
 
   it("Arrow keys move the active option with nearest scrolling and Enter only selects", async () => {
@@ -332,7 +349,9 @@ describe("AutoFillPickerComponent contextual actions", () => {
     fixture.detectChanges();
     await Promise.resolve();
     expect(listbox.getAttribute("aria-activedescendant")).toBe(options[1].id);
-    expect(options[1].classList.contains("autofill-picker__option--highlighted")).toBe(true);
+    expect(options[1].classList.contains("autofill-picker__option--highlighted")).toBe(false);
+    expect(options[1].closest(".autofill-picker__candidate-row")?.classList)
+      .toContain("autofill-picker__candidate-row--highlighted");
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
     listbox.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     fixture.detectChanges();
@@ -340,6 +359,28 @@ describe("AutoFillPickerComponent contextual actions", () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(nativeHost.fillDetected).not.toHaveBeenCalled();
     expect(nativeHost.releaseSecret).not.toHaveBeenCalled();
+  });
+
+  it("keeps the trailing capabilities and Fill action inside the same highlighted row", async () => {
+    candidateHost.queryCandidates.mockImplementation(async (request: { field: AutoFillSecretField }) => ({
+      contextToken: `${request.field}-token`,
+      candidates: [
+        candidate(demoVaultItems[0].id, "Example Login", "exact", "service_identifier"),
+        candidate("cipher-second", "Second Login", "exact", "service_identifier"),
+      ],
+    }));
+    const fixture = await renderPicker();
+    const host = fixture.nativeElement as HTMLElement;
+    const primary = host.querySelector("[data-testid='autofill-primary-action-cipher-second']") as HTMLButtonElement;
+    const row = primary.closest(".autofill-picker__candidate-row") as HTMLElement;
+
+    primary.focus();
+    fixture.detectChanges();
+
+    expect(row.classList).toContain("autofill-picker__candidate-row--highlighted");
+    expect(row.querySelector(".autofill-picker__candidate")?.classList)
+      .not.toContain("autofill-picker__option--highlighted");
+    expect(row.querySelector("[data-testid='autofill-capabilities-cipher-second']")).not.toBeNull();
   });
 
   it("leaves primary, more, and field button keyboard events to the buttons", async () => {
@@ -615,6 +656,12 @@ function actionButtons(host: HTMLElement): HTMLButtonElement[] {
 function actionLabels(host: HTMLElement): Array<string | null> {
   return [...host.querySelectorAll<HTMLButtonElement>("[data-testid^='autofill-primary-action-']")]
     .map((button) => button.getAttribute("aria-label"));
+}
+
+function capabilityFields(host: HTMLElement): string[] {
+  const group = host.querySelector("[data-testid^='autofill-capabilities-']");
+  return [...(group?.querySelectorAll<HTMLElement>("[data-autofill-capability]") ?? [])]
+    .map((icon) => icon.dataset["autofillCapability"] ?? "");
 }
 
 function deferred<T = unknown>() {

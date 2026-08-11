@@ -19,7 +19,7 @@ import { AuthFacade } from "../auth/auth.facade";
 import { PopupHeaderComponent } from "../layout/popup-header.component";
 import { PopupPageComponent } from "../layout/popup-page.component";
 import { I18nPipe } from "../official-ui/official-ui-common";
-import { translateOfficialMessage } from "../official-ui/official-i18n.service";
+import { activeOfficialLocale, translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { PopupStateStore } from "../popup-state";
 import { GLOBAL_SHORTCUT_SETTINGS_HOST } from "../settings/global-shortcut-settings.service";
 import { VaultRepromptService } from "../vault/vault-reprompt.service";
@@ -94,6 +94,7 @@ interface LegacyPickerOperation {
 }
 
 const GROUP_ORDER: readonly AutoFillCandidateGroup[] = ["exact", "relevant", "other"];
+const FIELD_ORDER: readonly AutoFillSecretField[] = ["username", "password", "totp"];
 const GROUP_LABELS: Readonly<Record<AutoFillCandidateGroup, string>> = {
   exact: "i18nAutofillExactMatches",
   relevant: "i18nAutofillRelevantAccounts",
@@ -213,15 +214,6 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
               <p>{{ "i18nAutofillFindingAccounts" | i18n }}</p>
             </section>
           } @else {
-            <div
-              class="autofill-picker__context"
-              [attr.data-testid]="contextTestId"
-              [attr.aria-label]="contextLabel"
-            >
-              <i [class]="contextIconClass" aria-hidden="true"></i>
-              <span>{{ contextLabel }}</span>
-            </div>
-
             <label class="autofill-picker__search">
               <i class="bwi bwi-search" aria-hidden="true"></i>
               <span class="tw-sr-only">{{ "i18nAutofillSearchAccounts" | i18n }}</span>
@@ -258,6 +250,9 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                           <div
                             class="autofill-picker__candidate-row"
                             [class.autofill-picker__candidate-row--highlighted]="highlightedCandidate?.cipherId === candidate.cipherId"
+                            [class.autofill-picker__candidate-row--selected]="selected?.cipherId === candidate.cipherId"
+                            (mouseenter)="highlightCandidate(candidate)"
+                            (focusin)="highlightCandidate(candidate)"
                           >
                             <button
                               class="autofill-picker__candidate"
@@ -268,9 +263,6 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                               [attr.data-testid]="'autofill-candidate-body-' + candidate.cipherId"
                               [attr.aria-selected]="selected?.cipherId === candidate.cipherId"
                               [attr.aria-label]="detailLabel(candidate)"
-                              [class.autofill-picker__option--highlighted]="highlightedCandidate?.cipherId === candidate.cipherId"
-                              (mouseenter)="highlightCandidate(candidate)"
-                              (focus)="highlightCandidate(candidate)"
                               (click)="openCandidateDetails(candidate)"
                             >
                               <span class="autofill-picker__candidate-icon" aria-hidden="true"><i class="bwi bwi-globe"></i></span>
@@ -280,6 +272,23 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                               </span>
                             </button>
                             <div class="autofill-picker__candidate-actions">
+                              <span
+                                class="autofill-picker__capabilities"
+                                role="img"
+                                [attr.data-testid]="'autofill-capabilities-' + candidate.cipherId"
+                                [attr.aria-label]="capabilityLabel(candidate)"
+                              >
+                                @for (field of candidateCapabilityFields(candidate); track field) {
+                                  <i
+                                    class="bwi"
+                                    [class.bwi-user]="field === 'username'"
+                                    [class.bwi-lock]="field === 'password'"
+                                    [class.bwi-clock]="field === 'totp'"
+                                    [attr.data-autofill-capability]="field"
+                                    aria-hidden="true"
+                                  ></i>
+                                }
+                              </span>
                               @if (showsPrimaryAction(candidate)) {
                                 <button
                                   class="autofill-picker__primary-action"
@@ -289,10 +298,9 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                                   [title]="primaryActionLabel"
                                   (click)="performPrimaryAction(candidate)"
                                 >
-                                  <i [class]="primaryActionIconClass" aria-hidden="true"></i>
                                   <span>{{ primaryActionLabel }}</span>
                                 </button>
-                                @if (isDetectedCandidate(candidate) && availableFields(candidate).length > 1) {
+                                @if (isDetectedCandidate(candidate) && actionableFields(candidate).length > 1) {
                                   <button
                                     class="autofill-picker__expand-actions"
                                     type="button"
@@ -304,7 +312,7 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                                 }
                               }
                               @if (showsFieldActions(candidate)) {
-                                @for (field of availableFields(candidate); track field) {
+                                @for (field of actionableFields(candidate); track field) {
                                   <button
                                     class="autofill-picker__field-action"
                                     type="button"
@@ -634,13 +642,6 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     return translateOfficialMessage("i18nAutofillFillField", this.fieldLabel(field));
   }
 
-  get contextTestId(): string {
-    if (!this.detectedContext) return "autofill-context-password";
-    if (this.detectedContext.action.mode === "choose") return "autofill-context-choose";
-    if (this.detectedContext.action.mode === "form") return "autofill-context-form";
-    return `autofill-context-${this.detectedContext.action.fields[0] ?? "choose"}`;
-  }
-
   get contextLabel(): string {
     const context = this.detectedContext;
     if (!context) return this.fieldLabel("password");
@@ -648,23 +649,8 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     return context.action.fields.map((field) => this.fieldLabel(field)).join(" + ");
   }
 
-  get contextIconClass(): string {
-    const context = this.detectedContext;
-    if (context?.action.mode === "form") return "bwi bwi-file-text";
-    if (context?.action.mode === "choose") return "bwi bwi-list";
-    return this.fieldIconClass(context?.action.fields[0] ?? "password");
-  }
-
   get primaryActionLabel(): string {
-    const context = this.detectedContext;
-    if (context?.action.mode === "form") return translateOfficialMessage("i18nAutofillFillForm");
-    return this.fieldActionLabel(context?.action.fields[0] ?? "password");
-  }
-
-  get primaryActionIconClass(): string {
-    return this.detectedContext?.action.mode === "form"
-      ? "bwi bwi-file-text"
-      : this.fieldIconClass(this.detectedContext?.action.fields[0] ?? "password");
+    return translateOfficialMessage("i18nAutofillFill");
   }
 
   get liveRegionMessage(): string {
@@ -679,19 +665,34 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     return "authorizations" in candidate && "availableFields" in candidate;
   }
 
-  availableFields(candidate: PickerCandidate): readonly AutoFillSecretField[] {
+  candidateCapabilityFields(candidate: PickerCandidate): readonly AutoFillSecretField[] {
     if (!this.isDetectedCandidate(candidate)) return ["password"];
-    const contextFields = this.detectedContext?.action.fields ?? [];
-    return Object.freeze(contextFields.filter((field) => (
+    return Object.freeze(FIELD_ORDER.filter((field) => (
       candidate.availableFields.includes(field) && candidate.authorizations.has(field)
     )));
+  }
+
+  actionableFields(candidate: PickerCandidate): readonly AutoFillSecretField[] {
+    const contextFields = this.detectedContext?.action.fields ?? [];
+    const capabilityFields = this.candidateCapabilityFields(candidate);
+    return Object.freeze(contextFields.filter((field) => (
+      capabilityFields.includes(field)
+    )));
+  }
+
+  capabilityLabel(candidate: PickerCandidate): string {
+    const separator = activeOfficialLocale() === "zh-CN" ? "、" : ", ";
+    return translateOfficialMessage(
+      "i18nAutofillAvailableFields",
+      this.candidateCapabilityFields(candidate).map((field) => this.fieldLabel(field)).join(separator),
+    );
   }
 
   showsPrimaryAction(candidate: PickerCandidate): boolean {
     if (!this.detectedContext) return true;
     if (!this.isDetectedCandidate(candidate) || this.detectedContext.action.mode === "choose") return false;
-    const availableFields = this.availableFields(candidate);
-    return this.detectedContext.action.fields.every((field) => availableFields.includes(field));
+    const actionableFields = this.actionableFields(candidate);
+    return this.detectedContext.action.fields.every((field) => actionableFields.includes(field));
   }
 
   showsFieldActions(candidate: PickerCandidate): boolean {
@@ -751,7 +752,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
 
   performFieldAction(candidate: PickerCandidate, field: AutoFillSecretField): void {
     if (!this.isDetectedCandidate(candidate) || !this.detectedContext
-        || !this.availableFields(candidate).includes(field)) return;
+        || !this.actionableFields(candidate).includes(field)) return;
     void this.performDetectedAction(candidate, field);
   }
 
@@ -1221,10 +1222,6 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     const id = this.highlightedCandidate ? this.optionId(this.highlightedCandidate) : null;
     if (!id) return;
     queueMicrotask(() => document.getElementById(id)?.scrollIntoView?.({ block: "nearest" }));
-  }
-
-  private fieldIconClass(field: AutoFillSecretField): string {
-    return `bwi ${field === "username" ? "bwi-user" : field === "password" ? "bwi-lock" : "bwi-clock"}`;
   }
 
   private clearPickerState(): void {

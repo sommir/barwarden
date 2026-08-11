@@ -121,28 +121,6 @@
   background: var(--mac-hover);
 }
 
-.autofill-picker__context {
-  display: inline-flex;
-  width: fit-content;
-  min-height: 32px;
-  box-sizing: border-box;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 11px;
-  border: 1px solid color-mix(in srgb, var(--mac-accent) 28%, var(--mac-border-subtle));
-  border-radius: 999px;
-  color: var(--mac-accent);
-  background: color-mix(in srgb, var(--mac-selected) 82%, transparent);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.15;
-}
-
-.autofill-picker__context i {
-  width: 14px;
-  text-align: center;
-}
-
 .autofill-picker__search {
   position: relative;
   display: block;
@@ -223,11 +201,10 @@
 }
 
 .autofill-picker__candidate-row:hover,
-.autofill-picker__candidate-row--highlighted {
+.autofill-picker__candidate-row:focus-within,
+.autofill-picker__candidate-row--highlighted,
+.autofill-picker__candidate-row--selected {
   background: var(--mac-hover);
-}
-
-.autofill-picker__candidate-row--highlighted {
   box-shadow: inset 0 0 0 2px var(--mac-focus);
 }
 
@@ -245,17 +222,24 @@
   font: inherit;
 }
 
-.autofill-picker__candidate:focus-visible {
-  border-radius: calc(var(--mac-row-radius) - 1px);
-  box-shadow: inset 0 0 0 2px var(--mac-focus);
-}
-
 .autofill-picker__candidate-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 3px;
   padding: 8px 10px 8px 0;
+  background: transparent;
+}
+
+.autofill-picker__capabilities {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 3px;
+  color: var(--mac-text-secondary);
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .autofill-picker__primary-action {
@@ -276,7 +260,6 @@
   white-space: nowrap;
 }
 
-.autofill-picker__primary-action:hover,
 .autofill-picker__primary-action:focus-visible,
 .autofill-picker__field-action:hover,
 .autofill-picker__field-action:focus-visible,
@@ -285,6 +268,11 @@
   outline: none;
   color: var(--mac-accent);
   background: var(--mac-selected);
+}
+
+.autofill-picker__primary-action:hover {
+  color: var(--mac-accent);
+  background: transparent;
 }
 
 .autofill-picker__primary-action:focus-visible,
