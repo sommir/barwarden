@@ -35,6 +35,9 @@ import { VaultListPageComponent } from "./vault-list-page.component";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
 import { VaultRepromptService } from "./vault-reprompt.service";
 import { VaultSessionService } from "./vault-session.service";
+import { AutoFillVaultContextService } from "../autofill/autofill-vault-context.service";
+import { AutoFillFillActionService } from "../autofill/autofill-fill-action.service";
+import { immutableAuthorizationMap } from "../autofill/autofill-fill-context.model";
 import {
   applyVaultMainEvidenceState,
 } from "./vault-main-evidence-preview";
@@ -95,6 +98,72 @@ describe("VaultListPageComponent", () => {
         .map((child) => child.tagName),
     ).toEqual(["APP-POP-OUT", "APP-CURRENT-ACCOUNT"]);
     expect(host.querySelector("popup-page > popup-header h1")?.textContent).toContain("密码库");
+  });
+
+  it("places live AutoFill suggestions above the retained vault hierarchy", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems(demoVaultItems, demoFolders, new Date("2026-08-11T00:00:00Z"), "account-a");
+    const candidate = Object.freeze({
+      cipherId: "github",
+      displayName: "GitHub",
+      username: "ops@example.com",
+      group: "exact" as const,
+      reason: "service_identifier",
+      availableFields: Object.freeze(["username", "password"] as const),
+      authorizations: immutableAuthorizationMap([
+        ["username", { contextToken: "username-token", requiresMismatchConfirmation: false }],
+        ["password", { contextToken: "password-token", requiresMismatchConfirmation: false }],
+      ]),
+    });
+    const context = {
+      snapshot: () => ({
+        status: "ready" as const,
+        epoch: 1,
+        context: {
+          bundleId: "com.example.Terminal",
+          appName: "Terminal",
+          fillContextToken: "00000000-0000-4000-8000-000000000005",
+          focusedField: { kind: "password" as const, confidence: "high" as const },
+          action: { mode: "form" as const, fields: ["username", "password"] as const },
+        },
+        session: {
+          accountId: "account-a",
+          generation: "00000000-0000-4000-8000-000000000004",
+          vaultRevision: 7,
+        },
+        candidates: [candidate],
+      }),
+      subscribe: () => () => undefined,
+      select: () => candidate,
+      selected: () => null,
+      invalidate: vi.fn(),
+    };
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        { provide: AutoFillVaultContextService, useValue: context },
+        { provide: AutoFillFillActionService, useValue: { prepare: vi.fn(), execute: vi.fn(), cancel: vi.fn() } },
+        { provide: VaultActionsService, useValue: {} },
+        VaultFacade,
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const suggestions = host.querySelector("[data-testid='vault-autofill-suggestions']");
+    const hierarchy = host.querySelector("bw-vault-hierarchy");
+
+    expect(suggestions).not.toBeNull();
+    expect(suggestions?.compareDocumentPosition(hierarchy!) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(host.textContent).toContain("自动填充建议");
+    expect(host.textContent).toContain("收藏夹");
+    expect(host.textContent).toContain("所有项目");
   });
 
   it("keeps the title-bar add control available when the unlocked vault is empty", async () => {

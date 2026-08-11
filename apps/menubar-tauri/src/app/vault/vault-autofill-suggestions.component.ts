@@ -3,7 +3,9 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  Injector,
   OnDestroy,
+  Optional,
   ViewChild,
 } from "@angular/core";
 import { Router } from "@angular/router";
@@ -121,29 +123,31 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
       </section>
     }
 
-    <bw-app-bottom-sheet
-      #mismatchDialog
-      testId="vault-autofill-mismatch"
-      labelledBy="vault-autofill-mismatch-title"
-      describedBy="vault-autofill-mismatch-description"
-      (dismissed)="cancelMismatch()"
-    >
-      <form bit-dialog dialogSize="small" (submit)="confirmMismatch($event)">
-        <span bitDialogTitle id="vault-autofill-mismatch-title">{{ mismatchTitle }}</span>
-        <ng-container bitDialogContent>
-          <p id="vault-autofill-mismatch-description">{{ mismatchDescription }}</p>
-        </ng-container>
-        <ng-container bitDialogFooter>
-          <button bitButton buttonType="primary" data-testid="vault-autofill-confirm-mismatch" type="submit">
-            {{ fillAnywayText }}
-          </button>
-          <button bitButton buttonType="secondary" type="button" (click)="cancelMismatch()">
-            {{ cancelText }}
-          </button>
-        </ng-container>
-      </form>
-    </bw-app-bottom-sheet>
-    <bw-vault-reprompt-dialog />
+    @if (visibleCandidates.length) {
+      <bw-app-bottom-sheet
+        #mismatchDialog
+        testId="vault-autofill-mismatch"
+        labelledBy="vault-autofill-mismatch-title"
+        describedBy="vault-autofill-mismatch-description"
+        (dismissed)="cancelMismatch()"
+      >
+        <form bit-dialog dialogSize="small" (submit)="confirmMismatch($event)">
+          <span bitDialogTitle id="vault-autofill-mismatch-title">{{ mismatchTitle }}</span>
+          <ng-container bitDialogContent>
+            <p id="vault-autofill-mismatch-description">{{ mismatchDescription }}</p>
+          </ng-container>
+          <ng-container bitDialogFooter>
+            <button bitButton buttonType="primary" data-testid="vault-autofill-confirm-mismatch" type="submit">
+              {{ fillAnywayText }}
+            </button>
+            <button bitButton buttonType="secondary" type="button" (click)="cancelMismatch()">
+              {{ cancelText }}
+            </button>
+          </ng-container>
+        </form>
+      </bw-app-bottom-sheet>
+      <bw-vault-reprompt-dialog />
+    }
   `,
   styleUrl: "./vault-autofill-suggestions.component.css",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -161,29 +165,34 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
   busyCipherId = "";
 
   private readonly unsubscribe: () => void;
+  private readonly fillActions: AutoFillFillActionService | null;
   private activeAction: ReadyAction | null = null;
   private pendingMismatch: { readonly candidate: ContextualCandidate; readonly item: VaultItem; readonly action: ReadyAction } | null = null;
   private operationEpoch = 0;
 
   constructor(
-    private readonly context: AutoFillVaultContextService,
-    private readonly fillActions: AutoFillFillActionService,
+    @Optional() private readonly context: AutoFillVaultContextService | null,
+    injector: Injector,
     private readonly store: PopupStateStore,
     private readonly router: Router,
     private readonly bindings: AutoFillBindingsService,
     private readonly changeDetectorRef: ChangeDetectorRef,
   ) {
-    this.unsubscribe = this.context.subscribe(() => {
+    this.fillActions = this.context
+      ? injector.get(AutoFillFillActionService, null)
+      : null;
+    this.unsubscribe = this.context?.subscribe(() => {
       this.operationEpoch += 1;
       this.cancelActiveAction();
       this.pendingMismatch = null;
       this.busyCipherId = "";
       this.changeDetectorRef.markForCheck();
-    });
+    }) ?? (() => undefined);
   }
 
   get visibleCandidates(): readonly ContextualCandidate[] {
-    const state = this.context.snapshot();
+    const state = this.context?.snapshot();
+    if (!state) return Object.freeze([]);
     if (state.status !== "ready") return Object.freeze([]);
     return Object.freeze(state.candidates
       .filter((candidate) => this.isEligible(candidate, state))
@@ -211,7 +220,7 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
   }
 
   openDetails(candidate: ContextualCandidate): void {
-    if (!this.context.select(candidate.cipherId)) return;
+    if (!this.context?.select(candidate.cipherId)) return;
     void this.router.navigateByUrl(`/view-cipher/${encodeURIComponent(candidate.cipherId)}`);
   }
 
@@ -232,7 +241,7 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
     const pending = this.pendingMismatch;
     this.pendingMismatch = null;
     this.mismatchDialog?.close();
-    if (pending) void this.fillActions.cancel(pending.action);
+    if (pending) void this.fillActions?.cancel(pending.action);
     if (this.activeAction === pending?.action) this.activeAction = null;
     this.busyCipherId = "";
     this.changeDetectorRef.markForCheck();
@@ -245,9 +254,9 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
   }
 
   private async fill(candidate: ContextualCandidate, trigger?: HTMLElement): Promise<void> {
-    const state = this.context.snapshot();
-    const selected = this.context.select(candidate.cipherId);
-    if (state.status !== "ready" || !selected) return;
+    const state = this.context?.snapshot();
+    const selected = this.context?.select(candidate.cipherId);
+    if (!state || state.status !== "ready" || !selected || !this.fillActions) return;
     const item = this.localLogin(candidate.cipherId, state.session.accountId);
     if (!item) return;
     const action = this.fillActions.prepare(state.context, state.session, candidate);
@@ -274,6 +283,7 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
     repromptVerified = false,
     epoch = this.operationEpoch,
   ): Promise<void> {
+    if (!this.fillActions) return;
     const outcome = await this.fillActions.execute(action, {
       mismatchConfirmed,
       requiresReprompt: Boolean(item.reprompt),
@@ -318,7 +328,7 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
         explicitUserAction: true,
         succeeded: true,
       });
-      this.context.invalidate("cancel");
+      this.context?.invalidate("cancel");
     } else if (outcome.status === "partial") {
       this.store.setStatus(translateOfficialMessage(
         "i18nAutofillPartial",
@@ -334,14 +344,14 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
   private cancelAction(action: ReadyAction): void {
     if (this.activeAction === action) this.activeAction = null;
     this.busyCipherId = "";
-    void this.fillActions.cancel(action);
+    void this.fillActions?.cancel(action);
     this.changeDetectorRef.markForCheck();
   }
 
   private cancelActiveAction(): void {
     const action = this.activeAction;
     this.activeAction = null;
-    if (action) void this.fillActions.cancel(action);
+    if (action) void this.fillActions?.cancel(action);
   }
 
   private isEligible(candidate: ContextualCandidate, state: Extract<AutoFillVaultContextState, { status: "ready" }>): boolean {

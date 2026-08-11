@@ -32,6 +32,7 @@ import {
 import { VaultLoadingSkeletonComponent } from "../upstream-overlays/vault-main/vault-loading-skeleton/vault-loading-skeleton.component";
 import type { VaultField, VaultItem } from "../vault-demo";
 import { VaultActionsService } from "./vault-actions.service";
+import { VaultAutoFillSuggestionsComponent } from "./vault-autofill-suggestions.component";
 import { VaultHierarchyComponent } from "./vault-hierarchy.component";
 import {
   VAULT_MAIN_EVIDENCE_STATE,
@@ -60,6 +61,7 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
     TypographyDirective,
     VaultFadeInOutComponent,
     VaultFadeInOutSkeletonComponent,
+    VaultAutoFillSuggestionsComponent,
     VaultHierarchyComponent,
     VaultListItemsContainerComponent,
     VaultLoadingSkeletonComponent,
@@ -104,6 +106,10 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
           testId="vault-sync-callout"
           (action)="retrySync()"
         />
+      }
+
+      @if (vaultState === 'ready' || vaultState === 'no-results') {
+        <bw-vault-autofill-suggestions />
       }
 
       @if (showSkeletons) {
@@ -179,12 +185,12 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
           />
         }
       }
-      <bw-vault-reprompt-dialog />
+      <bw-vault-reprompt-dialog #vaultListReprompt />
     </popup-page>
   `,
 })
 export class VaultListPageComponent implements OnDestroy {
-  @ViewChild(VaultRepromptDialogComponent) private repromptDialog?: VaultRepromptDialogComponent;
+  @ViewChild("vaultListReprompt") private repromptDialog?: VaultRepromptDialogComponent;
   openMenuRowId: string | null = null;
   readonly noResultsIcon = NoResults;
   readonly vaultIcon = VaultOpen;
