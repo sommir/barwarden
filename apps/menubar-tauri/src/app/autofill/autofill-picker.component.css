@@ -93,7 +93,6 @@
 
 .autofill-picker__shortcut-warning,
 .autofill-picker__turn-off,
-.autofill-picker__expand-actions,
 .autofill-picker__field-action {
   display: grid;
   width: 28px;
@@ -262,9 +261,7 @@
 
 .autofill-picker__primary-action:focus-visible,
 .autofill-picker__field-action:hover,
-.autofill-picker__field-action:focus-visible,
-.autofill-picker__expand-actions:hover,
-.autofill-picker__expand-actions:focus-visible {
+.autofill-picker__field-action:focus-visible {
   outline: none;
   color: var(--mac-accent);
   background: var(--mac-selected);
@@ -277,7 +274,6 @@
 
 .autofill-picker__primary-action:focus-visible,
 .autofill-picker__field-action:focus-visible,
-.autofill-picker__expand-actions:focus-visible,
 .autofill-picker__turn-off:focus-visible,
 .autofill-picker__primary:focus-visible,
 .autofill-picker__secondary:focus-visible,

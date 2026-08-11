@@ -149,30 +149,20 @@ describe("AutoFillPickerComponent contextual actions", () => {
     expect(host.querySelector("[data-testid^='autofill-primary-action-']")).toBeNull();
   });
 
-  it("expands only live form fields and executes one immutable authorized subset", async () => {
+  it("keeps a confident form row automatic without exposing another field chooser", async () => {
     activeContext = context({
       kind: "username", confidence: "high", mode: "form", fields: ["username", "password"],
     });
-    nativeHost.fillDetected.mockResolvedValue({ status: "success", fields: ["username"] });
     const fixture = await renderPicker();
     const host = fixture.nativeElement as HTMLElement;
-    const more = host.querySelector(".autofill-picker__expand-actions") as HTMLButtonElement;
-    more.click();
-    fixture.detectChanges();
 
-    expect(actionButtons(host).map((button) => button.getAttribute("aria-label")))
-      .toEqual(["填入用户名", "填入密码"]);
-    expect(host.querySelector("[data-testid$='-totp']")).toBeNull();
+    expect(host.querySelector(".autofill-picker__expand-actions")).toBeNull();
+    expect(actionButtons(host)).toEqual([]);
 
-    (host.querySelector("[data-testid$='-username']") as HTMLButtonElement).click();
+    (host.querySelector("[data-testid^='autofill-primary-action-']") as HTMLButtonElement).click();
     await vi.waitFor(() => expect(nativeHost.fillDetected).toHaveBeenCalledOnce());
-    expect(nativeHost.fillDetected).toHaveBeenCalledWith({
-      fillContextToken: activeContext.fillContextToken,
-      authorizations: [{
-        scope: expect.objectContaining({ field: "username", contextToken: "username-token" }),
-        mismatchConfirmed: false,
-      }],
-    });
+    expect(nativeHost.fillDetected.mock.calls[0][0].authorizations.map(({ scope }) => scope.field))
+      .toEqual(["username", "password"]);
   });
 
   it("does not expose candidate fields outside a confident single-field context", async () => {
@@ -383,7 +373,7 @@ describe("AutoFillPickerComponent contextual actions", () => {
     expect(row.querySelector("[data-testid='autofill-capabilities-cipher-second']")).not.toBeNull();
   });
 
-  it("leaves primary, more, and field button keyboard events to the buttons", async () => {
+  it("leaves automatic and low-confidence field button keyboard events to the buttons", async () => {
     activeContext = context({
       kind: "username", confidence: "high", mode: "form", fields: ["username", "password"],
     });
@@ -397,25 +387,25 @@ describe("AutoFillPickerComponent contextual actions", () => {
     const fixture = await renderPicker();
     const host = fixture.nativeElement as HTMLElement;
     const primary = host.querySelector("[data-testid^='autofill-primary-action-']") as HTMLButtonElement;
-    const more = host.querySelector(".autofill-picker__expand-actions") as HTMLButtonElement;
 
-    for (const button of [primary, more]) {
-      for (const key of ["ArrowDown", "Enter", " "]) {
-        const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
-        button.dispatchEvent(event);
-        expect(event.defaultPrevented).toBe(false);
-        expect(fixture.componentInstance.highlightedIndex).toBe(0);
-      }
+    for (const key of ["ArrowDown", "Enter", " "]) {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      primary.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(fixture.componentInstance.highlightedIndex).toBe(0);
     }
+    fixture.destroy();
 
-    more.click();
-    fixture.detectChanges();
-    const field = host.querySelector("[data-testid$='-username']") as HTMLButtonElement;
+    activeContext = context({
+      kind: "unknown", confidence: "low", mode: "choose", fields: ["username", "password"],
+    });
+    const chooseFixture = await renderPicker();
+    const field = chooseFixture.nativeElement.querySelector("[data-testid$='-username']") as HTMLButtonElement;
     for (const key of ["ArrowDown", "Enter", " "]) {
       const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
       field.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(false);
-      expect(fixture.componentInstance.highlightedIndex).toBe(0);
+      expect(chooseFixture.componentInstance.highlightedIndex).toBe(0);
     }
   });
 

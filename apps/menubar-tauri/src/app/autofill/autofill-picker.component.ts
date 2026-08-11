@@ -300,16 +300,6 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                                 >
                                   <span>{{ primaryActionLabel }}</span>
                                 </button>
-                                @if (isDetectedCandidate(candidate) && actionableFields(candidate).length > 1) {
-                                  <button
-                                    class="autofill-picker__expand-actions"
-                                    type="button"
-                                    [attr.aria-label]="'i18nAutofillMoreActions' | i18n"
-                                    [title]="'i18nAutofillMoreActions' | i18n"
-                                    [attr.aria-expanded]="expandedCandidateId === candidate.cipherId"
-                                    (click)="toggleSecondaryActions(candidate)"
-                                  ><i class="bwi bwi-ellipsis-h" aria-hidden="true"></i></button>
-                                }
                               }
                               @if (showsFieldActions(candidate)) {
                                 @for (field of actionableFields(candidate); track field) {
@@ -410,7 +400,6 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
   candidates: readonly PickerCandidate[] = [];
   selected: PickerCandidate | null = null;
   highlightedIndex = 0;
-  expandedCandidateId: string | null = null;
   statusMessage = "";
   shortcutLabel = "";
   shortcutUnavailable = false;
@@ -603,7 +592,6 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.contextSession.clear();
     this.query = value;
     this.selected = null;
-    this.expandedCandidateId = null;
     this.statusMessage = "";
     this.markIfAlive();
     await this.refreshCandidates(epoch).catch((error) => {
@@ -697,12 +685,7 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
 
   showsFieldActions(candidate: PickerCandidate): boolean {
     if (!this.detectedContext || !this.isDetectedCandidate(candidate)) return false;
-    return this.detectedContext.action.mode === "choose" || this.expandedCandidateId === candidate.cipherId;
-  }
-
-  toggleSecondaryActions(candidate: ContextualCandidate): void {
-    this.expandedCandidateId = this.expandedCandidateId === candidate.cipherId ? null : candidate.cipherId;
-    this.markIfAlive();
+    return this.detectedContext.action.mode === "choose";
   }
 
   detailLabel(candidate: PickerCandidate): string {
@@ -726,7 +709,6 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.startOperation();
     if (this.isDetectedCandidate(candidate)) this.contextSession.select(candidate.cipherId);
     this.selected = candidate;
-    this.expandedCandidateId = null;
     this.statusMessage = "";
     this.markIfAlive();
   }
@@ -978,7 +960,6 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
       return;
     }
     this.selected = candidate;
-    this.expandedCandidateId = null;
     this.statusMessage = "";
     this.captureDialogReturnFocus();
     const localLogin = this.localLogin(candidate.cipherId, session.accountId);
@@ -1228,7 +1209,6 @@ export class AutoFillPickerComponent implements OnInit, OnDestroy {
     this.contextSession.clear();
     this.candidates = [];
     this.selected = null;
-    this.expandedCandidateId = null;
     this.pendingMismatch = null;
     this.pendingProtected = null;
     this.masterPasswordMode = false;
