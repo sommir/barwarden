@@ -22,7 +22,7 @@ AutoFill is now a contextual capability of the normal vault rather than a standa
 ## Verification
 
 - Focused integration gate: 151 passed, 1 skipped.
-- Full Vitest: 3,648 passed, 22 skipped, 0 failed.
+- Full Vitest after the reference restyle: 3,649 passed, 22 skipped, 0 failed.
 - Native AutoFill contract gate: 3 passed.
 - Production web build: passed (1,118 modules; only existing baseline warnings).
 - Product Design QA: passed at 480 × 600 with combined source/implementation comparisons and zero final browser warnings/errors.
@@ -35,8 +35,10 @@ Rust, Swift, native protocol, entitlements, signing, browser-extension behavior,
 - Design: `docs/superpowers/specs/2026-08-11-vault-integrated-autofill-design.md`
 - Plan: `docs/superpowers/plans/2026-08-11-vault-integrated-autofill.md`
 - QA ledger: `design-qa.md`
-- Vault implementation: `docs/superpowers/specs/2026-08-11-vault-autofill-list.png`
-- Vault comparison: `docs/superpowers/specs/2026-08-11-vault-autofill-comparison.png`
+- Vault implementation: `docs/superpowers/specs/2026-08-11-vault-autofill-list-restyled.png`
+- Vault comparison: `docs/superpowers/specs/2026-08-11-vault-autofill-restyle-comparison.png`
+- Focused row comparison: `docs/superpowers/specs/2026-08-11-vault-autofill-restyle-focus-comparison.png`
+- Continuous hover evidence: `docs/superpowers/specs/2026-08-11-vault-autofill-list-hover.png`
 - Detail comparison: `docs/superpowers/specs/2026-08-11-vault-autofill-detail-comparison.png`
 
 ## Residual boundaries
@@ -44,3 +46,7 @@ Rust, Swift, native protocol, entitlements, signing, browser-extension behavior,
 - Suggestions remain fail-closed and only appear after an explicit AutoFill entry captures a live native context; opening the vault normally does not guess a target.
 - The vault consumes the existing Agent ranking result and deliberately does not duplicate or broaden matching logic.
 - Low-confidence choose mode never guesses through the generic Fill action.
+
+## Reference restyle
+
+The suggestion section was rebuilt after visual feedback against the supplied vault references. It now composes the same official section, item group, item content, item action, typography, button, and real vault-item icon primitives as the retained vault list. The previous custom icon tile, custom bordered list, inset blue selection bar, and disconnected row chrome were removed. Username, password, and verification-code capabilities use the canonical BWI user/key/clock glyphs, while the generic Fill action remains the only secret-release control. A genuine 480 × 600 browser render, full comparison, focused comparison, continuous hover capture, and zero-error console check are recorded in `design-qa.md`.

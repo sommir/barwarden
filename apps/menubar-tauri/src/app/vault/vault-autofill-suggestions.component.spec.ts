@@ -68,10 +68,37 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     ]);
     expect(harness.host.textContent).toContain("自动填充建议");
     expect(harness.host.textContent).toContain("服务标识完全匹配");
-    expect(rows[0].querySelectorAll(".bwi-user, .bwi-lock, .bwi-clock")).toHaveLength(3);
+    expect(rows[0].querySelectorAll(".bwi-user, .bwi-key, .bwi-clock")).toHaveLength(3);
     expect(rows[0].querySelector("button[data-testid='vault-autofill-fill']")?.getAttribute("aria-label"))
       .toContain("GitHub");
     expect(rows[0].querySelectorAll("[tabindex='0']")).toHaveLength(0);
+  });
+
+  it("composes suggestions from the same official item primitives as the retained vault list", async () => {
+    const harness = await render(ready([
+      candidate("github", "exact", "service_identifier", ["username", "password", "totp"]),
+    ]));
+
+    const group = harness.host.querySelector("bit-item-group[data-testid='vault-autofill-suggestion-group']");
+    const row = group?.querySelector("bit-item[data-testid='vault-autofill-candidate']");
+
+    expect(group).not.toBeNull();
+    expect(row?.querySelector("button[bit-item-content][data-testid='vault-autofill-open-details']"))
+      .not.toBeNull();
+    expect(row?.querySelector("bw-vault-item-icon")).not.toBeNull();
+    expect(row?.querySelector("[data-testid='vault-autofill-capability-summary']")?.closest("bit-item-action"))
+      .not.toBeNull();
+    expect(row?.querySelector("bit-item-action button[data-testid='vault-autofill-fill']"))
+      .not.toBeNull();
+    expect(row?.querySelector("app-item-more-options")).toBeNull();
+    expect(row?.querySelector("[data-testid='vault-autofill-quick-copy']")).toBeNull();
+    expect(row?.querySelector("[data-testid='vault-autofill-capability-summary']")?.classList)
+      .toContain("tw-sr-only");
+    expect(row?.querySelector("[data-testid='vault-autofill-candidate-name']")?.className)
+      .toContain("tw-truncate");
+    expect(row?.querySelector("[data-testid='vault-autofill-candidate-subtitle']")?.className)
+      .toContain("tw-truncate");
+    expect(row?.querySelector(".vault-autofill-suggestions__row")).toBeNull();
   });
 
   it("opens the exact Login detail from the row body without filling", async () => {

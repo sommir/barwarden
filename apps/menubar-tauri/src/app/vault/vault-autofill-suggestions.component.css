@@ -2,154 +2,24 @@
   display: contents;
 }
 
-.vault-autofill-suggestions {
-  display: grid;
-  gap: 0.5rem;
-  padding: 0.75rem;
-}
-
-.vault-autofill-suggestions__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  color: var(--color-text-main);
-  padding-inline: 0.25rem;
-}
-
-.vault-autofill-suggestions__header h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.vault-autofill-suggestions__header > span[aria-hidden="true"] {
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.vault-autofill-suggestions__list {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow: hidden;
-  border: 1px solid var(--color-border-base);
-  border-radius: 0.75rem;
-  background: var(--color-background-primary);
-}
-
-.vault-autofill-suggestions__row {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  min-height: 4.25rem;
-  border-bottom: 1px solid var(--color-border-base);
-  transition: background-color 120ms ease, box-shadow 120ms ease;
-}
-
-.vault-autofill-suggestions__row:last-child {
-  border-bottom: 0;
-}
-
-.vault-autofill-suggestions__row:hover,
-.vault-autofill-suggestions__row:focus-within {
-  z-index: 1;
-  background: var(--color-background-alt);
-  box-shadow: inset 3px 0 0 var(--color-primary-600);
-}
-
-.vault-autofill-suggestions__details {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-  align-self: stretch;
-  padding: 0.625rem 0.25rem 0.625rem 0.75rem;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.vault-autofill-suggestions__icon {
-  display: grid;
-  place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.65rem;
-  background: var(--color-primary-100);
-  color: var(--color-primary-600);
-  font-size: 1.15rem;
-}
-
-.vault-autofill-suggestions__copy {
-  display: grid;
-  min-width: 0;
-  gap: 0.12rem;
-}
-
-.vault-autofill-suggestions__copy strong,
-.vault-autofill-suggestions__copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vault-autofill-suggestions__copy strong {
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.vault-autofill-suggestions__copy small {
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-}
-
 .vault-autofill-suggestions__capabilities {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: var(--color-text-muted);
-  padding-inline: 0.35rem;
+  min-width: max-content;
+  font-size: 0.875rem;
 }
 
 .vault-autofill-suggestions__fill {
-  min-height: 2rem;
-  margin-right: 0.75rem;
-  padding: 0.25rem 0.65rem;
-  border: 1px solid var(--color-primary-300);
-  border-radius: 0.5rem;
-  background: var(--color-primary-100);
-  color: var(--color-primary-700);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+  min-width: max-content;
+  margin-inline-end: 0.25rem;
 }
 
-.vault-autofill-suggestions__details:focus-visible,
-.vault-autofill-suggestions__fill:focus-visible {
-  outline: 2px solid var(--color-primary-600);
-  outline-offset: -2px;
-}
-
-.vault-autofill-suggestions__fill:disabled {
-  cursor: progress;
-  opacity: 0.55;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vault-autofill-suggestions__row {
-    transition: none;
+@media (max-width: 390px) {
+  .vault-autofill-suggestions__capabilities {
+    gap: 0.25rem;
   }
 }
 
 @media (forced-colors: active) {
-  .vault-autofill-suggestions__row:hover,
-  .vault-autofill-suggestions__row:focus-within {
-    outline: 2px solid Highlight;
-    box-shadow: none;
+  .vault-autofill-suggestions__capabilities {
+    color: CanvasText;
   }
 }

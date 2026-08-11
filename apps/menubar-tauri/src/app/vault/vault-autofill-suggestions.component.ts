@@ -27,10 +27,18 @@ import {
   ButtonComponent,
   DialogComponent,
   DialogFooterDirective,
+  ItemActionComponent,
+  ItemComponent,
+  ItemContentComponent,
+  ItemGroupComponent,
+  SectionComponent,
+  SectionHeaderComponent,
+  TypographyDirective,
 } from "../official-ui/official-components";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { PopupStateStore } from "../popup-state";
 import type { VaultItem } from "../vault-demo";
+import { VaultItemIconComponent } from "./vault-item-icon.component";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
 
 type ReadyAction = Extract<PreparedAutoFillAction, { readonly status: "ready" }>;
@@ -61,66 +69,114 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
     CdkDialogModule,
     DialogComponent,
     DialogFooterDirective,
+    ItemActionComponent,
+    ItemComponent,
+    ItemContentComponent,
+    ItemGroupComponent,
+    SectionComponent,
+    SectionHeaderComponent,
+    TypographyDirective,
+    VaultItemIconComponent,
     VaultRepromptDialogComponent,
   ],
   template: `
     @if (visibleCandidates.length) {
-      <section
-        class="vault-autofill-suggestions"
+      <bit-section
+        class="vault-autofill-suggestions tw-block tw-bg-background-alt tw-px-3 tw-pt-2 tw-pb-3"
         data-testid="vault-autofill-suggestions"
         aria-labelledby="vault-autofill-suggestions-title"
       >
-        <header class="vault-autofill-suggestions__header">
-          <h2 id="vault-autofill-suggestions-title">{{ suggestionTitle }}</h2>
-          <span aria-hidden="true">{{ visibleCandidates.length }}</span>
+        <div class="tw-pl-1 tw-mb-0.5">
+          <bit-section-header class="tw-p-0.5 -tw-mx-0.5">
+            <h2 id="vault-autofill-suggestions-title" bitTypography="h6">
+              {{ suggestionTitle }}
+            </h2>
+            <span slot="end" bitTypography="body2" aria-hidden="true">
+              {{ visibleCandidates.length }}
+            </span>
+          </bit-section-header>
           <span class="tw-sr-only" role="status" aria-live="polite">
             {{ suggestionCountLabel }}
           </span>
-        </header>
+        </div>
 
-        <ul class="vault-autofill-suggestions__list" role="list">
+        <bit-item-group data-testid="vault-autofill-suggestion-group">
           @for (candidate of visibleCandidates; track candidate.cipherId) {
-            <li
-              class="vault-autofill-suggestions__row"
-              data-testid="vault-autofill-candidate"
-              [attr.data-cipher-id]="candidate.cipherId"
-            >
-              <button
-                class="vault-autofill-suggestions__details"
-                data-testid="vault-autofill-open-details"
-                type="button"
-                [attr.aria-label]="viewDetailsLabel(candidate)"
-                (click)="openDetails(candidate)"
+            @if (itemForCandidate(candidate); as item) {
+              <bit-item
+                class="tw-group/vault-autofill-item"
+                data-testid="vault-autofill-candidate"
+                [attr.data-cipher-id]="candidate.cipherId"
               >
-                <span class="vault-autofill-suggestions__icon" aria-hidden="true">
-                  <i class="bwi bwi-globe"></i>
-                </span>
-                <span class="vault-autofill-suggestions__copy">
-                  <strong>{{ candidate.displayName }}</strong>
-                  <small>{{ candidate.username }} · {{ reasonLabel(candidate.reason) }}</small>
-                </span>
-              </button>
+                <button
+                  bit-item-content
+                  class="tw-h-[59px] tw-min-w-0"
+                  data-testid="vault-autofill-open-details"
+                  type="button"
+                  [attr.aria-label]="viewDetailsLabel(candidate)"
+                  (click)="openDetails(candidate)"
+                >
+                  <span slot="start" class="tw-justify-start tw-w-7 tw-flex item-icon">
+                    <bw-vault-item-icon [item]="item" />
+                  </span>
+                  <span
+                    class="tw-block tw-min-w-0 tw-truncate tw-font-semibold"
+                    data-testid="vault-autofill-candidate-name"
+                  >
+                    {{ candidate.displayName }}
+                  </span>
+                  <span
+                    slot="secondary"
+                    class="tw-block tw-min-w-0 tw-truncate"
+                    data-testid="vault-autofill-candidate-subtitle"
+                  >
+                    {{ candidate.username }} · {{ reasonLabel(candidate.reason) }}
+                  </span>
+                </button>
 
-              <span class="vault-autofill-suggestions__capabilities" aria-hidden="true">
-                @for (field of capabilityFields(candidate); track field) {
-                  <i class="bwi" [class.bwi-user]="field === 'username'" [class.bwi-lock]="field === 'password'" [class.bwi-clock]="field === 'totp'"></i>
-                }
-              </span>
-
-              <button
-                class="vault-autofill-suggestions__fill"
-                data-testid="vault-autofill-fill"
-                type="button"
-                [disabled]="busyCipherId === candidate.cipherId"
-                [attr.aria-label]="fillLabel(candidate)"
-                (click)="requestFill(candidate, $event)"
-              >
-                {{ fillText }}
-              </button>
-            </li>
+                <ng-container slot="end">
+                  <bit-item-action>
+                    <span
+                      class="vault-autofill-suggestions__capabilities tw-inline-flex tw-items-center tw-gap-2 tw-text-muted"
+                      aria-hidden="true"
+                    >
+                      @for (field of capabilityFields(candidate); track field) {
+                        <i
+                          class="bwi"
+                          [class.bwi-user]="field === 'username'"
+                          [class.bwi-key]="field === 'password'"
+                          [class.bwi-clock]="field === 'totp'"
+                        ></i>
+                      }
+                    </span>
+                    <span
+                      class="tw-sr-only"
+                      data-testid="vault-autofill-capability-summary"
+                    >
+                      {{ capabilitySummary(candidate) }}
+                    </span>
+                  </bit-item-action>
+                  <bit-item-action>
+                    <button
+                      bitButton
+                      buttonType="primaryOutline"
+                      size="small"
+                      class="vault-autofill-suggestions__fill"
+                      data-testid="vault-autofill-fill"
+                      type="button"
+                      [disabled]="busyCipherId === candidate.cipherId"
+                      [attr.aria-label]="fillLabel(candidate)"
+                      (click)="requestFill(candidate, $event)"
+                    >
+                      {{ fillText }}
+                    </button>
+                  </bit-item-action>
+                </ng-container>
+              </bit-item>
+            }
           }
-        </ul>
-      </section>
+        </bit-item-group>
+      </bit-section>
     }
 
     @if (visibleCandidates.length) {
@@ -205,6 +261,17 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
 
   capabilityFields(candidate: ContextualCandidate): readonly AutoFillSecretField[] {
     return FIELD_ORDER.filter((field) => candidate.availableFields.includes(field));
+  }
+
+  capabilitySummary(candidate: ContextualCandidate): string {
+    return this.capabilityFields(candidate).map(fieldLabel).join("、");
+  }
+
+  itemForCandidate(candidate: ContextualCandidate): VaultItem | null {
+    const state = this.context?.snapshot();
+    return state?.status === "ready"
+      ? this.localLogin(candidate.cipherId, state.session.accountId)
+      : null;
   }
 
   reasonLabel(reason: string): string {
