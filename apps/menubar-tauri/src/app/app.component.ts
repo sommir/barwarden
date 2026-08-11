@@ -64,6 +64,7 @@ import { translateOfficialMessage } from "./official-ui/official-i18n.service";
 import { LocaleRouteRefreshService } from "./platform/locale-route-refresh.service";
 import { VaultFacade } from "./vault/vault.facade";
 import { AutoFillSetupService } from "./autofill/autofill-setup.service";
+import { AutoFillVaultContextService } from "./autofill/autofill-vault-context.service";
 
 const startupNavigationErrorMessage = () =>
   translateOfficialMessage("i18nStartupNavigationFailed");
@@ -211,6 +212,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly vault: VaultFacade | null = null,
     @Optional()
     private readonly autoFillSetup: AutoFillSetupService | null = null,
+    @Optional()
+    private readonly autoFillVaultContext: AutoFillVaultContextService | null = null,
   ) {
     // The root owns the singleton so every live route is refreshed when the
     // user changes language, including secondary Settings routes.
@@ -614,7 +617,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     if (detail?.entrySource === "autofill-menu"
         || detail?.entrySource === "autofill-shortcut"
         || detail?.entrySource === "autofill-floating") {
-      void this.openAutoFillPicker();
+      void this.openAutoFillInVault();
       return;
     }
     if (detail?.reset === true) {
@@ -622,7 +625,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private async openAutoFillPicker(): Promise<void> {
+  private async openAutoFillInVault(): Promise<void> {
     if (
       this.evidenceMode
       || resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout"
@@ -631,11 +634,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.routeCache?.clear();
     try {
-      const setupState = await this.autoFillSetup?.enableFromEntry();
-      if (setupState === "disabled") return;
-      await this.router.navigateByUrl("/autofill-picker", { replaceUrl: true });
+      const contextState = await this.autoFillVaultContext?.beginFromEntry();
+      if (contextState?.status !== "ready") return;
+      await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
     } catch {
-      // Keep the existing popup route usable when picker navigation cannot settle.
+      // Keep the existing popup route usable when contextual AutoFill cannot settle.
     }
   }
 

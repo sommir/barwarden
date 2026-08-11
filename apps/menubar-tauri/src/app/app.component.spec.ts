@@ -107,11 +107,12 @@ describe("AppComponent", () => {
   });
 
   it.each(["autofill-menu", "autofill-shortcut", "autofill-floating"])(
-    "routes the dedicated %s entry to the shared picker without resetting the vault route",
+    "routes the dedicated %s entry to the normal vault after contextual initialization",
     async (entrySource) => {
       const store = new PopupStateStore();
       const navigateByUrl = vi.fn().mockResolvedValue(true);
-      const component = new AppComponent(
+      const beginFromEntry = vi.fn(async () => ({ status: "ready" as const }));
+      const component = Reflect.construct(AppComponent, [
         { restoreStartup: vi.fn() } as any,
         {
           navigateByUrl,
@@ -120,27 +121,31 @@ describe("AppComponent", () => {
         } as any,
         { recordActivity: vi.fn() } as any,
         store,
-      );
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+        { recoverAtStartup: vi.fn() },
+        { beginFromEntry },
+      ]) as AppComponent;
 
       component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
         detail: { reset: true, entrySource },
       }));
 
       await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
-        "/autofill-picker",
+        "/tabs/vault",
         { replaceUrl: true },
       ));
+      expect(beginFromEntry).toHaveBeenCalledOnce();
       expect(store.snapshot().activeTab).toBe("vault");
       component.ngOnDestroy();
     },
   );
 
-  it("awaits native AutoFill enablement before opening a dedicated entry", async () => {
+  it("awaits the complete contextual AutoFill snapshot before opening a dedicated entry", async () => {
     const store = new PopupStateStore();
     const navigateByUrl = vi.fn().mockResolvedValue(true);
-    let finishEnable: (() => void) | undefined;
-    const enableFromEntry = vi.fn(() => new Promise<"ready">((resolve) => {
-      finishEnable = () => resolve("ready");
+    let finishContext: (() => void) | undefined;
+    const beginFromEntry = vi.fn(() => new Promise<{ status: "ready" }>((resolve) => {
+      finishContext = () => resolve({ status: "ready" });
     }));
     const component = Reflect.construct(AppComponent, [
       { restoreStartup: vi.fn() },
@@ -148,42 +153,67 @@ describe("AppComponent", () => {
       { recordActivity: vi.fn() },
       store,
       null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-      { enableFromEntry },
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry },
     ]) as AppComponent;
 
     component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
       detail: { entrySource: "autofill-shortcut" },
     }));
-    await vi.waitFor(() => expect(enableFromEntry).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(beginFromEntry).toHaveBeenCalledOnce());
     expect(navigateByUrl).not.toHaveBeenCalled();
 
-    finishEnable?.();
+    finishContext?.();
     await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
-      "/autofill-picker",
+      "/tabs/vault",
       { replaceUrl: true },
     ));
     component.ngOnDestroy();
   });
 
-  it("does not reopen the picker when a concurrent Turn Off wins enablement", async () => {
+  it("does not navigate when contextual AutoFill initialization is unavailable", async () => {
     const store = new PopupStateStore();
     const navigateByUrl = vi.fn().mockResolvedValue(true);
-    const enableFromEntry = vi.fn(async () => "disabled" as const);
+    const beginFromEntry = vi.fn(async () => ({ status: "unavailable" as const, reason: "setup" as const }));
     const component = Reflect.construct(AppComponent, [
       { restoreStartup: vi.fn() },
       { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
       { recordActivity: vi.fn() },
       store,
       null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-      { enableFromEntry },
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry },
     ]) as AppComponent;
 
     component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
       detail: { entrySource: "autofill-shortcut" },
     }));
-    await vi.waitFor(() => expect(enableFromEntry).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(beginFromEntry).toHaveBeenCalledOnce());
 
     expect(navigateByUrl).not.toHaveBeenCalled();
+    component.ngOnDestroy();
+  });
+
+  it("does not initialize contextual AutoFill for an ordinary vault popup restore", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const beginFromEntry = vi.fn();
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn(), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry },
+    ]) as AppComponent;
+
+    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+      detail: { reset: true, entrySource: "vault" },
+    }));
+
+    await Promise.resolve();
+    expect(beginFromEntry).not.toHaveBeenCalled();
     component.ngOnDestroy();
   });
 

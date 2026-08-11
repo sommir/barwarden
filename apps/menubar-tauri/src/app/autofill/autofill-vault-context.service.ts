@@ -43,7 +43,7 @@ export interface SelectedAutoFillVaultCandidate {
 
 const IDLE: AutoFillVaultContextState = Object.freeze({ status: "idle" });
 
-@Injectable({ providedIn: "root" })
+@Injectable()
 export class AutoFillVaultContextService {
   private state: AutoFillVaultContextState = IDLE;
   private epoch = 0;

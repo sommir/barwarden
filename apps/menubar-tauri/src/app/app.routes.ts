@@ -22,7 +22,6 @@ import { AccountSecurityPageComponent } from "./settings/account-security-page.c
 import { AboutPageComponent } from "./settings/about-page.component";
 import { AppearancePageComponent } from "./settings/appearance-page.component";
 import { AutofillSettingsPageComponent } from "./settings/autofill-settings-page.component";
-import { AutoFillPickerComponent } from "./autofill/autofill-picker.component";
 import { KeyboardShortcutPageComponent } from "./settings/keyboard-shortcut-page.component";
 import { SettingsPageComponent } from "./settings/settings-page.component";
 import { SettingsPasswordPageComponent } from "./settings/settings-password-page.component";
@@ -101,7 +100,7 @@ export const routes: Routes = [
     canMatch: [unlockedOnlyGuard],
   },
   { path: "autofill", component: AutofillSettingsPageComponent, canMatch: [unlockedOnlyGuard] },
-  { path: "autofill-picker", component: AutoFillPickerComponent },
+  { path: "autofill-picker", redirectTo: "tabs/vault", pathMatch: "full" },
   {
     path: "keyboard-shortcut",
     component: KeyboardShortcutPageComponent,

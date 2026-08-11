@@ -54,6 +54,7 @@ import { AUTOFILL_CANDIDATE_HOST } from "./autofill/autofill-candidate.service";
 import { AUTOFILL_NATIVE_HOST } from "./autofill/autofill-native.host";
 import { TauriHostService } from "../host/tauri-host.service";
 import { AUTOFILL_SETUP_HOST, AutoFillSetupService } from "./autofill/autofill-setup.service";
+import { AutoFillVaultContextService } from "./autofill/autofill-vault-context.service";
 
 const evidenceSearch = globalThis.location?.search ?? "";
 const settingsEvidencePreview = createSettingsEvidencePreview(evidenceSearch);
@@ -75,6 +76,7 @@ export const appConfig: ApplicationConfig = {
     { provide: AUTOFILL_NATIVE_HOST, useFactory: () => new TauriHostService() },
     { provide: AUTOFILL_SETUP_HOST, useFactory: () => new TauriHostService() },
     AutoFillSetupService,
+    AutoFillVaultContextService,
     provideAppInitializer(() => {
       inject(SettingsService);
       inject(AutoFillProjectionService);

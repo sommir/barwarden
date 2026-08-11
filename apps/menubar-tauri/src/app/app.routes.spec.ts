@@ -32,6 +32,14 @@ function flattenRoutes(routeConfig: Routes, prefix = ""): string[] {
 }
 
 describe("popup routes", () => {
+  it("redirects the retired standalone AutoFill route to the normal vault", () => {
+    expect(routes.find((route) => route.path === "autofill-picker")).toEqual({
+      path: "autofill-picker",
+      redirectTo: "tabs/vault",
+      pathMatch: "full",
+    });
+  });
+
   it("defines the only static route graph eligible for retained popup navigation", () => {
     expect(retainedPopupRouteGraph).toEqual([
       "/tabs/vault",
