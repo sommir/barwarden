@@ -30,6 +30,21 @@ const candidate: ContextualCandidate = {
 };
 
 describe("AutoFillContextSessionService", () => {
+  it("retains the selected live context across the vault and exact detail routes", () => {
+    const service = new AutoFillContextSessionService(() => 1_000);
+    service.begin(context, session, [candidate]);
+    expect(service.select(candidate.cipherId)).toBe(true);
+
+    service.navigationChanged("/tabs/vault");
+    expect(service.snapshot()?.selectedCipherId).toBe(candidate.cipherId);
+
+    service.navigationChanged(`/view-cipher/${candidate.cipherId}`);
+    expect(service.snapshot()?.selectedCipherId).toBe(candidate.cipherId);
+
+    service.navigationChanged("/tabs/generator");
+    expect(service.snapshot()).toBeNull();
+  });
+
   it("keeps one picker-to-detail matrix in memory and returns immutable snapshots", () => {
     const service = new AutoFillContextSessionService(() => 1_000);
     service.begin(context, session, [candidate]);
