@@ -21,7 +21,7 @@ final result: passed
 - The old visible detected-field chip is absent.
 - Each Login row shows the available username, password, and TOTP BWI icons immediately before the action.
 - The row exposes one generic `填入` action; confident field/form selection remains automatic.
-- The highlighted row uses one outer background and one inset outline across the account body, capability icons, and `填入`; child regions stay transparent, so hover and keyboard highlight have no seams.
+- The highlighted row uses one outer background and one rounded inset outline across the account body, capability icons, and `填入`; the outline is inset from the clipping container, all four corners remain visible, and child regions stay transparent.
 - Low-confidence choose mode still exposes explicit field choices; the confident form state does not show a redundant ellipsis or secondary field chooser.
 - Search, candidate grouping, target application context, and keyboard semantics remain intact.
 
