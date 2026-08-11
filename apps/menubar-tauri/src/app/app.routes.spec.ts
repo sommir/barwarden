@@ -76,8 +76,8 @@ describe("popup routes", () => {
       knownAccountGuard,
     ]);
 
-    // AutoFill owns its locked/repair/context-unavailable states and must remain reachable
-    // from the native shortcut while the vault is locked.
+    // The retired URL remains a public compatibility redirect; the destination
+    // still applies the normal unlocked vault guard.
     const publicPaths = new Set(["login", "hint", "autofill-picker", "", "**"]);
     for (const route of routes) {
       if (!publicPaths.has(route.path ?? "") && !["lock", "account-switcher", "2fa", "new-device-verification"].includes(route.path ?? "")) {

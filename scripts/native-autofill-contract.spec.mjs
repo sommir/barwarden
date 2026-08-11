@@ -23,7 +23,7 @@ const appRuntimeSources = [
   "apps/menubar-tauri/src/app/autofill/autofill-fill-context.model.ts",
   "apps/menubar-tauri/src/app/autofill/autofill-contextual-candidates.service.ts",
   "apps/menubar-tauri/src/app/autofill/autofill-fill-action.service.ts",
-  "apps/menubar-tauri/src/app/autofill/autofill-picker.component.ts",
+  "apps/menubar-tauri/src/app/vault/vault-autofill-suggestions.component.ts",
   "apps/menubar-tauri/src/app/vault/vault-item-detail-page.component.ts",
   "apps/menubar-tauri/src/host/tauri-host.service.ts",
 ].map(read).join("\n");

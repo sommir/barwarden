@@ -106,6 +106,28 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
+  it("burns the integrated AutoFill journey before routing a locked vault", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const invalidate = vi.fn();
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), invalidate },
+    ]) as AppComponent;
+
+    store.setLocked();
+
+    await vi.waitFor(() => expect(invalidate).toHaveBeenCalledWith("lock"));
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith("/lock", { replaceUrl: true }));
+    component.ngOnDestroy();
+  });
+
   it.each(["autofill-menu", "autofill-shortcut", "autofill-floating"])(
     "routes the dedicated %s entry to the normal vault after contextual initialization",
     async (entrySource) => {

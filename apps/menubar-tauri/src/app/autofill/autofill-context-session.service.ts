@@ -108,9 +108,7 @@ export class AutoFillContextSessionService {
 
   navigationChanged(url: string): void {
     const path = url.split(/[?#]/, 1)[0];
-    if (path !== "/autofill"
-        && path !== "/autofill-picker"
-        && path !== "/tabs/vault"
+    if (path !== "/tabs/vault"
         && !path.startsWith("/view-cipher/")) this.clear();
   }
 

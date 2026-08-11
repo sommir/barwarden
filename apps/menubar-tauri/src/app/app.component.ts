@@ -225,6 +225,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
     this.routeSubscription = this.router.events?.subscribe(() => {
       this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
+      this.autoFillVaultContext?.navigationChanged(this.router.url);
       const activeTab = mainTabFromUrl(this.router.url);
       if (activeTab) {
         this.store.setActiveTab(activeTab);
@@ -251,6 +252,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         !state.isLoggingIn &&
         !this.evidenceMode &&
         this.router.url !== "/lock";
+      if (wasUnlocked && !state.isUnlocked) {
+        this.autoFillVaultContext?.invalidate("lock");
+      }
       wasUnlocked = state.isUnlocked;
       if (becameUnlocked) {
         const recoverAutoFill = this.autoFillSetup?.recoverAtStartup;

@@ -10,11 +10,11 @@ function snapshot(routeConfig: Route): ActivatedRouteSnapshot {
 }
 
 describe("PopupRouteReuseStrategy", () => {
-  it("recreates the AutoFill picker when a new native entry reloads the same route", () => {
+  it("has no retired AutoFill picker exception in same-route reuse", () => {
     const strategy = new PopupRouteReuseStrategy();
     const routeConfig: Route = { path: "autofill-picker" };
 
-    expect(strategy.shouldReuseRoute(snapshot(routeConfig), snapshot(routeConfig))).toBe(false);
+    expect(strategy.shouldReuseRoute(snapshot(routeConfig), snapshot(routeConfig))).toBe(true);
   });
 
   it("continues reusing ordinary same-route navigation", () => {

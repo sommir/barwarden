@@ -124,6 +124,32 @@ describe("AutoFillVaultContextService", () => {
     expect(harness.contextSession.snapshot()).toBeNull();
   });
 
+  it("retains the journey only across the vault and its exact selected detail", async () => {
+    const harness = createHarness();
+    await harness.service.beginFromEntry();
+    expect(harness.service.select("login-a")).toEqual(CANDIDATE);
+
+    harness.service.navigationChanged("/view-cipher/login-a?from=vault");
+    expect(harness.service.selected("login-a")).not.toBeNull();
+    harness.service.navigationChanged("/tabs/vault");
+    expect(harness.service.snapshot().status).toBe("ready");
+
+    harness.service.navigationChanged("/tabs/settings");
+    expect(harness.service.snapshot()).toEqual({ status: "idle" });
+    expect(harness.contextSession.snapshot()).toBeNull();
+  });
+
+  it("burns the journey when detail navigation targets another cipher", async () => {
+    const harness = createHarness();
+    await harness.service.beginFromEntry();
+    expect(harness.service.select("login-a")).toEqual(CANDIDATE);
+
+    harness.service.navigationChanged("/view-cipher/other");
+
+    expect(harness.service.snapshot()).toEqual({ status: "idle" });
+    expect(harness.contextSession.snapshot()).toBeNull();
+  });
+
   it("fails closed when the projected vault owner does not match the Agent account", async () => {
     const harness = createHarness({ owner: "account-b" });
 

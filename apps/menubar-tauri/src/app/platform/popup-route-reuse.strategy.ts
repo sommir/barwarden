@@ -52,7 +52,6 @@ export class PopupRouteReuseStrategy implements RouteReuseStrategy {
     current: ActivatedRouteSnapshot,
   ): boolean {
     return !this.localeRefreshInProgress
-      && future.routeConfig?.path !== "autofill-picker"
       && future.routeConfig === current.routeConfig;
   }
 

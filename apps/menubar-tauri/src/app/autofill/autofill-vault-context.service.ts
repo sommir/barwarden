@@ -138,6 +138,14 @@ export class AutoFillVaultContextService {
     return Object.freeze({ context: state.context, session: state.session, candidate });
   }
 
+  navigationChanged(url: string): void {
+    const path = url.split(/[?#]/, 1)[0];
+    if (path === "/tabs/vault") return;
+    const selectedCipherId = this.contextSession.snapshot()?.selectedCipherId;
+    if (selectedCipherId && path === `/view-cipher/${encodeURIComponent(selectedCipherId)}`) return;
+    this.invalidate("navigation");
+  }
+
   invalidate(_reason: "navigation" | "target" | "lock" | "account" | "cancel" | "destroy" = "cancel"): void {
     this.epoch += 1;
     this.contextSession.clear();

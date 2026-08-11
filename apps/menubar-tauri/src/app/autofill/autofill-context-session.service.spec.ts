@@ -69,11 +69,11 @@ describe("AutoFillContextSessionService", () => {
     expect(service.snapshot()).toBeNull();
   });
 
-  it("retains state only across picker/detail navigation and clears after absolute expiry", () => {
+  it("retains state only across vault/detail navigation and clears after absolute expiry", () => {
     let now = 1_000;
     const service = new AutoFillContextSessionService(() => now);
     service.begin(context, session, [candidate]);
-    service.navigationChanged("/autofill");
+    service.navigationChanged("/tabs/vault");
     service.navigationChanged("/view-cipher/cipher-a");
     expect(service.snapshot()).not.toBeNull();
 
