@@ -32,7 +32,6 @@ import {
 import { VaultLoadingSkeletonComponent } from "../upstream-overlays/vault-main/vault-loading-skeleton/vault-loading-skeleton.component";
 import type { VaultField, VaultItem } from "../vault-demo";
 import { VaultActionsService } from "./vault-actions.service";
-import { VaultAutoFillSuggestionsComponent } from "./vault-autofill-suggestions.component";
 import { VaultHierarchyComponent } from "./vault-hierarchy.component";
 import {
   VAULT_MAIN_EVIDENCE_STATE,
@@ -61,7 +60,6 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
     TypographyDirective,
     VaultFadeInOutComponent,
     VaultFadeInOutSkeletonComponent,
-    VaultAutoFillSuggestionsComponent,
     VaultHierarchyComponent,
     VaultListItemsContainerComponent,
     VaultLoadingSkeletonComponent,
@@ -109,7 +107,7 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
       }
 
       @if (vaultState === 'ready' || vaultState === 'no-results') {
-        <bw-vault-autofill-suggestions />
+        <ng-content select="bw-vault-autofill-suggestions" />
       }
 
       @if (showSkeletons) {

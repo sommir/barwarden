@@ -234,7 +234,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
-      "sha256": "d3389cbf70ed3dab82b154d1c829615566cf28cc67c259575e350f452d3b6054"
+      "sha256": "2f9fd4cbe1184d56da4e1bc808d655696b2bae867438de3da1e92b95ea63ae4f"
     },
     {
       "path": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
@@ -242,7 +242,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
-      "sha256": "67eda34f486b974f21f0de28f0a8dfca3c5a3e0630d48153bd5794789552309e"
+      "sha256": "1136b4e6e91486ec6d8b43a676f39d423155d887062c74fd84d4b8797026e806"
     },
     {
       "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
