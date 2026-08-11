@@ -70,10 +70,24 @@ export class AutoFillVaultContextService {
   }
 
   async beginFromEntry(): Promise<AutoFillVaultContextState> {
+    return this.begin(async () => this.setup.enableFromEntry().catch(() => "unavailable" as const));
+  }
+
+  async beginFromVaultOpen(): Promise<AutoFillVaultContextState> {
+    if (this.setup.blockReason() !== "ready") {
+      this.invalidate("target");
+      return this.state;
+    }
+    return this.begin(async () => "ready" as const);
+  }
+
+  private async begin(
+    resolveSetup: () => Promise<"disabled" | "ready" | "requiresApproval" | "requiresAccessibility" | "unavailable">,
+  ): Promise<AutoFillVaultContextState> {
     const epoch = ++this.epoch;
     this.contextSession.clear();
     this.publish(Object.freeze({ status: "loading", epoch }));
-    const setupState = await this.setup.enableFromEntry().catch(() => "unavailable" as const);
+    const setupState = await resolveSetup();
     if (!this.owns(epoch)) return this.state;
     if (setupState !== "ready") return this.fail(epoch, "setup");
 

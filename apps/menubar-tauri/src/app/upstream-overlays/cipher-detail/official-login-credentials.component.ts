@@ -29,11 +29,7 @@ export interface LoginRevealRequest {
 }
 
 export interface LoginContextualFillPresentation {
-  readonly appName: string;
-  readonly contextLabel: string;
-  readonly actionLabel: string;
   readonly fields: readonly ("username" | "password" | "totp")[];
-  readonly mode: "field" | "form";
 }
 
 /** Guarded Login-only transform of pinned LoginCredentialsViewComponent. */
@@ -61,7 +57,6 @@ export class OfficialLoginCredentialsComponent implements OnChanges {
   @Input({ required: true }) projection!: OfficialLoginDetailProjection;
   @Input() canFill = false;
   @Input() contextualFillAction?: LoginContextualFillPresentation;
-  @Input() contextualFillFields?: readonly ("username" | "password" | "totp")[];
   @Input() contextualFillBusy = false;
   @Input() revealedFieldIds: ReadonlySet<string> = new Set();
   @Output() copyField = new EventEmitter<VaultField>();
@@ -89,10 +84,6 @@ export class OfficialLoginCredentialsComponent implements OnChanges {
 
   get otpField(): VaultField | undefined {
     return this.projection.actionFields.get("otp");
-  }
-
-  canFillField(field: "username" | "password" | "totp"): boolean {
-    return this.contextualFillFields == null || this.contextualFillFields.includes(field);
   }
 
   isRevealed(fieldId: string): boolean {

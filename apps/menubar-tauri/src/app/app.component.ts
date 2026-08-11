@@ -663,6 +663,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch {
       return;
     }
+    void this.autoFillVaultContext?.beginFromVaultOpen();
     globalThis.requestAnimationFrame(() => {
       globalThis.document
         ?.querySelector<HTMLInputElement>('bw-root-search input[type="search"]')

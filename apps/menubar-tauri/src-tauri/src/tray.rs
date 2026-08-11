@@ -31,7 +31,7 @@ pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
             if autofill_menu_pre_capture_requested(&event) {
-                crate::frontmost::capture_current_target_app();
+                crate::frontmost::capture_current_target_app(tray.app_handle());
             }
             if let Some(rect) = primary_click_rect(&event) {
                 let _ = toggle_popup_window(tray.app_handle(), Some(rect));

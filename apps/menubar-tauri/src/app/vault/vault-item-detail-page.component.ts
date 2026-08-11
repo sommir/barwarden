@@ -137,7 +137,6 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
               [projection]="projection"
               [canFill]="canFillCurrentItem"
               [contextualFillAction]="contextualFillAction"
-              [contextualFillFields]="contextualFillAction?.fields"
               [contextualFillBusy]="contextualFillBusy"
               [revealedFieldIds]="revealedFields"
               (copyField)="copy($event)"
@@ -1028,15 +1027,7 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     }
     this.preparedContextualAction = prepared;
     this.contextualPresentation = Object.freeze({
-      appName: context.appName,
-      contextLabel: context.action.mode === "form"
-        ? translateOfficialMessage("i18nAutofillLoginForm")
-        : fieldLabel(prepared.fields[0]),
-      actionLabel: context.action.mode === "form"
-        ? translateOfficialMessage("i18nAutofillFillForm")
-        : translateOfficialMessage("i18nAutofillFillField", fieldLabel(prepared.fields[0])),
       fields: prepared.fields,
-      mode: context.action.mode === "form" ? "form" : "field",
     });
     this.changeDetectorRef.markForCheck();
   }

@@ -31,7 +31,6 @@ export class OfficialLoginDetailComponent {
   @Input({ required: true }) projection!: OfficialLoginDetailProjection;
   @Input() canFill = false;
   @Input() contextualFillAction?: LoginContextualFillPresentation;
-  @Input() contextualFillFields?: readonly ("username" | "password" | "totp")[];
   @Input() contextualFillBusy = false;
   @Input() revealedFieldIds: ReadonlySet<string> = new Set();
   @Output() copyField = new EventEmitter<VaultField>();

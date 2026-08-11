@@ -2,6 +2,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use serde::Serialize;
+use tauri::Manager;
 
 #[cfg(target_os = "macos")]
 use objc2::rc::Retained;
@@ -184,8 +185,21 @@ pub enum AutoFillEntryContextOutcome {
     Unavailable,
 }
 
-pub fn capture_current_target_app() {
-    capture_current_target_with(target_app_store(), current_frontmost_app, APP_BUNDLE_ID);
+pub fn capture_current_target_app(app: &tauri::AppHandle) {
+    let contexts = app.state::<crate::autofill_ax_context::DetectedFillContextStore>();
+    capture_current_target_with_context(
+        target_app_store(),
+        current_frontmost_app,
+        APP_BUNDLE_ID,
+        |target| {
+            let generation = contexts.current_observer_generation();
+            let captured =
+                crate::autofill_ax_context::capture_native_fill_context(target, generation).ok()?;
+            contexts
+                .try_insert(target.clone(), captured.fields, captured.action)
+                .ok()
+        },
+    );
 }
 
 pub(crate) fn last_target_app() -> Option<FrontmostApp> {
@@ -220,7 +234,7 @@ pub fn autofill_entry_context(
         }
         fallback_fill_context_with(&contexts, &target, |target, generation| {
             crate::autofill_ax_context::capture_native_fill_context(target, generation)
-                .map(|captured| captured.fields)
+                .map(|captured| (captured.fields, captured.action))
         })
     });
     autofill_context_with(
@@ -241,19 +255,16 @@ where
         &FrontmostApp,
         u64,
     ) -> Result<
-        Vec<crate::autofill_ax_context::CapturedFieldFingerprint>,
+        (
+            Vec<crate::autofill_ax_context::CapturedFieldFingerprint>,
+            crate::autofill_field_context::DetectedAction,
+        ),
         crate::autofill_ax_context::AxContextError,
     >,
 {
     let generation = contexts.current_observer_generation();
-    let fields = capture(target, generation).ok()?;
-    contexts
-        .try_insert(
-            target.clone(),
-            fields,
-            crate::autofill_field_context::DetectedAction::Choose,
-        )
-        .ok()
+    let (fields, action) = capture(target, generation).ok()?;
+    contexts.try_insert(target.clone(), fields, action).ok()
 }
 
 fn autofill_context_with<IsRunning>(
@@ -445,6 +456,30 @@ pub(crate) fn capture_current_target_with<Read>(
     store.replace(target);
 }
 
+fn capture_current_target_with_context<Read, Capture>(
+    store: &TargetAppStore,
+    read_frontmost: Read,
+    self_bundle_id: &str,
+    capture_context: Capture,
+) where
+    Read: FnOnce() -> Result<Option<FrontmostApp>, String>,
+    Capture: FnOnce(&FrontmostApp) -> Option<crate::autofill_ax_context::FillContextPresentation>,
+{
+    let target = read_frontmost()
+        .ok()
+        .flatten()
+        .and_then(|app| valid_external_target(app, self_bundle_id));
+    let Some(target) = target else {
+        store.replace(None);
+        return;
+    };
+    if let Some(fill_context) = capture_context(&target) {
+        store.replace_with_context(target, fill_context);
+    } else {
+        store.replace(Some(target));
+    }
+}
+
 fn target_app_store() -> &'static TargetAppStore {
     LAST_TARGET_APP.get_or_init(TargetAppStore::default)
 }
@@ -457,6 +492,7 @@ mod tests {
         PresentedFieldConfidence, PresentedFieldKind,
     };
     use crate::autofill_contract::AutoFillSecretField;
+    use crate::autofill_field_context::DetectedAction;
 
     fn fill_context(token: &str) -> FillContextPresentation {
         FillContextPresentation {
@@ -492,6 +528,46 @@ mod tests {
         );
 
         assert_eq!(store.current(), Some(app("com.example.current", 20)));
+    }
+
+    #[test]
+    fn capture_preserves_the_detected_field_context_before_the_popup_takes_focus() {
+        let store = TargetAppStore::default();
+        let expected = app("com.example.current", 20);
+
+        capture_current_target_with_context(
+            &store,
+            || Ok(Some(expected.clone())),
+            APP_BUNDLE_ID,
+            |target| {
+                assert_eq!(target, &expected);
+                Some(fill_context("captured-before-popup"))
+            },
+        );
+
+        assert_eq!(store.current(), Some(expected));
+        assert_eq!(
+            store
+                .current_fill_context()
+                .map(|context| context.fill_context_token),
+            Some("captured-before-popup".to_owned()),
+        );
+    }
+
+    #[test]
+    fn capture_keeps_the_target_when_field_capture_is_unavailable() {
+        let store = TargetAppStore::default();
+        let expected = app("com.example.current", 20);
+
+        capture_current_target_with_context(
+            &store,
+            || Ok(Some(expected.clone())),
+            APP_BUNDLE_ID,
+            |_| None,
+        );
+
+        assert_eq!(store.current(), Some(expected));
+        assert_eq!(store.current_fill_context(), None);
     }
 
     #[test]
@@ -586,7 +662,7 @@ mod tests {
     }
 
     #[test]
-    fn fallback_uses_current_generation_and_forces_choose_for_a_valid_focus() {
+    fn fallback_preserves_the_detected_action_for_a_valid_focus() {
         use crate::accessibility_focus::AxFrame;
         use crate::autofill_ax_context::{
             CapturedFieldFingerprint, DetectedFillContextStore, ObserverGeneration,
@@ -605,64 +681,77 @@ mod tests {
         let target = app_instance("com.example.target", 42, 100);
         let presentation = fallback_fill_context_with(&store, &target, |_, generation| {
             observed_generation.set(generation);
-            Ok(vec![CapturedFieldFingerprint {
-                process_id: 42,
-                role: "AXSecureTextField".to_owned(),
-                frame: AxFrame {
-                    x: 100.0,
-                    y: 100.0,
-                    width: 180.0,
-                    height: 24.0,
+            Ok((
+                vec![CapturedFieldFingerprint {
+                    process_id: 42,
+                    role: "AXSecureTextField".to_owned(),
+                    frame: AxFrame {
+                        x: 100.0,
+                        y: 100.0,
+                        width: 180.0,
+                        height: 24.0,
+                    },
+                    window_frame: AxFrame {
+                        x: 20.0,
+                        y: 20.0,
+                        width: 800.0,
+                        height: 600.0,
+                    },
+                    container_path: vec![1],
+                    traversal_path: vec![1, 1],
+                    window_identity: OpaqueAxIdentity::for_test(1),
+                    element_identity: OpaqueAxIdentity::for_test(2),
+                    kind: DetectedFieldKind::Password,
+                    secret_field: Some(AutoFillSecretField::Password),
+                    confidence: FieldConfidence::High,
+                    focused: true,
+                    observer_generation: generation,
+                }],
+                DetectedAction::Field {
+                    field: AutoFillSecretField::Password,
                 },
-                window_frame: AxFrame {
-                    x: 20.0,
-                    y: 20.0,
-                    width: 800.0,
-                    height: 600.0,
-                },
-                container_path: vec![1],
-                traversal_path: vec![1, 1],
-                window_identity: OpaqueAxIdentity::for_test(1),
-                element_identity: OpaqueAxIdentity::for_test(2),
-                kind: DetectedFieldKind::Password,
-                secret_field: Some(AutoFillSecretField::Password),
-                confidence: FieldConfidence::High,
-                focused: true,
-                observer_generation: generation,
-            }])
+            ))
         })
         .expect("valid editable focus");
 
         assert_eq!(observed_generation.get(), 11);
-        assert_eq!(presentation.action.mode, PresentedActionMode::Choose);
-        assert!(presentation.action.fields.is_empty());
+        assert_eq!(presentation.action.mode, PresentedActionMode::Field);
+        assert_eq!(
+            presentation.action.fields,
+            vec![AutoFillSecretField::Password]
+        );
 
         let invalid = fallback_fill_context_with(&store, &target, |_, generation| {
-            Ok(vec![CapturedFieldFingerprint {
-                process_id: 42,
-                role: "AXSecureTextField".to_owned(),
-                frame: AxFrame {
-                    x: 100.0,
-                    y: 100.0,
-                    width: 180.0,
-                    height: 24.0,
+            Ok((
+                vec![CapturedFieldFingerprint {
+                    process_id: 42,
+                    role: "AXSecureTextField".to_owned(),
+                    frame: AxFrame {
+                        x: 100.0,
+                        y: 100.0,
+                        width: 180.0,
+                        height: 24.0,
+                    },
+                    window_frame: AxFrame {
+                        x: 20.0,
+                        y: 20.0,
+                        width: 800.0,
+                        height: 600.0,
+                    },
+                    container_path: vec![1],
+                    traversal_path: vec![1, 1],
+                    window_identity: OpaqueAxIdentity::for_test(1),
+                    element_identity: OpaqueAxIdentity::for_test(2),
+                    kind: DetectedFieldKind::Password,
+                    secret_field: Some(AutoFillSecretField::Password),
+                    confidence: FieldConfidence::High,
+                    focused: false,
+                    observer_generation: generation,
+                }],
+                DetectedAction::Field {
+                    field: AutoFillSecretField::Password,
                 },
-                window_frame: AxFrame {
-                    x: 20.0,
-                    y: 20.0,
-                    width: 800.0,
-                    height: 600.0,
-                },
-                container_path: vec![1],
-                traversal_path: vec![1, 1],
-                window_identity: OpaqueAxIdentity::for_test(1),
-                element_identity: OpaqueAxIdentity::for_test(2),
-                kind: DetectedFieldKind::Password,
-                secret_field: Some(AutoFillSecretField::Password),
-                confidence: FieldConfidence::High,
-                focused: false,
-                observer_generation: generation,
-            }])
+            ))
         });
         assert_eq!(invalid, None);
     }

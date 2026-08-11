@@ -49,6 +49,32 @@ describe("AutoFillVaultContextService", () => {
     expect(harness.contextual.queryAll).not.toHaveBeenCalled();
   });
 
+  it("discovers the captured frontmost app during an ordinary enabled vault open without enabling setup", async () => {
+    const harness = createHarness();
+
+    const state = await harness.service.beginFromVaultOpen();
+
+    expect(state).toMatchObject({
+      status: "ready",
+      context: CONTEXT,
+      session: SESSION,
+      candidates: [CANDIDATE],
+    });
+    expect(harness.setup.blockReason).toHaveBeenCalledOnce();
+    expect(harness.setup.enableFromEntry).not.toHaveBeenCalled();
+    expect(harness.native.entryContext).toHaveBeenCalled();
+  });
+
+  it("keeps an ordinary vault open idle when AutoFill setup is not already ready", async () => {
+    const harness = createHarness({ setupState: "disabled" });
+
+    await expect(harness.service.beginFromVaultOpen()).resolves.toEqual({ status: "idle" });
+
+    expect(harness.native.entryContext).not.toHaveBeenCalled();
+    expect(harness.contextual.queryAll).not.toHaveBeenCalled();
+    expect(harness.setup.enableFromEntry).not.toHaveBeenCalled();
+  });
+
   it("publishes one immutable ready snapshot only after setup, context, session, owner, and candidates agree", async () => {
     const harness = createHarness();
     const states: string[] = [];
@@ -164,6 +190,7 @@ describe("AutoFillVaultContextService", () => {
 function createHarness(options: {
   owner?: string;
   queryAll?: () => Promise<readonly ContextualCandidate[]>;
+  setupState?: "disabled" | "ready" | "requiresApproval" | "requiresAccessibility" | "unavailable";
 } = {}) {
   const native: AutoFillNativeHost = {
     entryContext: vi.fn(async () => ({ status: "available", context: CONTEXT })),
@@ -182,6 +209,7 @@ function createHarness(options: {
     queryAll: vi.fn(options.queryAll ?? (async () => [CANDIDATE])),
   };
   const setup = {
+    blockReason: vi.fn(() => options.setupState ?? "ready"),
     enableFromEntry: vi.fn(async () => "ready" as const),
   };
   const store = new PopupStateStore();

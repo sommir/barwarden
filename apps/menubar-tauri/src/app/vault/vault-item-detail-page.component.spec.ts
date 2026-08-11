@@ -211,11 +211,12 @@ describe("VaultItemDetailPageComponent", () => {
     });
     const host = fixture.nativeElement as HTMLElement;
     const card = host.querySelector<HTMLElement>("[data-testid='autofill-detail-context']")!;
-    expect(card.textContent).toContain("文本编辑 · 登录表单");
-    expect(card.textContent).toContain("用户名");
-    expect(card.textContent).toContain("密码");
-    expect(card.querySelector(".bwi-user")).not.toBeNull();
-    expect(card.querySelector(".bwi-lock")).not.toBeNull();
+    expect(card.textContent?.trim()).toBe("自动填充");
+    expect(card.textContent).not.toContain("文本编辑");
+    expect(card.textContent).not.toContain("用户名");
+    expect(card.textContent).not.toContain("密码");
+    expect(card.querySelector("[data-testid='fill-username']")).toBeNull();
+    expect(card.querySelector("[data-testid='fill-password']")).toBeNull();
     expect(native.fillDetected).not.toHaveBeenCalled();
 
     card.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
@@ -235,7 +236,7 @@ describe("VaultItemDetailPageComponent", () => {
     expect(native.copyText).not.toHaveBeenCalled();
   });
 
-  it("limits credential icon actions to the live authorization intersection and uses detected fill", async () => {
+  it("uses one generic action while native detection keeps the password-only authorization scope", async () => {
     const fillField = vi.fn(async () => "legacy fill must not run");
     const context = detailContext({ kind: "password", mode: "field", fields: ["password"] });
     const native = detailNative(() => context);
@@ -257,10 +258,9 @@ describe("VaultItemDetailPageComponent", () => {
     const host = result.fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector("[data-testid='fill-username']")).toBeNull();
+    expect(host.querySelector("[data-testid='fill-password']")).toBeNull();
     expect(host.querySelector("[data-testid='fill-totp']")).toBeNull();
-    const password = host.querySelector<HTMLButtonElement>("[data-testid='fill-password']")!;
-    expect(password).not.toBeNull();
-    password.click();
+    host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
     await vi.waitFor(() => expect(native.fillDetected).toHaveBeenCalledOnce());
     expect(native.fillDetected).toHaveBeenCalledWith({
       fillContextToken: context.fillContextToken,
@@ -275,12 +275,12 @@ describe("VaultItemDetailPageComponent", () => {
   });
 
   it.each([
-    ["email", "username", "用户名", "填入用户名", "bwi-user"],
-    ["password", "password", "密码", "填入密码", "bwi-lock"],
-    ["one-time-code", "totp", "验证码", "填入验证码", "bwi-clock"],
+    ["email", "username"],
+    ["password", "password"],
+    ["one-time-code", "totp"],
   ] as const)(
-    "renders the exact live %s field action",
-    async (kind, field, fieldLabel, buttonLabel, iconClass) => {
+    "renders one generic action while retaining the exact native %s field scope",
+    async (kind, field) => {
       const context = detailContext({ kind, mode: "field", fields: [field] });
       const { fixture } = await createLiveContextFixture({
         context,
@@ -296,12 +296,14 @@ describe("VaultItemDetailPageComponent", () => {
       });
 
       const host = fixture.nativeElement as HTMLElement;
-      expect(host.querySelector("[data-testid='autofill-detail-context']")?.textContent)
-        .toContain(`文本编辑 · ${fieldLabel}`);
+      expect(host.querySelector("[data-testid='autofill-detail-context']")?.textContent?.trim())
+        .toBe("自动填充");
       const button = host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!;
-      expect(button.textContent).toContain(buttonLabel);
-      expect(button.getAttribute("aria-label")).toBe(buttonLabel);
-      expect(button.querySelector(`.${iconClass}`)).not.toBeNull();
+      expect(button.textContent?.trim()).toBe("自动填充");
+      expect(button.getAttribute("aria-label")).toBe("自动填充");
+      expect(host.querySelector("[data-testid='fill-username']")).toBeNull();
+      expect(host.querySelector("[data-testid='fill-password']")).toBeNull();
+      expect(host.querySelector("[data-testid='fill-totp']")).toBeNull();
     },
   );
 

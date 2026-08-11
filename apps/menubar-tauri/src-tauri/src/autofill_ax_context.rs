@@ -86,6 +86,7 @@ impl OpaqueAxIdentity {
 
 const MAX_ANCESTORS: usize = 3;
 const MAX_DESCENDANTS: usize = 256;
+const MAX_WINDOWS: usize = 16;
 const MAX_FIELDS: usize = 20;
 const MAX_SEMANTIC_SCALARS: usize = 255;
 const OBSERVATION_BUDGET: Duration = Duration::from_millis(50);
@@ -435,21 +436,22 @@ impl DetectedFillContextStore {
         reserved: ReservedFillContext,
         requested: &[AutoFillSecretField],
     ) -> Result<CapturedFillPlan, DetectedFillError> {
-        let record = reserved.0;
-        let bindings = bindings_for_request(requested, &record.action, &record.action_bindings)
-            .ok_or(DetectedFillError::WrongFieldSubset)?;
-        let generation = self.observer_generation.current();
-        if record
-            .fields
-            .first()
-            .is_none_or(|field| field.observer_generation != generation)
-        {
-            return Err(DetectedFillError::StaleGeneration);
+        let mut record = reserved.0;
+        if bindings_for_request(requested, &record.action, &record.action_bindings).is_none() {
+            return Err(DetectedFillError::WrongFieldSubset);
         }
+        let generation = self.observer_generation.current();
         (self.validator)(&record.target, &record.fields, generation)?;
         if self.observer_generation.current() != generation {
             return Err(DetectedFillError::StaleGeneration);
         }
+        for field in &mut record.fields {
+            field.observer_generation = generation;
+        }
+        let rebound = capture_action_bindings(&record.fields, &record.action)
+            .ok_or(DetectedFillError::StaleField)?;
+        let bindings = bindings_for_request(requested, &record.action, &rebound)
+            .ok_or(DetectedFillError::WrongFieldSubset)?;
         Ok(CapturedFillPlan {
             target: record.target,
             fields: record.fields,
@@ -772,6 +774,11 @@ fn validate_live_fingerprints(
     fields: &[CapturedFieldFingerprint],
     observer_generation: u64,
 ) -> Result<(), DetectedFillError> {
+    let current =
+        crate::frontmost::current_frontmost_app().map_err(|_| DetectedFillError::TargetChanged)?;
+    if !frontmost_allows_live_fill(current.as_ref(), target) {
+        return Err(DetectedFillError::TargetChanged);
+    }
     if !crate::frontmost::target_is_running(target) {
         return Err(DetectedFillError::TargetChanged);
     }
@@ -782,6 +789,12 @@ fn validate_live_fingerprints(
         return Err(DetectedFillError::StaleProcess);
     }
     validate_native_fingerprints(target, fields, observer_generation)
+}
+
+fn frontmost_allows_live_fill(current: Option<&FrontmostApp>, target: &FrontmostApp) -> bool {
+    current.is_some_and(|current| {
+        current == target || current.bundle_id == crate::frontmost::APP_BUNDLE_ID
+    })
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -798,10 +811,15 @@ fn validate_current_fingerprints(
     current: &[CapturedFieldFingerprint],
     observer_generation: u64,
 ) -> Result<(), DetectedFillError> {
+    let Some(stored_generation) = stored.first().map(|field| field.observer_generation) else {
+        return Err(DetectedFillError::StaleField);
+    };
     if stored
         .iter()
-        .chain(current)
-        .any(|field| field.observer_generation != observer_generation)
+        .any(|field| field.observer_generation != stored_generation)
+        || current
+            .iter()
+            .any(|field| field.observer_generation != observer_generation)
     {
         return Err(DetectedFillError::StaleGeneration);
     }
@@ -812,11 +830,13 @@ fn validate_current_fingerprints(
         return Err(DetectedFillError::StaleField);
     }
     let mut matched = vec![false; current.len()];
-    for expected in stored {
+    for stored_expected in stored {
+        let mut expected = stored_expected.clone();
+        expected.observer_generation = observer_generation;
         let Some(index) = current
             .iter()
             .enumerate()
-            .position(|(index, actual)| !matched[index] && actual == expected)
+            .position(|(index, actual)| !matched[index] && actual == &expected)
         else {
             if current.iter().any(|actual| {
                 actual.window_frame != expected.window_frame
@@ -829,6 +849,79 @@ fn validate_current_fingerprints(
         matched[index] = true;
     }
     Ok(())
+}
+
+fn recapture_fingerprints_from_application<P: AxMetadataPort>(
+    port: &mut P,
+    application: P::Element,
+    target: FrontmostApp,
+    screens: &[ScreenFrame],
+    stored: &[CapturedFieldFingerprint],
+    observer_generation: u64,
+) -> Result<(CapturedAxContext, Vec<P::Element>), DetectedFillError> {
+    let mut focused = stored.iter().filter(|field| field.focused);
+    let stored_focused = focused.next().ok_or(DetectedFillError::StaleField)?;
+    if focused.next().is_some() {
+        return Err(DetectedFillError::StaleField);
+    }
+
+    let windows = port.elements(&application, "AXWindows", MAX_WINDOWS);
+    ensure_metadata_valid(port).map_err(|_| DetectedFillError::StaleWindow)?;
+    let mut matching_windows = windows
+        .into_iter()
+        .filter(|window| port.logical_identity(window) == stored_focused.window_identity);
+    let window = matching_windows
+        .next()
+        .ok_or(DetectedFillError::StaleWindow)?;
+    if matching_windows.next().is_some() {
+        return Err(DetectedFillError::StaleWindow);
+    }
+
+    let mut queue = VecDeque::from([window]);
+    let mut inspected = 0_usize;
+    let mut exact_focused = None;
+    while let Some(element) = queue.pop_front() {
+        if inspected >= MAX_DESCENDANTS {
+            break;
+        }
+        inspected += 1;
+        if port.logical_identity(&element) == stored_focused.element_identity {
+            if exact_focused.replace(element.clone()).is_some() {
+                return Err(DetectedFillError::StaleField);
+            }
+        }
+        let remaining = MAX_DESCENDANTS.saturating_sub(inspected + queue.len());
+        if remaining == 0 {
+            continue;
+        }
+        queue.extend(port.elements(&element, "AXChildren", remaining));
+        ensure_metadata_valid(port).map_err(|_| DetectedFillError::StaleField)?;
+    }
+    let exact_focused = exact_focused.ok_or(DetectedFillError::StaleField)?;
+    let (current, elements) =
+        capture_with_port_and_elements(port, exact_focused, target, screens, observer_generation)
+            .map_err(|_| DetectedFillError::StaleField)?;
+    validate_current_fingerprints(stored, &current.fields, observer_generation)?;
+    Ok((current, elements))
+}
+
+fn validate_fingerprints_from_application<P: AxMetadataPort>(
+    port: &mut P,
+    application: P::Element,
+    target: FrontmostApp,
+    screens: &[ScreenFrame],
+    stored: &[CapturedFieldFingerprint],
+    observer_generation: u64,
+) -> Result<(), DetectedFillError> {
+    recapture_fingerprints_from_application(
+        port,
+        application,
+        target,
+        screens,
+        stored,
+        observer_generation,
+    )
+    .map(|_| ())
 }
 
 pub(crate) fn exact_fill_element_index(
@@ -1715,9 +1808,18 @@ mod macos {
         fields: &[CapturedFieldFingerprint],
         observer_generation: u64,
     ) -> Result<(), DetectedFillError> {
-        let current = capture_native_fill_context(target, observer_generation)
-            .map_err(|_| DetectedFillError::StaleField)?;
-        validate_current_fingerprints(fields, &current.fields, observer_generation)
+        let application = unsafe { AXUIElementCreateApplication(target.process_id) };
+        if application.is_null() {
+            return Err(DetectedFillError::TargetChanged);
+        }
+        validate_fingerprints_from_application(
+            &mut NativeAxMetadataPort::new(),
+            NativeAxElement(application),
+            target.clone(),
+            &active_screen_frames(),
+            fields,
+            observer_generation,
+        )
     }
 
     fn reacquire_exact_element(
@@ -1740,14 +1842,12 @@ mod macos {
         }
         let application = NativeAxElement(application);
         let mut port = NativeAxMetadataPort::new();
-        let focused = port
-            .element(&application, "AXFocusedUIElement")
-            .ok_or(ExactAxFillError::FrameChanged)?;
-        let (captured, elements) = capture_with_port_and_elements(
+        let (captured, elements) = recapture_fingerprints_from_application(
             &mut port,
-            focused,
+            application,
             plan.target.clone(),
             &active_screen_frames(),
+            stored_fields,
             generation,
         )
         .map_err(|_| ExactAxFillError::FrameChanged)?;
@@ -2610,6 +2710,54 @@ mod tests {
     }
 
     #[test]
+    fn live_validation_recovers_the_exact_stored_field_after_the_popup_moves_focus() {
+        let target = test_frontmost_app("com.example.editor", 42, 9);
+        let mut original_port = FakePort::login_form();
+        let stored = capture_with_port(
+            &mut original_port,
+            Element(1),
+            target.clone(),
+            &[screen()],
+            7,
+        )
+        .expect("initial focused field")
+        .fields;
+
+        let mut live_port = FakePort::login_form();
+        live_port.strings.insert((99, "AXRole"), "AXWebArea".into());
+        live_port.strings.insert((99, "AXEnabled"), "true".into());
+        live_port.elements.insert((99, "AXWindow"), Element(20));
+        live_port.frames.insert(
+            99,
+            AxFrame {
+                x: 20.0,
+                y: 20.0,
+                width: 800.0,
+                height: 600.0,
+            },
+        );
+        assert_eq!(
+            capture_with_port(&mut live_port, Element(99), target.clone(), &[screen()], 8,)
+                .unwrap_err(),
+            AxContextError::NoWritableField,
+        );
+
+        live_port.children.insert(90, vec![Element(20)]);
+        live_port.children.insert(20, vec![Element(12)]);
+        assert_eq!(
+            validate_fingerprints_from_application(
+                &mut live_port,
+                Element(90),
+                target,
+                &[screen()],
+                &stored,
+                8,
+            ),
+            Ok(()),
+        );
+    }
+
+    #[test]
     fn reader_rejects_malformed_carets_without_relaxing_field_geometry() {
         for caret in [
             AxFrame {
@@ -3018,7 +3166,7 @@ mod tests {
     }
 
     #[test]
-    fn live_validation_requires_exact_field_multiset_and_real_generation() {
+    fn live_validation_rebinds_only_an_exact_field_multiset_to_the_current_generation() {
         let username = fingerprint(AutoFillSecretField::Username, true);
         let password = fingerprint(AutoFillSecretField::Password, false);
         let stored = vec![username.clone(), password.clone()];
@@ -3065,14 +3213,25 @@ mod tests {
             validate_current_fingerprints(&stored, &changed_secret_mapping, 7),
             Err(DetectedFillError::StaleField)
         );
+        let mut recaptured = stored.clone();
+        for field in &mut recaptured {
+            field.observer_generation = 8;
+        }
         assert_eq!(
-            validate_current_fingerprints(&stored, &stored, 8),
+            validate_current_fingerprints(&stored, &recaptured, 8),
+            Ok(())
+        );
+
+        let mut stale_recapture = stored.clone();
+        stale_recapture[1].observer_generation = 8;
+        assert_eq!(
+            validate_current_fingerprints(&stored, &stale_recapture, 8),
             Err(DetectedFillError::StaleGeneration)
         );
     }
 
     #[test]
-    fn observer_generation_change_burns_the_token_before_live_validation() {
+    fn observer_generation_change_rebinds_the_token_after_exact_live_validation() {
         let generation = ObserverGeneration::new(7);
         let validator_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let store =
@@ -3092,28 +3251,22 @@ mod tests {
         );
 
         generation.set(8);
+        let plan = store
+            .take(
+                &presentation.fill_context_token,
+                &[AutoFillSecretField::Password],
+            )
+            .expect("exact target is rebound after the popup activates");
+        assert_eq!(validator_calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(plan
+            .fields
+            .iter()
+            .all(|field| field.observer_generation == 8));
         assert_eq!(
-            store
-                .try_insert(
-                    test_frontmost_app("com.example.editor", 42, 9),
-                    vec![fingerprint(AutoFillSecretField::Password, true)],
-                    DetectedAction::Field {
-                        field: AutoFillSecretField::Password,
-                    },
-                )
-                .unwrap_err(),
-            DetectedFillError::StaleGeneration
+            plan.fingerprint_for_field(AutoFillSecretField::Password)
+                .map(|field| field.observer_generation),
+            Some(8),
         );
-        assert_eq!(
-            store
-                .take(
-                    &presentation.fill_context_token,
-                    &[AutoFillSecretField::Password]
-                )
-                .unwrap_err(),
-            DetectedFillError::StaleGeneration
-        );
-        assert_eq!(validator_calls.load(std::sync::atomic::Ordering::SeqCst), 0);
         assert_eq!(
             store
                 .take(
@@ -3123,6 +3276,18 @@ mod tests {
                 .unwrap_err(),
             DetectedFillError::InvalidToken
         );
+    }
+
+    #[test]
+    fn live_fill_allows_only_the_exact_target_or_barwarden_popup_to_be_frontmost() {
+        let target = test_frontmost_app("com.example.editor", 42, 9);
+        let barwarden = test_frontmost_app(crate::frontmost::APP_BUNDLE_ID, 77, 10);
+        let other = test_frontmost_app("com.example.other", 88, 11);
+
+        assert!(frontmost_allows_live_fill(Some(&target), &target));
+        assert!(frontmost_allows_live_fill(Some(&barwarden), &target));
+        assert!(!frontmost_allows_live_fill(Some(&other), &target));
+        assert!(!frontmost_allows_live_fill(None, &target));
     }
 
     #[test]

@@ -364,7 +364,7 @@ fn show_popup_window_for_entry(
     event_tray_rect: Option<Rect>,
     entry_source: PopupEntrySource,
 ) -> Result<(), String> {
-    frontmost::capture_current_target_app();
+    frontmost::capture_current_target_app(app);
     show_popup_window_after_target_capture(app, event_tray_rect, entry_source)
 }
 

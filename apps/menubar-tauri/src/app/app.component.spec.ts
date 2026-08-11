@@ -216,25 +216,31 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
-  it("does not initialize contextual AutoFill for an ordinary vault popup restore", async () => {
+  it("shows the normal vault immediately and discovers the captured frontmost app in the background", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.test");
     const beginFromEntry = vi.fn();
+    const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
     const component = Reflect.construct(AppComponent, [
       { restoreStartup: vi.fn() },
-      { navigateByUrl: vi.fn(), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
       { recordActivity: vi.fn() },
       store,
       null, null, null, null, null, null, null, null, null, null, null, null, null, null,
       { recoverAtStartup: vi.fn() },
-      { beginFromEntry },
+      { beginFromEntry, beginFromVaultOpen },
     ]) as AppComponent;
 
     component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
       detail: { reset: true, entrySource: "vault" },
     }));
 
-    await Promise.resolve();
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+      "/tabs/vault",
+      { replaceUrl: true },
+    ));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
     expect(beginFromEntry).not.toHaveBeenCalled();
     component.ngOnDestroy();
   });

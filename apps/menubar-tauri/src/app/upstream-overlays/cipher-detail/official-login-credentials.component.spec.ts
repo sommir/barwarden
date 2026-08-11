@@ -52,4 +52,28 @@ describe("OfficialLoginCredentialsComponent contextual fill controls", () => {
     expect(host.querySelector("[data-testid='fill-totp']")?.getAttribute("aria-label"))
       .toBe("填入验证码");
   });
+
+  it("replaces field-specific controls with one generic contextual AutoFill action", () => {
+    const fixture = TestBed.createComponent(OfficialLoginCredentialsComponent);
+    fixture.componentRef.setInput("projection", projectLoginDetail(demoVaultItems[0]));
+    fixture.componentRef.setInput("canFill", true);
+    fixture.componentRef.setInput("contextualFillAction", {
+      fields: ["username", "password", "totp"],
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const context = host.querySelector<HTMLElement>("[data-testid='autofill-detail-context']")!;
+    const primary = context.querySelector<HTMLButtonElement>(
+      "[data-testid='autofill-detail-primary-action']",
+    )!;
+
+    expect(primary.textContent?.trim()).toBe("自动填充");
+    expect(primary.getAttribute("aria-label")).toBe("自动填充");
+    expect(context.textContent).not.toContain("用户名");
+    expect(context.textContent).not.toContain("密码");
+    expect(context.textContent).not.toContain("验证码");
+    expect(host.querySelector("[data-testid='fill-username']")).toBeNull();
+    expect(host.querySelector("[data-testid='fill-password']")).toBeNull();
+    expect(host.querySelector("[data-testid='fill-totp']")).toBeNull();
+  });
 });
