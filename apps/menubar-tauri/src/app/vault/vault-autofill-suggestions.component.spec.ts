@@ -128,18 +128,27 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     const group = harness.host.querySelector("bit-item-group[data-testid='vault-autofill-suggestion-group']");
     const row = group?.querySelector("bit-item[data-testid='vault-autofill-candidate']");
 
+    expect(harness.host.querySelector(".vault-hierarchy > bw-vault-disclosure-group[data-testid='vault-autofill-suggestions']"))
+      .not.toBeNull();
     expect(group).not.toBeNull();
     expect(row?.querySelector("button[bit-item-content][data-testid='vault-autofill-open-details']"))
       .not.toBeNull();
     expect(row?.querySelector("bw-vault-item-icon")).not.toBeNull();
-    expect(row?.querySelector("[data-testid='vault-autofill-capability-summary']")?.closest("bit-item-action"))
+    expect(row?.querySelector("[data-testid='vault-autofill-capability-summary']")).toBeNull();
+    expect(row?.querySelectorAll("bit-item-action > button[biticonbutton][data-testid='vault-autofill-field-action']"))
+      .toHaveLength(3);
+    expect(row?.querySelector("button[biticonbutton='bwi-user'][data-field='username']"))
       .not.toBeNull();
+    expect(row?.querySelector("button[biticonbutton='bwi-key'][data-field='password']"))
+      .not.toBeNull();
+    expect(row?.querySelector("button[biticonbutton='bwi-clock'][data-field='totp']"))
+      .not.toBeNull();
+    expect(row?.querySelector("button[biticonbutton='bwi-user']")?.getAttribute("aria-label"))
+      .toContain("用户名");
     expect(row?.querySelector("bit-item-action button[data-testid='vault-autofill-fill']"))
       .not.toBeNull();
     expect(row?.querySelector("app-item-more-options")).toBeNull();
     expect(row?.querySelector("[data-testid='vault-autofill-quick-copy']")).toBeNull();
-    expect(row?.querySelector("[data-testid='vault-autofill-capability-summary']")?.classList)
-      .toContain("tw-sr-only");
     expect(row?.classList).toContain("vault-list-row");
     expect(row?.querySelector("[data-testid='vault-autofill-open-details']")?.classList)
       .toContain("tw-h-[52px]");
@@ -150,6 +159,7 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     expect(row?.querySelector("[data-testid='vault-autofill-candidate-subtitle']")?.className)
       .toContain("tw-truncate");
     expect(row?.querySelector(".vault-autofill-suggestions__row")).toBeNull();
+    expect(row?.querySelector(".vault-autofill-suggestions__capabilities")).toBeNull();
   });
 
   it("opens the exact Login detail from the row body without filling", async () => {

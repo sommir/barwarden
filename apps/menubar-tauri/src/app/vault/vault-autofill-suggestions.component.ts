@@ -25,6 +25,7 @@ import {
 } from "../autofill/autofill-vault-context.service";
 import { AppBottomSheetComponent } from "../official-ui/app-bottom-sheet.component";
 import {
+  BitIconButtonComponent,
   ButtonComponent,
   DialogComponent,
   DialogFooterDirective,
@@ -56,6 +57,7 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
   standalone: true,
   imports: [
     AppBottomSheetComponent,
+    BitIconButtonComponent,
     ButtonComponent,
     CdkDialogModule,
     DialogComponent,
@@ -70,16 +72,17 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
   ],
   template: `
     @if (visibleCandidates.length) {
-      <bw-vault-disclosure-group
-        class="vault-autofill-suggestions"
-        groupId="autofill-suggestions"
-        [title]="suggestionTitle"
-        [count]="visibleCandidates.length"
-        [open]="suggestionsOpen"
-        [rendered]="suggestionsRendered"
-        testId="vault-autofill-suggestions"
-        (openChange)="setSuggestionsOpen($event)"
-      >
+      <div class="vault-hierarchy vault-autofill-suggestions__layout">
+        <bw-vault-disclosure-group
+          class="vault-autofill-suggestions"
+          groupId="autofill-suggestions"
+          [title]="suggestionTitle"
+          [count]="visibleCandidates.length"
+          [open]="suggestionsOpen"
+          [rendered]="suggestionsRendered"
+          testId="vault-autofill-suggestions"
+          (openChange)="setSuggestionsOpen($event)"
+        >
         <div class="vault-hierarchy__items">
           <span class="tw-sr-only" role="status" aria-live="polite">
             {{ suggestionCountLabel }}
@@ -121,34 +124,44 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
                 </button>
 
                 <ng-container slot="end">
-                  <bit-item-action>
-                    <span class="vault-autofill-suggestions__capabilities tw-inline-flex tw-items-center tw-gap-1">
-                      @for (field of capabilityFields(candidate); track field) {
+                  @for (field of capabilityFields(candidate); track field) {
+                    <bit-item-action>
+                      @if (field === 'username') {
                         <button
-                          class="vault-autofill-suggestions__field-action"
+                          bitIconButton="bwi-user"
+                          size="small"
                           data-testid="vault-autofill-field-action"
                           type="button"
                           [attr.data-field]="field"
-                          [attr.aria-label]="fieldActionLabel(candidate, field)"
+                          [label]="fieldActionLabel(candidate, field)"
                           [disabled]="busyCipherId === candidate.cipherId"
                           (click)="requestFieldAction(candidate, field, $event)"
-                        >
-                          <i
-                            class="bwi"
-                            [class.bwi-user]="field === 'username'"
-                            [class.bwi-key]="field === 'password'"
-                            [class.bwi-clock]="field === 'totp'"
-                          ></i>
-                        </button>
+                        ></button>
+                      } @else if (field === 'password') {
+                        <button
+                          bitIconButton="bwi-key"
+                          size="small"
+                          data-testid="vault-autofill-field-action"
+                          type="button"
+                          [attr.data-field]="field"
+                          [label]="fieldActionLabel(candidate, field)"
+                          [disabled]="busyCipherId === candidate.cipherId"
+                          (click)="requestFieldAction(candidate, field, $event)"
+                        ></button>
+                      } @else {
+                        <button
+                          bitIconButton="bwi-clock"
+                          size="small"
+                          data-testid="vault-autofill-field-action"
+                          type="button"
+                          [attr.data-field]="field"
+                          [label]="fieldActionLabel(candidate, field)"
+                          [disabled]="busyCipherId === candidate.cipherId"
+                          (click)="requestFieldAction(candidate, field, $event)"
+                        ></button>
                       }
-                    </span>
-                    <span
-                      class="tw-sr-only"
-                      data-testid="vault-autofill-capability-summary"
-                    >
-                      {{ capabilitySummary(candidate) }}
-                    </span>
-                  </bit-item-action>
+                    </bit-item-action>
+                  }
                   @if (hasPrimaryFill) {
                     <bit-item-action>
                       <button
@@ -172,7 +185,8 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
           }
           </bit-item-group>
         </div>
-      </bw-vault-disclosure-group>
+        </bw-vault-disclosure-group>
+      </div>
     }
 
     @if (visibleCandidates.length) {
@@ -268,10 +282,6 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
 
   capabilityFields(candidate: ContextualCandidate): readonly AutoFillSecretField[] {
     return FIELD_ORDER.filter((field) => candidate.availableFields.includes(field));
-  }
-
-  capabilitySummary(candidate: ContextualCandidate): string {
-    return this.capabilityFields(candidate).map(fieldLabel).join("、");
   }
 
   itemForCandidate(candidate: ContextualCandidate): VaultItem | null {

@@ -4,47 +4,14 @@
 
 .vault-autofill-suggestions {
   display: block;
-  margin: 0 var(--mac-space-4) var(--mac-space-2);
+  width: 100%;
 }
 
-.vault-autofill-suggestions__capabilities {
-  min-width: max-content;
-  font-size: 0.875rem;
+.vault-autofill-suggestions__layout {
+  padding-bottom: 0;
 }
 
 .vault-autofill-suggestions__fill {
   min-width: max-content;
   margin-inline-end: 0.25rem;
-}
-
-.vault-autofill-suggestions__field-action {
-  display: inline-grid;
-  place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  padding: 0;
-  border: 0;
-  border-radius: 0.5rem;
-  color: var(--color-text-muted, currentColor);
-  background: transparent;
-  cursor: pointer;
-}
-
-.vault-autofill-suggestions__field-action:hover,
-.vault-autofill-suggestions__field-action:focus-visible {
-  color: var(--color-primary-600, #175ddc);
-  background: var(--color-primary-100, #e8f0ff);
-  outline: none;
-}
-
-@media (max-width: 390px) {
-  .vault-autofill-suggestions__capabilities {
-    gap: 0.25rem;
-  }
-}
-
-@media (forced-colors: active) {
-  .vault-autofill-suggestions__capabilities {
-    color: CanvasText;
-  }
 }
