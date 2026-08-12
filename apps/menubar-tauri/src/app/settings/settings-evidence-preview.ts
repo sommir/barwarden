@@ -135,6 +135,7 @@ function resetSettings(settings: SettingsService): void {
   settings.setCompactMode(false);
   settings.setFillMode("clipboard-paste");
   settings.setShowFavicons(true);
+  settings.setShowInputFieldIcon(true);
   settings.setShowQuickCopyActions(true);
   settings.setTheme("system");
   settings.useAccount(evidenceSubjectId);

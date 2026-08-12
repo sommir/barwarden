@@ -574,11 +574,13 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.textContent).toContain("单字段填充");
+    expect(host.textContent).toContain("填充");
+    expect(host.textContent).not.toContain("单字段填充");
+    expect(host.textContent).toContain("在输入框附近显示图标");
     expect(host.textContent).not.toContain("在表单字段上显示自动填充建议");
     expect(host.textContent).not.toContain("页面加载时自动填充");
     expect(host.textContent).toContain("清空剪贴板");
-    expect(host.textContent).toContain("单字段填充");
+    expect(host.textContent).toContain("填充");
     expect(host.textContent).not.toContain("内容脚本");
     expect(host.querySelector('a[href="/blocked-domains"]')).toBeNull();
 
@@ -598,10 +600,15 @@ describe("P1 settings pages", () => {
     fixture.componentInstance.setClipboardClearSecondsValue(0);
     fixture.componentInstance.setFillModeValue("clipboard-copy");
     fixture.componentInstance.setFillModeValue("clipboard-paste");
+    const fieldIcon = host.querySelector<HTMLInputElement>("#show-input-field-icon");
+    expect(fieldIcon?.checked).toBe(true);
+    fieldIcon!.checked = false;
+    fieldIcon!.dispatchEvent(new Event("change"));
 
     expect(service.snapshot()).toMatchObject({
       clipboardClearSeconds: 0,
       fillMode: "clipboard-paste",
+      showInputFieldIcon: false,
     });
     expect(host.querySelectorAll("button[disabled]")).toHaveLength(0);
   });

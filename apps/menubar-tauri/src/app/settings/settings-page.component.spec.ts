@@ -191,7 +191,8 @@ describe("SettingsPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelectorAll(":scope > bw-official-settings")).toHaveLength(1);
     expect(host.textContent).toContain("账户安全");
-    expect(host.textContent).toContain("单字段填充");
+    expect(host.textContent).toContain("填充");
+    expect(host.textContent).not.toContain("单字段填充");
     expect(host.textContent).toContain("快捷键");
     expect(host.textContent).not.toContain("通知");
     expect(host.textContent).toContain("密码库选项");

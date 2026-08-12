@@ -232,6 +232,10 @@ export class TauriHostService
     await this.invoke("autofill_set_accessibility_fallback", { fallback });
   }
 
+  async setFloatingIconEnabled(enabled: boolean): Promise<void> {
+    await this.invoke("autofill_set_floating_icon_enabled", { enabled });
+  }
+
   async requestPermission(): Promise<AccessibilityStatus> {
     return decodeAccessibilityStatus(
       await this.invoke<unknown>("autofill_request_accessibility_permission"),

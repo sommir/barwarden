@@ -484,13 +484,17 @@ describe("TauriHostService", () => {
 
     await expect(host.status()).resolves.toEqual(status);
     await host.setFallback("unsupported");
+    await host.setFloatingIconEnabled(false);
     await expect(host.requestPermission()).resolves.toEqual(status);
 
     expect(invoke).toHaveBeenNthCalledWith(1, "autofill_accessibility_status");
     expect(invoke).toHaveBeenNthCalledWith(2, "autofill_set_accessibility_fallback", {
       fallback: "unsupported",
     });
-    expect(invoke).toHaveBeenNthCalledWith(3, "autofill_request_accessibility_permission");
+    expect(invoke).toHaveBeenNthCalledWith(3, "autofill_set_floating_icon_enabled", {
+      enabled: false,
+    });
+    expect(invoke).toHaveBeenNthCalledWith(4, "autofill_request_accessibility_permission");
   });
 
   it("rejects malicious native Accessibility diagnostic bundle identifiers", async () => {

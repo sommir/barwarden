@@ -23,6 +23,7 @@ export interface RetainedSettingsActions {
   setCompactMode(compactMode: boolean): void;
   setFillMode(fillMode: FillMode): void;
   setShowFavicons(showFavicons: boolean): void;
+  setShowInputFieldIcon(showInputFieldIcon: boolean): void;
   setShowQuickCopyActions(showQuickCopyActions: boolean): void;
   setTheme(theme: ThemeMode): void;
   setVaultTimeoutMinutes(vaultTimeoutMinutes: VaultTimeoutMinutes): void;

@@ -14,6 +14,7 @@ function harness(
   initialCleanupTarget: { readonly accountId: string | null } | null = null,
   initialOwnerAccountId: string | null = "account-a",
   accessibilityPermission: "granted" | "denied" = "granted",
+  showInputFieldIcon = true,
 ) {
   let enabled = initialEnabled;
   let cleanupTarget = initialCleanupTarget;
@@ -51,15 +52,17 @@ function harness(
     })),
     startUnsupportedFallback: vi.fn(async () => undefined),
     stopForSystemAutoFill: vi.fn(async () => undefined),
+    setFloatingIconEnabled: vi.fn(async () => undefined),
   };
   return {
-    service: new AutoFillSetupService(
+    service: Reflect.construct(AutoFillSetupService, [
       host,
       storage as AutoFillSetupStorage,
       store as never,
       projection as never,
       accessibility as never,
-    ),
+      { snapshot: () => ({ showInputFieldIcon }) },
+    ]) as AutoFillSetupService,
     host,
     storage,
     projection,
@@ -97,6 +100,56 @@ describe("AutoFillSetupService", () => {
     expect(accessibility.status).toHaveBeenCalledOnce();
     expect(accessibility.requestPermissionFromUserAction).not.toHaveBeenCalled();
     expect(accessibility.startUnsupportedFallback).toHaveBeenCalledOnce();
+  });
+
+  it("synchronizes a disabled field icon without probing or requesting Accessibility permission", async () => {
+    const { service, accessibility } = harness(true, "enabled", null, "account-a", "denied", false);
+
+    await expect(service.recoverAtStartup()).resolves.toBe("ready");
+
+    expect(accessibility.setFloatingIconEnabled).toHaveBeenCalledWith(false);
+    expect(accessibility.status).not.toHaveBeenCalled();
+    expect(accessibility.requestPermissionFromUserAction).not.toHaveBeenCalled();
+    expect(accessibility.startUnsupportedFallback).not.toHaveBeenCalled();
+  });
+
+  it("applies an explicit icon preference immediately and resumes focused-field observation", async () => {
+    const { service, accessibility } = harness(true, "enabled");
+
+    await service.setFloatingIconPreference(false);
+    expect(accessibility.setFloatingIconEnabled).toHaveBeenLastCalledWith(false);
+    expect(accessibility.status).not.toHaveBeenCalled();
+
+    await service.setFloatingIconPreference(true);
+    expect(accessibility.setFloatingIconEnabled).toHaveBeenLastCalledWith(true);
+    expect(accessibility.status).toHaveBeenCalledOnce();
+    expect(accessibility.startUnsupportedFallback).toHaveBeenCalledOnce();
+  });
+
+  it("requests Accessibility from the explicit toggle-on action before resuming observation", async () => {
+    const { service, accessibility } = harness(true, "enabled", null, "account-a", "denied");
+    accessibility.requestPermissionFromUserAction.mockResolvedValue({
+      permission: "granted",
+      observation: "hidden",
+    });
+
+    await service.setFloatingIconPreference(true);
+
+    expect(accessibility.setFloatingIconEnabled).toHaveBeenCalledWith(true);
+    expect(accessibility.status).toHaveBeenCalledOnce();
+    expect(accessibility.requestPermissionFromUserAction).toHaveBeenCalledOnce();
+    expect(accessibility.startUnsupportedFallback).toHaveBeenCalledOnce();
+  });
+
+  it("does not probe Accessibility when the floating icon is enabled while AutoFill remains off", async () => {
+    const { service, accessibility } = harness(false, "enabled");
+
+    await service.setFloatingIconPreference(true);
+
+    expect(accessibility.setFloatingIconEnabled).toHaveBeenCalledWith(true);
+    expect(accessibility.status).not.toHaveBeenCalled();
+    expect(accessibility.requestPermissionFromUserAction).not.toHaveBeenCalled();
+    expect(accessibility.startUnsupportedFallback).not.toHaveBeenCalled();
   });
 
   it("persists first-use opt-in, registers a fresh install, and probes before becoming ready", async () => {

@@ -94,6 +94,7 @@ describe("Settings evidence preview", () => {
       fillMode: "clipboard-paste",
       language: null,
       showFavicons: true,
+      showInputFieldIcon: true,
       showQuickCopyActions: true,
       theme: "system",
       vaultTimeoutMinutes: 5,

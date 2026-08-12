@@ -38,6 +38,7 @@ export interface AccessibilityStatus {
 export interface AutoFillAccessibilityHost {
   status(): Promise<AccessibilityStatus>;
   setFallback(fallback: AccessibilityFallback): Promise<void>;
+  setFloatingIconEnabled(enabled: boolean): Promise<void>;
   requestPermission(): Promise<AccessibilityStatus>;
 }
 
@@ -65,6 +66,10 @@ export class AutoFillAccessibilityService {
 
   startUnsupportedFallback(): Promise<void> {
     return this.host.setFallback("unsupported");
+  }
+
+  setFloatingIconEnabled(enabled: boolean): Promise<void> {
+    return this.host.setFloatingIconEnabled(enabled);
   }
 
   async requestPermissionFromUserAction(): Promise<AccessibilityStatus> {

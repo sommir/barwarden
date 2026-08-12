@@ -1,5 +1,5 @@
 import { Location } from "@angular/common";
-import { Component } from "@angular/core";
+import { Component, Optional } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import { PopupHeaderComponent } from "../layout/popup-header.component";
@@ -9,11 +9,15 @@ import {
   BitHintDirective,
   BitLabelComponent,
   CardComponent,
+  CheckboxComponent,
+  FormControlComponent,
   SectionComponent,
   SectionHeaderComponent,
   SelectComponent,
   TypographyDirective,
 } from "../official-ui/official-components";
+import { AutoFillAccessibilityService } from "../autofill/autofill-accessibility.service";
+import { AutoFillSetupService } from "../autofill/autofill-setup.service";
 import {
   activeOfficialLocale,
   translateOfficialMessage,
@@ -37,6 +41,8 @@ import { SettingsService } from "./settings.service";
     BitHintDirective,
     BitLabelComponent,
     CardComponent,
+    CheckboxComponent,
+    FormControlComponent,
     FormsModule,
     I18nPipe,
     PopupHeaderComponent,
@@ -63,6 +69,18 @@ import { SettingsService } from "./settings.service";
               <bit-select [attr.aria-label]="'i18nAutofill' | i18n" [items]="fillModeOptions" [ngModel]="settings.fillMode" (ngModelChange)="setFillModeValue($event)" />
               <bit-hint>{{ "i18nAutofillModeHint" | i18n }}</bit-hint>
             </bit-form-field>
+            <bit-form-control disableMargin>
+              <input
+                id="show-input-field-icon"
+                bitCheckbox
+                type="checkbox"
+                [attr.aria-label]="'i18nShowInputFieldIcon' | i18n"
+                [checked]="settings.showInputFieldIcon"
+                (change)="setShowInputFieldIcon($event)"
+              />
+              <bit-label>{{ "i18nShowInputFieldIcon" | i18n }}</bit-label>
+              <bit-hint>{{ "i18nShowInputFieldIconHint" | i18n }}</bit-hint>
+            </bit-form-control>
           </bit-card>
         </bit-section>
       </div>
@@ -88,6 +106,8 @@ export class AutofillSettingsPageComponent {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly location: Location,
+    @Optional() private readonly accessibility: AutoFillAccessibilityService | null = null,
+    @Optional() private readonly setup: AutoFillSetupService | null = null,
   ) {}
 
   get settings() {
@@ -108,6 +128,15 @@ export class AutofillSettingsPageComponent {
     if (isFillMode(value)) {
       this.settingsService.setFillMode(value);
     }
+  }
+
+  setShowInputFieldIcon(event: Event): void {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    const enabled = event.target.checked;
+    this.settingsService.setShowInputFieldIcon(enabled);
+    const update = this.setup?.setFloatingIconPreference(enabled)
+      ?? this.accessibility?.setFloatingIconEnabled(enabled);
+    void update?.catch(() => undefined);
   }
 
   private refreshLocalizedOptions(): void {

@@ -4,6 +4,7 @@ import type { AutoFillAgentRegistrationStatus } from "../../host/tauri-host.serv
 import { PopupStateStore } from "../popup-state";
 import { AutoFillAccessibilityService } from "./autofill-accessibility.service";
 import { AutoFillProjectionService } from "./autofill-projection.service";
+import { SettingsService } from "../settings/settings.service";
 
 export type AutoFillSetupState =
   | "disabled"
@@ -72,10 +73,20 @@ export class AutoFillSetupService {
     private readonly store: PopupStateStore,
     private readonly projection: AutoFillProjectionService,
     @Optional() private readonly accessibility: AutoFillAccessibilityService | null = null,
+    @Optional() private readonly settings: SettingsService | null = null,
   ) {}
 
   blockReason(): AutoFillSetupState {
     return this.state;
+  }
+
+  async setFloatingIconPreference(enabled: boolean): Promise<void> {
+    if (!this.accessibility) return;
+    if (!enabled) {
+      await this.accessibility.setFloatingIconEnabled(false);
+      return;
+    }
+    await this.activateFocusedFieldDetection(true, true);
   }
 
   async enableFromEntry(): Promise<AutoFillSetupState> {
@@ -270,9 +281,19 @@ export class AutoFillSetupService {
     return pending;
   }
 
-  private async activateFocusedFieldDetection(promptFromUserAction: boolean): Promise<boolean> {
+  private async activateFocusedFieldDetection(
+    promptFromUserAction: boolean,
+    preferenceOverride?: boolean,
+  ): Promise<boolean> {
     if (!this.accessibility) return true;
     try {
+      const enabled = preferenceOverride
+        ?? this.settings?.snapshot().showInputFieldIcon
+        ?? true;
+      await this.accessibility.setFloatingIconEnabled(enabled);
+      if (!enabled || this.disabling || !this.storage.readEnabled()) {
+        return true;
+      }
       let status = await this.accessibility.status();
       if (status.permission !== "granted" && promptFromUserAction) {
         status = await this.accessibility.requestPermissionFromUserAction();
@@ -280,7 +301,6 @@ export class AutoFillSetupService {
       if (
         status.permission !== "granted"
         || this.disabling
-        || !this.storage.readEnabled()
       ) {
         return false;
       }

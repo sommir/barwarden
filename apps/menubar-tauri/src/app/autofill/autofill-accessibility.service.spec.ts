@@ -11,15 +11,18 @@ describe("AutoFillAccessibilityService", () => {
     const host: AutoFillAccessibilityHost = {
       status: vi.fn().mockResolvedValue({ permission: "granted", observation: "stopped" }),
       setFallback: vi.fn().mockResolvedValue(undefined),
+      setFloatingIconEnabled: vi.fn().mockResolvedValue(undefined),
       requestPermission: vi.fn(),
     };
     const service = new AutoFillAccessibilityService(host);
 
     await service.stopForSystemAutoFill();
     await service.startUnsupportedFallback();
+    await service.setFloatingIconEnabled(false);
 
     expect(host.setFallback).toHaveBeenNthCalledWith(1, "system-autofill");
     expect(host.setFallback).toHaveBeenNthCalledWith(2, "unsupported");
+    expect(host.setFloatingIconEnabled).toHaveBeenCalledWith(false);
     expect(host.requestPermission).not.toHaveBeenCalled();
   });
 
@@ -27,6 +30,7 @@ describe("AutoFillAccessibilityService", () => {
     const host: AutoFillAccessibilityHost = {
       status: vi.fn().mockResolvedValue({ permission: "denied", observation: "stopped" }),
       setFallback: vi.fn(),
+      setFloatingIconEnabled: vi.fn(),
       requestPermission: vi.fn().mockResolvedValue({ permission: "denied", observation: "stopped" }),
     };
     const service = new AutoFillAccessibilityService(host);

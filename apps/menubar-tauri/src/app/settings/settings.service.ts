@@ -34,6 +34,7 @@ export interface SettingsSnapshot {
   readonly fillMode: FillMode;
   readonly language: OfficialLocale | null;
   readonly showFavicons: boolean;
+  readonly showInputFieldIcon: boolean;
   readonly showQuickCopyActions: boolean;
   readonly theme: ThemeMode;
   readonly vaultTimeoutMinutes: VaultTimeoutMinutes;
@@ -61,6 +62,7 @@ const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = Object.freeze({
   fillMode: "clipboard-paste",
   language: null,
   showFavicons: true,
+  showInputFieldIcon: true,
   showQuickCopyActions: true,
   theme: "system",
 });
@@ -139,6 +141,10 @@ export class SettingsService implements OnDestroy, BiometricPreferencePort {
 
   setShowFavicons(showFavicons: boolean): void {
     this.update({ showFavicons });
+  }
+
+  setShowInputFieldIcon(showInputFieldIcon: boolean): void {
+    this.update({ showInputFieldIcon });
   }
 
   setShowQuickCopyActions(showQuickCopyActions: boolean): void {
@@ -327,6 +333,9 @@ function sanitizeSettings(candidate: Partial<GlobalSettings>): Partial<GlobalSet
   }
   if (typeof candidate.showFavicons === "boolean") {
     sanitized.showFavicons = candidate.showFavicons;
+  }
+  if (typeof candidate.showInputFieldIcon === "boolean") {
+    sanitized.showInputFieldIcon = candidate.showInputFieldIcon;
   }
   if (typeof candidate.showQuickCopyActions === "boolean") {
     sanitized.showQuickCopyActions = candidate.showQuickCopyActions;

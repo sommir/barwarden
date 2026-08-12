@@ -238,6 +238,16 @@ enum PillBadge {
     Unknown,
 }
 
+fn badge_symbol(badge: PillBadge) -> Option<(&'static str, &'static str)> {
+    match badge {
+        PillBadge::Person => Some(("person.fill", "Username or email field")),
+        PillBadge::Lock => Some(("lock.fill", "Password field")),
+        PillBadge::Clock => Some(("clock.fill", "One-time code field")),
+        PillBadge::Form => Some(("list.bullet.rectangle.fill", "Fill form")),
+        PillBadge::Unknown => None,
+    }
+}
+
 fn pill_badge(presentation: &crate::autofill_ax_context::FillContextPresentation) -> PillBadge {
     use crate::autofill_ax_context::{PresentedActionMode, PresentedFieldKind};
 
@@ -503,7 +513,7 @@ where
         crate::autofill_ax_context::AxContextError,
     >,
 {
-    if !is_exact_frontmost(&context.target) {
+    if !controller.floating_icon_enabled() || !is_exact_frontmost(&context.target) {
         return Err("target-changed");
     }
 
@@ -526,7 +536,7 @@ where
     }
 
     for _ in 0..FLOATING_CLICK_CAPTURE_ATTEMPTS {
-        if !is_exact_frontmost(&context.target) {
+        if !controller.floating_icon_enabled() || !is_exact_frontmost(&context.target) {
             return Err("target-changed");
         }
         let generation = controller.generation();
@@ -535,7 +545,10 @@ where
             Err(error) if is_transient_click_capture_error(error) => continue,
             Err(_) => return Err("context-unavailable"),
         };
-        if controller.generation() != generation || !is_exact_frontmost(&context.target) {
+        if !controller.floating_icon_enabled()
+            || controller.generation() != generation
+            || !is_exact_frontmost(&context.target)
+        {
             continue;
         }
         match contexts.try_insert(context.target.clone(), detected.fields, detected.action) {
@@ -550,6 +563,7 @@ where
 
 struct ControllerState {
     fallback: AccessibilityFallback,
+    floating_icon_enabled: bool,
     permission: AccessibilityPermission,
     observation: AccessibilityObservation,
     diagnostic: Option<AccessibilityDiagnostic>,
@@ -570,6 +584,7 @@ impl Default for ControllerState {
     fn default() -> Self {
         Self {
             fallback: AccessibilityFallback::SystemAutoFill,
+            floating_icon_enabled: true,
             permission: AccessibilityPermission::Denied,
             observation: AccessibilityObservation::Stopped,
             diagnostic: None,
@@ -671,6 +686,29 @@ impl AutoFillFloatingController {
         };
     }
 
+    pub fn set_floating_icon_enabled(&self, enabled: bool) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.floating_icon_enabled = enabled;
+        let generation = state.lifecycle.invalidate();
+        self.observer_generation.set(generation);
+        state.visible_target = None;
+        state.diagnostic = None;
+        state.observation = match state.fallback {
+            AccessibilityFallback::SystemAutoFill => AccessibilityObservation::Stopped,
+            AccessibilityFallback::Unsupported => AccessibilityObservation::Hidden,
+        };
+    }
+
+    fn floating_icon_enabled(&self) -> bool {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .floating_icon_enabled
+    }
+
     fn fallback(&self) -> AccessibilityFallback {
         self.state
             .lock()
@@ -712,6 +750,7 @@ impl AutoFillFloatingController {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if state.fallback != AccessibilityFallback::Unsupported
+            || !state.floating_icon_enabled
             || state.lifecycle.generation != generation
         {
             return false;
@@ -740,6 +779,7 @@ impl AutoFillFloatingController {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if state.fallback != AccessibilityFallback::Unsupported
+            || !state.floating_icon_enabled
             || state.lifecycle.generation != generation
         {
             return false;
@@ -1020,6 +1060,20 @@ pub fn autofill_set_accessibility_fallback(
     require_main_window(&window)?;
     controller.set_fallback(fallback);
     if fallback == AccessibilityFallback::SystemAutoFill {
+        schedule_panel_hide(window.app_handle());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn autofill_set_floating_icon_enabled(
+    window: tauri::WebviewWindow,
+    controller: tauri::State<'_, AutoFillFloatingController>,
+    enabled: bool,
+) -> Result<(), String> {
+    require_main_window(&window)?;
+    controller.set_floating_icon_enabled(enabled);
+    if !enabled {
         schedule_panel_hide(window.app_handle());
     }
     Ok(())
@@ -1388,7 +1442,9 @@ mod macos {
         let mut last_lifecycle_check = Instant::now() - Duration::from_secs(1);
         let mut observing = false;
         loop {
-            if controller.fallback() != AccessibilityFallback::Unsupported {
+            if controller.fallback() != AccessibilityFallback::Unsupported
+                || !controller.floating_icon_enabled()
+            {
                 observing = false;
                 last_app = None;
                 registration = None;
@@ -1898,13 +1954,7 @@ mod macos {
     }
 
     fn badge_image(badge: PillBadge) -> Option<Retained<NSImage>> {
-        let (symbol, description) = match badge {
-            PillBadge::Person => ("person.fill", "Username or email field"),
-            PillBadge::Lock => ("lock.fill", "Password field"),
-            PillBadge::Clock => ("clock.fill", "One-time code field"),
-            PillBadge::Form => ("list.bullet.rectangle.fill", "Fill form"),
-            PillBadge::Unknown => ("questionmark", "Fill field"),
-        };
+        let (symbol, description) = badge_symbol(badge)?;
         let image = NSImage::imageWithSystemSymbolName_accessibilityDescription(
             &NSString::from_str(symbol),
             Some(&NSString::from_str(description)),
@@ -1915,9 +1965,8 @@ mod macos {
     }
 
     fn apply_badge(button: &NSButton, badge: PillBadge) {
-        if let Some(image) = badge_image(badge) {
-            button.setImage(Some(&image));
-        }
+        let image = badge_image(badge);
+        button.setImage(image.as_deref());
     }
 
     fn update_badge(badge: PillBadge, _mtm: MainThreadMarker) {
@@ -2754,6 +2803,27 @@ mod tests {
     }
 
     #[test]
+    fn unknown_field_uses_only_the_barwarden_glyph_without_a_question_mark_badge() {
+        assert_eq!(badge_symbol(PillBadge::Unknown), None);
+        assert_eq!(
+            badge_symbol(PillBadge::Person).map(|value| value.0),
+            Some("person.fill")
+        );
+        assert_eq!(
+            badge_symbol(PillBadge::Lock).map(|value| value.0),
+            Some("lock.fill")
+        );
+        assert_eq!(
+            badge_symbol(PillBadge::Clock).map(|value| value.0),
+            Some("clock.fill")
+        );
+        assert_eq!(
+            badge_symbol(PillBadge::Form).map(|value| value.0),
+            Some("list.bullet.rectangle.fill")
+        );
+    }
+
+    #[test]
     fn generation_cancels_stale_callbacks_and_invalidations_hide_immediately() {
         let mut lifecycle = FloatingLifecycle::default();
         let first = lifecycle.begin_observation();
@@ -3051,6 +3121,41 @@ mod tests {
     }
 
     #[test]
+    fn disabling_after_mouse_down_burns_the_queued_click_without_ax_recapture() {
+        use crate::autofill_ax_context::{DetectedFillContextStore, ObserverGeneration};
+
+        let observer_generation = ObserverGeneration::default();
+        let controller =
+            AutoFillFloatingController::with_observer_generation(observer_generation.clone());
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        let target = crate::frontmost::test_frontmost_app("com.google.Chrome", 42, 9);
+        let click = FloatingClickContext {
+            generation: controller.generation(),
+            target,
+        };
+        let store = DetectedFillContextStore::for_test_with_generation(
+            observer_generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        controller.set_floating_icon_enabled(false);
+        let mut captures = 0;
+
+        assert!(prepare_floating_click_with(
+            &controller,
+            &store,
+            &click,
+            |_| true,
+            |target, generation| {
+                captures += 1;
+                Ok(captured_password_context(target, generation))
+            },
+        )
+        .is_err());
+        assert_eq!(captures, 0);
+    }
+
+    #[test]
     fn observer_callback_synchronously_invalidates_visible_snapshot_before_scheduling_hide() {
         let controller = AutoFillFloatingController::default();
         controller.set_fallback(AccessibilityFallback::Unsupported);
@@ -3237,6 +3342,42 @@ mod tests {
         assert_eq!(
             controller.status().diagnostic.unwrap().reason,
             "application-changed"
+        );
+    }
+
+    #[test]
+    fn floating_icon_preference_defaults_on_and_disable_invalidates_a_visible_target() {
+        let controller = AutoFillFloatingController::default();
+        assert!(controller.floating_icon_enabled());
+        controller.set_fallback(AccessibilityFallback::Unsupported);
+        controller.show_for_test("com.example.editor");
+        let visible_generation = controller.generation();
+
+        controller.set_floating_icon_enabled(false);
+
+        assert!(!controller.floating_icon_enabled());
+        assert!(controller.generation() > visible_generation);
+        assert!(!controller.has_visible_target_for_test());
+        assert_eq!(
+            controller.status().observation,
+            AccessibilityObservation::Hidden
+        );
+        assert!(!controller.publish_visible(
+            controller.generation(),
+            crate::frontmost::test_frontmost_app("com.example.editor", 42, 99),
+            AppKitFrame {
+                x: 0.0,
+                y: 0.0,
+                width: PILL_WIDTH,
+                height: PILL_HEIGHT,
+            },
+        ));
+
+        controller.set_floating_icon_enabled(true);
+        assert!(controller.floating_icon_enabled());
+        assert_eq!(
+            controller.status().observation,
+            AccessibilityObservation::Hidden
         );
     }
 

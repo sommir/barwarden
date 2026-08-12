@@ -28,6 +28,7 @@ const allowedCommands = [
   "autofill_reset_projection_for_reprojection",
   "autofill_request_accessibility_permission",
   "autofill_set_accessibility_fallback",
+  "autofill_set_floating_icon_enabled",
   "biometric_disable",
   "biometric_enable",
   "biometric_status",

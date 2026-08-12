@@ -134,6 +134,7 @@ fn main() {
             frontmost::autofill_entry_context,
             autofill_floating::autofill_accessibility_status,
             autofill_floating::autofill_set_accessibility_fallback,
+            autofill_floating::autofill_set_floating_icon_enabled,
             autofill_floating::autofill_request_accessibility_permission,
             biometric::biometric_status,
             biometric::biometric_enable,
