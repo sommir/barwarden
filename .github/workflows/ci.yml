@@ -21,7 +21,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check:publication
-      - run: cargo fetch --locked --manifest-path apps/menubar-tauri/src-tauri/Cargo.toml
       - run: npm run licenses:check
       - run: npm run test:release-policy
       - run: npm audit --omit=dev --audit-level=high

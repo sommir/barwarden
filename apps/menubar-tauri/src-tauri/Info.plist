@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Barwarden may interact with another app only when you invoke a paste action.</string>
+  <string>Barwarden reads the active browser page to suggest matching logins and interacts with the target app only when you invoke a paste action.</string>
   <key>LSUIElement</key>
   <true/>
 </dict>

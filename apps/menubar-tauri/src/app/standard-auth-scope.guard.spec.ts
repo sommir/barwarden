@@ -84,18 +84,14 @@ describe("standard authentication scope guard", () => {
     }
   });
 
-  it.skipIf(
-    [auditPath, comparisonPath, sourceParityDesignPath, productScopeDesignPath].some(
-      (path) => !existsSync(join(process.cwd(), path)),
-    ),
-  )("keeps local baseline documents aligned to the supported authentication and exclusion boundary", () => {
+  it("keeps the active baseline documents aligned to the supported authentication and exclusion boundary", () => {
     const audit = readWorkspaceFile(auditPath);
     const comparison = readWorkspaceFile(comparisonPath);
     const reuseMap = readWorkspaceFile(reuseMapPath);
     const sourceParityDesign = readWorkspaceFile(sourceParityDesignPath);
     const productScopeDesign = readWorkspaceFile(productScopeDesignPath);
 
-    expect(audit).toContain("<!-- parity-summary missing=0 partial=68 complete=0 -->");
+    expect(audit).toContain("<!-- parity-summary missing=0 partial=69 complete=0 -->");
     expect(audit).toContain(
       "Current authentication baseline is password login, provider `0` authenticator app or provider `1` email two-factor, new-device email OTP, password hint, master-password unlock, process-lifetime 6-8 digit PIN unlock, native macOS Touch ID unlock, logout, and Keychain-backed account switching on Bitwarden US, Bitwarden EU, and self-hosted servers.",
     );

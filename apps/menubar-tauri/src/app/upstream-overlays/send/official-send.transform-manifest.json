@@ -297,6 +297,7 @@
       "apps/menubar-tauri/src/host/host-api.ts",
       "apps/menubar-tauri/src/host/launch-at-login.ts",
       "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "apps/menubar-tauri/src/host/website-context.ts",
       "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json",
       "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.html",
       "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.ts",
@@ -1671,6 +1672,12 @@
         "kind": "import",
         "specifier": "./launch-at-login",
         "target": "apps/menubar-tauri/src/host/launch-at-login.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "./website-context",
+        "target": "apps/menubar-tauri/src/host/website-context.ts"
       },
       {
         "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
@@ -3191,6 +3198,6 @@
         "target": null
       }
     ],
-    "sha256": "2d4b27b540e79d52011ce18d7774122bebb6279bdaf4de5dd2ae627ab224e4ba"
+    "sha256": "1a163faeec76722ae2e9a0651b2ab3f052d61c907e2ba190eaecd4c0cd164616"
   }
 }

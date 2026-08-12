@@ -32,6 +32,7 @@ import {
 import { VaultLoadingSkeletonComponent } from "../upstream-overlays/vault-main/vault-loading-skeleton/vault-loading-skeleton.component";
 import type { VaultField, VaultItem } from "../vault-demo";
 import { VaultActionsService } from "./vault-actions.service";
+import { CurrentWebsiteContextService } from "./current-website-context.service";
 import { VaultHierarchyComponent } from "./vault-hierarchy.component";
 import {
   VAULT_MAIN_EVIDENCE_STATE,
@@ -169,6 +170,24 @@ import { VaultContextualSectionOutletComponent } from "./vault-contextual-sectio
             }
           </div>
         } @else {
+          @if (websiteSuggestionSection; as section) {
+            <div class="tw-px-3 tw-pt-3 vault-sections macos-list" data-testid="autofill-suggestions">
+              <app-vault-list-items-container
+                [section]="section"
+                [openMenuRowId]="openMenuRowId"
+                [showQuickCopyActions]="showQuickCopyActions"
+                (view)="viewItem($event)"
+                (fill)="fillField($event)"
+                (edit)="editItem($event)"
+                (clone)="cloneItem($event)"
+                (launch)="launchItem($event)"
+                (toggleFavorite)="toggleFavorite($event)"
+                (archive)="archiveItem($event)"
+                (delete)="deleteItem($event)"
+                (menuOpenChange)="setOpenMenu($event)"
+              />
+            </div>
+          }
           <bw-vault-hierarchy
             [nodes]="hierarchy"
             [openMenuRowId]="openMenuRowId"
@@ -199,6 +218,7 @@ export class VaultListPageComponent implements OnDestroy {
     private readonly store: PopupStateStore,
     private readonly settings: SettingsService,
     private readonly vault: VaultFacade,
+    private readonly websiteContext: CurrentWebsiteContextService,
     private readonly rowActions: VaultRowActionsAdapter,
     private readonly menuCoordinator: RetainedVaultMenuCoordinator,
     @Optional()
@@ -220,6 +240,7 @@ export class VaultListPageComponent implements OnDestroy {
     } else if (evidenceState === "no-results") {
       this.vault.setSearch("__no_results__");
     }
+    void this.websiteContext.refresh();
   }
 
   get sections() {
@@ -228,6 +249,10 @@ export class VaultListPageComponent implements OnDestroy {
 
   get hierarchy() {
     return this.vault.hierarchy();
+  }
+
+  get websiteSuggestionSection() {
+    return this.vault.websiteSuggestionSection(this.websiteContext.url());
   }
 
   get vaultQuery(): string {
@@ -270,6 +295,11 @@ export class VaultListPageComponent implements OnDestroy {
     this.menuCoordinator.closeAll();
   }
 
+  @HostListener("window:barwarden:popup-shown")
+  refreshWebsiteContext(): void {
+    void this.websiteContext.refresh();
+  }
+
   setOpenMenu(change: VaultMenuOpenChange): void {
     if (change.open) {
       this.openMenuRowId = change.rowId;
@@ -279,6 +309,7 @@ export class VaultListPageComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.websiteContext.clear();
     this.rowActions.ngOnDestroy();
   }
 

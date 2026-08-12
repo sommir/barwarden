@@ -62,7 +62,7 @@ impl Eq for FrontmostApp {}
 
 #[derive(Default)]
 pub(crate) struct TargetAppStore {
-    target: Mutex<Option<StoredTargetApp>>,
+    state: Mutex<CapturedTargetState>,
 }
 
 #[derive(Clone)]
@@ -71,13 +71,26 @@ struct StoredTargetApp {
     fill_context: Option<crate::autofill_ax_context::FillContextPresentation>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CapturedTarget {
+    pub(crate) generation: u64,
+    pub(crate) application: FrontmostApp,
+}
+
+#[derive(Default)]
+struct CapturedTargetState {
+    generation: u64,
+    target: Option<StoredTargetApp>,
+}
+
 impl TargetAppStore {
     pub(crate) fn replace(&self, target: Option<FrontmostApp>) {
         let mut stored = self
-            .target
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *stored = target.map(|target| StoredTargetApp {
+        stored.generation = stored.generation.checked_add(1).unwrap_or(1);
+        stored.target = target.map(|target| StoredTargetApp {
             target,
             fill_context: None,
         });
@@ -85,14 +98,16 @@ impl TargetAppStore {
 
     fn replace_preserving_context(&self, target: FrontmostApp) {
         let mut stored = self
-            .target
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let fill_context = stored
+            .target
             .as_ref()
             .filter(|stored| stored.target == target)
             .and_then(|stored| stored.fill_context.clone());
-        *stored = Some(StoredTargetApp {
+        stored.generation = stored.generation.checked_add(1).unwrap_or(1);
+        stored.target = Some(StoredTargetApp {
             target,
             fill_context,
         });
@@ -103,33 +118,38 @@ impl TargetAppStore {
         target: FrontmostApp,
         fill_context: crate::autofill_ax_context::FillContextPresentation,
     ) {
-        *self
-            .target
+        let mut stored = self
+            .state
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(StoredTargetApp {
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        stored.generation = stored.generation.checked_add(1).unwrap_or(1);
+        stored.target = Some(StoredTargetApp {
             target,
             fill_context: Some(fill_context),
         });
     }
 
     pub(crate) fn current(&self) -> Option<FrontmostApp> {
-        self.target
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .target
             .as_ref()
             .map(|stored| stored.target.clone())
     }
 
     fn clear_if_matches(&self, target: &FrontmostApp) {
         let mut stored = self
-            .target
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if stored
+            .target
             .as_ref()
             .is_some_and(|stored| stored.target == *target)
         {
-            *stored = None;
+            stored.generation = stored.generation.checked_add(1).unwrap_or(1);
+            stored.target = None;
         }
     }
 
@@ -150,22 +170,42 @@ impl TargetAppStore {
         Option<crate::autofill_ax_context::FillContextPresentation>,
     )> {
         let stored = self
-            .target
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         hook();
         stored
+            .target
             .as_ref()
             .map(|stored| (stored.target.clone(), stored.fill_context.clone()))
     }
 
     #[cfg(test)]
     fn current_fill_context(&self) -> Option<crate::autofill_ax_context::FillContextPresentation> {
-        self.target
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .target
             .as_ref()
             .and_then(|stored| stored.fill_context.clone())
+    }
+
+    pub(crate) fn captured(&self) -> Option<CapturedTarget> {
+        let stored = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        stored.target.as_ref().map(|target| CapturedTarget {
+            generation: stored.generation,
+            application: target.target.clone(),
+        })
+    }
+
+    pub(crate) fn generation(&self) -> u64 {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .generation
     }
 }
 
@@ -300,6 +340,14 @@ where
         },
         fill_context: fill_context.filter(|context| !context.fill_context_token.is_empty()),
     }
+}
+
+pub(crate) fn captured_target() -> Option<CapturedTarget> {
+    target_app_store().captured()
+}
+
+pub(crate) fn captured_target_generation() -> u64 {
+    target_app_store().generation()
 }
 
 pub(crate) fn current_frontmost_app() -> Result<Option<FrontmostApp>, String> {
@@ -577,6 +625,29 @@ mod tests {
 
         assert_eq!(store.current(), Some(expected));
         assert_eq!(store.current_fill_context(), None);
+    }
+
+    #[test]
+    fn replacing_the_target_advances_generation_without_changing_paste_identity() {
+        let store = TargetAppStore::default();
+
+        capture_current_target_with(
+            &store,
+            || Ok(Some(app("com.google.Chrome", 41))),
+            APP_BUNDLE_ID,
+        );
+        let first = store.captured().expect("first captured target");
+
+        capture_current_target_with(
+            &store,
+            || Ok(Some(app("com.apple.Safari", 42))),
+            APP_BUNDLE_ID,
+        );
+        let second = store.captured().expect("second captured target");
+
+        assert!(second.generation > first.generation);
+        assert_eq!(second.application, app("com.apple.Safari", 42));
+        assert_eq!(store.current(), Some(app("com.apple.Safari", 42)));
     }
 
     #[test]

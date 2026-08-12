@@ -2817,6 +2817,145 @@ auth-account .macos-account-label {
   box-shadow: none;
 }
 
+.about-version-summary {
+  margin: var(--mac-space-3) var(--mac-space-3) 0;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.app-update-card {
+  display: grid;
+  gap: var(--mac-space-3);
+  margin: var(--mac-space-2) var(--mac-space-3) var(--mac-space-3);
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-row-radius);
+  padding: var(--mac-space-3);
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+}
+
+.app-update-card__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--mac-space-3);
+}
+
+.app-update-card__header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.app-update-card__version {
+  margin: 2px 0 0;
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.app-update-card__status,
+.app-update-card__release,
+.app-update-card__error {
+  display: grid;
+  min-width: 0;
+  gap: var(--mac-space-2);
+  margin: 0;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.app-update-card__status--success {
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  color: var(--mac-success);
+}
+
+.app-update-card__status--progress progress,
+.app-update-card__status > progress {
+  width: 100%;
+  accent-color: var(--mac-accent);
+}
+
+.app-update-card__release strong {
+  color: var(--mac-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-update-card__release p,
+.app-update-card__error p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.app-update-card__error {
+  color: var(--mac-destructive);
+}
+
+.app-update-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mac-space-2);
+}
+
+.app-update-notice {
+  position: absolute;
+  z-index: 65;
+  right: 16px;
+  bottom: 16px;
+  display: block;
+  width: min(352px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  pointer-events: auto;
+}
+
+.app-update-notice .macos-alert-strip[data-presentation="toast"] {
+  position: static;
+  left: auto;
+  width: 100%;
+  max-height: inherit;
+  transform: none;
+}
+
+:root:has(.floating-tab-switcher) .app-update-notice {
+  bottom: calc(13px + 58px + var(--mac-space-3));
+}
+
+:root[data-bw-window="popout"] .app-update-notice {
+  right: max(18px, calc((100vw - var(--bw-popout-content-width)) / 2 + 18px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-update-card progress,
+  .app-update-notice .macos-alert-strip {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-update-notice .macos-alert-strip[data-presentation="toast"] {
+    background: var(--mac-surface-solid);
+    box-shadow: 0 2px 8px color-mix(in srgb, #0b1220 12%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .app-update-card {
+    border-width: 2px;
+  }
+}
+
 .macos-page.macos-page--settings bit-item-group {
   background: transparent;
 }

@@ -1,0 +1,87 @@
+<section class="app-update-card" aria-labelledby="app-update-title">
+  <header class="app-update-card__header">
+    <div>
+      <h2 id="app-update-title">{{ "i18nAppUpdate" | i18n }}</h2>
+      <p class="app-update-card__version">
+        {{ "i18nCurrentVersion" | i18n: currentVersion }}
+      </p>
+    </div>
+    @if (view.status === "idle" || view.status === "up-to-date") {
+      <button
+        bitButton
+        buttonType="secondary"
+        type="button"
+        data-testid="check-for-updates"
+        (click)="checkForUpdates.emit()"
+      >
+        {{ "i18nCheckForUpdates" | i18n }}
+      </button>
+    }
+  </header>
+
+  @if (view.status === "checking") {
+    <div class="app-update-card__status" role="status" aria-live="polite">
+      <progress [attr.aria-label]="'i18nCheckingUpdates' | i18n"></progress>
+      <span>{{ "i18nCheckingUpdates" | i18n }}</span>
+    </div>
+  }
+
+  @if (view.status === "up-to-date") {
+    <p class="app-update-card__status app-update-card__status--success" role="status">
+      <i class="bwi bwi-check-circle" aria-hidden="true"></i>
+      <span>{{ view.message }}</span>
+    </p>
+  }
+
+  @if (view.status === "available") {
+    <div class="app-update-card__release" role="status" aria-live="polite">
+      <strong>{{ "i18nNewVersionAvailable" | i18n: (view.version || "") }}</strong>
+      <p>{{ view.notes || ("i18nUpdateReadyToDownload" | i18n) }}</p>
+    </div>
+    <div class="app-update-card__actions">
+      <button
+        bitButton
+        buttonType="secondary"
+        type="button"
+        (click)="deferUpdate.emit()"
+      >
+        {{ "i18nLater" | i18n }}
+      </button>
+      <button
+        bitButton
+        buttonType="primary"
+        type="button"
+        data-testid="install-update"
+        (click)="downloadAndRestart.emit()"
+      >
+        {{ "i18nUpdateAndRestart" | i18n }}
+      </button>
+    </div>
+  }
+
+  @if (view.status === "downloading") {
+    <div class="app-update-card__status app-update-card__status--progress" role="status">
+      <span>{{ progressLabel }}</span>
+      <progress
+        max="1"
+        [value]="view.progress"
+        [attr.aria-label]="progressLabel"
+      ></progress>
+    </div>
+  }
+
+  @if (view.status === "error") {
+    <div class="app-update-card__error" role="alert">
+      <p>{{ view.message }}</p>
+      <button
+        bitButton
+        buttonType="secondary"
+        type="button"
+        data-testid="retry-update"
+        (click)="retry.emit()"
+      >
+        {{ "i18nRetry" | i18n }}
+      </button>
+    </div>
+  }
+</section>

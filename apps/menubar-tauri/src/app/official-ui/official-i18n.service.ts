@@ -483,6 +483,7 @@ export const officialTrashWarningZhCn =
   "回收站中超过 30 天的项目将被自动删除。";
 
 const translations: Readonly<Record<string, string>> = {
+  autofillSuggestions: "自动填充建议",
   addWebsiteOrApp: "添加网站或应用",
   app: "应用",
   appUri: "应用（URI）",
@@ -980,6 +981,7 @@ const translations: Readonly<Record<string, string>> = {
   i18nAppUpdate: "应用更新",
   i18nCheckForUpdates: "检查更新",
   i18nCheckingUpdates: "正在检查更新…",
+  i18nCurrentVersion: "当前版本 {0}",
   i18nCopying: "复制中",
   i18nCurrentWebVault: "当前 Web Vault",
   i18nDownloadAndRestart: "下载并重启",
@@ -1013,10 +1015,13 @@ const translations: Readonly<Record<string, string>> = {
   i18nUnableToCopyRevision: "无法复制 revision",
   i18nUnableToOpenLinkTitle: "无法打开链接",
   i18nUpdateCheckFailed: "无法检查更新，请重试。",
+  i18nUpdateAndRestart: "更新并重新启动",
+  i18nUpdateAvailableMessage: "Barwarden {0} 已可用。",
   i18nUpdateInstallFailed: "无法下载或安装更新，请重试。",
   i18nUpdateUnsupported: "此环境不支持应用内更新。",
   i18nUpdateReadyToDownload: "已准备好下载更新。",
   i18nUpToDate: "当前已是最新版本。",
+  i18nViewUpdate: "查看更新",
   i18nUnofficialMacClient: "非官方独立 macOS 菜单栏客户端。",
   i18nUpstreamRevision: "上游 revision",
   i18nVersion: "版本",
@@ -1276,6 +1281,7 @@ const translations: Readonly<Record<string, string>> = {
 };
 
 const englishTranslations: Readonly<Record<string, string>> = {
+  autofillSuggestions: "Autofill suggestions",
   ...Object.fromEntries(
     Object.entries(englishMessages).map(([id, message]) => [id, message.message]),
   ),
@@ -1541,6 +1547,7 @@ const englishTranslations: Readonly<Record<string, string>> = {
   i18nAppUpdate: "Application updates",
   i18nCheckForUpdates: "Check for updates",
   i18nCheckingUpdates: "Checking for updates…",
+  i18nCurrentVersion: "Current version {0}",
   i18nCopying: "Copying",
   i18nCurrentWebVault: "Current Web Vault",
   i18nDownloadAndRestart: "Download and restart",
@@ -1573,10 +1580,13 @@ const englishTranslations: Readonly<Record<string, string>> = {
   i18nUnableToCopyRevision: "Unable to copy revision",
   i18nUnableToOpenLinkTitle: "Unable to open link",
   i18nUpdateCheckFailed: "Unable to check for updates. Try again.",
+  i18nUpdateAndRestart: "Update and restart",
+  i18nUpdateAvailableMessage: "Barwarden {0} is available.",
   i18nUpdateInstallFailed: "Unable to download or install the update. Try again.",
   i18nUpdateUnsupported: "In-app updates are unavailable in this environment.",
   i18nUpdateReadyToDownload: "The update is ready to download.",
   i18nUpToDate: "Barwarden is up to date.",
+  i18nViewUpdate: "View update",
   i18nUnofficialMacClient: "Unofficial independent macOS menu bar client.",
   i18nUpstreamRevision: "Upstream revision",
   i18nVersion: "Version",

@@ -24,6 +24,13 @@ Avoid editing `vendor/bitwarden-clients`. If an upstream change is unavoidable,
 record a minimal patch in `patches/`, retain upstream notices, and document why a
 local adapter was insufficient.
 
+## Releases
+
+The release workflow is defined in `.github/workflows/release.yml`. Before
+tagging a release, run the checks documented there and
+`npm run release:macos-bundle`. Keep signing and notarization credentials in the
+repository's protected `release` environment, never in source files or logs.
+
 ## Commit messages
 
 Use concise, imperative messages such as `fix: preserve vault lock state` or

@@ -75,10 +75,6 @@ for its Developer ID signing and Apple notarization status.
 | Vault | Personal logins, cards, identities, and secure notes |
 | Distribution | GitHub Releases DMG and in-app updates |
 
-Browser autofill, attachments, File Send, SSO, import/export, organization
-management, and passkeys are not currently supported. Compatibility with
-third-party servers depends on their API implementation.
-
 ## Local development
 
 Requires macOS 13+, Node.js 22+, npm, Rust stable, and Xcode Command Line Tools.

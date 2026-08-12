@@ -46,6 +46,13 @@ import {
   type LaunchAtLoginHost,
   type NativeAutostartApi,
 } from "./launch-at-login";
+import {
+  decodeCapturedWebsiteContext,
+  type CapturedWebsiteContext,
+  type WebsiteContextHost,
+  WebsiteContextHostError,
+} from "./website-context";
+
 type AutoFillSecretField = "username" | "password" | "totp";
 interface LiveAutoFillContext {
   readonly bundleId: string;
@@ -193,6 +200,7 @@ export class TauriHostService
     ProcessSessionBrokerHost,
     BiometricHost,
     LaunchAtLoginHost,
+    WebsiteContextHost,
     HttpTransport
 {
   constructor(
@@ -244,6 +252,19 @@ export class TauriHostService
 
   hidePopup(): Promise<void> {
     return this.invoke("hide_popup");
+  }
+
+  async capturedWebsiteContext(): Promise<CapturedWebsiteContext> {
+    try {
+      return decodeCapturedWebsiteContext(
+        await this.invoke<unknown>("captured_website_context", undefined),
+      );
+    } catch (error) {
+      if (error instanceof WebsiteContextHostError) {
+        throw error;
+      }
+      throw new WebsiteContextHostError("unavailable");
+    }
   }
 
   getPopupWindowMetrics(): Promise<PopupWindowMetrics> {

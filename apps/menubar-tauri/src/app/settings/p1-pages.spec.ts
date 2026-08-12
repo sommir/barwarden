@@ -330,7 +330,7 @@ describe("P1 settings pages", () => {
     const fixture = TestBed.createComponent(AboutPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelectorAll("bit-item-group bit-item")).toHaveLength(7);
+    expect(host.querySelectorAll("bit-item-group bit-item")).toHaveLength(6);
     expect(
       Array.from(
         host.querySelectorAll<HTMLButtonElement>(
@@ -340,13 +340,15 @@ describe("P1 settings pages", () => {
       ),
     ).toEqual([
       "故障排除",
-      "检查更新",
       "关于 Barwarden",
       "第三方开源许可",
       "帮助中心",
       "Web Vault",
       "上游 Bitwarden 源码",
     ]);
+    expect(host.textContent).toContain("Barwarden 0.1.0");
+    expect(host.textContent).toContain("应用更新");
+    expect(host.textContent).toContain("检查更新");
     expect(host.textContent).toContain("故障排除");
     expect(host.textContent).toContain("关于 Barwarden");
     expect(aboutMetadata.productName).toBe("Barwarden");
@@ -373,7 +375,7 @@ describe("P1 settings pages", () => {
     expect(host.querySelector("dialog[open] form[bit-dialog]")).not.toBeNull();
     expect(host.textContent).toContain("GPL-3.0-only");
     expect(host.textContent).toContain("版本");
-    expect(host.textContent).toContain("0.1.2");
+    expect(host.textContent).toContain("0.1.0");
     expect(host.textContent).toContain("上游 revision");
     expect(host.textContent).toContain("f47b6946e01aed474875789081966d311d5b8289");
     expect(host.textContent).toContain("当前 Web Vault");
@@ -445,9 +447,46 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     expect(host.textContent).toContain("Version 0.2.0 is available");
-    expect(host.textContent).toContain("Download and restart");
+    expect(host.textContent).toContain("Update and restart");
     expect(host.textContent).toContain("Fixes");
     expect(candidate.downloadAndInstall).not.toHaveBeenCalled();
+  });
+
+  it("reacts to a background update without reopening the About page", async () => {
+    const candidate = {
+      version: "0.2.0",
+      notes: "Fixes",
+      downloadAndInstall: vi.fn(async () => undefined),
+    };
+    const updater = new AppUpdateService({ check: vi.fn(async () => candidate) });
+    await TestBed.configureTestingModule({
+      imports: [AboutPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: PopupStateStore, useValue: new PopupStateStore() },
+        { provide: AppUpdateService, useValue: updater },
+        {
+          provide: EnvironmentHandoffService,
+          useValue: {
+            openExternal: vi.fn(async () => undefined),
+            openWebVault: vi.fn(async () => undefined),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AboutPageComponent);
+    await TestBed.inject(OfficialI18nService).setLocale("en-US");
+    fixture.detectChanges();
+
+    await updater.checkInBackground();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      "Version 0.2.0 is available",
+    );
   });
 
   it.each(["Enter", " "])("opens About metadata from one explicit %s activation", async (key) => {

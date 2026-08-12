@@ -16,15 +16,6 @@
       <button
         type="button"
         bit-item-content
-        data-testid="check-for-updates"
-        [disabled]="updateActionPending"
-        (click)="checkForUpdates.emit()"
-      >{{ updateActionLabel }}</button>
-    </bit-item>
-    <bit-item>
-      <button
-        type="button"
-        bit-item-content
         (click)="metadataViewChange.emit('about')"
         (keydown)="activateMetadataFromKeyboard($event)"
       >
@@ -56,33 +47,16 @@
     </bit-item>
   </bit-item-group>
 
-  @if (updateView.status === "up-to-date" || updateView.status === "error") {
-    <bw-macos-alert-strip
-      [kind]="updateView.status === 'error' ? 'danger' : 'success'"
-      [title]="'i18nAppUpdate' | i18n"
-      [message]="updateView.message"
-    />
-  }
+  <p class="about-version-summary">{{ metadata.productName }} {{ metadata.appVersion }}</p>
 
-  @if (updateView.status === "available") {
-    <bw-macos-alert-strip
-      kind="info"
-      [title]="'i18nNewVersionAvailable' | i18n: (updateView.version || '')"
-      [message]="updateView.notes || ('i18nUpdateReadyToDownload' | i18n)"
-    />
-    <bit-item-group>
-      <bit-item>
-        <button type="button" bit-item-content (click)="dismissUpdate.emit()">
-          {{ "i18nLater" | i18n }}
-        </button>
-      </bit-item>
-      <bit-item>
-        <button type="button" bit-item-content (click)="downloadAndRestart.emit()">
-          {{ "i18nDownloadAndRestart" | i18n }}
-        </button>
-      </bit-item>
-    </bit-item-group>
-  }
+  <bw-app-update-card
+    [currentVersion]="metadata.appVersion"
+    [view]="updateView"
+    (checkForUpdates)="checkForUpdates.emit()"
+    (downloadAndRestart)="downloadAndRestart.emit()"
+    (deferUpdate)="dismissUpdate.emit()"
+    (retry)="retryUpdate.emit()"
+  />
 
   <bw-official-about-dialog
     [metadata]="metadata"

@@ -234,7 +234,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
-      "sha256": "8ed2fe1006b01036a547bfbebd9803b619bfd58f7336252854b80668cb5e89f2"
+      "sha256": "3db4b593328849b8a210286aad2bc881b0abe2784897a91fdf312a0f8a89f209"
     },
     {
       "path": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
@@ -378,7 +378,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
-      "sha256": "a17f6b716decb6cfc1365eea71ecc8c69e0c4a78eb82f3ead5d341f5fd5bec65"
+      "sha256": "3f8373aac00a383b7379b40e2a5b1aba4873218d535cd6c717fef673e008c8e6"
     },
     {
       "path": "apps/menubar-tauri/src/host/biometric-host.ts",
@@ -398,7 +398,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/host/tauri-host.service.ts",
-      "sha256": "fdd30406719641a2df06bbad0cf1cf95195cad2bc8231042eedc71e987628048"
+      "sha256": "9dee0facbb70cfcb9c981094dee3cfd6f4c67617e33f8efcc2481887f1da1ffd"
+    },
+    {
+      "path": "apps/menubar-tauri/src/host/website-context.ts",
+      "sha256": "1f0fa6071992aef6f0d26031465ba64a79bf96e1eae5553c12285c5037c13476"
     },
     {
       "path": "apps/menubar-tauri/src/vault/vault-sync.service.ts",
@@ -439,7 +443,8 @@
     "apps/menubar-tauri/src/host/global-shortcut.ts",
     "apps/menubar-tauri/src/host/host-api.ts",
     "apps/menubar-tauri/src/host/launch-at-login.ts",
-    "apps/menubar-tauri/src/host/tauri-host.service.ts"
+    "apps/menubar-tauri/src/host/tauri-host.service.ts",
+    "apps/menubar-tauri/src/host/website-context.ts"
   ],
   "importEdges": [
     {
@@ -761,6 +766,11 @@
       "importer": "apps/menubar-tauri/src/host/tauri-host.service.ts",
       "specifier": "./launch-at-login",
       "target": "apps/menubar-tauri/src/host/launch-at-login.ts"
+    },
+    {
+      "importer": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "specifier": "./website-context",
+      "target": "apps/menubar-tauri/src/host/website-context.ts"
     }
   ],
   "sourceRuntimeEdges": [

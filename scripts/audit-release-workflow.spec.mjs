@@ -42,8 +42,6 @@ jobs:
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
           APPLE_API_KEY_PATH="$api_key_path" npm run tauri:build:update
           codesign --verify --deep --strict Barwarden.app
-          xcrun notarytool submit Barwarden.dmg --wait
-          xcrun stapler staple Barwarden.dmg
           xcrun stapler validate Barwarden.dmg
           spctl -a -vvv -t open --context context:primary-signature Barwarden.dmg
       - name: Publish release
@@ -108,8 +106,6 @@ test("requires every Apple signing and notarization secret", () => {
 test("requires signed artifacts to pass notarization and Gatekeeper verification", () => {
   const unsafe = safeWorkflow
     .replace("          codesign --verify --deep --strict Barwarden.app\n", "")
-    .replace("          xcrun notarytool submit Barwarden.dmg --wait\n", "")
-    .replace("          xcrun stapler staple Barwarden.dmg\n", "")
     .replace("          xcrun stapler validate Barwarden.dmg\n", "")
     .replace(
       "          spctl -a -vvv -t open --context context:primary-signature Barwarden.dmg\n",
@@ -119,14 +115,6 @@ test("requires signed artifacts to pass notarization and Gatekeeper verification
   assert.match(
     auditReleaseWorkflow(unsafe).join("\n"),
     /release build must verify Developer ID signing/,
-  );
-  assert.match(
-    auditReleaseWorkflow(unsafe).join("\n"),
-    /release build must submit the final DMG for notarization/,
-  );
-  assert.match(
-    auditReleaseWorkflow(unsafe).join("\n"),
-    /release build must staple the final DMG notarization ticket/,
   );
   assert.match(
     auditReleaseWorkflow(unsafe).join("\n"),

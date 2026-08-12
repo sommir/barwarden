@@ -62,6 +62,7 @@ import { LocalCopyFeedbackService } from "./official-ui/local-copy-feedback.serv
 import { PopupWindowSizeService } from "./window-size/popup-window-size.service";
 import { translateOfficialMessage } from "./official-ui/official-i18n.service";
 import { LocaleRouteRefreshService } from "./platform/locale-route-refresh.service";
+import { AppUpdateNoticeComponent } from "./updates/app-update-notice.component";
 import { VaultFacade } from "./vault/vault.facade";
 import { AutoFillSetupService } from "./autofill/autofill-setup.service";
 import { AutoFillVaultContextService } from "./autofill/autofill-vault-context.service";
@@ -105,6 +106,7 @@ export const POPUP_LIFECYCLE_HOST = new InjectionToken<PopupLifecycleHost>(
     AppFeedbackComponent,
     AccessibilityPermissionDialogComponent,
     MacosAlertStripComponent,
+    AppUpdateNoticeComponent,
     I18nPipe,
     RouterOutlet,
     PopupFocusWrapDirective,
@@ -144,6 +146,7 @@ export const POPUP_LIFECYCLE_HOST = new InjectionToken<PopupLifecycleHost>(
         (action)="recoverStartupFailure(failure.action)"
       />
     }
+    <bw-app-update-notice />
     <bw-app-bottom-sheet-dialog-host />
     <bw-accessibility-permission-dialog />
     <bw-app-feedback [hasMainSwitcher]="hasMainSwitcher" />

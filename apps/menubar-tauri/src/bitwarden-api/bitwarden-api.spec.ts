@@ -167,7 +167,7 @@ describe("BitwardenApiClient", () => {
     );
     expect(headers.get("Device-Type")).toBe("7");
     expect(headers.get("Bitwarden-Client-Name")).toBe("desktop");
-    expect(headers.get("Bitwarden-Client-Version")).toBe("0.1.2");
+    expect(headers.get("Bitwarden-Client-Version")).toBe("0.1.0");
     expect(transport.lastRequest?.body.get("grant_type")).toBe("password");
   });
 

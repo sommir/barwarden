@@ -42,6 +42,63 @@ describe("VaultFacade", () => {
     expect(facade.availableTypeFilters().some((type) => type.id === "ssh-key")).toBe(false);
   });
 
+  it("projects reliable current-site matches into the existing suggestion section", () => {
+    const store = new PopupStateStore();
+    store.setItems(demoVaultItems, demoFolders);
+    const facade = new VaultFacade(store);
+
+    expect(facade.websiteSuggestionSection(null)).toBeNull();
+    expect(facade.websiteSuggestionSection("https://github.com/settings/profile")).toEqual({
+      id: "autofill-suggestions",
+      title: "自动填充建议",
+      description: "",
+      items: [demoVaultItems[0]],
+      count: 1,
+      showFill: false,
+      collapsible: true,
+      forcedOpen: false,
+    });
+  });
+
+  it("caches website ranking until its URL, items, filters, or locale change", async () => {
+    const i18n = new OfficialI18nService();
+    await i18n.setLocale("zh-CN");
+    const store = new PopupStateStore();
+    store.setItems(demoVaultItems, demoFolders);
+    const facade = new VaultFacade(store);
+    const url = "https://github.com/settings/profile";
+
+    const first = facade.websiteSuggestionSection(url);
+    expect(facade.websiteSuggestionSection(url)).toBe(first);
+    expect(facade.websiteSuggestionSection("https://github.com/issues")).not.toBe(first);
+
+    const beforeFilter = facade.websiteSuggestionSection(url);
+    facade.setFolderFilter("work");
+    expect(facade.websiteSuggestionSection(url)).not.toBe(beforeFilter);
+
+    const beforeLocale = facade.websiteSuggestionSection(url);
+    await i18n.setLocale("en-US");
+    expect(facade.websiteSuggestionSection(url)).not.toBe(beforeLocale);
+  });
+
+  it("suppresses website suggestions during search and applies vault filters", () => {
+    const store = new PopupStateStore();
+    store.setItems(demoVaultItems, demoFolders);
+    const facade = new VaultFacade(store);
+    const url = "https://github.com/settings/profile";
+
+    facade.setSearch("git");
+    expect(facade.websiteSuggestionSection(url)).toBeNull();
+    facade.resetSearch();
+    facade.setTypeFilter("card");
+    expect(facade.websiteSuggestionSection(url)).toBeNull();
+    facade.setTypeFilter("login");
+    facade.setFolderFilter("personal");
+    expect(facade.websiteSuggestionSection(url)).toBeNull();
+    facade.setFolderFilter("work");
+    expect(facade.websiteSuggestionSection(url)?.items.map(({ id }) => id)).toEqual(["github"]);
+  });
+
   it("invalidates translated section and hierarchy caches when the locale changes", async () => {
     const i18n = new OfficialI18nService();
     await i18n.setLocale("zh-CN");

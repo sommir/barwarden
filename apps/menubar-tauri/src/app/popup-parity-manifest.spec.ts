@@ -238,10 +238,10 @@ const expectedInventory = [
     status: "partial",
   },
   {
-    id: "excluded.current-tab",
+    id: "native.current-site-suggestions",
     officialRoutes: ["/tabs/current", "URL ranking"],
-    classification: "excluded-browser",
-    status: "missing",
+    classification: "required-native",
+    status: "partial",
   },
   {
     id: "excluded.dom-autofill",
@@ -525,7 +525,6 @@ const expectedNewItemRemainingGaps = [
 ] as const;
 
 const expectedExcludedReasons = new Map([
-  ["excluded.current-tab", "Browser tab and current-URL detection. Current-site suggestion ranking."],
   ["excluded.dom-autofill", "DOM or multi-field autofill. Content scripts and page-detail parsing."],
   ["excluded.browser-background", "Browser background/service-worker messaging."],
   ["excluded.browser-navigation", "`webRequest`, `webNavigation`, badge, and page-action behavior."],
@@ -620,9 +619,7 @@ describe("popupParityManifest", () => {
     expect(manifestEntry?.remainingGaps).toEqual(globalShortcutSettingsSourceRow.remainingGaps);
   });
 
-  it.skipIf(!existsSync(join(process.cwd(), expectedGlobalShortcutEvidencePath)))(
-    "resolves local evidence for the global shortcut Settings surface",
-    () => {
+  it("resolves committed evidence for the global shortcut Settings surface", () => {
     const surfaceId = globalShortcutSettingsSourceRow.id;
     const manifestEntry = popupParityManifest.find(({ id }) => id === surfaceId);
     const relevantEvidencePaths = [
@@ -644,8 +641,7 @@ describe("popupParityManifest", () => {
       expect(content, `${evidencePath} surface id`).toContain("settings.global-shortcut");
       expect(content, `${evidencePath} route`).toContain("/keyboard-shortcut");
     }
-    },
-  );
+  });
 
   it("maps all seven retained Settings rows to current nine-authority M13 evidence", () => {
     const ids = [
@@ -876,17 +872,10 @@ describe("popupParityManifest", () => {
         "handoff.products",
       ]),
     );
-    expect(popupParitySummary()).toEqual({ missing: 0, partial: 68, complete: 0 });
+    expect(popupParitySummary()).toEqual({ missing: 0, partial: 69, complete: 0 });
   });
 
-  it.skipIf(
-    !existsSync(
-      join(
-        process.cwd(),
-        "docs/superpowers/specs/2026-07-15-m5-m6-task-6-runtime-result.md",
-      ),
-    ),
-  )("tracks the exact 12 Vault Main rows with current Task 6 evidence and open live/native gates", () => {
+  it("tracks the exact 12 Vault Main rows with current Task 6 evidence and open live/native gates", () => {
     const ids = [
       "vault.header",
       "vault.new-menu",
@@ -1632,17 +1621,14 @@ describe("popupParityManifest", () => {
     ]));
   });
 
-  it.skipIf(!existsSync(join(process.cwd(), expectedAuditEvidencePath)))(
-    "pins the local audit marker to the exact manifest summary",
-    () => {
+  it("pins the audit marker to the exact manifest summary", () => {
     const audit = readFileSync(join(process.cwd(), expectedAuditEvidencePath), "utf8");
     const summary = popupParitySummary();
     expect(audit).toContain(
       `<!-- parity-summary missing=${summary.missing} partial=${summary.partial} complete=${summary.complete} -->`,
     );
     expect(audit).toContain(`<!-- parity-status ${popupParityCompletionStatus()} -->`);
-    },
-  );
+  });
 });
 
 const syntheticSourceMappings: readonly PopupParitySourceMapping[] = [

@@ -39,6 +39,7 @@ import {
   applyVaultMainEvidenceState,
 } from "./vault-main-evidence-preview";
 import { VAULT_MAIN_EVIDENCE_STATE } from "./vault-main-evidence-state";
+import { CurrentWebsiteContextService } from "./current-website-context.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -95,6 +96,50 @@ describe("VaultListPageComponent", () => {
         .map((child) => child.tagName),
     ).toEqual(["APP-POP-OUT", "APP-CURRENT-ACCOUNT"]);
     expect(host.querySelector("popup-page > popup-header h1")?.textContent).toContain("密码库");
+  });
+
+  it("reuses the existing vault section and rows for current website suggestions", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems(demoVaultItems, demoFolders);
+    const website = {
+      url: () => "https://github.com/settings/profile",
+      refresh: vi.fn(async () => undefined),
+      clear: vi.fn(),
+    };
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        { provide: CurrentWebsiteContextService, useValue: website },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(website.refresh).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain("自动填充建议");
+    const suggestions = host.querySelector("app-vault-list-items-container");
+    const hierarchy = host.querySelector("bw-vault-hierarchy");
+    expect(suggestions).not.toBeNull();
+    expect(suggestions?.compareDocumentPosition(hierarchy!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    window.dispatchEvent(new Event("barwarden:popup-shown"));
+    expect(website.refresh).toHaveBeenCalledTimes(2);
+
+    fixture.componentInstance.setSearch("git");
+    fixture.detectChanges();
+    expect(host.textContent).not.toContain("自动填充建议");
+
+    fixture.destroy();
+    expect(website.clear).toHaveBeenCalledOnce();
   });
 
   it("keeps the title-bar add control available when the unlocked vault is empty", async () => {

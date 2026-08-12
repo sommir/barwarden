@@ -70,9 +70,6 @@ Barwarden 是客户端，不包含服务端。你可以连接：
 | 保险库 | 个人登录、卡片、身份和安全笔记 |
 | 分发 | GitHub Releases DMG、应用内更新 |
 
-当前不支持浏览器自动填充、附件、文件 Send、SSO、导入/导出、组织管理和通行密钥。
-第三方服务端的兼容性取决于其 API 实现。
-
 ## 本地开发
 
 需要 macOS 13+、Node.js 22+、npm、Rust stable 和 Xcode Command Line Tools。

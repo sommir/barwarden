@@ -539,6 +539,7 @@ describe("AppComponent", () => {
 
     expect(host.querySelectorAll(".app-startup-alert .macos-alert-strip")).toHaveLength(1);
     expect(host.querySelectorAll("[role='alert'], [role='status'], [aria-live]")).toHaveLength(1);
+    expect(host.querySelector("bw-app-update-notice")).not.toBeNull();
     expect(host.textContent).toContain("窗口会话不可用");
   });
 

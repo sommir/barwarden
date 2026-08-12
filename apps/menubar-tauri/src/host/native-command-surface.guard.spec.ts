@@ -33,6 +33,7 @@ const allowedCommands = [
   "biometric_enable",
   "biometric_status",
   "biometric_unlock",
+  "captured_website_context",
   "clear_global_shortcut",
   "copy_text",
   "get_account_lock_intents",

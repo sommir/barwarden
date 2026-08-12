@@ -11,6 +11,9 @@ mod biometric;
 #[cfg(target_os = "macos")]
 mod biometric_macos;
 mod brand;
+mod browser_context;
+#[cfg(target_os = "macos")]
+mod browser_context_macos;
 mod clipboard;
 mod frontmost;
 mod global_shortcut;
@@ -176,6 +179,7 @@ fn main() {
             global_shortcut::get_global_shortcut,
             global_shortcut::set_global_shortcut,
             global_shortcut::clear_global_shortcut,
+            browser_context::captured_website_context,
             login_item::get_launch_at_login,
             login_item::set_launch_at_login,
             login_item::autofill_agent_registration_status,

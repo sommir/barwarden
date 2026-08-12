@@ -735,6 +735,34 @@ describe("popup visual smoke classes", () => {
     expect(toast).toContain("width: 100%;");
   });
 
+  it("presents app updates as a compact native card and anchored global notice", () => {
+    const globalCss = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+      "utf8",
+    );
+    const card = cssDeclarations(globalCss, ".app-update-card");
+    const header = cssDeclarations(globalCss, ".app-update-card__header");
+    const actions = cssDeclarations(globalCss, ".app-update-card__actions");
+    const notice = cssDeclarations(globalCss, ".app-update-notice");
+
+    expect(card).toContain("border: 1px solid var(--mac-border-subtle);");
+    expect(card).toContain("border-radius: var(--mac-row-radius);");
+    expect(card).toContain("background: var(--mac-surface-solid);");
+    expect(header).toContain("display: flex;");
+    expect(actions).toContain("justify-content: flex-end;");
+    expect(notice).toContain("position: absolute;");
+    expect(notice).toContain("pointer-events: auto;");
+    expect(globalCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.app-update-card progress/u,
+    );
+    expect(globalCss).toMatch(
+      /@media \(prefers-reduced-transparency: reduce\)[\s\S]*?\.app-update-notice/u,
+    );
+    expect(globalCss).toMatch(
+      /@media \(prefers-contrast: more\)[\s\S]*?\.app-update-card/u,
+    );
+  });
+
   it("anchors global feedback in the application window and keeps its close control clickable", () => {
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),

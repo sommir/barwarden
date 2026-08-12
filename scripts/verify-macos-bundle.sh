@@ -25,7 +25,7 @@ expected_minimum_macos="13.0"
 expected_icon_name="icon.icns"
 expected_app_basename="${expected_product_name}.app"
 expected_dmg_basename="${expected_product_name}_${expected_version}_${expected_architecture}.dmg"
-expected_apple_events_description="Barwarden may interact with another app only when you invoke a paste action."
+expected_apple_events_description="Barwarden reads the active browser page to suggest matching logins and interacts with the target app only when you invoke a paste action."
 
 usage() {
   cat <<'USAGE'
@@ -250,7 +250,11 @@ entitlements_json="$(plutil -convert json -o - "$entitlements_plist")"
 node - "$entitlements_json" <<'NODE'
 import assert from "node:assert/strict";
 const entitlements = JSON.parse(process.argv[2]);
-assert.deepEqual(entitlements, {}, "local distribution entitlements must be empty");
+assert.deepEqual(
+  entitlements,
+  { "com.apple.security.automation.apple-events": true },
+  "local distribution entitlements must declare only Apple Events automation",
+);
 NODE
 
 apple_events_description="$(plutil -extract NSAppleEventsUsageDescription raw -o - "$info_plist")"
@@ -460,12 +464,13 @@ verify_linker_signed_executable() {
   cp "$executable" "$copied"
   chmod 755 "$copied"
   codesign --verify --strict --verbose=4 "$copied"
-  verify_signed_entitlements "$copied" adhoc
+  verify_signed_entitlements "$copied" adhoc linker
   rm -f "$copied"
 }
 verify_signed_entitlements() {
-  local output diagnostic status entitlement_file diagnostic_file
+  local output diagnostic status entitlement_file diagnostic_file policy
   [[ "$2" != unsigned ]] || return 0
+  policy="${3:-required}"
   entitlement_file="$(mktemp "$temp_root/entitlements.XXXXXX")"
   diagnostic_file="$(mktemp "$temp_root/diagnostic.XXXXXX")"
   set +e; codesign -d --entitlements :- "$1" >"$entitlement_file" 2>"$diagnostic_file"; status=$?; set -e
@@ -474,9 +479,14 @@ verify_signed_entitlements() {
   rm -f "$entitlement_file" "$diagnostic_file"
   if [[ "$status" -ne 0 && "$diagnostic" != *"no entitlements"* ]]; then fail "signed artifact entitlements could not be inspected"; fi
   if [[ -z "$output" || "$diagnostic" == *"no entitlements"* ]]; then output='{}'; else output="$(printf '%s' "$output" | plutil -convert json -o - -)" || fail "signed artifact entitlements are not a plist"; fi
-  node - "$output" <<'NODE'
+  node - "$output" "$policy" <<'NODE'
 import assert from "node:assert/strict";
-assert.deepEqual(JSON.parse(process.argv[2]), {}, "built application contains unexpected entitlements");
+const actual = JSON.parse(process.argv[2]);
+const expected = { "com.apple.security.automation.apple-events": true };
+if (process.argv[3] === "linker" && Object.keys(actual).length === 0) {
+  process.exit(0);
+}
+assert.deepEqual(actual, expected, "built application contains unexpected entitlements");
 NODE
 }
 inspect_signature() {

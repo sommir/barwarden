@@ -42,6 +42,22 @@ const intentionalInternalChinese = new Map<string, readonly RegExp[]>([
 ]);
 
 describe("official UI internationalization source audit", () => {
+  it("keeps update actions concise and equivalent in both locales", async () => {
+    const i18n = new OfficialI18nService();
+
+    await i18n.setLocale("zh-CN");
+    expect(i18n.t("i18nCurrentVersion", "0.2.0")).toBe("当前版本 0.2.0");
+    expect(i18n.t("i18nViewUpdate")).toBe("查看更新");
+    expect(i18n.t("i18nUpdateAndRestart")).toBe("更新并重新启动");
+
+    await i18n.setLocale("en-US");
+    expect(i18n.t("i18nCurrentVersion", "0.2.0")).toBe("Current version 0.2.0");
+    expect(i18n.t("i18nViewUpdate")).toBe("View update");
+    expect(i18n.t("i18nUpdateAndRestart")).toBe("Update and restart");
+
+    await i18n.setLocale("zh-CN");
+  });
+
   it("keeps visible Chinese copy in the translation catalog", () => {
     const violations = sourceFiles(appRoot).flatMap((path) => {
       const relativePath = relative(appRoot, path);
