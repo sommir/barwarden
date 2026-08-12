@@ -43,20 +43,18 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     expect(harness.host.textContent).not.toContain("自动填充建议");
   });
 
-  it.each([
-    ["context", "未检测到可填入的输入框"],
-    ["setup", "自动填充需要处理"],
-    ["session", "自动填充需要处理"],
-    ["account", "选择要使用的账户"],
-  ] as const)("renders a visible fixed %s failure instead of silently removing AutoFill", async (reason, title) => {
+  it.each(["context", "setup", "session", "account"] as const)(
+    "hides the entire AutoFill group for an unavailable %s context",
+    async (reason) => {
     const harness = await render({ status: "unavailable", reason });
 
-    expect(harness.host.querySelector("[data-testid='vault-autofill-status']")).not.toBeNull();
-    expect(harness.host.textContent).toContain(title);
-    expect(harness.host.textContent).not.toContain("opaque");
-  });
+      expect(harness.host.querySelector("[data-testid='vault-autofill-status']")).toBeNull();
+      expect(harness.host.querySelector("[data-testid='vault-autofill-suggestions']")).toBeNull();
+      expect(harness.host.textContent?.trim()).toBe("");
+    },
+  );
 
-  it("shows at most five eligible Agent-ranked suggestions with fixed reasons and capabilities", async () => {
+  it("shows at most five eligible Agent-ranked suggestions without exposing match reasons", async () => {
     const candidates = [
       candidate("github", "exact", "service_identifier", ["username", "password", "totp"]),
       candidate("login-2", "relevant", "host_or_domain", ["username", "password"]),
@@ -81,11 +79,45 @@ describe("VaultAutoFillSuggestionsComponent", () => {
       "github", "login-2", "login-3", "login-4", "login-5",
     ]);
     expect(harness.host.textContent).toContain("自动填充建议");
-    expect(harness.host.textContent).toContain("服务标识完全匹配");
+    expect(harness.host.textContent).not.toContain("服务标识完全匹配");
+    expect(harness.host.textContent).not.toContain("名称相似");
+    expect(rows[0].querySelector("[data-testid='vault-autofill-candidate-subtitle']")?.textContent?.trim())
+      .toBe("github@example.test");
     expect(rows[0].querySelectorAll(".bwi-user, .bwi-key, .bwi-clock")).toHaveLength(3);
     expect(rows[0].querySelector("button[data-testid='vault-autofill-fill']")?.getAttribute("aria-label"))
       .toContain("GitHub");
     expect(rows[0].querySelectorAll("[tabindex='0']")).toHaveLength(0);
+  });
+
+  it("uses the shared vault disclosure group and can collapse its candidate rows", async () => {
+    const harness = await render(ready([
+      candidate("github", "exact", "service_identifier", ["username", "password"]),
+    ]));
+
+    const disclosure = harness.host.querySelector("bw-vault-disclosure-group[data-testid='vault-autofill-suggestions']");
+    const trigger = disclosure?.querySelector<HTMLButtonElement>("[data-vault-group-trigger]");
+    expect(disclosure).not.toBeNull();
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+    expect(disclosure?.querySelector("[data-testid='vault-autofill-candidate']")).not.toBeNull();
+
+    trigger?.click();
+    harness.fixture.detectChanges();
+
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(disclosure?.querySelector("[data-testid='vault-autofill-candidate']")).not.toBeNull();
+    expect(disclosure?.querySelector(".vault-hierarchy__content")?.getAttribute("aria-hidden"))
+      .toBe("true");
+  });
+
+  it("does not reserve a blank subtitle line when a candidate has no username", async () => {
+    const withoutUsername = Object.freeze({
+      ...candidate("github", "exact", "service_identifier", ["password"]),
+      username: "",
+    });
+    const harness = await render(ready([withoutUsername]));
+
+    expect(harness.host.querySelector("[data-testid='vault-autofill-candidate-subtitle']"))
+      .toBeNull();
   });
 
   it("composes suggestions from the same official item primitives as the retained vault list", async () => {

@@ -2,6 +2,11 @@
   display: contents;
 }
 
+.vault-autofill-suggestions {
+  display: block;
+  margin: 0 var(--mac-space-4) var(--mac-space-2);
+}
+
 .vault-autofill-suggestions__capabilities {
   min-width: max-content;
   font-size: 0.875rem;

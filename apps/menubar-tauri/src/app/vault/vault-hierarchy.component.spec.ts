@@ -6,6 +6,7 @@ import {
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { ElementRef } from "@angular/core";
+import { By } from "@angular/platform-browser";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
 import { describe, expect, it, vi } from "vitest";
@@ -17,6 +18,7 @@ import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { demoFolders, demoVaultItems } from "../vault-demo";
 import { buildVaultHierarchy } from "./vault-hierarchy";
 import { VaultHierarchyComponent } from "./vault-hierarchy.component";
+import { VaultListItemsContainerComponent } from "../upstream-overlays/vault-main/vault-list-items-container.component";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -46,6 +48,8 @@ describe("VaultHierarchyComponent", () => {
     }));
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector("bw-vault-disclosure-group[data-group-id='all-items']"))
+      .not.toBeNull();
     const buttons = [...host.querySelectorAll<HTMLButtonElement>("[data-vault-node]")];
 
     expect(host.querySelector(".vault-hierarchy")?.getAttribute("role")).toBe("list");
@@ -60,9 +64,17 @@ describe("VaultHierarchyComponent", () => {
     ]);
     expect(buttons.filter((button) => button.getAttribute("aria-expanded") === "true"))
       .toHaveLength(1);
+    expect(fixture.debugElement.queryAll(By.directive(VaultListItemsContainerComponent)))
+      .toHaveLength(1);
     expect(buttons.find((button) => button.dataset["vaultNode"] === "all-items")
       ?.getAttribute("aria-expanded")).toBe("true");
     expect(buttons.every((button) => Boolean(button.getAttribute("aria-controls")))).toBe(true);
+
+    const favoriteButton = buttons.find((button) => button.dataset["vaultNode"] === "favorites")!;
+    favoriteButton.click();
+    fixture.detectChanges();
+    expect(fixture.debugElement.queryAll(By.directive(VaultListItemsContainerComponent)))
+      .toHaveLength(2);
 
     const typeButton = buttons.find((button) => button.dataset["vaultNode"] === "types")!;
     const scrollIntoView = vi.fn();

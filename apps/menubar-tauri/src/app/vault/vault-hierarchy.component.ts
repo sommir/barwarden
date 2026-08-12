@@ -16,42 +16,25 @@ import type {
 } from "./vault-hierarchy";
 import type { VaultSectionView } from "./vault.facade";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { VaultDisclosureGroupComponent } from "./vault-disclosure-group.component";
 
 @Component({
   selector: "bw-vault-hierarchy",
   standalone: true,
-  imports: [I18nPipe, VaultListItemsContainerComponent],
+  imports: [I18nPipe, VaultDisclosureGroupComponent, VaultListItemsContainerComponent],
   template: `
     <div class="vault-hierarchy" role="list" [attr.aria-label]="'i18nVaultCategories' | i18n">
       @for (node of nodes; track node.id) {
-        <section class="vault-hierarchy__node" role="listitem">
-          <button
-            type="button"
-            class="vault-hierarchy__trigger macos-pressable"
-            [attr.data-vault-node]="node.id"
-            [attr.aria-expanded]="isNodeOpen(node)"
-            [attr.aria-controls]="'vault-node-' + node.id"
-            (click)="toggleNode(node)"
-          >
-            <span>{{ node.title }} ({{ node.count }})</span>
-            <i
-              class="bwi"
-              [class.bwi-angle-up]="isNodeOpen(node)"
-              [class.bwi-angle-down]="!isNodeOpen(node)"
-              aria-hidden="true"
-            ></i>
-          </button>
-
+        <bw-vault-disclosure-group
+          role="listitem"
+          [groupId]="node.id"
+          [title]="node.title"
+          [count]="node.count"
+          [open]="isNodeOpen(node)"
+          [rendered]="isNodeRendered(node)"
+          (openChange)="setNodeOpen(node, $event)"
+        >
           @if (isNodeRendered(node)) {
-            <div
-              class="vault-hierarchy__content"
-              [class.is-open]="isNodeOpen(node)"
-              role="group"
-              [id]="'vault-node-' + node.id"
-              [attr.aria-label]="node.title"
-              [attr.aria-hidden]="isNodeOpen(node) ? 'false' : 'true'"
-              [attr.inert]="isNodeOpen(node) ? null : ''"
-            >
               @if (node.children; as children) {
                 @if (children.length === 0) {
                   <p class="vault-hierarchy__empty">{{ "i18nNoFoldersYet" | i18n }}</p>
@@ -134,9 +117,8 @@ import { I18nPipe } from "../official-ui/official-ui-common";
               } @else {
                 <p class="vault-hierarchy__empty">{{ "i18nNoItemsInNode" | i18n }}</p>
               }
-            </div>
           }
-        </section>
+        </bw-vault-disclosure-group>
       }
     </div>
   `,
@@ -194,6 +176,10 @@ export class VaultHierarchyComponent implements OnDestroy {
   toggleNode(node: VaultHierarchyNode): void {
     this.renderedNodeIds.add(node.id);
     this.store.toggleVaultHierarchyNode(node.id);
+  }
+
+  setNodeOpen(node: VaultHierarchyNode, open: boolean): void {
+    if (this.isNodeOpen(node) !== open) this.toggleNode(node);
   }
 
   activateChild(child: VaultHierarchyChild): void {

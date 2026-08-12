@@ -32,14 +32,12 @@ import {
   ItemComponent,
   ItemContentComponent,
   ItemGroupComponent,
-  SectionComponent,
-  SectionHeaderComponent,
-  TypographyDirective,
 } from "../official-ui/official-components";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { PopupStateStore } from "../popup-state";
 import type { VaultItem } from "../vault-demo";
 import { VaultItemIconComponent } from "./vault-item-icon.component";
+import { VaultDisclosureGroupComponent } from "./vault-disclosure-group.component";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
 
 type ReadyAction = Extract<PreparedAutoFillAction, { readonly status: "ready" }>;
@@ -53,17 +51,6 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
   "application_name_similar",
   "fuzzy_name",
 ]);
-const REASON_LABELS: Readonly<Record<string, string>> = {
-  user_binding: "i18nAutofillReasonBinding",
-  service_identifier: "i18nAutofillReasonService",
-  app_preset: "i18nAutofillReasonPreset",
-  vault_uri_rule: "i18nAutofillReasonUriRule",
-  host_or_domain: "i18nAutofillReasonDomain",
-  application_name: "i18nAutofillReasonApplicationName",
-  application_name_similar: "i18nAutofillReasonApplicationNameSimilar",
-  fuzzy_name: "i18nAutofillReasonSimilar",
-};
-
 @Component({
   selector: "bw-vault-autofill-suggestions",
   standalone: true,
@@ -77,47 +64,27 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
     ItemComponent,
     ItemContentComponent,
     ItemGroupComponent,
-    SectionComponent,
-    SectionHeaderComponent,
-    TypographyDirective,
+    VaultDisclosureGroupComponent,
     VaultItemIconComponent,
     VaultRepromptDialogComponent,
   ],
   template: `
-    @if (contextStatus; as status) {
-      <bit-section
-        class="vault-autofill-suggestions tw-block tw-bg-background-alt tw-px-3 tw-py-3"
-        data-testid="vault-autofill-status"
-        aria-live="polite"
-      >
-        <div class="tw-rounded-lg tw-border tw-border-secondary-300 tw-bg-background tw-p-3">
-          <div class="tw-font-semibold">{{ status.title }}</div>
-          <div class="tw-mt-1 tw-text-sm tw-text-muted">{{ status.description }}</div>
-        </div>
-      </bit-section>
-    }
-
     @if (visibleCandidates.length) {
-      <bit-section
-        class="vault-autofill-suggestions tw-block tw-bg-background-alt tw-px-3 tw-pt-2 tw-pb-3"
-        data-testid="vault-autofill-suggestions"
-        aria-labelledby="vault-autofill-suggestions-title"
+      <bw-vault-disclosure-group
+        class="vault-autofill-suggestions"
+        groupId="autofill-suggestions"
+        [title]="suggestionTitle"
+        [count]="visibleCandidates.length"
+        [open]="suggestionsOpen"
+        [rendered]="suggestionsRendered"
+        testId="vault-autofill-suggestions"
+        (openChange)="setSuggestionsOpen($event)"
       >
-        <div class="tw-pl-1 tw-mb-0.5">
-          <bit-section-header class="tw-p-0.5 -tw-mx-0.5">
-            <h2 id="vault-autofill-suggestions-title" bitTypography="h6">
-              {{ suggestionTitle }}
-            </h2>
-            <span slot="end" bitTypography="body2" aria-hidden="true">
-              {{ visibleCandidates.length }}
-            </span>
-          </bit-section-header>
+        <div class="vault-hierarchy__items">
           <span class="tw-sr-only" role="status" aria-live="polite">
             {{ suggestionCountLabel }}
           </span>
-        </div>
-
-        <bit-item-group data-testid="vault-autofill-suggestion-group">
+          <bit-item-group data-testid="vault-autofill-suggestion-group">
           @for (candidate of visibleCandidates; track candidate.cipherId) {
             @if (itemForCandidate(candidate); as item) {
               <bit-item
@@ -142,13 +109,15 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                   >
                     {{ candidate.displayName }}
                   </span>
-                  <span
-                    slot="secondary"
-                    class="tw-block tw-min-w-0 tw-truncate"
-                    data-testid="vault-autofill-candidate-subtitle"
-                  >
-                    {{ candidate.username }} · {{ reasonLabel(candidate.reason) }}
-                  </span>
+                  @if (candidate.username) {
+                    <span
+                      slot="secondary"
+                      class="tw-block tw-min-w-0 tw-truncate"
+                      data-testid="vault-autofill-candidate-subtitle"
+                    >
+                      {{ candidate.username }}
+                    </span>
+                  }
                 </button>
 
                 <ng-container slot="end">
@@ -201,8 +170,9 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
               </bit-item>
             }
           }
-        </bit-item-group>
-      </bit-section>
+          </bit-item-group>
+        </div>
+      </bw-vault-disclosure-group>
     }
 
     @if (visibleCandidates.length) {
@@ -245,6 +215,8 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
   readonly fillAnywayText = translateOfficialMessage("i18nAutofillFillAnyway");
   readonly cancelText = translateOfficialMessage("cancel");
   busyCipherId = "";
+  suggestionsOpen = true;
+  suggestionsRendered = true;
 
   private readonly unsubscribe: () => void;
   private readonly fillActions: AutoFillFillActionService | null;
@@ -285,33 +257,6 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
       .slice(0, 5));
   }
 
-  get contextStatus(): { readonly title: string; readonly description: string } | null {
-    const state = this.context?.snapshot();
-    if (state?.status === "loading") {
-      return Object.freeze({
-        title: translateOfficialMessage("i18nAutofillFindingAccounts"),
-        description: translateOfficialMessage("i18nAutofillTargetUnavailableDescription"),
-      });
-    }
-    if (state?.status !== "unavailable") return null;
-    if (state.reason === "account") {
-      return Object.freeze({
-        title: translateOfficialMessage("i18nAutofillChooseAccount"),
-        description: translateOfficialMessage("i18nAutofillAccountDescription"),
-      });
-    }
-    if (state.reason === "setup" || state.reason === "session") {
-      return Object.freeze({
-        title: translateOfficialMessage("i18nAutofillNeedsAttention"),
-        description: translateOfficialMessage("i18nAutofillRepairDescription"),
-      });
-    }
-    return Object.freeze({
-      title: translateOfficialMessage("i18nAutofillTargetUnavailable"),
-      description: translateOfficialMessage("i18nAutofillTargetUnavailableDescription"),
-    });
-  }
-
   get suggestionCountLabel(): string {
     return translateOfficialMessage("i18nAutofillSuggestionCount", String(this.visibleCandidates.length));
   }
@@ -336,8 +281,9 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
       : null;
   }
 
-  reasonLabel(reason: string): string {
-    return translateOfficialMessage(REASON_LABELS[reason] ?? "i18nAutofillReasonOther");
+  setSuggestionsOpen(open: boolean): void {
+    this.suggestionsOpen = open;
+    if (open) this.suggestionsRendered = true;
   }
 
   fillLabel(candidate: ContextualCandidate): string {
