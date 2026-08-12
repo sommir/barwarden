@@ -8,12 +8,11 @@ import {
   type RankedAutoFillCandidate,
 } from "./autofill-candidate.service";
 import {
-  contextsEqual,
-  decodeLiveAutoFillContext,
+  decodeAutoFillApplicationContext,
   immutableAuthorizationMap,
   projectAutoFillAgentSession,
   type ContextualCandidate,
-  type LiveAutoFillContext,
+  type AutoFillApplicationContext,
 } from "./autofill-fill-context.model";
 import {
   AUTOFILL_NATIVE_HOST,
@@ -61,15 +60,15 @@ export class AutoFillContextualCandidatesService {
   ) {}
 
   async queryAll(
-    context: LiveAutoFillContext,
+    context: AutoFillApplicationContext,
     session: AutoFillAgentSession,
     query: string,
   ): Promise<readonly ContextualCandidate[]> {
-    let requestContext: LiveAutoFillContext;
+    let requestContext: AutoFillApplicationContext;
     let requestSession: AutoFillAgentSession;
     let requestQuery: string;
     try {
-      requestContext = decodeLiveAutoFillContext(context);
+      requestContext = decodeAutoFillApplicationContext(context);
       requestSession = projectAutoFillAgentSession(session);
       if (typeof query !== "string" || query.length > 512) throw new Error("invalid query");
       requestQuery = query.normalize("NFC");
@@ -101,10 +100,10 @@ export class AutoFillContextualCandidatesService {
     if (liveContext.status !== "available" || liveSession.status !== "success") {
       throw new AutoFillContextChangedError();
     }
-    let projectedLiveContext: LiveAutoFillContext;
+    let projectedLiveContext: AutoFillApplicationContext;
     let projectedLiveSession: AutoFillAgentSession;
     try {
-      projectedLiveContext = decodeLiveAutoFillContext(liveContext.context);
+      projectedLiveContext = decodeAutoFillApplicationContext(liveContext.application);
       projectedLiveSession = projectAutoFillAgentSession({
         accountId: liveSession.accountId,
         generation: liveSession.generation,
@@ -113,7 +112,7 @@ export class AutoFillContextualCandidatesService {
     } catch {
       throw new AutoFillContextChangedError();
     }
-    if (!contextsEqual(requestContext, projectedLiveContext)
+    if (!applicationsEqual(requestContext, projectedLiveContext)
         || !sessionsEqual(requestSession, projectedLiveSession)) {
       throw new AutoFillContextChangedError();
     }
@@ -127,6 +126,10 @@ export class AutoFillContextualCandidatesService {
       throw new AutoFillCandidatesUnavailableError();
     }
   }
+}
+
+function applicationsEqual(left: AutoFillApplicationContext, right: AutoFillApplicationContext): boolean {
+  return left.bundleId === right.bundleId && left.appName === right.appName;
 }
 
 function mergeResponses(responses: readonly AutoFillCandidateResponse[]): readonly ContextualCandidate[] {

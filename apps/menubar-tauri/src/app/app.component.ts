@@ -598,23 +598,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.popupLifecycleHost.hidePopup().catch(() => undefined);
   }
 
-  /**
-   * macOS suspends WebKit's layer tree while the menu-bar popup is hidden.
-   * Recreating one composited frame after it is shown prevents the live
-   * Angular view from being left behind a blank canvas after an autofill.
-   */
-  @HostListener("window:barwarden:popup-shown", ["$event"])
-  restorePopupComposition(event: Event): void {
-    if (this.popupRenderRecoveryFrame !== undefined) {
-      globalThis.cancelAnimationFrame?.(this.popupRenderRecoveryFrame);
-    }
-    this.popupRenderRecoveryActive.set(true);
-    this.popupRenderRecoveryFrame = globalThis.requestAnimationFrame(() => {
-      this.popupRenderRecoveryFrame = globalThis.requestAnimationFrame(() => {
-        this.popupRenderRecoveryActive.set(false);
-        this.popupRenderRecoveryFrame = undefined;
-      });
-    });
+  @HostListener("window:barwarden:popup-entry", ["$event"])
+  handlePopupEntry(event: Event): void {
     const detail = (event as CustomEvent<{
       reset?: boolean;
       entrySource?: "vault" | "autofill-menu" | "autofill-shortcut" | "autofill-floating";
@@ -639,6 +624,27 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * macOS suspends WebKit's layer tree while the menu-bar popup is hidden.
+   * Recreating one composited frame after it is shown prevents the live
+   * Angular view from being left behind a blank canvas after an autofill.
+   * Functional entry handling is deliberately separate because WebKit may
+   * defer or drop animation frames while resuming a hidden view.
+   */
+  @HostListener("window:barwarden:popup-shown")
+  restorePopupComposition(): void {
+    if (this.popupRenderRecoveryFrame !== undefined) {
+      globalThis.cancelAnimationFrame?.(this.popupRenderRecoveryFrame);
+    }
+    this.popupRenderRecoveryActive.set(true);
+    this.popupRenderRecoveryFrame = globalThis.requestAnimationFrame(() => {
+      this.popupRenderRecoveryFrame = globalThis.requestAnimationFrame(() => {
+        this.popupRenderRecoveryActive.set(false);
+        this.popupRenderRecoveryFrame = undefined;
+      });
+    });
+  }
+
   private async openAutoFillInVault(): Promise<void> {
     if (
       this.evidenceMode
@@ -649,7 +655,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.routeCache?.clear();
     try {
       const contextState = await this.autoFillVaultContext?.beginFromEntry();
-      if (contextState?.status !== "ready") return;
+      if (contextState?.status !== "ready") {
+        this.store.setStatus(translateOfficialMessage("i18nAutofillTargetUnavailable"));
+        return;
+      }
+      if (contextState.candidates?.length === 0) {
+        this.store.setStatus(translateOfficialMessage("i18nAutofillNoMatches"));
+      }
       await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
     } catch {
       // Keep the existing popup route usable when contextual AutoFill cannot settle.

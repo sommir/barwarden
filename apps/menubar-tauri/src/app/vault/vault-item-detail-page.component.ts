@@ -970,7 +970,12 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       return;
     }
     const candidate = snapshot.candidates.find(({ cipherId }) => cipherId === item.id);
-    if (!candidate || !requestedSecretsExist(item, snapshot.context.action.fields)) {
+    if (!candidate) {
+      this.invalidateContextualJourney(priorPrepared);
+      return;
+    }
+    if (snapshot.context === null) return;
+    if (!requestedSecretsExist(item, snapshot.context.action.fields)) {
       this.invalidateContextualJourney(priorPrepared);
       return;
     }
@@ -997,7 +1002,11 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     let context;
     let session: AutoFillAgentSession;
     try {
-      context = decodeLiveAutoFillContext(entry.context);
+      if (entry.fillContext === null) {
+        this.contextSession.targetMismatch();
+        return;
+      }
+      context = decodeLiveAutoFillContext(entry.fillContext);
       session = projectAutoFillAgentSession({
         accountId: nativeSession.accountId,
         generation: nativeSession.generation,
@@ -1007,9 +1016,11 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       this.contextSession.targetMismatch();
       return;
     }
-    if (!contextsEqual(context, snapshot.context)
+    if (entry.application.bundleId !== snapshot.application.bundleId
+        || entry.application.appName !== snapshot.application.appName
+        || !contextsEqual(context, snapshot.context)
         || !sameAgentSession(session, snapshot.session)
-        || !this.contextSession.validate(context, session)) {
+        || !this.contextSession.validate(snapshot.application, context, session)) {
       this.contextSession.targetMismatch();
       return;
     }

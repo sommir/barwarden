@@ -56,7 +56,9 @@ fn popup_render_recovery_script(reset: bool, entry_source: PopupEntrySource) -> 
     format!(
         r#"
 (() => {{
-  const restore = () => window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {{ detail: {{ reset: {reset}, entrySource: "{entry_source}" }} }}));
+  const detail = {{ reset: {reset}, entrySource: "{entry_source}" }};
+  window.dispatchEvent(new CustomEvent("barwarden:popup-entry", {{ detail }}));
+  const restore = () => window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {{ detail }}));
   requestAnimationFrame(() => requestAnimationFrame(restore));
 }})();
 "#,
@@ -1564,10 +1566,16 @@ mod tests {
     fn popup_show_reports_reset_intent_after_two_render_recovery_frames() {
         let script = popup_render_recovery_script(true, PopupEntrySource::Vault);
 
+        assert!(script.contains("barwarden:popup-entry"));
         assert!(script.contains("barwarden:popup-shown"));
         assert!(script.contains("reset: true"));
         assert!(script.contains("entrySource: \"vault\""));
         assert_eq!(script.matches("requestAnimationFrame").count(), 2);
+        assert!(
+            script.find("barwarden:popup-entry").unwrap()
+                < script.find("requestAnimationFrame").unwrap(),
+            "functional entry delivery must not wait for WebKit compositor frames",
+        );
     }
 
     #[test]

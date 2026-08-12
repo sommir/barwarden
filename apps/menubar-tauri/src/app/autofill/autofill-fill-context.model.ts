@@ -9,6 +9,16 @@ export type DetectedFieldKind = "username" | "email" | "password" | "one-time-co
 export type FieldConfidence = "high" | "medium" | "low";
 export type DetectedFillMode = "field" | "form" | "choose";
 
+export interface AutoFillApplicationContext {
+  readonly bundleId: string;
+  readonly appName: string;
+}
+
+export interface LayeredAutoFillContext {
+  readonly application: AutoFillApplicationContext;
+  readonly fillContext: LiveAutoFillContext | null;
+}
+
 export interface LiveAutoFillContext {
   readonly bundleId: string;
   readonly appName: string;
@@ -90,6 +100,7 @@ export interface DetectedFillAuthorization {
 }
 
 export interface DetectedFillRequest {
+  readonly intent: "auto" | "explicit";
   readonly fillContextToken: string;
   readonly authorizations: readonly DetectedFillAuthorization[];
   readonly repromptReceipt?: string;
@@ -124,6 +135,18 @@ const ERROR_CODES = new Set<DetectedFillErrorCode>([
 ]);
 const PARTIAL_CODES = new Set<DetectedFillPartialCode>(["stale-context", "fill-failed"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function decodeAutoFillApplicationContext(input: unknown): AutoFillApplicationContext {
+  try {
+    const value = exactRecord(input, ["bundleId", "appName"]);
+    return Object.freeze({
+      bundleId: boundedString(value["bundleId"], 255, false),
+      appName: boundedString(value["appName"], 255, false),
+    });
+  } catch {
+    throw new Error("invalid AutoFill application context");
+  }
+}
 
 export function decodeLiveAutoFillContext(input: unknown): LiveAutoFillContext {
   try {

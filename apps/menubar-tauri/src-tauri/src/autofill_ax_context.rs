@@ -415,6 +415,15 @@ impl DetectedFillContextStore {
         self.validate_reserved(reserved, requested)
     }
 
+    pub fn take_explicit(
+        &self,
+        token: &str,
+        requested: AutoFillSecretField,
+    ) -> Result<CapturedFillPlan, DetectedFillError> {
+        let reserved = self.reserve_identified(token)?;
+        self.validate_reserved_explicit(reserved, requested)
+    }
+
     pub(crate) fn reserve_identified(
         &self,
         token: &str,
@@ -458,6 +467,41 @@ impl DetectedFillContextStore {
             action: record.action,
             requested: requested.to_vec(),
             bindings,
+            observer_generation: self.observer_generation.clone(),
+        })
+    }
+
+    pub(crate) fn validate_reserved_explicit(
+        &self,
+        reserved: ReservedFillContext,
+        requested: AutoFillSecretField,
+    ) -> Result<CapturedFillPlan, DetectedFillError> {
+        let mut record = reserved.0;
+        let generation = self.observer_generation.current();
+        (self.validator)(&record.target, &record.fields, generation)?;
+        if self.observer_generation.current() != generation {
+            return Err(DetectedFillError::StaleGeneration);
+        }
+        for field in &mut record.fields {
+            field.observer_generation = generation;
+        }
+        let mut focused = record.fields.iter().filter(|field| field.focused);
+        let fingerprint = focused
+            .next()
+            .cloned()
+            .ok_or(DetectedFillError::StaleField)?;
+        if focused.next().is_some() {
+            return Err(DetectedFillError::StaleField);
+        }
+        Ok(CapturedFillPlan {
+            target: record.target,
+            fields: record.fields,
+            action: record.action,
+            requested: vec![requested],
+            bindings: vec![CapturedFillBinding {
+                field: requested,
+                fingerprint,
+            }],
             observer_generation: self.observer_generation.clone(),
         })
     }
@@ -2048,41 +2092,10 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
     let focused_strings = read_semantic_strings(port, &focused_element, started)?;
     ensure_metadata_valid(port)?;
 
-    let mut root = focused_element.clone();
-    for _ in 0..MAX_ANCESTORS {
-        check_budget(port, started)?;
-        let Some(parent) = port.element(&root, "AXParent") else {
-            break;
-        };
-        root = parent;
-    }
-
-    let mut queue = VecDeque::from([(root, vec![0_u16])]);
-    let mut descendants = Vec::new();
-    while let Some((element, path)) = queue.pop_front() {
-        check_budget(port, started)?;
-        let remaining = MAX_DESCENDANTS.saturating_sub(descendants.len());
-        if remaining == 0 {
-            break;
-        }
-        let children = port.elements(&element, "AXChildren", remaining);
-        ensure_metadata_valid(port)?;
-        for (index, child) in children.into_iter().take(remaining).enumerate() {
-            let mut child_path = path.clone();
-            child_path.push(index.min(u16::MAX as usize) as u16);
-            descendants.push((child.clone(), child_path.clone()));
-            queue.push_back((child, child_path));
-        }
-    }
-    let focused_traversal_path = descendants
-        .iter()
-        .find(|(element, _)| *element == focused_element)
-        .map(|(_, path)| path.clone())
-        .unwrap_or_else(|| vec![0]);
-    let focused_container_path = container_path(&focused_traversal_path);
-    ensure_metadata_valid(port)?;
-
-    check_budget(port, started)?;
+    // Capture the focused field before walking the surrounding accessibility tree. Large
+    // Electron/WebKit trees can exhaust the bounded form-discovery budget even though the
+    // focused field itself is healthy. Form discovery is an enhancement; it must not erase a
+    // confidently detected focused-field action.
     let window = port
         .element(&focused_element, "AXWindow")
         .ok_or(AxContextError::MissingWindow)?;
@@ -2093,9 +2106,9 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
         .frame(&window)
         .filter(valid_frame)
         .ok_or(AxContextError::MissingWindow)?;
-    let enabled = read_enabled(port, &focused_element, started)?;
-    ensure_metadata_valid(port)?;
     let editable = port.value_settable(&focused_element);
+    let enabled = read_enabled(port, &focused_element, started)?.unwrap_or(editable);
+    ensure_metadata_valid(port)?;
     if !editable || !enabled {
         return Err(AxContextError::NoWritableField);
     }
@@ -2126,6 +2139,44 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
         port.now(),
     )?;
 
+    let mut root = focused_element.clone();
+    for _ in 0..MAX_ANCESTORS {
+        if check_budget(port, started).is_err() {
+            break;
+        }
+        let Some(parent) = port.element(&root, "AXParent") else {
+            break;
+        };
+        root = parent;
+    }
+
+    let mut queue = VecDeque::from([(root, vec![0_u16])]);
+    let mut descendants = Vec::new();
+    while let Some((element, path)) = queue.pop_front() {
+        if check_budget(port, started).is_err() {
+            break;
+        }
+        let remaining = MAX_DESCENDANTS.saturating_sub(descendants.len());
+        if remaining == 0 {
+            break;
+        }
+        let children = port.elements(&element, "AXChildren", remaining);
+        ensure_metadata_valid(port)?;
+        for (index, child) in children.into_iter().take(remaining).enumerate() {
+            let mut child_path = path.clone();
+            child_path.push(index.min(u16::MAX as usize) as u16);
+            descendants.push((child.clone(), child_path.clone()));
+            queue.push_back((child, child_path));
+        }
+    }
+    let focused_traversal_path = descendants
+        .iter()
+        .find(|(element, _)| *element == focused_element)
+        .map(|(_, path)| path.clone())
+        .unwrap_or_else(|| vec![0]);
+    let focused_container_path = container_path(&focused_traversal_path);
+    ensure_metadata_valid(port)?;
+
     let mut observations = Vec::new();
     let mut observation_elements = vec![focused_element.clone()];
     let mut observation_paths = vec![focused_traversal_path];
@@ -2141,14 +2192,24 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
         if observations.len() >= MAX_FIELDS || element == focused_element {
             continue;
         }
-        check_budget(port, started)?;
-        let strings = read_semantic_strings(port, &element, started)?;
+        if check_budget(port, started).is_err() {
+            break;
+        }
+        let strings = match read_semantic_strings(port, &element, started) {
+            Ok(strings) => strings,
+            Err(AxContextError::TimeBudgetExceeded) => break,
+            Err(error) => return Err(error),
+        };
         ensure_metadata_valid(port)?;
         if !is_text_role(strings.role.as_deref(), strings.subrole.as_deref()) {
             continue;
         }
         let editable = port.value_settable(&element);
-        let enabled = read_enabled(port, &element, started)?;
+        let enabled = match read_enabled(port, &element, started) {
+            Ok(enabled) => enabled.unwrap_or(editable),
+            Err(AxContextError::TimeBudgetExceeded) => break,
+            Err(error) => return Err(error),
+        };
         ensure_metadata_valid(port)?;
         if !editable || !enabled {
             continue;
@@ -2170,7 +2231,6 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
     if observations.is_empty() {
         return Err(AxContextError::NoWritableField);
     }
-    check_budget(port, started)?;
     let detected = classify_fields(&observations);
     let action = detect_action(&detected);
     let window_identity = port.logical_identity(&window);
@@ -2271,10 +2331,10 @@ fn read_enabled<P: AxMetadataPort>(
     port: &mut P,
     element: &P::Element,
     started: Instant,
-) -> Result<bool, AxContextError> {
+) -> Result<Option<bool>, AxContextError> {
     let value = bounded_string(port.string(element, "AXEnabled"))?;
     check_budget(port, started)?;
-    Ok(value.as_deref() == Some("true"))
+    Ok(value.map(|value| value == "true"))
 }
 
 fn semantic_observation(
@@ -2470,6 +2530,7 @@ mod tests {
         child_visits: usize,
         child_request_limits: Vec<usize>,
         parent_requests: usize,
+        delay_elapsed_until_child_visits: Option<usize>,
     }
 
     impl FakePort {
@@ -2529,6 +2590,7 @@ mod tests {
                 child_visits: 0,
                 child_request_limits: Vec::new(),
                 parent_requests: 0,
+                delay_elapsed_until_child_visits: None,
             }
         }
 
@@ -2603,7 +2665,11 @@ mod tests {
             let call = self.now_calls.get();
             self.now_calls.set(call + 1);
             self.started
-                + if call == 0 {
+                + if call == 0
+                    || self
+                        .delay_elapsed_until_child_visits
+                        .is_some_and(|visits| self.child_visits < visits)
+                {
                     Duration::ZERO
                 } else {
                     self.elapsed
@@ -2687,13 +2753,13 @@ mod tests {
                 "AXPlaceholderValue",
                 "AXIdentifier",
                 "AXTitleUIElement",
-                "AXParent",
-                "AXChildren",
                 "AXWindow",
                 "AXPosition",
                 "AXSize",
                 "AXEnabled",
                 "AXSelectedTextRange",
+                "AXParent",
+                "AXChildren",
             ]
         );
         assert!(!port.requested.contains(&"AXValue"));
@@ -2707,6 +2773,44 @@ mod tests {
                 fields: vec![AutoFillSecretField::Username, AutoFillSecretField::Password]
             }
         );
+    }
+
+    #[test]
+    fn reader_accepts_an_editable_electron_field_when_optional_enabled_is_absent() {
+        let mut port = FakePort::login_form();
+        port.strings.remove(&(1, "AXEnabled"));
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.example.electron", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("settable remains authoritative when optional AXEnabled is absent");
+
+        assert_eq!(
+            capture.fields[0].secret_field,
+            Some(AutoFillSecretField::Username)
+        );
+        assert!(capture.fields[0].focused);
+    }
+
+    #[test]
+    fn reader_still_rejects_an_explicitly_disabled_editable_field() {
+        let mut port = FakePort::login_form();
+        port.strings.insert((1, "AXEnabled"), "false".into());
+
+        assert!(matches!(
+            capture_with_port(
+                &mut port,
+                Element(1),
+                test_frontmost_app("com.example.electron", 42, 9),
+                &[screen()],
+                7,
+            ),
+            Err(AxContextError::NoWritableField),
+        ));
     }
 
     #[test]
@@ -2876,6 +2980,34 @@ mod tests {
             7,
         )
         .is_ok());
+    }
+
+    #[test]
+    fn reader_preserves_the_focused_field_when_a_large_electron_tree_exhausts_form_scan_budget() {
+        let mut port = FakePort::login_form();
+        port.elapsed = Duration::from_millis(51);
+        port.delay_elapsed_until_child_visits = Some(1);
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.example.electron", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("focused field must survive a best-effort form scan timeout");
+
+        assert_eq!(capture.fields.len(), 1);
+        assert_eq!(
+            capture.fields[0].secret_field,
+            Some(AutoFillSecretField::Username)
+        );
+        assert!(matches!(
+            capture.action,
+            DetectedAction::Field {
+                field: AutoFillSecretField::Username
+            }
+        ));
     }
 
     #[test]
@@ -3276,6 +3408,36 @@ mod tests {
                 .unwrap_err(),
             DetectedFillError::InvalidToken
         );
+    }
+
+    #[test]
+    fn explicit_take_binds_one_selected_value_to_the_unique_focused_field_and_burns_replay() {
+        let store = DetectedFillContextStore::for_test(Instant::now, |_, _| Ok(()));
+        let presentation = store.insert(
+            test_frontmost_app("com.example.editor", 42, 9),
+            vec![fingerprint(AutoFillSecretField::Username, true)],
+            DetectedAction::Field {
+                field: AutoFillSecretField::Username,
+            },
+        );
+
+        let plan = store
+            .take_explicit(
+                &presentation.fill_context_token,
+                AutoFillSecretField::Password,
+            )
+            .expect("explicit selection binds only to the focused field");
+        assert_eq!(plan.requested, vec![AutoFillSecretField::Password]);
+        assert!(plan
+            .fingerprint_for_field(AutoFillSecretField::Password)
+            .is_some());
+        assert!(matches!(
+            store.take_explicit(
+                &presentation.fill_context_token,
+                AutoFillSecretField::Password
+            ),
+            Err(DetectedFillError::InvalidToken),
+        ));
     }
 
     #[test]

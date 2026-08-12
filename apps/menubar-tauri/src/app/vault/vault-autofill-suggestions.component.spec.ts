@@ -8,6 +8,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 
 import { AutoFillFillActionService } from "../autofill/autofill-fill-action.service";
+import { AutoFillFieldActionService } from "../autofill/autofill-field-action.service";
 import {
   immutableAuthorizationMap,
   type ContextualCandidate,
@@ -40,6 +41,19 @@ describe("VaultAutoFillSuggestionsComponent", () => {
 
     expect(harness.host.querySelector("[data-testid='vault-autofill-suggestions']")).toBeNull();
     expect(harness.host.textContent).not.toContain("自动填充建议");
+  });
+
+  it.each([
+    ["context", "未检测到可填入的输入框"],
+    ["setup", "自动填充需要处理"],
+    ["session", "自动填充需要处理"],
+    ["account", "选择要使用的账户"],
+  ] as const)("renders a visible fixed %s failure instead of silently removing AutoFill", async (reason, title) => {
+    const harness = await render({ status: "unavailable", reason });
+
+    expect(harness.host.querySelector("[data-testid='vault-autofill-status']")).not.toBeNull();
+    expect(harness.host.textContent).toContain(title);
+    expect(harness.host.textContent).not.toContain("opaque");
   });
 
   it("shows at most five eligible Agent-ranked suggestions with fixed reasons and capabilities", async () => {
@@ -124,6 +138,51 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     expect(harness.context.invalidate).toHaveBeenCalledWith("cancel");
   });
 
+  it("keeps application-ranked suggestions and field icons when no field is detected, without a primary Fill", async () => {
+    const harness = await render(ready([
+      candidate("github", "exact", "service_identifier", ["username", "password", "totp"]),
+    ], null));
+
+    expect(harness.host.querySelector("[data-testid='vault-autofill-suggestions']")).not.toBeNull();
+    expect(harness.host.querySelector("[data-testid='vault-autofill-fill']")).toBeNull();
+    expect(harness.host.querySelectorAll("[data-testid='vault-autofill-field-action']")).toHaveLength(3);
+  });
+
+  it("runs one explicit field action from each candidate icon", async () => {
+    const selected = candidate("github", "exact", "service_identifier", ["username", "password", "totp"]);
+    const harness = await render(ready([selected]));
+    harness.fieldActions.execute.mockResolvedValue({ status: "filled", field: "password" });
+
+    harness.host.querySelector<HTMLButtonElement>("[data-testid='vault-autofill-field-action'][data-field='password']")?.click();
+    await vi.waitFor(() => expect(harness.fieldActions.execute).toHaveBeenCalledWith(
+      { application: APPLICATION, fillContext: CONTEXT }, SESSION, selected, "password",
+      { mismatchConfirmed: false, requiresReprompt: false },
+    ));
+    expect(harness.store.snapshot().statusMessage).toBe("已填入。");
+  });
+
+  it("continues an explicit field action only after mismatch confirmation", async () => {
+    const selected = candidate("github", "other", "fuzzy_name", ["password"], true);
+    const harness = await render(ready([selected]));
+    harness.fieldActions.execute
+      .mockResolvedValueOnce({ status: "confirmation-required" })
+      .mockResolvedValueOnce({ status: "filled", field: "password" });
+
+    harness.host.querySelector<HTMLButtonElement>("[data-testid='vault-autofill-field-action']")?.click();
+    await vi.waitFor(() => expect(harness.host.querySelector("[data-testid='vault-autofill-mismatch']")).not.toBeNull());
+    expect(harness.fieldActions.execute).toHaveBeenCalledWith(
+      { application: APPLICATION, fillContext: CONTEXT }, SESSION, selected, "password",
+      { mismatchConfirmed: false, requiresReprompt: false },
+    );
+
+    harness.host.querySelector<HTMLButtonElement>("[data-testid='vault-autofill-confirm-mismatch']")?.click();
+    await vi.waitFor(() => expect(harness.store.snapshot().statusMessage).toBe("已填入。"));
+    expect(harness.fieldActions.execute).toHaveBeenLastCalledWith(
+      { application: APPLICATION, fillContext: CONTEXT }, SESSION, selected, "password",
+      { mismatchConfirmed: true, requiresReprompt: false },
+    );
+  });
+
   it("does not guess a field when the native action remains choose", async () => {
     const harness = await render(ready([candidate("github", "exact", "service_identifier")]));
     harness.fillActions.prepare.mockReturnValue({ status: "choose", fields: ["username", "password"] });
@@ -200,6 +259,10 @@ async function render(
     execute: vi.fn(),
     cancel: vi.fn(async () => undefined),
   };
+  const fieldActions = {
+    execute: vi.fn(),
+    cancel: vi.fn(async () => undefined),
+  };
   const router = { navigateByUrl: vi.fn(async () => true) };
   await TestBed.configureTestingModule({
     imports: [VaultAutoFillSuggestionsComponent],
@@ -209,6 +272,7 @@ async function render(
       { provide: PopupStateStore, useValue: store },
       { provide: AutoFillVaultContextService, useValue: context },
       { provide: AutoFillFillActionService, useValue: fillActions },
+      { provide: AutoFillFieldActionService, useValue: fieldActions },
       { provide: Router, useValue: router },
       { provide: VaultRepromptService, useValue: { verify: vi.fn() } },
     ],
@@ -223,15 +287,17 @@ async function render(
     store,
     context,
     fillActions,
+    fieldActions,
     router,
   };
 }
 
-function ready(candidates: readonly ContextualCandidate[]): AutoFillVaultContextState {
+function ready(candidates: readonly ContextualCandidate[], fillContext: LiveAutoFillContext | null = CONTEXT): AutoFillVaultContextState {
   return Object.freeze({
     status: "ready",
     epoch: 1,
-    context: CONTEXT,
+    application: APPLICATION,
+    context: fillContext,
     session: SESSION,
     candidates: Object.freeze(candidates),
   });
@@ -286,6 +352,7 @@ const CONTEXT: LiveAutoFillContext = Object.freeze({
   focusedField: Object.freeze({ kind: "password", confidence: "high" }),
   action: Object.freeze({ mode: "form", fields: Object.freeze(["username", "password"]) }),
 });
+const APPLICATION = Object.freeze({ bundleId: CONTEXT.bundleId, appName: CONTEXT.appName });
 
 const SESSION: AutoFillAgentSession = Object.freeze({
   accountId: "account-a",

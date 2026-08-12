@@ -6,6 +6,7 @@ import type { AutoFillContextualCandidatesService } from "./autofill-contextual-
 import {
   immutableAuthorizationMap,
   type ContextualCandidate,
+  type AutoFillApplicationContext,
   type LiveAutoFillContext,
 } from "./autofill-fill-context.model";
 import type { AutoFillAgentSession, AutoFillNativeHost } from "./autofill-native.host";
@@ -18,6 +19,10 @@ const CONTEXT: LiveAutoFillContext = Object.freeze({
   fillContextToken: "00000000-0000-4000-8000-000000000005",
   focusedField: Object.freeze({ kind: "password", confidence: "high" }),
   action: Object.freeze({ mode: "form", fields: Object.freeze(["username", "password"]) }),
+});
+const APPLICATION: AutoFillApplicationContext = Object.freeze({
+  bundleId: CONTEXT.bundleId,
+  appName: CONTEXT.appName,
 });
 
 const SESSION: AutoFillAgentSession = Object.freeze({
@@ -56,6 +61,7 @@ describe("AutoFillVaultContextService", () => {
 
     expect(state).toMatchObject({
       status: "ready",
+      application: APPLICATION,
       context: CONTEXT,
       session: SESSION,
       candidates: [CANDIDATE],
@@ -85,6 +91,7 @@ describe("AutoFillVaultContextService", () => {
     expect(states).toEqual(["loading", "ready"]);
     expect(state).toMatchObject({
       status: "ready",
+      application: APPLICATION,
       context: CONTEXT,
       session: SESSION,
       candidates: [CANDIDATE],
@@ -92,6 +99,7 @@ describe("AutoFillVaultContextService", () => {
     expect(Object.isFrozen(state)).toBe(true);
     expect(Object.isFrozen(state.status === "ready" ? state.candidates : [])).toBe(true);
     expect(harness.contextSession.snapshot()).toMatchObject({
+      application: APPLICATION,
       context: CONTEXT,
       session: SESSION,
       candidates: [CANDIDATE],
@@ -105,7 +113,8 @@ describe("AutoFillVaultContextService", () => {
     await vi.waitFor(() => expect(harness.contextual.queryAll).toHaveBeenCalledOnce());
     vi.mocked(harness.native.entryContext).mockResolvedValue({
       status: "available",
-      context: { ...CONTEXT, appName: "Other" },
+      application: { ...APPLICATION, appName: "Other" },
+      fillContext: { ...CONTEXT, appName: "Other" },
     });
 
     pending.resolve([CANDIDATE]);
@@ -138,6 +147,7 @@ describe("AutoFillVaultContextService", () => {
     expect(harness.service.select("missing")).toBeNull();
     expect(harness.service.select("login-a")).toEqual(CANDIDATE);
     expect(harness.service.selected("login-a")).toEqual({
+      application: APPLICATION,
       context: CONTEXT,
       session: SESSION,
       candidate: CANDIDATE,
@@ -185,15 +195,32 @@ describe("AutoFillVaultContextService", () => {
     });
     expect(harness.contextual.queryAll).not.toHaveBeenCalled();
   });
+
+  it("publishes application-ranked suggestions when no writable field is detected", async () => {
+    const harness = createHarness({ fillContext: null });
+
+    await expect(harness.service.beginFromEntry()).resolves.toMatchObject({
+      status: "ready",
+      application: APPLICATION,
+      context: null,
+      candidates: [CANDIDATE],
+    });
+    expect(harness.contextual.queryAll).toHaveBeenCalledWith(APPLICATION, SESSION, "");
+  });
 });
 
 function createHarness(options: {
   owner?: string;
   queryAll?: () => Promise<readonly ContextualCandidate[]>;
   setupState?: "disabled" | "ready" | "requiresApproval" | "requiresAccessibility" | "unavailable";
+  fillContext?: LiveAutoFillContext | null;
 } = {}) {
   const native: AutoFillNativeHost = {
-    entryContext: vi.fn(async () => ({ status: "available", context: CONTEXT })),
+    entryContext: vi.fn(async () => ({
+      status: "available",
+      application: APPLICATION,
+      fillContext: options.fillContext === undefined ? CONTEXT : options.fillContext,
+    })),
     agentSession: vi.fn(async () => ({ status: "success", ...SESSION })),
     beginReprompt: vi.fn(),
     cancelReprompt: vi.fn(),

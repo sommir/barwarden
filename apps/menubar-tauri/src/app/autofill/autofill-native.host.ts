@@ -5,10 +5,15 @@ import type { AutoFillSecretField } from "./autofill-candidate.service";
 import type {
   DetectedFillOutcome,
   DetectedFillRequest,
+  AutoFillApplicationContext,
   LiveAutoFillContext,
 } from "./autofill-fill-context.model";
 export type AutoFillEntryContextOutcome =
-  | { readonly status: "available"; readonly context: LiveAutoFillContext }
+  | {
+    readonly status: "available";
+    readonly application: AutoFillApplicationContext;
+    readonly fillContext: LiveAutoFillContext | null;
+  }
   | { readonly status: "unavailable" };
 export interface AutoFillAgentSession {
   readonly generation: string;

@@ -3,10 +3,12 @@ import { Inject, Injectable, InjectionToken, Optional } from "@angular/core";
 import type { AutoFillAgentSession } from "./autofill-native.host";
 import {
   contextsEqual,
+  decodeAutoFillApplicationContext,
   decodeLiveAutoFillContext,
   projectAutoFillAgentSession,
   projectContextualCandidate,
   type ContextualCandidate,
+  type AutoFillApplicationContext,
   type LiveAutoFillContext,
 } from "./autofill-fill-context.model";
 
@@ -18,7 +20,8 @@ export const AUTOFILL_CONTEXT_CLOCK = new InjectionToken<() => number>("AUTOFILL
 });
 
 export interface AutoFillContextSessionSnapshot {
-  readonly context: LiveAutoFillContext;
+  readonly application: AutoFillApplicationContext;
+  readonly context: LiveAutoFillContext | null;
   readonly session: AutoFillAgentSession;
   readonly candidates: readonly ContextualCandidate[];
   readonly selectedCipherId: string | null;
@@ -38,17 +41,20 @@ export class AutoFillContextSessionService {
   ) {}
 
   begin(
-    context: LiveAutoFillContext,
+    application: AutoFillApplicationContext,
+    context: LiveAutoFillContext | null,
     session: AutoFillAgentSession,
     candidates: readonly ContextualCandidate[],
   ): void {
     try {
       const candidateValues = snapshotDenseArray(candidates, 0, 500);
-      const projectedContext = decodeLiveAutoFillContext(context);
+      const projectedApplication = decodeAutoFillApplicationContext(application);
+      const projectedContext = context === null ? null : decodeLiveAutoFillContext(context);
       const projectedSession = projectAutoFillAgentSession(session);
       const projectedCandidates = projectCandidates(candidateValues as readonly ContextualCandidate[]);
       if (this.state) this.invalidate();
       this.state = Object.freeze({
+        application: projectedApplication,
         context: projectedContext,
         session: projectedSession,
         candidates: projectedCandidates,
@@ -65,6 +71,7 @@ export class AutoFillContextSessionService {
     const state = this.liveState();
     if (!state) return null;
     return Object.freeze({
+      application: state.application,
       context: state.context,
       session: state.session,
       candidates: projectCandidates(state.candidates),
@@ -77,6 +84,7 @@ export class AutoFillContextSessionService {
     if (!state || !state.candidates.some((candidate) => candidate.cipherId === cipherId)) return false;
     if (state.selectedCipherId !== cipherId) this.invalidate();
     this.state = Object.freeze({
+      application: state.application,
       context: state.context,
       session: state.session,
       candidates: state.candidates,
@@ -91,9 +99,10 @@ export class AutoFillContextSessionService {
     return () => this.invalidationListeners.delete(listener);
   }
 
-  validate(context: LiveAutoFillContext, session: AutoFillAgentSession): boolean {
+  validate(application: AutoFillApplicationContext, context: LiveAutoFillContext | null, session: AutoFillAgentSession): boolean {
     const state = this.liveState();
-    if (state && contextsEqual(state.context, context) && sessionsEqual(state.session, session)) return true;
+    if (state && applicationsEqual(state.application, application)
+        && optionalContextsEqual(state.context, context) && sessionsEqual(state.session, session)) return true;
     this.clear();
     return false;
   }
@@ -125,6 +134,14 @@ export class AutoFillContextSessionService {
   private invalidate(): void {
     for (const listener of [...this.invalidationListeners]) listener();
   }
+}
+
+function applicationsEqual(left: AutoFillApplicationContext, right: AutoFillApplicationContext): boolean {
+  return left.bundleId === right.bundleId && left.appName === right.appName;
+}
+
+function optionalContextsEqual(left: LiveAutoFillContext | null, right: LiveAutoFillContext | null): boolean {
+  return left === null || right === null ? left === right : contextsEqual(left, right);
 }
 
 function sessionsEqual(left: AutoFillAgentSession, right: AutoFillAgentSession): boolean {

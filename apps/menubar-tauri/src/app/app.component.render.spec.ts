@@ -135,7 +135,7 @@ describe("AppComponent rendering", () => {
     (fixture.nativeElement as HTMLElement).append(searchHost);
     navigateByUrl.mockClear();
 
-    window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {
+    window.dispatchEvent(new CustomEvent("barwarden:popup-entry", {
       detail: { reset: true },
     }));
 

@@ -172,15 +172,19 @@ impl TargetAppStore {
 static LAST_TARGET_APP: OnceLock<TargetAppStore> = OnceLock::new();
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoFillApplicationContext {
+    bundle_id: String,
+    app_name: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "status", rename_all = "kebab-case")]
 pub enum AutoFillEntryContextOutcome {
     Available {
-        #[serde(rename = "bundleId")]
-        bundle_id: String,
-        #[serde(rename = "appName")]
-        app_name: String,
-        #[serde(flatten)]
-        fill_context: crate::autofill_ax_context::FillContextPresentation,
+        application: AutoFillApplicationContext,
+        #[serde(rename = "fillContext", skip_serializing_if = "Option::is_none")]
+        fill_context: Option<crate::autofill_ax_context::FillContextPresentation>,
     },
     Unavailable,
 }
@@ -192,12 +196,10 @@ pub fn capture_current_target_app(app: &tauri::AppHandle) {
         current_frontmost_app,
         APP_BUNDLE_ID,
         |target| {
-            let generation = contexts.current_observer_generation();
-            let captured =
-                crate::autofill_ax_context::capture_native_fill_context(target, generation).ok()?;
-            contexts
-                .try_insert(target.clone(), captured.fields, captured.action)
-                .ok()
+            fallback_fill_context_with(&contexts, target, |target, generation| {
+                crate::autofill_ax_context::capture_native_fill_context(target, generation)
+                    .map(|captured| (captured.fields, captured.action))
+            })
         },
     );
 }
@@ -248,10 +250,10 @@ pub fn autofill_entry_context(
 fn fallback_fill_context_with<Capture>(
     contexts: &crate::autofill_ax_context::DetectedFillContextStore,
     target: &FrontmostApp,
-    capture: Capture,
+    mut capture: Capture,
 ) -> Option<crate::autofill_ax_context::FillContextPresentation>
 where
-    Capture: FnOnce(
+    Capture: FnMut(
         &FrontmostApp,
         u64,
     ) -> Result<
@@ -262,9 +264,18 @@ where
         crate::autofill_ax_context::AxContextError,
     >,
 {
-    let generation = contexts.current_observer_generation();
-    let (fields, action) = capture(target, generation).ok()?;
-    contexts.try_insert(target.clone(), fields, action).ok()
+    const CAPTURE_ATTEMPTS: usize = 3;
+
+    for _ in 0..CAPTURE_ATTEMPTS {
+        let generation = contexts.current_observer_generation();
+        let (fields, action) = capture(target, generation).ok()?;
+        match contexts.try_insert(target.clone(), fields, action) {
+            Ok(presentation) => return Some(presentation),
+            Err(crate::autofill_ax_context::DetectedFillError::StaleGeneration) => continue,
+            Err(_) => return None,
+        }
+    }
+    None
 }
 
 fn autofill_context_with<IsRunning>(
@@ -282,14 +293,12 @@ where
     if !is_running(&target) {
         return AutoFillEntryContextOutcome::Unavailable;
     }
-    let Some(fill_context) = fill_context.filter(|context| !context.fill_context_token.is_empty())
-    else {
-        return AutoFillEntryContextOutcome::Unavailable;
-    };
     AutoFillEntryContextOutcome::Available {
-        bundle_id: target.bundle_id,
-        app_name: target.app_name,
-        fill_context,
+        application: AutoFillApplicationContext {
+            bundle_id: target.bundle_id,
+            app_name: target.app_name,
+        },
+        fill_context: fill_context.filter(|context| !context.fill_context_token.is_empty()),
     }
 }
 
@@ -757,6 +766,67 @@ mod tests {
     }
 
     #[test]
+    fn fallback_recaptures_the_same_target_after_a_transient_observer_generation_change() {
+        use crate::accessibility_focus::AxFrame;
+        use crate::autofill_ax_context::{
+            CapturedFieldFingerprint, DetectedFillContextStore, ObserverGeneration,
+            OpaqueAxIdentity,
+        };
+        use crate::autofill_field_context::{DetectedFieldKind, FieldConfidence};
+        use std::cell::Cell;
+
+        let observer_generation = ObserverGeneration::new(11);
+        let store = DetectedFillContextStore::for_test_with_generation(
+            observer_generation.clone(),
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let attempts = Cell::new(0_u8);
+        let target = app_instance("com.example.target", 42, 100);
+
+        let presentation = fallback_fill_context_with(&store, &target, |_, generation| {
+            attempts.set(attempts.get() + 1);
+            if attempts.get() == 1 {
+                observer_generation.set(generation + 1);
+            }
+            Ok((
+                vec![CapturedFieldFingerprint {
+                    process_id: 42,
+                    role: "AXSecureTextField".to_owned(),
+                    frame: AxFrame {
+                        x: 100.0,
+                        y: 100.0,
+                        width: 180.0,
+                        height: 24.0,
+                    },
+                    window_frame: AxFrame {
+                        x: 20.0,
+                        y: 20.0,
+                        width: 800.0,
+                        height: 600.0,
+                    },
+                    container_path: vec![1],
+                    traversal_path: vec![1, 1],
+                    window_identity: OpaqueAxIdentity::for_test(1),
+                    element_identity: OpaqueAxIdentity::for_test(2),
+                    kind: DetectedFieldKind::Password,
+                    secret_field: Some(AutoFillSecretField::Password),
+                    confidence: FieldConfidence::High,
+                    focused: true,
+                    observer_generation: generation,
+                }],
+                DetectedAction::Field {
+                    field: AutoFillSecretField::Password,
+                },
+            ))
+        })
+        .expect("the bounded retry should recover the same live target");
+
+        assert_eq!(attempts.get(), 2);
+        assert_eq!(presentation.action.mode, PresentedActionMode::Field);
+    }
+
+    #[test]
     fn translates_only_live_running_applications_with_a_bundle_and_positive_pid() {
         assert_eq!(
             running_application_identity(Some("com.example.target"), 42, false),
@@ -803,9 +873,11 @@ mod tests {
                 |_| true,
             ),
             AutoFillEntryContextOutcome::Available {
-                bundle_id: "com.example.target".to_owned(),
-                app_name: "Example".to_owned(),
-                fill_context: context,
+                application: AutoFillApplicationContext {
+                    bundle_id: "com.example.target".to_owned(),
+                    app_name: "Example".to_owned(),
+                },
+                fill_context: Some(context),
             }
         );
         assert_eq!(
@@ -820,12 +892,8 @@ mod tests {
     }
 
     #[test]
-    fn entry_context_requires_a_valid_focused_field_context_and_flattens_safe_presentation() {
+    fn entry_context_nests_the_optional_fill_context_and_exposes_no_private_fingerprint_data() {
         let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
-        assert_eq!(
-            autofill_context_with(Some(target.clone()), None, Instant::now(), |_| true),
-            AutoFillEntryContextOutcome::Unavailable,
-        );
 
         let context = fill_context("0d5d0471-bb6d-47bf-b4b6-b69640c729df");
         let encoded = serde_json::to_value(autofill_context_with(
@@ -839,16 +907,44 @@ mod tests {
             encoded,
             serde_json::json!({
                 "status": "available",
-                "bundleId": "com.example.target",
-                "appName": "Example",
-                "fillContextToken": "0d5d0471-bb6d-47bf-b4b6-b69640c729df",
-                "focusedField": { "kind": "password", "confidence": "high" },
-                "action": { "mode": "field", "fields": ["password"] }
+                "application": {
+                    "bundleId": "com.example.target",
+                    "appName": "Example"
+                },
+                "fillContext": {
+                    "fillContextToken": "0d5d0471-bb6d-47bf-b4b6-b69640c729df",
+                    "focusedField": { "kind": "password", "confidence": "high" },
+                    "action": { "mode": "field", "fields": ["password"] }
+                }
             })
         );
         let encoded_text = encoded.to_string();
         for forbidden in ["secretField", "processId", "frame", "windowFrame", "label"] {
             assert!(!encoded_text.contains(forbidden));
         }
+    }
+
+    #[test]
+    fn entry_context_keeps_a_live_application_available_without_a_fill_context() {
+        let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
+
+        let encoded = serde_json::to_value(autofill_context_with(
+            Some(target),
+            None,
+            Instant::now(),
+            |_| true,
+        ))
+        .unwrap();
+
+        assert_eq!(
+            encoded,
+            serde_json::json!({
+                "status": "available",
+                "application": {
+                    "bundleId": "com.example.target",
+                    "appName": "Example"
+                }
+            })
+        );
     }
 }

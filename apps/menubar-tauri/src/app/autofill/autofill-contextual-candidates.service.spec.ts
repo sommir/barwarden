@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AutoFillCandidateService, type AutoFillCandidateHost, type AutoFillSecretField } from "./autofill-candidate.service";
-import type { LiveAutoFillContext } from "./autofill-fill-context.model";
+import type { AutoFillApplicationContext, LiveAutoFillContext } from "./autofill-fill-context.model";
 import type { AutoFillAgentSession, AutoFillNativeHost } from "./autofill-native.host";
 import {
   AutoFillCandidatesUnavailableError,
@@ -15,6 +15,10 @@ const context: LiveAutoFillContext = {
   fillContextToken: "00000000-0000-4000-8000-000000000005",
   focusedField: { kind: "password", confidence: "high" },
   action: { mode: "form", fields: ["username", "password", "totp"] },
+};
+const application: AutoFillApplicationContext = {
+  bundleId: context.bundleId,
+  appName: context.appName,
 };
 const session: AutoFillAgentSession = {
   generation: "00000000-0000-4000-8000-000000000004",
@@ -32,7 +36,7 @@ describe("AutoFillContextualCandidatesService", () => {
       new AutoFillCandidateService(candidateHost),
       liveHost(),
     );
-    const resultPromise = service.queryAll(context, session, "term");
+    const resultPromise = service.queryAll(application, session, "term");
     expect([...pending.keys()]).toEqual(["username", "password", "totp"]);
     pending.get("password")?.(response("password-token", [candidate("login-a", "relevant")]));
     pending.get("username")?.(response("username-token", [candidate("login-a", "other")]));
@@ -63,7 +67,7 @@ describe("AutoFillContextualCandidatesService", () => {
     const result = await new AutoFillContextualCandidatesService(
       new AutoFillCandidateService(host),
       liveHost(),
-    ).queryAll(context, session, "");
+    ).queryAll(application, session, "");
 
     expect(result.map((item) => item.cipherId)).toEqual([
       "exact-first", "exact-second", "relevant-first", "other-first",
@@ -84,17 +88,11 @@ describe("AutoFillContextualCandidatesService", () => {
       liveHost(() => currentContext),
     );
 
-    await expect(service.queryAll(context, session, "")).rejects.toBeInstanceOf(AutoFillContextChangedError);
+    await expect(service.queryAll(application, session, "")).rejects.toBeInstanceOf(AutoFillContextChangedError);
   });
 
   it("uses frozen request projections while caller context and session mutate during queries", async () => {
-    const mutableContext = {
-      bundleId: context.bundleId,
-      appName: context.appName,
-      fillContextToken: context.fillContextToken,
-      focusedField: { kind: context.focusedField.kind, confidence: context.focusedField.confidence },
-      action: { mode: context.action.mode, fields: [...context.action.fields] },
-    };
+    const mutableContext = { ...application };
     const mutableSession = { ...session };
     const query = deferred<unknown>();
     const host: AutoFillCandidateHost = {
@@ -104,7 +102,7 @@ describe("AutoFillContextualCandidatesService", () => {
     };
     const service = new AutoFillContextualCandidatesService(new AutoFillCandidateService(host), liveHost());
     const result = service.queryAll(mutableContext, mutableSession, "term");
-    mutableContext.fillContextToken = "00000000-0000-4000-8000-000000000006";
+    mutableContext.appName = "Mutated";
     mutableSession.accountId = "account-b";
     query.resolve(response("username-token", [candidate("login-a", "exact")]));
 
@@ -120,7 +118,7 @@ describe("AutoFillContextualCandidatesService", () => {
       }),
     };
     const service = new AutoFillContextualCandidatesService(new AutoFillCandidateService(host), liveHost());
-    await expect(service.queryAll(context, session, "")).rejects.toEqual(new AutoFillCandidatesUnavailableError());
+    await expect(service.queryAll(application, session, "")).rejects.toEqual(new AutoFillCandidatesUnavailableError());
   });
 });
 
@@ -147,7 +145,14 @@ function response(contextToken: string, candidates: ReturnType<typeof candidate>
 
 function liveHost(readContext: () => LiveAutoFillContext = () => context): AutoFillNativeHost {
   return {
-    entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => ({ status: "available", context: readContext() })),
+    entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => {
+      const live = readContext();
+      return {
+        status: "available",
+        application: { bundleId: live.bundleId, appName: live.appName },
+        fillContext: live,
+      };
+    }),
     agentSession: vi.fn<AutoFillNativeHost["agentSession"]>(async () => ({ status: "success", ...session })),
     beginReprompt: vi.fn(),
     cancelReprompt: vi.fn(),

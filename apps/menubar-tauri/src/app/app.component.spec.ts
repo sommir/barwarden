@@ -148,7 +148,7 @@ describe("AppComponent", () => {
         { beginFromEntry },
       ]) as AppComponent;
 
-      component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+      component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
         detail: { reset: true, entrySource },
       }));
 
@@ -179,7 +179,7 @@ describe("AppComponent", () => {
       { beginFromEntry },
     ]) as AppComponent;
 
-    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
       detail: { entrySource: "autofill-shortcut" },
     }));
     await vi.waitFor(() => expect(beginFromEntry).toHaveBeenCalledOnce());
@@ -207,12 +207,40 @@ describe("AppComponent", () => {
       { beginFromEntry },
     ]) as AppComponent;
 
-    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
       detail: { entrySource: "autofill-shortcut" },
     }));
     await vi.waitFor(() => expect(beginFromEntry).toHaveBeenCalledOnce());
 
     expect(navigateByUrl).not.toHaveBeenCalled();
+    expect(store.snapshot().statusMessage).toBe("未检测到可填入的输入框");
+    component.ngOnDestroy();
+  });
+
+  it("shows a fixed no-match result when the captured field is valid but Agent ranking is empty", async () => {
+    const store = new PopupStateStore();
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const beginFromEntry = vi.fn(async () => ({
+      status: "ready" as const,
+      candidates: Object.freeze([]),
+    }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { entrySource: "autofill-shortcut" },
+    }));
+    await vi.waitFor(() => expect(beginFromEntry).toHaveBeenCalledOnce());
+
+    expect(store.snapshot().statusMessage).toBe("没有找到匹配的账户");
+    expect(navigateByUrl).toHaveBeenCalledWith("/tabs/vault", { replaceUrl: true });
     component.ngOnDestroy();
   });
 
@@ -232,7 +260,7 @@ describe("AppComponent", () => {
       { beginFromEntry, beginFromVaultOpen },
     ]) as AppComponent;
 
-    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
       detail: { reset: true, entrySource: "vault" },
     }));
 
@@ -260,12 +288,12 @@ describe("AppComponent", () => {
       { beginFromEntry: vi.fn(), beginFromVaultOpen },
     ]) as AppComponent;
 
-    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
       detail: { reset: false, entrySource: "vault" },
     }));
     await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(1));
 
-    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
       detail: { reset: false, entrySource: "vault" },
     }));
     await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(2));

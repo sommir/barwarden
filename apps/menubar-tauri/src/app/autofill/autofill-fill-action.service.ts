@@ -216,6 +216,7 @@ export class AutoFillFillActionService {
     const receipt = state.receipt;
     try {
       const outcome = await this.native.fillDetected({
+        intent: "auto",
         fillContextToken: state.prepared.context.fillContextToken,
         authorizations: state.prepared.scopes.map((scope) => Object.freeze({
           scope,
@@ -278,7 +279,8 @@ export class AutoFillFillActionService {
     ]);
     if (context.status !== "available" || session.status !== "success") return false;
     try {
-      const projectedContext = decodeLiveAutoFillContext(context.context);
+      if (context.fillContext === null) return false;
+      const projectedContext = decodeLiveAutoFillContext(context.fillContext);
       const projectedSession = projectAutoFillAgentSession({
         accountId: session.accountId,
         generation: session.generation,

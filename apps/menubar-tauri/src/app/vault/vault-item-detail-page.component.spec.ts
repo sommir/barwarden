@@ -194,7 +194,7 @@ describe("VaultItemDetailPageComponent", () => {
       value: `/view-cipher/${encodeURIComponent(item.id)}`,
       configurable: true,
     });
-    result.contextSession.begin(context, DETAIL_SESSION, [candidate]);
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [candidate]);
     expect(result.contextSession.select(item.id)).toBe(true);
     return { ...result, item, context, candidate, now };
   }
@@ -222,6 +222,7 @@ describe("VaultItemDetailPageComponent", () => {
     card.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
     await vi.waitFor(() => expect(native.fillDetected).toHaveBeenCalledOnce());
     expect(native.fillDetected).toHaveBeenCalledWith({
+      intent: "auto",
       fillContextToken: detailContext().fillContextToken,
       authorizations: [
         { scope: expect.objectContaining({ candidateId: "github", field: "username" }), mismatchConfirmed: false },
@@ -245,7 +246,7 @@ describe("VaultItemDetailPageComponent", () => {
       value: "/view-cipher/github",
       configurable: true,
     });
-    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", ["password"])]);
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", ["password"])]);
     result.contextSession.select("github");
     result.fixture.componentRef.setInput("id", "github");
     result.fixture.detectChanges();
@@ -263,6 +264,7 @@ describe("VaultItemDetailPageComponent", () => {
     host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
     await vi.waitFor(() => expect(native.fillDetected).toHaveBeenCalledOnce());
     expect(native.fillDetected).toHaveBeenCalledWith({
+      intent: "auto",
       fillContextToken: context.fillContextToken,
       authorizations: [{
         scope: expect.objectContaining({ candidateId: "github", field: "password" }),
@@ -437,7 +439,7 @@ describe("VaultItemDetailPageComponent", () => {
         configurable: true,
       });
       const candidate = testCase.candidate ?? detailCandidate(testCase.item.id, context.action.fields);
-      result.contextSession.begin(context, DETAIL_SESSION, [candidate]);
+      result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [candidate]);
       if (testCase.selectedId !== "") {
         const selected = testCase.selectedId ?? testCase.item.id;
         if (candidate.cipherId === selected) expect(result.contextSession.select(selected)).toBe(true);
@@ -469,7 +471,7 @@ describe("VaultItemDetailPageComponent", () => {
     const result = await createFixture(undefined, undefined, [demoVaultItems[0]], [], [], { native });
     const router = TestBed.inject(Router);
     Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
-    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
     expect(result.contextSession.select("github")).toBe(true);
 
     result.fixture.componentRef.setInput("id", "github");
@@ -477,7 +479,11 @@ describe("VaultItemDetailPageComponent", () => {
     await vi.waitFor(() => expect(native.entryContext).toHaveBeenCalledOnce());
 
     Object.defineProperty(router, "url", { value: "/tabs/vault", configurable: true });
-    resolveEntry({ status: "available", context });
+    resolveEntry({
+      status: "available",
+      application: { bundleId: context.bundleId, appName: context.appName },
+      fillContext: context,
+    });
     await result.fixture.whenStable();
     result.fixture.detectChanges();
 
@@ -499,7 +505,7 @@ describe("VaultItemDetailPageComponent", () => {
     const result = await createFixture(undefined, undefined, [demoVaultItems[0], secondItem], [], [], { native });
     const router = TestBed.inject(Router);
     Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
-    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
     expect(result.contextSession.select("github")).toBe(true);
 
     result.fixture.componentRef.setInput("id", "github");
@@ -538,7 +544,7 @@ describe("VaultItemDetailPageComponent", () => {
     const result = await createFixture(undefined, undefined, [demoVaultItems[0], secondItem], [], [], { native });
     const router = TestBed.inject(Router);
     Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
-    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
     result.contextSession.select("github");
     result.fixture.componentRef.setInput("id", "github");
     result.fixture.detectChanges();
@@ -562,7 +568,11 @@ describe("VaultItemDetailPageComponent", () => {
     Object.defineProperty(router, "url", { value: "/view-cipher/second-login", configurable: true });
     result.fixture.componentRef.setInput("id", "second-login");
     result.fixture.detectChanges();
-    resolveEntry({ status: "available", context });
+    resolveEntry({
+      status: "available",
+      application: { bundleId: context.bundleId, appName: context.appName },
+      fillContext: context,
+    });
     await result.fixture.whenStable();
     await Promise.resolve();
     result.fixture.detectChanges();
@@ -589,7 +599,7 @@ describe("VaultItemDetailPageComponent", () => {
     const result = await createFixture(undefined, undefined, [protectedItem, secondItem], [], [], { native });
     const router = TestBed.inject(Router);
     Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
-    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
     result.contextSession.select("github");
     result.fixture.componentRef.setInput("id", "github");
     result.fixture.detectChanges();
@@ -692,7 +702,7 @@ describe("VaultItemDetailPageComponent", () => {
     );
     const router = TestBed.inject(Router);
     Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
-    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
     result.contextSession.select("github");
     result.fixture.componentRef.setInput("id", "github");
     result.fixture.detectChanges();
@@ -710,7 +720,7 @@ describe("VaultItemDetailPageComponent", () => {
       .querySelector("[data-testid='autofill-detail-context']"))
       .toBeNull();
 
-    result.contextSession.begin(context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
     result.contextSession.select("github");
     await result.fixture.componentInstance.popOut();
     expect(calls).toEqual(["/view-cipher/github"]);
@@ -1853,7 +1863,8 @@ function detailNative(
   return {
     entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => ({
       status: "available",
-      context: readContext(),
+      application: { bundleId: readContext().bundleId, appName: readContext().appName },
+      fillContext: readContext(),
     })),
     agentSession: vi.fn<AutoFillNativeHost["agentSession"]>(async () => ({
       status: "success",

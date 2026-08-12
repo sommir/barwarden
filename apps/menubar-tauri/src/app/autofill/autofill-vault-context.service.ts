@@ -8,9 +8,11 @@ import {
 } from "./autofill-contextual-candidates.service";
 import {
   contextsEqual,
+  decodeAutoFillApplicationContext,
   decodeLiveAutoFillContext,
   projectAutoFillAgentSession,
   type ContextualCandidate,
+  type AutoFillApplicationContext,
   type LiveAutoFillContext,
 } from "./autofill-fill-context.model";
 import {
@@ -26,7 +28,8 @@ export type AutoFillVaultContextState =
   | {
     readonly status: "ready";
     readonly epoch: number;
-    readonly context: LiveAutoFillContext;
+    readonly application: AutoFillApplicationContext;
+    readonly context: LiveAutoFillContext | null;
     readonly session: AutoFillAgentSession;
     readonly candidates: readonly ContextualCandidate[];
   }
@@ -36,7 +39,8 @@ export type AutoFillVaultContextState =
   };
 
 export interface SelectedAutoFillVaultCandidate {
-  readonly context: LiveAutoFillContext;
+  readonly application: AutoFillApplicationContext;
+  readonly context: LiveAutoFillContext | null;
   readonly session: AutoFillAgentSession;
   readonly candidate: ContextualCandidate;
 }
@@ -100,7 +104,7 @@ export class AutoFillVaultContextService {
 
     let candidates: readonly ContextualCandidate[];
     try {
-      candidates = await this.contextualCandidates.queryAll(initial.context, initial.session, "");
+      candidates = await this.contextualCandidates.queryAll(initial.application, initial.session, "");
     } catch (error) {
       return this.fail(epoch, error instanceof AutoFillContextChangedError ? "context" : "session");
     }
@@ -108,7 +112,7 @@ export class AutoFillVaultContextService {
 
     const current = await this.readLiveBinding();
     if (!this.owns(epoch)) return this.state;
-    if (!current || !contextsEqual(initial.context, current.context)) return this.fail(epoch, "context");
+    if (!current || !applicationsEqual(initial.application, current.application)) return this.fail(epoch, "context");
     if (!sessionsEqual(initial.session, current.session)) {
       return this.fail(epoch, initial.session.accountId === current.session.accountId ? "session" : "account");
     }
@@ -117,12 +121,13 @@ export class AutoFillVaultContextService {
     }
 
     try {
-      this.contextSession.begin(current.context, current.session, candidates);
+      this.contextSession.begin(current.application, current.context, current.session, candidates);
       const snapshot = this.contextSession.snapshot();
       if (!snapshot) return this.fail(epoch, "context");
       const ready = Object.freeze({
         status: "ready" as const,
         epoch,
+        application: snapshot.application,
         context: snapshot.context,
         session: snapshot.session,
         candidates: snapshot.candidates,
@@ -147,9 +152,10 @@ export class AutoFillVaultContextService {
     const session = this.contextSession.snapshot();
     if (state.status !== "ready" || !session || session.selectedCipherId !== cipherId) return null;
     const candidate = state.candidates.find((value) => value.cipherId === cipherId) ?? null;
-    if (!candidate || !contextsEqual(state.context, session.context)
+    if (!candidate || !applicationsEqual(state.application, session.application)
+        || !optionalContextsEqual(state.context, session.context)
         || !sessionsEqual(state.session, session.session)) return null;
-    return Object.freeze({ context: state.context, session: state.session, candidate });
+    return Object.freeze({ application: state.application, context: state.context, session: state.session, candidate });
   }
 
   navigationChanged(url: string): void {
@@ -167,7 +173,8 @@ export class AutoFillVaultContextService {
   }
 
   private async readLiveBinding(): Promise<{
-    readonly context: LiveAutoFillContext;
+    readonly application: AutoFillApplicationContext;
+    readonly context: LiveAutoFillContext | null;
     readonly session: AutoFillAgentSession;
   } | null> {
     const [entry, session] = await Promise.all([
@@ -177,7 +184,8 @@ export class AutoFillVaultContextService {
     if (entry.status !== "available" || session.status !== "success") return null;
     try {
       return Object.freeze({
-        context: decodeLiveAutoFillContext(entry.context),
+        application: decodeAutoFillApplicationContext(entry.application),
+        context: entry.fillContext === null ? null : decodeLiveAutoFillContext(entry.fillContext),
         session: projectAutoFillAgentSession({
           accountId: session.accountId,
           generation: session.generation,
@@ -208,6 +216,14 @@ export class AutoFillVaultContextService {
     this.state = state;
     for (const listener of [...this.listeners]) listener();
   }
+}
+
+function applicationsEqual(left: AutoFillApplicationContext, right: AutoFillApplicationContext): boolean {
+  return left.bundleId === right.bundleId && left.appName === right.appName;
+}
+
+function optionalContextsEqual(left: LiveAutoFillContext | null, right: LiveAutoFillContext | null): boolean {
+  return left === null || right === null ? left === right : contextsEqual(left, right);
 }
 
 function sessionsEqual(left: AutoFillAgentSession, right: AutoFillAgentSession): boolean {

@@ -51,6 +51,7 @@ describe("AutoFillFillActionService", () => {
     (mutableCandidate.authorizations as Map<string, unknown>).clear();
     await service.execute(prepared, { mismatchConfirmed: true, requiresReprompt: false });
     expect(native.fillDetected).toHaveBeenCalledWith({
+      intent: "auto",
       fillContextToken: context.fillContextToken,
       authorizations: [{
         scope: expect.objectContaining({ field: "password", contextToken: "password-token" }),
@@ -106,6 +107,7 @@ describe("AutoFillFillActionService", () => {
       repromptVerified: true,
     })).resolves.toEqual({ status: "success", fields: ["username", "password"] });
     expect(native.fillDetected).toHaveBeenCalledWith({
+      intent: "auto",
       fillContextToken: context.fillContextToken,
       authorizations: prepared.scopes.map((scope) => ({
         scope,
@@ -137,7 +139,8 @@ describe("AutoFillFillActionService", () => {
     await service.execute(prepared, { mismatchConfirmed: true, requiresReprompt: true });
     vi.mocked(native.entryContext).mockResolvedValue({
       status: "available",
-      context: { ...context, appName: "Other" },
+      application: { bundleId: context.bundleId, appName: "Other" },
+      fillContext: { ...context, appName: "Other" },
     });
 
     await expect(service.execute(prepared, { mismatchConfirmed: true, requiresReprompt: true }))
@@ -182,7 +185,9 @@ describe("AutoFillFillActionService", () => {
       await vi.waitFor(() => expect(native.beginRepromptBatch).toHaveBeenCalledOnce());
       if (invalidate === "cancel") await service.cancel(prepared);
       else vi.mocked(native.entryContext).mockResolvedValue({
-        status: "available", context: { ...context, fillContextToken: "00000000-0000-4000-8000-000000000006" },
+        status: "available",
+        application: { bundleId: context.bundleId, appName: context.appName },
+        fillContext: { ...context, fillContextToken: "00000000-0000-4000-8000-000000000006" },
       });
       begin.resolve({ status: "pending", receipt: `receipt-${invalidate}` });
       await execution;
@@ -231,7 +236,12 @@ describe("AutoFillFillActionService", () => {
     for (const invalidate of ["clear", "expiry", "navigation", "selection"] as const) {
       let now = 1_000;
       const contextSession = new AutoFillContextSessionService(() => now);
-      contextSession.begin(context, session, [candidate(["username", "password"])]);
+      contextSession.begin(
+        { bundleId: context.bundleId, appName: context.appName },
+        context,
+        session,
+        [candidate(["username", "password"])],
+      );
       const native = host();
       vi.mocked(native.beginRepromptBatch).mockResolvedValue({ status: "pending", receipt: `receipt-${invalidate}` });
       const service = new AutoFillFillActionService(native, contextSession);
@@ -274,6 +284,7 @@ describe("AutoFillFillActionService", () => {
       .resolves.toEqual({ status: "confirmation-required" });
     await service.execute(prepared, { mismatchConfirmed: true, requiresReprompt: false });
     expect(native.fillDetected).toHaveBeenCalledWith({
+      intent: "auto",
       fillContextToken: context.fillContextToken,
       authorizations: [
         { scope: expect.objectContaining({ field: "username", contextToken: "username-token" }), mismatchConfirmed: false },
@@ -318,7 +329,11 @@ function candidate(fields: readonly ("username" | "password" | "totp")[]): Conte
 
 function host(): AutoFillNativeHost {
   return {
-    entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => ({ status: "available", context })),
+    entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => ({
+      status: "available",
+      application: { bundleId: context.bundleId, appName: context.appName },
+      fillContext: context,
+    })),
     agentSession: vi.fn<AutoFillNativeHost["agentSession"]>(async () => ({ status: "success", ...session })),
     beginReprompt: vi.fn(),
     cancelReprompt: vi.fn(),

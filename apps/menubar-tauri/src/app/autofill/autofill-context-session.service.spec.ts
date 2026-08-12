@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AutoFillAgentSession } from "./autofill-native.host";
 import { AutoFillContextSessionService } from "./autofill-context-session.service";
-import type { ContextualCandidate, LiveAutoFillContext } from "./autofill-fill-context.model";
+import type { AutoFillApplicationContext, ContextualCandidate, LiveAutoFillContext } from "./autofill-fill-context.model";
 
 const context: LiveAutoFillContext = {
   bundleId: "com.example.Terminal",
@@ -11,6 +11,7 @@ const context: LiveAutoFillContext = {
   focusedField: { kind: "password", confidence: "high" },
   action: { mode: "form", fields: ["username", "password"] },
 };
+const application: AutoFillApplicationContext = { bundleId: context.bundleId, appName: context.appName };
 const session: AutoFillAgentSession = {
   generation: "00000000-0000-4000-8000-000000000004",
   accountId: "account-a",
@@ -32,7 +33,7 @@ const candidate: ContextualCandidate = {
 describe("AutoFillContextSessionService", () => {
   it("retains the selected live context across the vault and exact detail routes", () => {
     const service = new AutoFillContextSessionService(() => 1_000);
-    service.begin(context, session, [candidate]);
+    service.begin(application, context, session, [candidate]);
     expect(service.select(candidate.cipherId)).toBe(true);
 
     service.navigationChanged("/tabs/vault");
@@ -47,11 +48,11 @@ describe("AutoFillContextSessionService", () => {
 
   it("keeps one picker-to-detail matrix in memory and returns immutable snapshots", () => {
     const service = new AutoFillContextSessionService(() => 1_000);
-    service.begin(context, session, [candidate]);
+    service.begin(application, context, session, [candidate]);
     expect(service.select("cipher-a")).toBe(true);
 
     const snapshot = service.snapshot();
-    expect(snapshot).toMatchObject({ context, session, selectedCipherId: "cipher-a" });
+    expect(snapshot).toMatchObject({ application, context, session, selectedCipherId: "cipher-a" });
     expect(snapshot?.candidates).not.toBe((service.snapshot() as { candidates: unknown }).candidates);
     expect(Object.isFrozen(snapshot?.candidates)).toBe(true);
   });
@@ -64,7 +65,7 @@ describe("AutoFillContextSessionService", () => {
     ["navigation away", (service: AutoFillContextSessionService) => service.navigationChanged("/vault")],
   ])("clears ephemeral state on %s", (_name, invalidate) => {
     const service = new AutoFillContextSessionService(() => 1_000);
-    service.begin(context, session, [candidate]);
+    service.begin(application, context, session, [candidate]);
     invalidate(service);
     expect(service.snapshot()).toBeNull();
   });
@@ -72,7 +73,7 @@ describe("AutoFillContextSessionService", () => {
   it("retains state only across vault/detail navigation and clears after absolute expiry", () => {
     let now = 1_000;
     const service = new AutoFillContextSessionService(() => now);
-    service.begin(context, session, [candidate]);
+    service.begin(application, context, session, [candidate]);
     service.navigationChanged("/tabs/vault");
     service.navigationChanged("/view-cipher/cipher-a");
     expect(service.snapshot()).not.toBeNull();
@@ -91,8 +92,12 @@ describe("AutoFillContextSessionService", () => {
     ];
     for (const [nextContext, nextSession] of mutations) {
       const service = new AutoFillContextSessionService(() => 1_000);
-      service.begin(context, session, [candidate]);
-      expect(service.validate(nextContext, nextSession)).toBe(false);
+      service.begin(application, context, session, [candidate]);
+      expect(service.validate(
+        { bundleId: nextContext.bundleId, appName: nextContext.appName },
+        nextContext,
+        nextSession,
+      )).toBe(false);
       expect(service.snapshot()).toBeNull();
     }
   });
@@ -102,13 +107,13 @@ describe("AutoFillContextSessionService", () => {
     const hostileContext = { ...context, secret: "must-not-enter" };
     Object.defineProperty(hostileContext, "value", { enumerable: false, value: "hidden" });
     Object.defineProperty(hostileContext, Symbol("secret"), { value: "hidden" });
-    expect(() => service.begin(hostileContext, session, [candidate])).toThrow("invalid AutoFill context session");
+    expect(() => service.begin(application, hostileContext, session, [candidate])).toThrow("invalid AutoFill context session");
 
     const hostileCandidate = { ...candidate, password: undefined };
-    expect(() => service.begin(context, session, [hostileCandidate])).toThrow("invalid AutoFill context session");
+    expect(() => service.begin(application, context, session, [hostileCandidate])).toThrow("invalid AutoFill context session");
     const hostileAuthorizations = new Map(candidate.authorizations);
     Object.defineProperty(hostileAuthorizations, Symbol("value"), { value: "hidden" });
-    expect(() => service.begin(context, session, [{
+    expect(() => service.begin(application, context, session, [{
       ...candidate,
       authorizations: hostileAuthorizations,
     }])).toThrow("invalid AutoFill context session");
@@ -120,12 +125,12 @@ describe("AutoFillContextSessionService", () => {
     const service = new AutoFillContextSessionService(() => now);
     const invalidated = vi.fn();
     service.onInvalidate(invalidated);
-    service.begin(context, session, [candidate]);
+    service.begin(application, context, session, [candidate]);
     service.select("cipher-a");
     expect(invalidated).toHaveBeenCalledTimes(1);
     service.navigationChanged("/vault");
     expect(invalidated).toHaveBeenCalledTimes(2);
-    service.begin(context, session, [candidate]);
+    service.begin(application, context, session, [candidate]);
     now += 30_000;
     service.snapshot();
     expect(invalidated).toHaveBeenCalledTimes(3);
@@ -142,7 +147,7 @@ describe("AutoFillContextSessionService", () => {
       },
     };
     const service = new AutoFillContextSessionService(() => 1_000);
-    expect(() => service.begin(context, hostileSession as never, [candidate]))
+    expect(() => service.begin(application, context, hostileSession as never, [candidate]))
       .toThrow("invalid AutoFill context session");
     expect(reads).toBeLessThanOrEqual(1);
     expect(service.snapshot()).toBeNull();
@@ -151,13 +156,13 @@ describe("AutoFillContextSessionService", () => {
 
   it("rejects negative revisions and sparse or augmented candidate matrices", () => {
     const service = new AutoFillContextSessionService(() => 1_000);
-    expect(() => service.begin(context, { ...session, vaultRevision: -1 }, [candidate]))
+    expect(() => service.begin(application, context, { ...session, vaultRevision: -1 }, [candidate]))
       .toThrow("invalid AutoFill context session");
 
     const sparse = [candidate, ,];
     const augmented = Object.assign([candidate], { password: "must-not-cross" });
     for (const candidates of [sparse, augmented]) {
-      expect(() => service.begin(context, session, candidates as never))
+      expect(() => service.begin(application, context, session, candidates as never))
         .toThrow("invalid AutoFill context session");
       expect(service.snapshot()).toBeNull();
     }

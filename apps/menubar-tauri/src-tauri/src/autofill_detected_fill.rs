@@ -21,9 +21,17 @@ pub struct DetectedFillAuthorization {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DetectedFillRequest {
+    pub intent: DetectedFillIntent,
     pub fill_context_token: String,
     pub authorizations: Vec<DetectedFillAuthorization>,
     pub reprompt_receipt: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DetectedFillIntent {
+    Auto,
+    Explicit,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -307,6 +315,7 @@ where
         Err(_) => return error("invalid-request"),
     };
     let DetectedFillRequest {
+        intent,
         fill_context_token,
         authorizations,
         reprompt_receipt,
@@ -326,9 +335,13 @@ where
         .map(|authorization| authorization.scope.field)
         .collect::<Vec<_>>();
     requested.sort_unstable();
-    let plan = match reserved_context
-        .and_then(|reserved| contexts.validate_reserved(reserved, &requested).ok())
-    {
+    let plan = match reserved_context.and_then(|reserved| match intent {
+        DetectedFillIntent::Auto => contexts.validate_reserved(reserved, &requested).ok(),
+        DetectedFillIntent::Explicit if requested.len() == 1 => contexts
+            .validate_reserved_explicit(reserved, requested[0])
+            .ok(),
+        DetectedFillIntent::Explicit => None,
+    }) {
         Some(plan) => plan,
         None => return error("stale-context"),
     };
@@ -372,6 +385,7 @@ where
     Port: ExactAxFillPort,
 {
     let DetectedFillRequest {
+        intent,
         fill_context_token,
         authorizations,
         reprompt_receipt,
@@ -389,7 +403,16 @@ where
         .map(|authorization| authorization.scope.field)
         .collect::<Vec<_>>();
     requested.sort_unstable();
-    let plan = match contexts.take(&fill_context_token, &requested) {
+    let plan_result = match intent {
+        DetectedFillIntent::Auto => contexts.take(&fill_context_token, &requested),
+        DetectedFillIntent::Explicit if requested.len() == 1 => {
+            contexts.take_explicit(&fill_context_token, requested[0])
+        }
+        DetectedFillIntent::Explicit => {
+            Err(crate::autofill_ax_context::DetectedFillError::WrongFieldSubset)
+        }
+    };
+    let plan = match plan_result {
         Ok(plan) => plan,
         Err(_) => {
             if let Some(receipt) = reprompt_receipt.as_deref() {
@@ -686,6 +709,7 @@ mod tests {
 
     fn raw_request(request: &DetectedFillRequest) -> serde_json::Value {
         serde_json::json!({
+            "intent": request.intent,
             "fillContextToken": request.fill_context_token,
             "authorizations": request.authorizations.iter().map(|authorization| serde_json::json!({
                 "scope": {
@@ -731,6 +755,7 @@ mod tests {
         (
             store,
             DetectedFillRequest {
+                intent: DetectedFillIntent::Auto,
                 fill_context_token: presentation.fill_context_token,
                 authorizations: requested.iter().copied().map(authorization).collect(),
                 reprompt_receipt: None,
@@ -802,6 +827,41 @@ mod tests {
     }
 
     #[test]
+    fn explicit_intent_writes_the_selected_password_into_the_current_username_field() {
+        let (contexts, mut request) = fixture(&[AutoFillSecretField::Password]);
+        request.intent = DetectedFillIntent::Explicit;
+        let receipts = AutoFillRepromptReceiptStore::default();
+        let mut releases = Vec::new();
+        let mut release = |scope: AutoFillRepromptScope, _: bool, _: bool| {
+            releases.push(scope.field);
+            Ok(released(scope.field))
+        };
+        let mut port = RecordingAxPort::default();
+
+        let outcome = perform_detected_fill_with(
+            "main",
+            &contexts,
+            &receipts,
+            request,
+            &mut release,
+            &mut port,
+        );
+
+        assert_eq!(
+            outcome,
+            DetectedFillOutcome::Success {
+                fields: vec![AutoFillSecretField::Password]
+            }
+        );
+        assert_eq!(releases, vec![AutoFillSecretField::Password]);
+        assert_eq!(
+            port.actions,
+            vec![TestAction::SetValue(AutoFillSecretField::Password)]
+        );
+        assert_eq!(port.targeted_focused, vec![true]);
+    }
+
+    #[test]
     fn choose_binds_the_one_requested_field_to_the_unique_focused_element_even_if_unknown() {
         let generation = ObserverGeneration::new(7);
         let contexts = DetectedFillContextStore::for_test_with_generation(
@@ -823,6 +883,7 @@ mod tests {
             )
             .unwrap();
         let request = DetectedFillRequest {
+            intent: DetectedFillIntent::Auto,
             fill_context_token: presentation.fill_context_token,
             authorizations: vec![authorization(AutoFillSecretField::Username)],
             reprompt_receipt: None,
@@ -878,6 +939,7 @@ mod tests {
             )
             .unwrap();
         let request = DetectedFillRequest {
+            intent: DetectedFillIntent::Auto,
             fill_context_token: presentation.fill_context_token,
             authorizations: vec![
                 authorization(AutoFillSecretField::Username),

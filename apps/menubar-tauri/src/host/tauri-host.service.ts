@@ -60,11 +60,16 @@ interface LiveAutoFillContext {
     readonly fields: readonly AutoFillSecretField[];
   };
 }
+interface AutoFillApplicationContext {
+  readonly bundleId: string;
+  readonly appName: string;
+}
 interface DetectedFillAuthorizationContract {
   readonly scope: AutoFillRepromptScope;
   readonly mismatchConfirmed: boolean;
 }
 interface DetectedFillRequest {
+  readonly intent: "auto" | "explicit";
   readonly fillContextToken: string;
   readonly authorizations: readonly DetectedFillAuthorizationContract[];
   readonly repromptReceipt?: string;
@@ -1118,8 +1123,8 @@ function validateAutoFillRepromptScopes(value: unknown): readonly AutoFillReprom
 
 function validateDetectedFillRequest(value: unknown): DetectedFillRequest {
   const request = snapshotAutoFillRecord(value);
-  if (!exactKeys(request, ["fillContextToken", "authorizations"])
-      && !exactKeys(request, ["fillContextToken", "authorizations", "repromptReceipt"])) {
+  if (!exactKeys(request, ["intent", "fillContextToken", "authorizations"])
+      && !exactKeys(request, ["intent", "fillContextToken", "authorizations", "repromptReceipt"])) {
     throw new Error("invalid request");
   }
   const rawAuthorizations = request["authorizations"];
@@ -1135,6 +1140,7 @@ function validateDetectedFillRequest(value: unknown): DetectedFillRequest {
     ? boundedAutoFillString(request["repromptReceipt"], 512)
     : undefined;
   return Object.freeze({
+    intent: valueFromSet(request["intent"], ["auto", "explicit"] as const),
     fillContextToken: autoFillUuid(request["fillContextToken"]),
     authorizations: Object.freeze(authorizations),
     ...(repromptReceipt === undefined ? {} : { repromptReceipt }),
@@ -1210,16 +1216,28 @@ function valueFromSet<const Values extends readonly string[]>(
 function decodeEntryContext(value: unknown) {
   const outcome = snapshotAutoFillRecord(value);
   if (outcome["status"] === "unavailable" && exactKeys(outcome, ["status"])) return { status: "unavailable" as const };
-  if (outcome["status"] === "available" && exactKeys(outcome, [
-    "status", "bundleId", "appName", "fillContextToken", "focusedField", "action",
-  ])) {
+  if (outcome["status"] === "available" && (exactKeys(outcome, ["status", "application"])
+      || exactKeys(outcome, ["status", "application", "fillContext"]))) {
     try {
-      return { status: "available" as const, context: decodeLiveAutoFillContext({
-        bundleId: outcome["bundleId"],
-        appName: outcome["appName"],
-        fillContextToken: outcome["fillContextToken"],
-        focusedField: outcome["focusedField"],
-        action: outcome["action"],
+      const applicationValue = snapshotAutoFillRecord(outcome["application"]);
+      if (!exactKeys(applicationValue, ["bundleId", "appName"])) throw new Error("invalid application");
+      const application: AutoFillApplicationContext = Object.freeze({
+        bundleId: boundedAutoFillString(applicationValue["bundleId"], 255),
+        appName: boundedAutoFillString(applicationValue["appName"], 255),
+      });
+      if (!Object.prototype.hasOwnProperty.call(outcome, "fillContext")) {
+        return { status: "available" as const, application, fillContext: null };
+      }
+      const fill = snapshotAutoFillRecord(outcome["fillContext"]);
+      if (!exactKeys(fill, ["fillContextToken", "focusedField", "action"])) {
+        throw new Error("invalid fill context");
+      }
+      return { status: "available" as const, application, fillContext: decodeLiveAutoFillContext({
+        bundleId: application.bundleId,
+        appName: application.appName,
+        fillContextToken: fill["fillContextToken"],
+        focusedField: fill["focusedField"],
+        action: fill["action"],
       }) };
     } catch {
       throw new Error("AutoFill unavailable");

@@ -17,6 +17,7 @@ import {
   type AutoFillActionOutcome,
   type PreparedAutoFillAction,
 } from "../autofill/autofill-fill-action.service";
+import { AutoFillFieldActionService } from "../autofill/autofill-field-action.service";
 import type { ContextualCandidate } from "../autofill/autofill-fill-context.model";
 import {
   AutoFillVaultContextService,
@@ -42,6 +43,9 @@ import { VaultItemIconComponent } from "./vault-item-icon.component";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
 
 type ReadyAction = Extract<PreparedAutoFillAction, { readonly status: "ready" }>;
+type PendingMismatch =
+  | { readonly kind: "fill"; readonly candidate: ContextualCandidate; readonly item: VaultItem; readonly action: ReadyAction }
+  | { readonly kind: "field"; readonly candidate: ContextualCandidate; readonly item: VaultItem; readonly field: AutoFillSecretField; readonly trigger?: HTMLElement };
 
 const FIELD_ORDER: readonly AutoFillSecretField[] = ["username", "password", "totp"];
 const CONTEXTUAL_OTHER_REASONS = new Set([
@@ -80,6 +84,19 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
     VaultRepromptDialogComponent,
   ],
   template: `
+    @if (contextStatus; as status) {
+      <bit-section
+        class="vault-autofill-suggestions tw-block tw-bg-background-alt tw-px-3 tw-py-3"
+        data-testid="vault-autofill-status"
+        aria-live="polite"
+      >
+        <div class="tw-rounded-lg tw-border tw-border-secondary-300 tw-bg-background tw-p-3">
+          <div class="tw-font-semibold">{{ status.title }}</div>
+          <div class="tw-mt-1 tw-text-sm tw-text-muted">{{ status.description }}</div>
+        </div>
+      </bit-section>
+    }
+
     @if (visibleCandidates.length) {
       <bit-section
         class="vault-autofill-suggestions tw-block tw-bg-background-alt tw-px-3 tw-pt-2 tw-pb-3"
@@ -136,17 +153,24 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
 
                 <ng-container slot="end">
                   <bit-item-action>
-                    <span
-                      class="vault-autofill-suggestions__capabilities tw-inline-flex tw-items-center tw-gap-2 tw-text-muted"
-                      aria-hidden="true"
-                    >
+                    <span class="vault-autofill-suggestions__capabilities tw-inline-flex tw-items-center tw-gap-1">
                       @for (field of capabilityFields(candidate); track field) {
-                        <i
-                          class="bwi"
-                          [class.bwi-user]="field === 'username'"
-                          [class.bwi-key]="field === 'password'"
-                          [class.bwi-clock]="field === 'totp'"
-                        ></i>
+                        <button
+                          class="vault-autofill-suggestions__field-action"
+                          data-testid="vault-autofill-field-action"
+                          type="button"
+                          [attr.data-field]="field"
+                          [attr.aria-label]="fieldActionLabel(candidate, field)"
+                          [disabled]="busyCipherId === candidate.cipherId"
+                          (click)="requestFieldAction(candidate, field, $event)"
+                        >
+                          <i
+                            class="bwi"
+                            [class.bwi-user]="field === 'username'"
+                            [class.bwi-key]="field === 'password'"
+                            [class.bwi-clock]="field === 'totp'"
+                          ></i>
+                        </button>
                       }
                     </span>
                     <span
@@ -156,21 +180,23 @@ const REASON_LABELS: Readonly<Record<string, string>> = {
                       {{ capabilitySummary(candidate) }}
                     </span>
                   </bit-item-action>
-                  <bit-item-action>
-                    <button
-                      bitButton
-                      buttonType="primaryOutline"
-                      size="small"
-                      class="vault-autofill-suggestions__fill"
-                      data-testid="vault-autofill-fill"
-                      type="button"
-                      [disabled]="busyCipherId === candidate.cipherId"
-                      [attr.aria-label]="fillLabel(candidate)"
-                      (click)="requestFill(candidate, $event)"
-                    >
-                      {{ fillText }}
-                    </button>
-                  </bit-item-action>
+                  @if (hasPrimaryFill) {
+                    <bit-item-action>
+                      <button
+                        bitButton
+                        buttonType="primaryOutline"
+                        size="small"
+                        class="vault-autofill-suggestions__fill"
+                        data-testid="vault-autofill-fill"
+                        type="button"
+                        [disabled]="busyCipherId === candidate.cipherId"
+                        [attr.aria-label]="fillLabel(candidate)"
+                        (click)="requestFill(candidate, $event)"
+                      >
+                        {{ fillText }}
+                      </button>
+                    </bit-item-action>
+                  }
                 </ng-container>
               </bit-item>
             }
@@ -222,8 +248,9 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
 
   private readonly unsubscribe: () => void;
   private readonly fillActions: AutoFillFillActionService | null;
+  private readonly fieldActions: AutoFillFieldActionService | null;
   private activeAction: ReadyAction | null = null;
-  private pendingMismatch: { readonly candidate: ContextualCandidate; readonly item: VaultItem; readonly action: ReadyAction } | null = null;
+  private pendingMismatch: PendingMismatch | null = null;
   private operationEpoch = 0;
 
   constructor(
@@ -236,6 +263,9 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
   ) {
     this.fillActions = this.context
       ? injector.get(AutoFillFillActionService, null)
+      : null;
+    this.fieldActions = this.context
+      ? injector.get(AutoFillFieldActionService, null)
       : null;
     this.unsubscribe = this.context?.subscribe(() => {
       this.operationEpoch += 1;
@@ -255,8 +285,40 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
       .slice(0, 5));
   }
 
+  get contextStatus(): { readonly title: string; readonly description: string } | null {
+    const state = this.context?.snapshot();
+    if (state?.status === "loading") {
+      return Object.freeze({
+        title: translateOfficialMessage("i18nAutofillFindingAccounts"),
+        description: translateOfficialMessage("i18nAutofillTargetUnavailableDescription"),
+      });
+    }
+    if (state?.status !== "unavailable") return null;
+    if (state.reason === "account") {
+      return Object.freeze({
+        title: translateOfficialMessage("i18nAutofillChooseAccount"),
+        description: translateOfficialMessage("i18nAutofillAccountDescription"),
+      });
+    }
+    if (state.reason === "setup" || state.reason === "session") {
+      return Object.freeze({
+        title: translateOfficialMessage("i18nAutofillNeedsAttention"),
+        description: translateOfficialMessage("i18nAutofillRepairDescription"),
+      });
+    }
+    return Object.freeze({
+      title: translateOfficialMessage("i18nAutofillTargetUnavailable"),
+      description: translateOfficialMessage("i18nAutofillTargetUnavailableDescription"),
+    });
+  }
+
   get suggestionCountLabel(): string {
     return translateOfficialMessage("i18nAutofillSuggestionCount", String(this.visibleCandidates.length));
+  }
+
+  get hasPrimaryFill(): boolean {
+    return this.context?.snapshot().status === "ready"
+      && this.context.snapshot().context !== null;
   }
 
   capabilityFields(candidate: ContextualCandidate): readonly AutoFillSecretField[] {
@@ -282,6 +344,10 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
     return translateOfficialMessage("i18nAutofillSuggestionFill", candidate.displayName);
   }
 
+  fieldActionLabel(candidate: ContextualCandidate, field: AutoFillSecretField): string {
+    return translateOfficialMessage("i18nAutofillFillCandidate", fieldLabel(field), candidate.displayName);
+  }
+
   viewDetailsLabel(candidate: ContextualCandidate): string {
     return translateOfficialMessage("i18nAutofillViewDetails", candidate.displayName);
   }
@@ -296,20 +362,38 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
     void this.fill(candidate, event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined);
   }
 
+  requestFieldAction(candidate: ContextualCandidate, field: AutoFillSecretField, event: Event): void {
+    event.stopPropagation();
+    const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined;
+    void this.executeFieldAction(candidate, field, false, false, undefined, trigger, ++this.operationEpoch);
+  }
+
   confirmMismatch(event: Event): void {
     event.preventDefault();
     const pending = this.pendingMismatch;
     this.pendingMismatch = null;
     this.mismatchDialog?.close();
-    if (pending) void this.execute(pending.candidate, pending.item, pending.action, true);
+    if (pending?.kind === "fill") {
+      void this.execute(pending.candidate, pending.item, pending.action, true);
+    } else if (pending?.kind === "field") {
+      void this.executeFieldAction(
+        pending.candidate,
+        pending.field,
+        true,
+        false,
+        undefined,
+        pending.trigger,
+        ++this.operationEpoch,
+      );
+    }
   }
 
   cancelMismatch(): void {
     const pending = this.pendingMismatch;
     this.pendingMismatch = null;
     this.mismatchDialog?.close();
-    if (pending) void this.fillActions?.cancel(pending.action);
-    if (this.activeAction === pending?.action) this.activeAction = null;
+    if (pending?.kind === "fill") void this.fillActions?.cancel(pending.action);
+    if (pending?.kind === "fill" && this.activeAction === pending.action) this.activeAction = null;
     this.busyCipherId = "";
     this.changeDetectorRef.markForCheck();
   }
@@ -323,7 +407,7 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
   private async fill(candidate: ContextualCandidate, trigger?: HTMLElement): Promise<void> {
     const state = this.context?.snapshot();
     const selected = this.context?.select(candidate.cipherId);
-    if (!state || state.status !== "ready" || !selected || !this.fillActions) return;
+    if (!state || state.status !== "ready" || state.context === null || !selected || !this.fillActions) return;
     const item = this.localLogin(candidate.cipherId, state.session.accountId);
     if (!item) return;
     const action = this.fillActions.prepare(state.context, state.session, candidate);
@@ -339,6 +423,69 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
     const epoch = ++this.operationEpoch;
     this.changeDetectorRef.markForCheck();
     await this.execute(candidate, item, action, false, trigger, false, epoch);
+  }
+
+  private async executeFieldAction(
+    candidate: ContextualCandidate,
+    field: AutoFillSecretField,
+    mismatchConfirmed: boolean,
+    repromptVerified: boolean,
+    repromptReceipt?: string,
+    trigger?: HTMLElement,
+    epoch = this.operationEpoch,
+  ): Promise<void> {
+    const state = this.context?.snapshot();
+    if (!state || state.status !== "ready" || !this.fieldActions || !this.context?.select(candidate.cipherId)) return;
+    const item = this.localLogin(candidate.cipherId, state.session.accountId);
+    if (!item || !secretExists(item, field)) return;
+    this.busyCipherId = candidate.cipherId;
+    const outcome = await this.fieldActions.execute(
+      { application: state.application, fillContext: state.context },
+      state.session,
+      candidate,
+      field,
+      {
+        mismatchConfirmed,
+        requiresReprompt: Boolean(item.reprompt),
+        ...(repromptVerified ? { repromptVerified: true } : {}),
+        ...(repromptReceipt ? { repromptReceipt } : {}),
+      },
+    );
+    if (epoch !== this.operationEpoch) {
+      if (outcome.status === "reprompt-required") {
+        await this.fieldActions.cancel(outcome.scope, outcome.receipt);
+      }
+      return;
+    }
+    this.busyCipherId = "";
+    if (outcome.status === "filled") {
+      this.store.setStatus(translateOfficialMessage("i18nAutofillFilled"));
+      this.context.invalidate("cancel");
+    } else if (outcome.status === "copied") {
+      this.store.setStatus(translateOfficialMessage("i18nAutofillCopied"));
+    } else if (outcome.status === "confirmation-required") {
+      this.pendingMismatch = { kind: "field", candidate, item, field, ...(trigger ? { trigger } : {}) };
+      this.mismatchDialog?.open(trigger);
+    } else if (outcome.status === "reprompt-required") {
+      this.repromptDialog?.openFor(
+        item.id,
+        () => this.executeFieldAction(
+          candidate,
+          field,
+          mismatchConfirmed,
+          true,
+          outcome.receipt,
+          trigger,
+          epoch,
+        ),
+        trigger,
+        outcome.receipt,
+        () => this.fieldActions?.cancel(outcome.scope, outcome.receipt),
+      );
+    } else {
+      this.store.setStatus(translateOfficialMessage("i18nAutofillActionUnavailable"));
+    }
+    this.changeDetectorRef.markForCheck();
   }
 
   private async execute(
@@ -358,7 +505,7 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
     });
     if (epoch !== this.operationEpoch || this.activeAction !== action) return;
     if (outcome.status === "confirmation-required") {
-      this.pendingMismatch = { candidate, item, action };
+      this.pendingMismatch = { kind: "fill", candidate, item, action };
       this.busyCipherId = "";
       this.mismatchDialog?.open(trigger);
       this.changeDetectorRef.markForCheck();
@@ -425,12 +572,8 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
     if (candidate.group === "other" && !CONTEXTUAL_OTHER_REASONS.has(candidate.reason)) return false;
     const item = this.localLogin(candidate.cipherId, state.session.accountId);
     if (!item) return false;
-    const fields = state.context.action.mode === "choose"
-      ? candidate.availableFields
-      : state.context.action.fields;
-    return fields.length > 0 && fields.every((field) => (
-      candidate.availableFields.includes(field) && secretExists(item, field)
-    ));
+    const fields = candidate.availableFields.filter((field) => secretExists(item, field));
+    return fields.length > 0;
   }
 
   private localLogin(cipherId: string, accountId: string): VaultItem | null {

@@ -36,23 +36,32 @@ describe("TauriHostService", () => {
   it("strictly wraps the detected native entry context", async () => {
     const nativeContext = {
       status: "available",
-      bundleId: "com.example.Terminal",
-      appName: "Terminal",
-      fillContextToken: "00000000-0000-4000-8000-000000000005",
-      focusedField: { kind: "password", confidence: "high" },
-      action: { mode: "form", fields: ["username", "password"] },
+      application: { bundleId: "com.example.Terminal", appName: "Terminal" },
+      fillContext: {
+        fillContextToken: "00000000-0000-4000-8000-000000000005",
+        focusedField: { kind: "password", confidence: "high" },
+        action: { mode: "form", fields: ["username", "password"] },
+      },
     };
     const host = new TauriHostService(async () => nativeContext as never);
 
     await expect(host.entryContext()).resolves.toEqual({
       status: "available",
-      context: {
-        bundleId: nativeContext.bundleId,
-        appName: nativeContext.appName,
-        fillContextToken: nativeContext.fillContextToken,
-        focusedField: nativeContext.focusedField,
-        action: nativeContext.action,
-      },
+      application: nativeContext.application,
+      fillContext: { ...nativeContext.application, ...nativeContext.fillContext },
+    });
+  });
+
+  it("keeps an application-only entry available when native field capture is absent", async () => {
+    const host = new TauriHostService(async () => ({
+      status: "available",
+      application: { bundleId: "com.example.Terminal", appName: "Terminal" },
+    }) as never);
+
+    await expect(host.entryContext()).resolves.toEqual({
+      status: "available",
+      application: { bundleId: "com.example.Terminal", appName: "Terminal" },
+      fillContext: null,
     });
   });
 
@@ -63,12 +72,13 @@ describe("TauriHostService", () => {
   ])("rejects malformed detected context nested contracts", async (override) => {
     const host = new TauriHostService(async () => ({
       status: "available",
-      bundleId: "com.example.Terminal",
-      appName: "Terminal",
-      fillContextToken: "00000000-0000-4000-8000-000000000005",
-      focusedField: { kind: "password", confidence: "high" },
-      action: { mode: "field", fields: ["password"] },
-      ...override,
+      application: { bundleId: "com.example.Terminal", appName: "Terminal" },
+      fillContext: {
+        fillContextToken: "00000000-0000-4000-8000-000000000005",
+        focusedField: { kind: "password", confidence: "high" },
+        action: { mode: "field", fields: ["password"] },
+        ...override,
+      },
     }) as never);
     await expect(host.entryContext()).rejects.toThrow("AutoFill unavailable");
   });
@@ -129,6 +139,7 @@ describe("TauriHostService", () => {
       context: { bundleId: "com.example.App", appName: "Example", serviceIdentifiers: [], query: "" },
     };
     const fillRequest = {
+      intent: "auto" as const,
       fillContextToken: "00000000-0000-4000-8000-000000000005",
       authorizations: [{
         scope: {
@@ -257,6 +268,7 @@ describe("TauriHostService", () => {
       contextToken: `context-${index}`,
     }));
     const request = {
+      intent: "auto" as const,
       fillContextToken: "00000000-0000-4000-8000-000000000005",
       authorizations: scopes.map((scope) => ({ scope, mismatchConfirmed: false })),
     };
@@ -282,6 +294,7 @@ describe("TauriHostService", () => {
     ]) {
       const host = new TauriHostService(async () => outcome as never);
       await expect(host.fillDetected({
+        intent: "auto",
         fillContextToken: "00000000-0000-4000-8000-000000000005",
         authorizations: [{
           scope: {
@@ -303,6 +316,7 @@ describe("TauriHostService", () => {
       "password", "totpSeed", "value", "releasedSecret",
     ];
     const fillRequest = {
+      intent: "auto" as const,
       fillContextToken: "00000000-0000-4000-8000-000000000005",
       authorizations: [{
         scope: {
@@ -365,6 +379,7 @@ describe("TauriHostService", () => {
     };
     const augmentedCandidates = Object.assign([candidate], { totpSeed: "must-not-cross" });
     const fillRequest = {
+      intent: "auto" as const,
       fillContextToken: "00000000-0000-4000-8000-000000000005",
       authorizations: [{
         scope: {

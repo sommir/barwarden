@@ -62,6 +62,7 @@ describe("vault AutoFill composition", () => {
       snapshot: () => ({
         status: "ready" as const,
         epoch: 1,
+        application: { bundleId: "com.example.Terminal", appName: "Terminal" },
         context: {
           bundleId: "com.example.Terminal",
           appName: "Terminal",
