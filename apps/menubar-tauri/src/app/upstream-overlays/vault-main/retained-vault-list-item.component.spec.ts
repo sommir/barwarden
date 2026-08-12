@@ -25,6 +25,15 @@ try {
 }
 
 describe("RetainedVaultListItemComponent", () => {
+  it("uses the shared continuous Vault row visual contract", async () => {
+    const fixture = await createLoginRow();
+    const row = fixture.nativeElement.querySelector("bit-item") as HTMLElement;
+
+    expect(row.classList).toContain("vault-list-row");
+    expect(row.querySelector("[data-testid='vault-item-content']")?.classList)
+      .toContain("tw-h-[52px]");
+  });
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [

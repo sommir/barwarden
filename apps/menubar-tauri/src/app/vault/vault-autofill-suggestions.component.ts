@@ -88,13 +88,13 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
           @for (candidate of visibleCandidates; track candidate.cipherId) {
             @if (itemForCandidate(candidate); as item) {
               <bit-item
-                class="tw-group/vault-autofill-item"
+                class="vault-list-row tw-group/vault-autofill-item"
                 data-testid="vault-autofill-candidate"
                 [attr.data-cipher-id]="candidate.cipherId"
               >
                 <button
                   bit-item-content
-                  class="tw-h-[59px] tw-min-w-0"
+                  class="tw-h-[52px] tw-min-w-0"
                   data-testid="vault-autofill-open-details"
                   type="button"
                   [attr.aria-label]="viewDetailsLabel(candidate)"
@@ -104,7 +104,7 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
                     <bw-vault-item-icon [item]="item" />
                   </span>
                   <span
-                    class="tw-block tw-min-w-0 tw-truncate tw-font-semibold"
+                    class="tw-block tw-min-w-0 tw-truncate"
                     data-testid="vault-autofill-candidate-name"
                   >
                     {{ candidate.displayName }}

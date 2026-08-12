@@ -4951,7 +4951,7 @@ bw-retained-new-item-dropdown {
   border-radius: 0;
 }
 
-.vault-hierarchy__items app-retained-vault-list-item > bit-item {
+.vault-hierarchy__items .vault-list-row {
   display: flex;
   position: relative;
   min-height: var(--mac-row-height);
@@ -4964,15 +4964,19 @@ bw-retained-new-item-dropdown {
   contain: layout paint style;
 }
 
-.vault-hierarchy__items app-retained-vault-list-item > bit-item:focus-within {
+.vault-hierarchy__items .vault-list-row:focus-within {
   background: var(--mac-selected);
 }
 
-.vault-hierarchy__items app-retained-vault-list-item > bit-item.is-menu-open {
+.vault-hierarchy__items .vault-list-row.is-menu-open {
   background: color-mix(in srgb, var(--mac-accent) 9%, var(--mac-surface-solid));
 }
 
-.vault-hierarchy__items app-retained-vault-list-item:last-child > bit-item {
+.vault-hierarchy__items bit-item-group > .vault-list-row:last-child {
+  border-bottom: 0;
+}
+
+.vault-hierarchy__items bit-item-group app-retained-vault-list-item:last-child > .vault-list-row {
   border-bottom: 0;
 }
 

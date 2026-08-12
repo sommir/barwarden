@@ -630,7 +630,7 @@ describe("popup visual smoke classes", () => {
     );
     const hierarchySelection = cssDeclarations(
       globalCss,
-      ".vault-hierarchy__items app-retained-vault-list-item > bit-item:focus-within",
+      ".vault-hierarchy__items .vault-list-row:focus-within",
     );
     const menuTriggerSource = readFileSync(
       join(
@@ -655,7 +655,7 @@ describe("popup visual smoke classes", () => {
     expect(content).toContain("background: transparent !important;");
     expect(hierarchySelection).toContain("background: var(--mac-selected);");
     expect(globalCss).not.toContain(
-      ".vault-hierarchy__items app-retained-vault-list-item > bit-item:focus-within::after",
+      ".vault-hierarchy__items .vault-list-row:focus-within::after",
     );
     expect(menu).not.toContain("transform-origin: top right;");
     expect(menuTriggerSource).toContain('.withTransformOriginOn(\'[role="menu"]\')');
@@ -674,6 +674,14 @@ describe("popup visual smoke classes", () => {
       globalCss,
       ".vault-hierarchy__children .vault-hierarchy__child-content .vault-hierarchy__items bit-item-group",
     );
+    const directLastRow = cssDeclarations(
+      globalCss,
+      ".vault-hierarchy__items bit-item-group > .vault-list-row:last-child",
+    );
+    const wrappedLastRow = cssDeclarations(
+      globalCss,
+      ".vault-hierarchy__items bit-item-group app-retained-vault-list-item:last-child > .vault-list-row",
+    );
 
     expect(expandedParent).toContain("border-radius: 12px 12px 0 0;");
     expect(expandedParent).toContain("background: var(--mac-surface-solid);");
@@ -682,6 +690,9 @@ describe("popup visual smoke classes", () => {
     );
     expect(nestedGroup).toContain("border-radius: 0;");
     expect(nestedGroup).toContain("border: 0;");
+    expect(directLastRow).toContain("border-bottom: 0;");
+    expect(wrappedLastRow).toContain("border-bottom: 0;");
+    expect(globalCss).not.toContain(".vault-hierarchy__items .vault-list-row:last-child {");
   });
 
   it("uses one continuous responsive form-field surface and compact auth errors", () => {

@@ -140,8 +140,13 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     expect(row?.querySelector("[data-testid='vault-autofill-quick-copy']")).toBeNull();
     expect(row?.querySelector("[data-testid='vault-autofill-capability-summary']")?.classList)
       .toContain("tw-sr-only");
+    expect(row?.classList).toContain("vault-list-row");
+    expect(row?.querySelector("[data-testid='vault-autofill-open-details']")?.classList)
+      .toContain("tw-h-[52px]");
     expect(row?.querySelector("[data-testid='vault-autofill-candidate-name']")?.className)
       .toContain("tw-truncate");
+    expect(row?.querySelector("[data-testid='vault-autofill-candidate-name']")?.className)
+      .not.toContain("tw-font-semibold");
     expect(row?.querySelector("[data-testid='vault-autofill-candidate-subtitle']")?.className)
       .toContain("tw-truncate");
     expect(row?.querySelector(".vault-autofill-suggestions__row")).toBeNull();
