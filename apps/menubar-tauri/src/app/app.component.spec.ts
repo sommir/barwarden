@@ -3,7 +3,7 @@ import "zone.js";
 
 import { TestBed } from "@angular/core/testing";
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
-import { provideRouter, Router } from "@angular/router";
+import { NavigationEnd, NavigationStart, provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 
@@ -242,6 +242,64 @@ describe("AppComponent", () => {
     ));
     await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
     expect(beginFromEntry).not.toHaveBeenCalled();
+    component.ngOnDestroy();
+  });
+
+  it("refreshes the captured frontmost app every time a briefly hidden vault popup is shown again", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+    ]) as AppComponent;
+
+    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+      detail: { reset: false, entrySource: "vault" },
+    }));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(1));
+
+    component.restorePopupComposition(new CustomEvent("barwarden:popup-shown", {
+      detail: { reset: false, entrySource: "vault" },
+    }));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(2));
+
+    expect(navigateByUrl).not.toHaveBeenCalled();
+    component.ngOnDestroy();
+  });
+
+  it("does not burn a prepared AutoFill context on NavigationStart before the vault route commits", () => {
+    const store = new PopupStateStore();
+    const events = new ReplaySubject<unknown>();
+    const router = {
+      url: "/tabs/generator",
+      events,
+      navigateByUrl: vi.fn().mockResolvedValue(true),
+    };
+    const navigationChanged = vi.fn();
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      router,
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), beginFromVaultOpen: vi.fn(), navigationChanged },
+    ]) as AppComponent;
+
+    events.next(new NavigationStart(1, "/tabs/vault"));
+    expect(navigationChanged).not.toHaveBeenCalled();
+
+    router.url = "/tabs/vault";
+    events.next(new NavigationEnd(1, "/tabs/vault", "/tabs/vault"));
+    expect(navigationChanged).toHaveBeenCalledOnce();
+    expect(navigationChanged).toHaveBeenCalledWith("/tabs/vault");
     component.ngOnDestroy();
   });
 

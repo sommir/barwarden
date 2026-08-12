@@ -9,7 +9,7 @@ import {
   OnDestroy,
   signal,
 } from "@angular/core";
-import { Router, RouterOutlet } from "@angular/router";
+import { NavigationEnd, Router, RouterOutlet } from "@angular/router";
 import { Subscription } from "rxjs";
 
 import { PopupFocusWrapDirective } from "@bitwarden/browser-popup/components/popup-focus-wrap.directive";
@@ -223,7 +223,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sendEvidenceState = sendEvidenceState;
     this.settingsPreviewState = settingsPreviewState;
     this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
-    this.routeSubscription = this.router.events?.subscribe(() => {
+    this.routeSubscription = this.router.events?.subscribe((event) => {
+      if (!(event instanceof NavigationEnd)) return;
       this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
       this.autoFillVaultContext?.navigationChanged(this.router.url);
       const activeTab = mainTabFromUrl(this.router.url);
@@ -626,6 +627,15 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (detail?.reset === true) {
       void this.resetPopupToInitialState();
+      return;
+    }
+    if (
+      detail?.entrySource === "vault"
+      && this.store.snapshot().isUnlocked
+      && this.router.url.split(/[?#]/, 1)[0] === "/tabs/vault"
+      && resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popout"
+    ) {
+      void this.autoFillVaultContext?.beginFromVaultOpen();
     }
   }
 
