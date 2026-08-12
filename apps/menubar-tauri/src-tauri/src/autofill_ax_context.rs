@@ -2139,12 +2139,28 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
         port.now(),
     )?;
 
+    let mut observations = vec![semantic_observation(
+        focused_strings,
+        focused_frame,
+        editable,
+        enabled,
+        true,
+        vec![0],
+    )];
+    let mut observation_elements = vec![focused_element.clone()];
+    let mut observation_paths = vec![vec![0]];
+    let mut form_discovery_failed = false;
+
     let mut root = focused_element.clone();
     for _ in 0..MAX_ANCESTORS {
         if check_budget(port, started).is_err() {
+            form_discovery_failed = true;
             break;
         }
         let Some(parent) = port.element(&root, "AXParent") else {
+            if !port.metadata_valid() {
+                form_discovery_failed = true;
+            }
             break;
         };
         root = parent;
@@ -2152,16 +2168,24 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
 
     let mut queue = VecDeque::from([(root, vec![0_u16])]);
     let mut descendants = Vec::new();
-    while let Some((element, path)) = queue.pop_front() {
+    while !form_discovery_failed {
+        let Some((element, path)) = queue.pop_front() else {
+            break;
+        };
         if check_budget(port, started).is_err() {
+            form_discovery_failed = true;
             break;
         }
         let remaining = MAX_DESCENDANTS.saturating_sub(descendants.len());
         if remaining == 0 {
+            form_discovery_failed = true;
             break;
         }
         let children = port.elements(&element, "AXChildren", remaining);
-        ensure_metadata_valid(port)?;
+        if ensure_metadata_valid(port).is_err() {
+            form_discovery_failed = true;
+            break;
+        }
         for (index, child) in children.into_iter().take(remaining).enumerate() {
             let mut child_path = path.clone();
             child_path.push(index.min(u16::MAX as usize) as u16);
@@ -2174,47 +2198,61 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
         .find(|(element, _)| *element == focused_element)
         .map(|(_, path)| path.clone())
         .unwrap_or_else(|| vec![0]);
-    let focused_container_path = container_path(&focused_traversal_path);
-    ensure_metadata_valid(port)?;
+    if !form_discovery_failed {
+        observations[0].container_path = container_path(&focused_traversal_path);
+        observation_paths[0] = focused_traversal_path;
+    }
 
-    let mut observations = Vec::new();
-    let mut observation_elements = vec![focused_element.clone()];
-    let mut observation_paths = vec![focused_traversal_path];
-    observations.push(semantic_observation(
-        focused_strings,
-        focused_frame,
-        editable,
-        enabled,
-        true,
-        focused_container_path,
-    ));
-    for (element, path) in descendants {
-        if observations.len() >= MAX_FIELDS || element == focused_element {
+    for (element, path) in descendants
+        .into_iter()
+        .take_while(|_| !form_discovery_failed)
+    {
+        if element == focused_element {
             continue;
         }
+        if observations.len() >= MAX_FIELDS {
+            form_discovery_failed = true;
+            break;
+        }
         if check_budget(port, started).is_err() {
+            form_discovery_failed = true;
             break;
         }
         let strings = match read_semantic_strings(port, &element, started) {
             Ok(strings) => strings,
-            Err(AxContextError::TimeBudgetExceeded) => break,
-            Err(error) => return Err(error),
+            Err(_) => {
+                form_discovery_failed = true;
+                break;
+            }
         };
-        ensure_metadata_valid(port)?;
+        if ensure_metadata_valid(port).is_err() {
+            form_discovery_failed = true;
+            break;
+        }
         if !is_text_role(strings.role.as_deref(), strings.subrole.as_deref()) {
             continue;
         }
         let editable = port.value_settable(&element);
         let enabled = match read_enabled(port, &element, started) {
             Ok(enabled) => enabled.unwrap_or(editable),
-            Err(AxContextError::TimeBudgetExceeded) => break,
-            Err(error) => return Err(error),
+            Err(_) => {
+                form_discovery_failed = true;
+                break;
+            }
         };
-        ensure_metadata_valid(port)?;
+        if ensure_metadata_valid(port).is_err() {
+            form_discovery_failed = true;
+            break;
+        }
         if !editable || !enabled {
             continue;
         }
-        let Some(frame) = port.frame(&element).filter(valid_frame) else {
+        let frame = port.frame(&element).filter(valid_frame);
+        if ensure_metadata_valid(port).is_err() {
+            form_discovery_failed = true;
+            break;
+        }
+        let Some(frame) = frame else {
             continue;
         };
         observations.push(semantic_observation(
@@ -2228,11 +2266,30 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
         observation_elements.push(element);
         observation_paths.push(path);
     }
+    if form_discovery_failed {
+        observations.truncate(1);
+        observation_elements.truncate(1);
+        observation_paths.truncate(1);
+    }
     if observations.is_empty() {
         return Err(AxContextError::NoWritableField);
     }
     let detected = classify_fields(&observations);
-    let action = detect_action(&detected);
+    let action = if form_discovery_failed {
+        detected
+            .first()
+            .filter(|field| {
+                field.focused
+                    && field.confidence != FieldConfidence::Low
+                    && field.secret_field.is_some()
+            })
+            .map(|field| DetectedAction::Field {
+                field: field.secret_field.expect("checked above"),
+            })
+            .unwrap_or(DetectedAction::Choose)
+    } else {
+        detect_action(&detected)
+    };
     let window_identity = port.logical_identity(&window);
     let fields = observations
         .iter()
@@ -2531,6 +2588,8 @@ mod tests {
         child_request_limits: Vec<usize>,
         parent_requests: usize,
         delay_elapsed_until_child_visits: Option<usize>,
+        invalid_frame_metadata: HashSet<u16>,
+        invalid_metadata: Cell<bool>,
     }
 
     impl FakePort {
@@ -2591,6 +2650,8 @@ mod tests {
                 child_request_limits: Vec::new(),
                 parent_requests: 0,
                 delay_elapsed_until_child_visits: None,
+                invalid_frame_metadata: HashSet::new(),
+                invalid_metadata: Cell::new(false),
             }
         }
 
@@ -2644,6 +2705,10 @@ mod tests {
         fn frame(&mut self, element: &Self::Element) -> Option<AxFrame> {
             self.record("AXPosition");
             self.record("AXSize");
+            if self.invalid_frame_metadata.contains(&element.0) {
+                self.invalid_metadata.set(true);
+                return None;
+            }
             self.frames.get(&element.0).copied()
         }
 
@@ -2674,6 +2739,10 @@ mod tests {
                 } else {
                     self.elapsed
                 }
+        }
+
+        fn metadata_valid(&self) -> bool {
+            !self.invalid_metadata.get()
         }
     }
 
@@ -3008,6 +3077,147 @@ mod tests {
                 field: AutoFillSecretField::Username
             }
         ));
+    }
+
+    #[test]
+    fn reader_preserves_the_focused_field_when_electron_form_metadata_is_malformed() {
+        let mut port = FakePort::login_form();
+        port.strings.insert((2, "AXTitle"), "界".repeat(256));
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.example.electron", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("malformed sibling metadata must not erase the healthy focused field");
+
+        assert_eq!(capture.fields.len(), 1);
+        assert_eq!(
+            capture.fields[0].secret_field,
+            Some(AutoFillSecretField::Username)
+        );
+        assert!(matches!(
+            capture.action,
+            DetectedAction::Field {
+                field: AutoFillSecretField::Username
+            }
+        ));
+    }
+
+    #[test]
+    fn reader_discards_a_partial_form_when_the_last_descendant_frame_has_the_wrong_type() {
+        let mut port = FakePort::login_form();
+        port.children
+            .get_mut(&10)
+            .expect("form children")
+            .push(Element(3));
+        port.strings.insert((3, "AXRole"), "AXTextField".into());
+        port.strings
+            .insert((3, "AXPlaceholderValue"), "Account".into());
+        port.strings.insert((3, "AXEnabled"), "true".into());
+        port.settable.insert(3);
+        port.invalid_frame_metadata.insert(3);
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.example.electron", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("bad sibling geometry must fall back to the focused field");
+
+        assert_eq!(capture.fields.len(), 1);
+        assert_eq!(
+            capture.action,
+            DetectedAction::Field {
+                field: AutoFillSecretField::Username
+            }
+        );
+    }
+
+    #[test]
+    fn reader_discards_a_partial_form_when_descendant_or_field_limits_are_reached() {
+        let mut field_limited = FakePort::login_form();
+        let mut extra_fields = Vec::new();
+        for id in 3..=(MAX_FIELDS as u16 + 2) {
+            extra_fields.push(Element(id));
+            field_limited
+                .strings
+                .insert((id, "AXRole"), "AXTextField".into());
+            field_limited
+                .strings
+                .insert((id, "AXPlaceholderValue"), format!("Field {id}"));
+            field_limited
+                .strings
+                .insert((id, "AXEnabled"), "true".into());
+            field_limited.frames.insert(
+                id,
+                AxFrame {
+                    x: 100.0,
+                    y: f64::from(id) * 30.0,
+                    width: 180.0,
+                    height: 24.0,
+                },
+            );
+            field_limited.settable.insert(id);
+        }
+        field_limited
+            .children
+            .get_mut(&10)
+            .expect("form children")
+            .extend(extra_fields);
+        let field_capture = capture_with_port(
+            &mut field_limited,
+            Element(1),
+            test_frontmost_app("com.example.electron", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("field saturation falls back");
+        assert_eq!(field_capture.fields.len(), 1);
+
+        let mut descendant_limited = FakePort::login_form();
+        descendant_limited
+            .children
+            .insert(12, (30..30 + MAX_DESCENDANTS as u16).map(Element).collect());
+        let descendant_capture = capture_with_port(
+            &mut descendant_limited,
+            Element(1),
+            test_frontmost_app("com.example.electron", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("descendant saturation falls back");
+        assert_eq!(descendant_capture.fields.len(), 1);
+    }
+
+    #[test]
+    fn reader_uses_field_mode_for_a_single_secure_focus_after_form_discovery_fails() {
+        let mut port = FakePort::login_form();
+        port.strings
+            .insert((1, "AXRole"), "AXSecureTextField".into());
+        port.strings
+            .insert((1, "AXPlaceholderValue"), "Password".into());
+        port.strings.insert((2, "AXTitle"), "界".repeat(256));
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.example.electron", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("secure focused field survives form discovery failure");
+
+        assert_eq!(
+            capture.action,
+            DetectedAction::Field {
+                field: AutoFillSecretField::Password
+            }
+        );
     }
 
     #[test]
