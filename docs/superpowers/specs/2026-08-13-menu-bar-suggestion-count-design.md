@@ -9,10 +9,10 @@ same eligibility policy as the visible **AutoFill Suggestions** section, and is
 clamped to that section's existing maximum of five.
 
 Context monitoring runs in the Rust/Tauri process so it continues while the
-popup WebView is hidden or suspended. macOS application activation
-notifications trigger immediate refreshes. While a supported browser is the
-frontmost application, a one-second native poll detects active-tab URL changes;
-non-browser applications are not polled.
+popup WebView is hidden or suspended. macOS application activation and
+termination notifications trigger immediate refreshes. While a supported
+browser is the frontmost external application, a one-second native poll detects
+active-tab URL changes; non-browser applications are not polled.
 
 ## Goals
 
@@ -86,17 +86,22 @@ small side-effect boundaries.
 ### Application Activation
 
 On macOS, the monitor subscribes to
-`NSWorkspaceDidActivateApplicationNotification` on the AppKit main thread. An
-activation notification schedules refresh work outside the notification
-callback. Refresh performs these steps:
+`NSWorkspaceDidActivateApplicationNotification` and
+`NSWorkspaceDidTerminateApplicationNotification` on the AppKit main thread. A
+notification schedules refresh work outside the notification callback. Refresh
+performs these steps:
 
 1. Increment the observation generation and clear the tray title.
 2. Capture and validate the exact frontmost external application identity.
-3. If it is Barwarden, absent, terminated, or malformed, remain empty.
-4. For a supported browser, read and validate the active HTTP(S) URL.
-5. For a non-browser application, query with its existing application metadata
+3. If Barwarden itself became active because its popup opened, retain the last
+   validated external target and title; Barwarden activation is not a new
+   AutoFill target.
+4. If the observed external target terminated, or the new target is absent or
+   malformed, remain empty.
+5. For a supported browser, read and validate the active HTTP(S) URL.
+6. For a non-browser application, query with its existing application metadata
    and no service identifier.
-6. Query the Agent and publish only if the application, observation generation,
+7. Query the Agent and publish only if the application, observation generation,
    Agent session, and projection revision are still current.
 
 Notifications are coalesced so a burst does not create overlapping Agent
@@ -235,7 +240,10 @@ Implementation follows test-driven development.
 - Candidates returned for multiple fields are deduplicated while preserving
   Agent order.
 - Any failed field query fails closed.
-- Application changes clear before asynchronous refresh and reject late results.
+- External application changes clear before asynchronous refresh and reject
+  late results; Barwarden popup activation retains the captured external count.
+- Termination of the observed external application clears the count even while
+  Barwarden is frontmost.
 - Browser ticks run only for supported frontmost browsers.
 - Unchanged normalized URLs do not query the Agent or mutate the tray.
 - Changed, invalid, internal, unreadable, and stale URLs clear the old count.
@@ -260,16 +268,18 @@ workflow. Verify with the installed signed application:
 
 1. Switch between a matched normal application and an unmatched application;
    the title updates immediately and clears without showing the previous count.
-2. In each supported available browser family, switch between matched and
+2. Open Barwarden from the matched application; its popup activation retains the
+   number and the popup section shows the same count.
+3. In each supported available browser family, switch between matched and
    unmatched HTTP(S) tabs; the title updates within one second.
-3. Switch browser windows and confirm the active window URL drives the count.
-4. Open an internal browser page or deny/unavailable automation access; the
+4. Switch browser windows and confirm the active window URL drives the count.
+5. Open an internal browser page or deny/unavailable automation access; the
    title disappears.
-5. Lock and unlock the vault; the title clears and returns only after a valid
+6. Lock and unlock the vault; the title clears and returns only after a valid
    projection is available.
-6. Open the popup and confirm the tray number equals the visible suggestion
+7. Open the popup and confirm the tray number equals the visible suggestion
    section count, with the same first-ranked item and a maximum of five.
-7. Keep the popup closed for several minutes and confirm updates continue with
+8. Keep the popup closed for several minutes and confirm updates continue with
    bounded CPU use and no host or Agent crash.
 
 ## Privacy and Security
