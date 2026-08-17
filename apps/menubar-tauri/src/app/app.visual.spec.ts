@@ -78,11 +78,61 @@ function cssDeclarations(css: string, selector: string): string {
   return css.slice(blockStart + 1, blockEnd);
 }
 
+function installVisualCss(...paths: readonly string[]): () => void {
+  const style = document.createElement("style");
+  style.textContent = paths
+    .map((path) => readFileSync(join(process.cwd(), path), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  document.head.append(style);
+  return () => style.remove();
+}
+
 describe("popup visual smoke classes", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [provideNoopAnimations(), ...officialCurrentAccountTestProviders()],
     });
+  });
+
+  it("resolves the approved luminous palette and semantic field colors", () => {
+    const cleanup = installVisualCss("apps/menubar-tauri/src/styles/macos-tokens.css");
+    const root = document.documentElement;
+    root.setAttribute("data-bw-window", "popout");
+    root.removeAttribute("data-bw-theme");
+    const style = getComputedStyle(root);
+
+    expect(style.getPropertyValue("--mac-canvas").trim()).toBe("#f4f8ff");
+    expect(style.getPropertyValue("--mac-surface-solid").trim()).toBe("#fbfdff");
+    expect(style.getPropertyValue("--mac-surface-contextual").trim()).toBe("#eaf2ff");
+    expect(style.getPropertyValue("--mac-text-primary").trim()).toBe("#111827");
+    expect(style.getPropertyValue("--mac-text-secondary").trim()).toBe("#536784");
+    expect(style.getPropertyValue("--mac-action-username").trim()).toBe("#0a66ff");
+    expect(style.getPropertyValue("--mac-action-password").trim()).toBe("#6657d9");
+    expect(style.getPropertyValue("--mac-action-totp").trim()).toBe("#e98a15");
+    expect(style.getPropertyValue("--mac-control-min-size").trim()).toBe("44px");
+
+    root.removeAttribute("data-bw-window");
+    cleanup();
+  });
+
+  it("defines a solid dark surface ladder and brighter semantic actions", () => {
+    const cleanup = installVisualCss("apps/menubar-tauri/src/styles/macos-tokens.css");
+    const root = document.documentElement;
+    root.setAttribute("data-bw-window", "popout");
+    root.setAttribute("data-bw-theme", "dark");
+    const style = getComputedStyle(root);
+
+    expect(style.getPropertyValue("--mac-canvas").trim()).toBe("#101621");
+    expect(style.getPropertyValue("--mac-surface-solid").trim()).toBe("#151d2a");
+    expect(style.getPropertyValue("--mac-surface-contextual").trim()).toBe("#1a2638");
+    expect(style.getPropertyValue("--mac-action-username").trim()).toBe("#4c8dff");
+    expect(style.getPropertyValue("--mac-action-password").trim()).toBe("#9b8cff");
+    expect(style.getPropertyValue("--mac-action-totp").trim()).toBe("#ffb454");
+
+    root.removeAttribute("data-bw-theme");
+    root.removeAttribute("data-bw-window");
+    cleanup();
   });
 
   it("uses the official default popup dimensions and application icon in Tauri configuration", () => {
@@ -132,7 +182,7 @@ describe("popup visual smoke classes", () => {
     expect(canvas).toContain("background: transparent;");
   });
 
-  it("uses one visible, continuous material gradient for menu-bar and popout auth routes", () => {
+  it("uses one visible, continuous material surface for menu-bar and popout auth routes", () => {
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
@@ -142,23 +192,24 @@ describe("popup visual smoke classes", () => {
       "utf8",
     );
 
-    expect(rootTokens).toMatch(/--mac-popup-material:\s*linear-gradient\(/);
+    expect(rootTokens).toContain("--mac-popup-material: #f4f8ff;");
     expect(globalCss).toMatch(
       /:root:not\(\[data-bw-window="popout"\]\) barwarden-root\s*{[^}]*background:\s*var\(--mac-popup-material\);/s,
     );
     expect(globalCss).toMatch(
       /popup-page > main,[\s\S]*?background:\s*transparent !important;/,
     );
-    expect(rootTokens).toMatch(/--mac-auth-background:\s*linear-gradient\(/);
+    expect(rootTokens).toContain("--mac-auth-background: #f4f8ff;");
     expect(globalCss).toMatch(
-      /:root:has\([\s\S]*?bw-lock-page[\s\S]*?\)\s+barwarden-root\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
+      /barwarden-root\.barwarden-root--authentication\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
     );
     expect(globalCss).toMatch(
-      /:root:has\([\s\S]*?bw-lock-page[\s\S]*?\)\s+:is\([\s\S]*?popup-page > main,[\s\S]*?background:\s*transparent !important;/s,
+      /barwarden-root\.barwarden-root--authentication\s+:is\([\s\S]*?popup-page > main,[\s\S]*?background:\s*transparent !important;/s,
     );
     expect(globalCss).toMatch(
-      /:root:has\([\s\S]*?bw-lock-page[\s\S]*?\)\s+body\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
+      /body:has\(> barwarden-root\.barwarden-root--authentication\)\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
     );
+    expect(globalCss).not.toMatch(/barwarden-root:has\([^}]*bw-lock-page/s);
     expect(globalCss).not.toContain(':root:not([data-bw-window="popout"]):has(');
   });
 
