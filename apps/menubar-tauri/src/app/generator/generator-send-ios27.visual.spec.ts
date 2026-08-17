@@ -79,6 +79,16 @@ afterAll(() => {
 });
 
 describe("iOS 27 Generator visual contract", () => {
+  it("keeps Send form groups flat with touch-safe controls and an explicit focus ring", () => {
+    const css = style.textContent ?? "";
+    expect(css).toMatch(/\.macos-send-form__group\s*\{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-send-form__field\s*\{[^}]*padding-block:\s*10px[^}]*border-bottom:/s);
+    expect(css).toMatch(/\.macos-send-form__field\s+:is\(input,\s*textarea,\s*select\)\s*\{[^}]*min-height:\s*44px[^}]*border-radius:\s*10px/s);
+    expect(css).toMatch(/\.macos-send-form__field\s+:is\(input,\s*textarea,\s*select\):focus-visible\s*\{[^}]*outline:\s*2px\s+solid\s+var\(--mac-focus\)/s);
+    expect(css).toMatch(/\.macos-page--send-form\s+:is\(button,\s*a\)\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s);
+    expect(css).toMatch(/\.macos-page--send-form\s+bit-form-control\s*>\s*label\s*\{[^}]*min-height:\s*44px/s);
+  });
+
   it("renders the real Generator page with flat ordinary surfaces and touch-safe controls", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");

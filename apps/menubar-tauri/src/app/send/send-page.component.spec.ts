@@ -1005,9 +1005,10 @@ describe("SendAddEditPageComponent", () => {
     expect(host.textContent).not.toContain("谁可以查看");
     expect(host.textContent).toContain("附加选项");
     expect(host.querySelector('input[type="password"]')).toBeNull();
-    expect(host.querySelector("footer button[bitbutton]")?.getAttribute("aria-disabled")).toBe("true");
+    expect(host.querySelector('[data-testid="save-send"]')?.getAttribute("aria-disabled")).not.toBe("true");
     expect(host.querySelectorAll("bit-section").length).toBeGreaterThanOrEqual(2);
-    expect(host.querySelector("bit-card")).not.toBeNull();
+    expect(host.querySelector("bit-card")).toBeNull();
+    expect(host.querySelectorAll(".macos-send-form__group").length).toBeGreaterThanOrEqual(2);
     expect(host.querySelector("bit-form-field")).not.toBeNull();
     expect(host.querySelector("input[bitinput]")).not.toBeNull();
     expect(host.querySelector("input[bitcheckbox]")).not.toBeNull();
@@ -1015,6 +1016,40 @@ describe("SendAddEditPageComponent", () => {
     expect(textSendDeletionPresetHours).toEqual([1, 24, 48, 72, 7 * 24, 14 * 24, 30 * 24]);
     expect(host.querySelector(".send-form-field")).toBeNull();
     expect(host.querySelector(".detail-card")).toBeNull();
+  });
+
+  it("reveals all submit errors, focuses name first, and clears a corrected blur error", async () => {
+    const sendActions = new RecordingSendActions();
+    const fixture = await createAddEditFixture("text", {
+      session: fakeAuthSession(),
+      sendActions,
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const name = host.querySelector<HTMLInputElement>("#send-name")!;
+
+    name.focus();
+    name.blur();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="send-error-name"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="send-error-text"]')).toBeNull();
+
+    host.querySelector<HTMLButtonElement>('[data-testid="save-send"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(document.activeElement).toBe(name);
+    expect(host.querySelector('#send-text[aria-invalid="true"]')).not.toBeNull();
+    expect(host.querySelectorAll('[data-testid^="send-error-"]')).toHaveLength(2);
+    expect(sendActions.calls).toEqual([]);
+
+    name.value = "Valid";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    name.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(host.querySelector('[data-testid="send-error-name"]')).toBeNull();
+    expect(host.querySelector('#send-name[aria-invalid="true"]')).toBeNull();
   });
 
   it("normalizes a file Send route to the text Send form", async () => {

@@ -6,23 +6,32 @@
 @@ -3 +3 @@
 -    <h2 bitTypography="h6">{{ "sendDetails" | i18n }}</h2>
 +    <h2 bitTypography="h6">{{ "i18nSendDetails" | i18n }}</h2>
-@@ -8,2 +8,2 @@
+@@ -6,4 +6,7 @@
+-  <bit-card>
+-    <bit-form-field>
 -      <bit-label>Send {{ "name" | i18n | lowercase }}</bit-label>
 -      <input bitInput type="text" formControlName="name" [readonly]="!editing()" />
++  <div class="macos-send-form__group">
++    <bit-form-field class="macos-send-form__field">
 +      <bit-label>{{ "i18nSendName" | i18n }}</bit-label>
-+      <input bitInput type="text" [value]="value().name" [readonly]="!editing()" (input)="valueChange.emit({ name: inputValue($event) })" />
-@@ -12,6 +12 @@
++      <input bitInput id="send-name" type="text" [value]="value().name" [readonly]="!editing()" [attr.aria-invalid]="touched().has('name') && errors().name ? 'true' : null" [attr.aria-describedby]="touched().has('name') && errors().name ? 'send-error-name' : null" (input)="valueChange.emit({ name: inputValue($event) })" (blur)="fieldBlur.emit('name')" />
++      @if (touched().has("name") && errors().name) {
++        <p id="send-error-name" data-testid="send-error-name" role="alert" class="macos-send-form__error">{{ "inputRequired" | i18n }}</p>
++      }
+@@ -12,6 +15 @@
 -    @if (sendFormService.sendFormConfig.sendType === SendType.Text) {
 -      <tools-send-text-details [editing]="editing()"></tools-send-text-details>
 -    }
 -    @if (sendFormService.sendFormConfig.sendType === SendType.File) {
 -      <tools-send-file-details [editing]="editing()"></tools-send-file-details>
 -    }
-+    <bw-official-send-text-details [editing]="editing()" [value]="value()" (valueChange)="valueChange.emit($event)"></bw-official-send-text-details>
-@@ -20 +15 @@
++    <bw-official-send-text-details [editing]="editing()" [value]="value()" [errors]="errors()" [touched]="touched()" (valueChange)="valueChange.emit($event)" (fieldBlur)="fieldBlur.emit($event)"></bw-official-send-text-details>
+@@ -19,2 +17,2 @@
+-    <bit-form-field>
 -      <bit-label>{{ "deletionDate" | i18n }}</bit-label>
++    <bit-form-field class="macos-send-form__field">
 +      <bit-label>{{ "i18nDeleteDate" | i18n }}</bit-label>
-@@ -22,6 +17 @@
+@@ -22,6 +20 @@
 -        <input
 -          bitInput
 -          type="text"
@@ -30,7 +39,7 @@
 -          readonly
 -        />
 +        <input bitInput type="text" [value]="deletionLabel()" readonly />
-@@ -29,7 +19,3 @@
+@@ -29,7 +22,3 @@
 -        <bit-select
 -          id="deletionDate"
 -          name="SelectedDeletionDatePreset"
@@ -41,7 +50,7 @@
 +        <bit-select [ngModel]="value().deletionPresetHours" (ngModelChange)="valueChange.emit({ deletionPresetHours: deletionPreset($event) })" [ngModelOptions]="{ standalone: true }">
 +          @for (option of datePresetOptions; track option.value) {
 +            <bit-option [value]="option.value" [label]="option.label"></bit-option>
-@@ -39,7 +25 @@
+@@ -39,7 +28 @@
 -      <!-- To be projected correctly into the bit-hint slot <bit-hint> must be the only element in its block -->
 -      @if (editing() && !policyDeletionHoursOrgName) {
 -        <bit-hint>{{ "deletionDateDescV2" | i18n }}</bit-hint>
@@ -50,15 +59,15 @@
 -        <bit-hint>{{ "sendDeletionDateSetByOrg" | i18n: policyDeletionHoursOrgName }}</bit-hint>
 -      }
 +      @if (editing()) { <bit-hint>{{ "i18nSendDeletionHint" | i18n }}</bit-hint> }
-@@ -48,5 +28,2 @@
+@@ -48,5 +31,2 @@
 -    <bit-form-field
 -      [disableMargin]="sendDetailsForm.get('authType').value === AuthType.None"
 -      [hidden]="(availableAuthTypes$ | async).length === 1"
 -    >
 -      <bit-label>{{ "whoCanView" | i18n }}</bit-label>
-+    <bit-form-field [disableMargin]="value().authType === 'none'">
++    <bit-form-field class="macos-send-form__field" [disableMargin]="value().authType === 'none'">
 +      <bit-label>{{ "i18nWhoCanAccess" | i18n }}</bit-label>
-@@ -54,6 +31 @@
+@@ -54,6 +34 @@
 -        <input
 -          bitInput
 -          type="text"
@@ -66,14 +75,14 @@
 -          readonly
 -        />
 +        <input bitInput type="text" [value]="authTypeLabel()" readonly />
-@@ -61,3 +33,3 @@
+@@ -61,3 +36,3 @@
 -        <bit-select formControlName="authType">
 -          @for (option of availableAuthTypes$ | async; track option.value) {
 -            <bit-option [value]="option.value" [label]="option.nameKey | i18n"></bit-option>
 +        <bit-select [ngModel]="value().authType" (ngModelChange)="valueChange.emit({ authType: authType($event) })" [ngModelOptions]="{ standalone: true }">
 +          @for (option of authorizationOptions; track option.value) {
 +            <bit-option [value]="option.value" [label]="option.label"></bit-option>
-@@ -67,10 +39 @@
+@@ -67,10 +42 @@
 -      <!-- To be projected correctly into the bit-hint slot <bit-hint> must be the only element in its block -->
 -      @let hintKey =
 -        sendDetailsForm.controls.authType.value === AuthType.Password
@@ -85,15 +94,16 @@
 -        <bit-hint class="tw-mt-2">{{ hintKey | i18n }}</bit-hint>
 -      }
 +      @if (editing() && value().authType === 'password') { <bit-hint class="tw-mt-2">{{ "i18nPasswordRequiredForSend" | i18n }}</bit-hint> }
-@@ -79 +42 @@
+@@ -79,4 +45,4 @@
 -    @if (sendDetailsForm.get("authType").value === AuthType.Password) {
-+    @if (value().authType === 'password') {
-@@ -81,2 +44,2 @@
+-      <bit-form-field disableMargin>
 -        <bit-label>{{ (passwordRemoved ? "newPassword" : "password") | i18n }}</bit-label>
 -        <input bitInput type="password" formControlName="password" [readonly]="!editing()" />
++    @if (value().authType === 'password') {
++      <bit-form-field class="macos-send-form__field" disableMargin>
 +        <bit-label>{{ originalHadPassword() ? ("i18nNewPassword" | i18n) : ("password" | i18n) }}</bit-label>
-+        <input bitInput type="password" [value]="value().password" [readonly]="!editing() || originalHadPassword()" (input)="valueChange.emit({ password: inputValue($event) })" />
-@@ -84,44 +47,5 @@
++        <input bitInput id="send-password" type="password" [value]="value().password" [readonly]="!editing() || originalHadPassword()" [attr.aria-invalid]="touched().has('password') && errors().password ? 'true' : null" [attr.aria-describedby]="touched().has('password') && errors().password ? 'send-error-password' : null" (input)="valueChange.emit({ password: inputValue($event) })" (blur)="fieldBlur.emit('password')" />
+@@ -84,44 +50,5 @@
 -          @if (!originalHadPassword) {
 -            <button
 -              data-testid="toggle-visibility-for-password"
@@ -143,7 +153,9 @@
 +            <button type="button" bitIconButton="bwi-clone" size="small" [disabled]="disabled() || !value().password" (click)="copyPassword.emit($event)"></button>
 +          } @else if (editing()) {
 +            <button type="button" buttonType="dangerGhost" bitIconButton="bwi-minus-circle" size="small" [disabled]="disabled()" (click)="removePassword.emit()"></button>
-@@ -132,17 +55,0 @@
+@@ -130,16 +57,2 @@
+-      </bit-form-field>
+-    }
 -
 -    @if (sendDetailsForm.get("authType").value === AuthType.Email) {
 -      <bit-form-field disableMargin class="tw-mt-4">
@@ -158,9 +170,10 @@
 -        ></textarea>
 -        @if (editing()) {
 -          <bit-hint>{{ "enterMultipleEmailsSeparatedByComma" | i18n }}</bit-hint>
--        }
--      </bit-form-field>
--    }
-@@ -150 +57 @@
++        @if (touched().has("password") && errors().password) {
++          <p id="send-error-password" data-testid="send-error-password" role="alert" class="macos-send-form__error">{{ "inputRequired" | i18n }}</p>
+@@ -149,2 +62,2 @@
+-  </bit-card>
 -  <tools-send-options [editing]="editing()"></tools-send-options>
-+  <bw-official-send-options [editing]="editing()" [hideEmailAllowed]="hideEmailAllowed()" [value]="value()" (valueChange)="valueChange.emit($event)"></bw-official-send-options>
++  </div>
++  <bw-official-send-options [editing]="editing()" [hideEmailAllowed]="hideEmailAllowed()" [value]="value()" [errors]="errors()" [touched]="touched()" (valueChange)="valueChange.emit($event)" (fieldBlur)="fieldBlur.emit($event)"></bw-official-send-options>

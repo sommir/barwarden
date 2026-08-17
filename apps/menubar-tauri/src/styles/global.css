@@ -2929,6 +2929,45 @@ auth-account .macos-account-label {
   box-shadow: none;
 }
 
+.macos-send-form__group {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-send-form__field {
+  padding-block: 10px;
+  border-bottom: 1px solid var(--mac-border-subtle);
+}
+
+.macos-send-form__error {
+  margin: 4px 0 0;
+  color: var(--mac-destructive);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.macos-send-form__field :is(input, textarea, select) {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+.macos-send-form__field :is(input, textarea, select):focus-visible {
+  outline: 2px solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--send-form :is(button, a) {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.macos-page--send-form bit-form-control > label {
+  min-height: 44px;
+}
+
 .about-version-summary {
   margin: var(--mac-space-3) var(--mac-space-3) 0;
   color: var(--mac-text-secondary);

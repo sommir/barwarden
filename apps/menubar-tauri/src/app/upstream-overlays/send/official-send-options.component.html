@@ -3,12 +3,15 @@
     <bit-section-header>
       <h2 class="tw-mt-4" bitTypography="h6">{{ "additionalOptions" | i18n }}</h2>
     </bit-section-header>
-    <bit-card>
+    <div class="macos-send-form__group">
       @if (maxAccessCountVisible()) {
-        <bit-form-field [disableMargin]="!hideEmailVisible() && !privateNoteVisible()">
+        <bit-form-field class="macos-send-form__field" [disableMargin]="!hideEmailVisible() && !privateNoteVisible()">
           <bit-label>{{ "i18nMaxAccessCount" | i18n }}</bit-label>
-          <input bitInput [value]="value().maxAccessCount" [readonly]="!editing()" id="maxAccessCountInput" (input)="valueChange.emit({ maxAccessCount: inputValue($event) })" />
+          <input bitInput id="send-maxAccessCount" type="number" min="1" step="1" inputmode="numeric" [value]="value().maxAccessCount" [readonly]="!editing()" [attr.aria-invalid]="touched().has('maxAccessCount') && errors().maxAccessCount ? 'true' : null" [attr.aria-describedby]="touched().has('maxAccessCount') && errors().maxAccessCount ? 'send-error-maxAccessCount' : null" (input)="valueChange.emit({ maxAccessCount: inputValue($event) })" (blur)="fieldBlur.emit('maxAccessCount')" />
           @if (editing()) { <bit-hint>{{ "i18nMaxAccessCountHint" | i18n }}</bit-hint> }
+          @if (touched().has("maxAccessCount") && errors().maxAccessCount) {
+            <p id="send-error-maxAccessCount" data-testid="send-error-maxAccessCount" role="alert" class="macos-send-form__error">{{ "inputMinValue" | i18n: 1 }}</p>
+          }
         </bit-form-field>
       }
       @if (hideEmailVisible()) {
@@ -18,11 +21,11 @@
         </bit-form-control>
       }
       @if (privateNoteVisible()) {
-        <bit-form-field disableMargin>
+        <bit-form-field class="macos-send-form__field" disableMargin>
           <bit-label>{{ "i18nPrivateNotes" | i18n }}</bit-label>
           <textarea bitInput rows="3" [value]="value().notes" [readonly]="!editing()" (input)="valueChange.emit({ notes: inputValue($event) })"></textarea>
         </bit-form-field>
       }
-    </bit-card>
+    </div>
   }
 </bit-section>

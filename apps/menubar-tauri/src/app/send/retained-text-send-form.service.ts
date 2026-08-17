@@ -13,6 +13,12 @@ export interface RetainedTextSendFormValue {
   readonly notes: string;
 }
 
+export type RetainedTextSendField = "name" | "text" | "password" | "maxAccessCount";
+export type RetainedTextSendError = "required" | "invalid-positive-integer";
+export type RetainedTextSendErrors = Readonly<
+  Partial<Record<RetainedTextSendField, RetainedTextSendError>>
+>;
+
 const emptyValue: RetainedTextSendFormValue = {
   name: "", text: "", hidden: false, deletionPresetHours: 168, authType: "none",
   password: "", maxAccessCount: "", hideEmail: false, notes: "",
@@ -46,14 +52,21 @@ export class RetainedTextSendFormService {
   value(): RetainedTextSendFormValue { return { ...this.current }; }
   revision(): number { return this.changeRevision; }
   dirty(): boolean { return JSON.stringify(this.current) !== JSON.stringify(this.original); }
-  valid(): boolean {
-    const maximum = this.maxAccessCount();
-    const passwordValid = this.current.authType !== "password" ||
-      this.original.authType === "password" ||
-      this.current.password.trim().length > 0;
-    return this.current.name.trim().length > 0 && this.current.text.trim().length > 0 &&
-      passwordValid && (maximum === undefined || maximum !== null);
+  errors(): RetainedTextSendErrors {
+    const errors: Partial<Record<RetainedTextSendField, RetainedTextSendError>> = {};
+    if (!this.current.name.trim()) errors.name = "required";
+    if (!this.current.text.trim()) errors.text = "required";
+    if (
+      this.current.authType === "password" &&
+      this.original.authType !== "password" &&
+      !this.current.password.trim()
+    ) {
+      errors.password = "required";
+    }
+    if (this.maxAccessCount() === null) errors.maxAccessCount = "invalid-positive-integer";
+    return errors;
   }
+  valid(): boolean { return Object.keys(this.errors()).length === 0; }
 
   draft(now: Date): TextSendDraft {
     if (!this.valid()) throw new Error("Invalid Text Send form");

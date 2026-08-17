@@ -1,9 +1,8 @@
 --- authority
 +++ runtime
-@@ -1 +1 @@
+@@ -1,10 +1,7 @@
 -<bit-section [formGroup]="sendTextDetailsForm" disableMargin>
-+<bit-section disableMargin>
-@@ -3,8 +3,2 @@
+-  <bit-form-field>
 -    <bit-label>{{ "sendTypeTextToShare" | i18n }}</bit-label>
 -    <textarea
 -      bitInput
@@ -12,9 +11,14 @@
 -      formControlName="text"
 -      [readonly]="formDisabled()"
 -    ></textarea>
++<bit-section disableMargin>
++  <bit-form-field class="macos-send-form__field">
 +    <bit-label>{{ "i18nTextToShare" | i18n }}</bit-label>
-+    <textarea bitInput id="text" rows="3" [value]="value().text" [readonly]="!editing()" (input)="valueChange.emit({ text: inputValue($event) })"></textarea>
-@@ -14,2 +8,2 @@
++    <textarea bitInput id="send-text" rows="3" [value]="value().text" [readonly]="!editing()" [attr.aria-invalid]="touched().has('text') && errors().text ? 'true' : null" [attr.aria-describedby]="touched().has('text') && errors().text ? 'send-error-text' : null" (input)="valueChange.emit({ text: inputValue($event) })" (blur)="fieldBlur.emit('text')"></textarea>
++    @if (touched().has("text") && errors().text) {
++      <p id="send-error-text" data-testid="send-error-text" role="alert" class="macos-send-form__error">{{ "inputRequired" | i18n }}</p>
++    }
+@@ -14,2 +11,2 @@
 -      <input bitCheckbox type="checkbox" formControlName="hidden" />
 -      <bit-label>{{ "hideTextByDefault" | i18n }}</bit-label>
 +      <input bitCheckbox type="checkbox" [checked]="value().hidden" [disabled]="!editing()" (change)="valueChange.emit({ hidden: checked($event) })" />

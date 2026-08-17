@@ -3,7 +3,11 @@
 @@ -1 +1 @@
 -<bit-section [formGroup]="sendOptionsForm" disableMargin>
 +<bit-section disableMargin>
-@@ -9,13 +9,3 @@
+@@ -6 +6 @@
+-    <bit-card>
++    <div class="macos-send-form__group">
+@@ -8,10 +8,6 @@
+-        <bit-form-field [disableMargin]="!hideEmailVisible() && !privateNoteVisible()">
 -          <bit-label>{{ "maxAccessCount" | i18n }}</bit-label>
 -          <input
 -            bitInput
@@ -13,20 +17,28 @@
 -          />
 -          @if (editing()) {
 -            <bit-hint>{{ "limitSendViewsHint" | i18n }}</bit-hint>
--          }
++        <bit-form-field class="macos-send-form__field" [disableMargin]="!hideEmailVisible() && !privateNoteVisible()">
++          <bit-label>{{ "i18nMaxAccessCount" | i18n }}</bit-label>
++          <input bitInput id="send-maxAccessCount" type="number" min="1" step="1" inputmode="numeric" [value]="value().maxAccessCount" [readonly]="!editing()" [attr.aria-invalid]="touched().has('maxAccessCount') && errors().maxAccessCount ? 'true' : null" [attr.aria-describedby]="touched().has('maxAccessCount') && errors().maxAccessCount ? 'send-error-maxAccessCount' : null" (input)="valueChange.emit({ maxAccessCount: inputValue($event) })" (blur)="fieldBlur.emit('maxAccessCount')" />
++          @if (editing()) { <bit-hint>{{ "i18nMaxAccessCountHint" | i18n }}</bit-hint> }
++          @if (touched().has("maxAccessCount") && errors().maxAccessCount) {
++            <p id="send-error-maxAccessCount" data-testid="send-error-maxAccessCount" role="alert" class="macos-send-form__error">{{ "inputMinValue" | i18n: 1 }}</p>
+@@ -19,3 +14,0 @@
 -          @if (showAccessCount()) {
 -            <bit-hint>&nbsp;{{ "limitSendViewsCount" | i18n: viewsLeft() }}</bit-hint>
 -          }
-+          <bit-label>{{ "i18nMaxAccessCount" | i18n }}</bit-label>
-+          <input bitInput [value]="value().maxAccessCount" [readonly]="!editing()" id="maxAccessCountInput" (input)="valueChange.emit({ maxAccessCount: inputValue($event) })" />
-+          @if (editing()) { <bit-hint>{{ "i18nMaxAccessCountHint" | i18n }}</bit-hint> }
-@@ -26,2 +16,2 @@
+@@ -26,2 +19,2 @@
 -          <input bitCheckbox type="checkbox" formControlName="hideEmail" />
 -          <bit-label>{{ "hideMyEmail" | i18n }}</bit-label>
 +          <input bitCheckbox type="checkbox" [checked]="value().hideEmail" [disabled]="!editing()" (change)="valueChange.emit({ hideEmail: checked($event) })" />
 +          <bit-label>{{ "i18nHideEmailFromRecipients" | i18n }}</bit-label>
-@@ -32,2 +22,2 @@
+@@ -31,3 +24,3 @@
+-        <bit-form-field disableMargin>
 -          <bit-label>{{ "privateNote" | i18n }}</bit-label>
 -          <textarea bitInput rows="3" formControlName="notes" [readonly]="!editing()"></textarea>
++        <bit-form-field class="macos-send-form__field" disableMargin>
 +          <bit-label>{{ "i18nPrivateNotes" | i18n }}</bit-label>
 +          <textarea bitInput rows="3" [value]="value().notes" [readonly]="!editing()" (input)="valueChange.emit({ notes: inputValue($event) })"></textarea>
+@@ -36 +29 @@
+-    </bit-card>
++    </div>

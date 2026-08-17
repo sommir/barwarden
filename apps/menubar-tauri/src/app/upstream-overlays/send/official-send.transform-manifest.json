@@ -67,11 +67,11 @@
   "localRuntimes": [
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.html",
-      "sha256": "455e84fe51e8782a25f7b15a2206f80d09e29a97c9effc0063d490bc38bc6b12"
+      "sha256": "52545240d44e8ceebb35b1d33b958a083316bb74e0af918b83afbfac46641e61"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
-      "sha256": "d76c1f8f98556b761d0d3a113a885b33a7aa68d6f25e881f8f5d52ef1d9ef9c6"
+      "sha256": "14387fc5f8ab6f4b84e7227bd71e603a9b8073f878f6038d7c16e85543c5a339"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.html",
@@ -83,11 +83,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.html",
-      "sha256": "471c14ddcac88a9f7f9e3bd6b70e4cb1308f32d3ad63c072fab2f84ae9fc7098"
+      "sha256": "f157d73bcff0f836758618957818742f08afd02d58c751e14ac9d5f901d7dd7a"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
-      "sha256": "930b814a4b461563f23426d382461b0bc1aa161bb5d8e70d3f678b376a1e6cd5"
+      "sha256": "45f6d522c64c7aed8ebc51a31a76fbaefcd81bfcd5e82eb438d4866478b12b05"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.html",
@@ -107,15 +107,15 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
-      "sha256": "f474d84f75dc6682a0a12c9a28864756d6ddc0041fe38c99c3d1b142ef371888"
+      "sha256": "11f49dabca52e4befd4c04116d8ae7547dacfd1834a43aef89dcfa476eda2a4a"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html",
-      "sha256": "7fdf948bc699e06f315b76991fad8265f180a04bdf576f12ad4bbac92a39e322"
+      "sha256": "c6f0f9f522428224f2fded2b8b73df215c30988614a83b4874e6c0a89c682374"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
-      "sha256": "12a3b1199d1d6fa24a5fbf3931abf34c0dda8fb5d8b8bfb350e3a028cb0369db"
+      "sha256": "d009c49f009b7e74edf512883f39c636fb5f1132d242ab9faa5f41778934bdd1"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-raw-template.d.ts",
@@ -123,19 +123,19 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html",
-      "sha256": "2cd16bdda2cd34e65ca43c66498259821f023e9dbeb258e5f3cdf1988e31541f"
+      "sha256": "c63e854b8ffd5e2705ff2dd3062b27471eac741b7a60496f275fe8ac2981d74d"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
-      "sha256": "0ff545f96df27ca4b299da0e4b7ed9914865b00f904472e4dafcf9039bcdc72d"
+      "sha256": "534424dd2b3711cab6ee7d7c0160e12c47a5333251a3b32989654baf0d872906"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.html.patch",
-      "sha256": "815e8d1ce49c115c22cdc555390150cdfbb86ed265b240fdc32f166d7d5c03a2"
+      "sha256": "bcafaad1f136bcc27db4ce8b6af085a7d3be21ede7ba8192ae525b39a7e753eb"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.ts.patch",
-      "sha256": "bb5a9d6072955c6c18165f99761796ae9816681738de8a10effc7ae2d40eb8af"
+      "sha256": "06225ed7cf8e844289e132d0a40d05e4107096798134472dd50e4e8552d7878c"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-created.component.ts.patch",
@@ -143,11 +143,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.html.patch",
-      "sha256": "2a51e10d06a40bbd6a1ca1f3ea40c80f7304975d34d955e5d0efc19e6097e3f7"
+      "sha256": "63591dadb152521e88899a4b1b5cbeeb45b2abca8611db043845cb67d2b22387"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.ts.patch",
-      "sha256": "7a3ba9d03bf0cadc71f6fd8695e79c00b641bbbf3c7fba054a3ba0cb34c473bc"
+      "sha256": "7b60b7c6a4a0c4aa5416de82b7085e3f315e17ba9939a92e1a5da9b1142de611"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-list-items-container.component.ts.patch",
@@ -159,19 +159,19 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.html.patch",
-      "sha256": "88e39e07974fe88100cc885389ea0d1beaecf636e6d68b53a3fb4bf7c9c12d04"
+      "sha256": "c94f43cdf069a9579140d67e6861604fb384a489e9fd6de16815db5127b9a6f3"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.ts.patch",
-      "sha256": "c0e07160467dc79309b9db707445fa73a9490f4d17c4336d37f90365adbec264"
+      "sha256": "4c80705271f9766270c0c2ee010b03758ab0527159a55bd99be8102e68f05dd2"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.html.patch",
-      "sha256": "a303d3b598455f7aad548cf0b00bf85c6ee50c76c1d5a4c25d0616c5be0b7ab5"
+      "sha256": "a876b4ca554fa6acb21c712f8ffb91fc4e91ba5d40b022869331c888b01e7568"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.ts.patch",
-      "sha256": "0755c9e0347874f6be358161ee4d0e75fa7363a1c6aa3159637274d9f1aac263"
+      "sha256": "e0b81acc183ef15feb53009445c452fb94d4bb1aa1c5fc89d8a98153fdb25df6"
     }
   ],
   "aliases": [
@@ -194,7 +194,7 @@
   ],
   "transformContract": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
-    "sha256": "f474d84f75dc6682a0a12c9a28864756d6ddc0041fe38c99c3d1b142ef371888"
+    "sha256": "11f49dabca52e4befd4c04116d8ae7547dacfd1834a43aef89dcfa476eda2a4a"
   },
   "productionRoots": [
     "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
@@ -326,8 +326,6 @@
       "vendor/bitwarden-clients/libs/components/src/button/button.component.html",
       "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
       "vendor/bitwarden-clients/libs/components/src/button/index.ts",
-      "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts",
-      "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
       "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
       "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
       "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.html",
@@ -788,18 +786,6 @@
         "kind": "export",
         "specifier": "@bitwarden/components/button/button.component",
         "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
-      },
-      {
-        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
-        "kind": "export",
-        "specifier": "@bitwarden/components/card/card.component",
-        "target": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts"
-      },
-      {
-        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
-        "kind": "export",
-        "specifier": "@bitwarden/components/card/card.component",
-        "target": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts"
       },
       {
         "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
@@ -2060,24 +2046,6 @@
         "kind": "export",
         "specifier": "./button.component",
         "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
-      },
-      {
-        "from": "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts",
-        "kind": "import",
-        "specifier": "@angular/core",
-        "target": null
-      },
-      {
-        "from": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
-        "kind": "import",
-        "specifier": "./base-card/base-card.directive",
-        "target": "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts"
-      },
-      {
-        "from": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
-        "kind": "import",
-        "specifier": "@angular/core",
-        "target": null
       },
       {
         "from": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
@@ -3370,6 +3338,6 @@
         "target": null
       }
     ],
-    "sha256": "da79d4c893bb530d4ff7a385c6a504df04cfea21a8ae0b1b5012f2ab565da019"
+    "sha256": "389ff945ac89dc34e91730ea04e34e16cd1b811a6e4e4a5c0b03a7b5f3f97c2b"
   }
 }
