@@ -280,6 +280,12 @@ export class OtpFacade {
 
 `PopupRouterCacheService` owns `Map<PopupTabRoute, PopupUiSnapshot>` only. `VaultFacade` continues to own Vault query, `PopupStateStore` owns Vault/Send filters, `SendFacade` owns Send query, retained Generator services own Generator options, and `OtpFacade` owns OTP query. `clear()` empties history, route handles, tab snapshots, and OTP query; it does not reset Vault, Send, Generator, or Settings owners.
 
+For Vault, OTP, New Item, folder, archive, and trash producers, the authoritative registry is
+[`2026-08-17-ios27-vault-workflows.md` § Exact focus-key producers](./2026-08-17-ios27-vault-workflows.md#exact-focus-key-producers).
+The rows below are a consumer inventory only: they link each already-authoritative value to the
+test that this plan verifies, and must never rename, alias, or independently redefine a Vault-owned
+key. Any conflict is resolved in favor of that registry before implementation.
+
 The interaction plan consumes, but never rewrites, guarded focus producers installed by prior plans:
 
 | Key | Existing producer |
