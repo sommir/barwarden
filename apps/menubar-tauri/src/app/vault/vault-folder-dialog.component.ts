@@ -50,6 +50,7 @@ import {
       labelledBy="folder-dialog-title"
       testId="folder-dialog"
       (dismissed)="close()"
+      (closed)="onFolderDialogClosed()"
       (click)="onFolderDialogClick($event)"
     >
       <bw-official-add-edit-folder-dialog
@@ -68,6 +69,7 @@ import {
       testId="delete-folder-confirmation"
       labelledBy="delete-folder-title"
       (dismissed)="closeDeleteDialog()"
+      (closed)="onDeleteDialogClosed()"
       (click)="onDeleteDialogClick($event)"
     >
       <form bit-dialog dialogSize="small" (submit)="confirmDelete($event)">
@@ -101,7 +103,9 @@ export class VaultFolderDialogComponent implements OnDestroy {
   readonly errorMessage = signal("");
   isOpen = false;
   private sourceFolder: VaultFolder | null = null;
+  private outerTrigger: HTMLElement | null = null;
   private deleteTrigger: HTMLElement | null = null;
+  private restoreOuterFocusAfterDeleteClose = false;
   private operationToken = 0;
 
   constructor(
@@ -112,12 +116,18 @@ export class VaultFolderDialogComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.operationToken += 1;
+    this.outerTrigger = null;
+    this.restoreOuterFocusAfterDeleteClose = false;
   }
 
   openFor(folder?: VaultFolder, trigger?: HTMLElement | null): void {
+    const outerTrigger = trigger
+      ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     this.operationToken += 1;
     this.deleteDialog?.close(false);
     this.folderDialog?.close(false);
+    this.outerTrigger = outerTrigger;
+    this.restoreOuterFocusAfterDeleteClose = false;
     this.sourceFolder = folder ? this.currentFolder(folder.id) : null;
     this.officialFolder = this.sourceFolder
       ? FolderView.fromJSON(this.sourceFolder as Parameters<typeof FolderView.fromJSON>[0])
@@ -130,7 +140,7 @@ export class VaultFolderDialogComponent implements OnDestroy {
     this.isOpen = true;
     this.changeDetectorRef.detectChanges();
     const folderName = this.folderDialog?.nativeElement.querySelector<HTMLInputElement>("#folderName");
-    this.folderDialog?.open(trigger, folderName);
+    this.folderDialog?.open(this.outerTrigger, folderName);
   }
 
   async save(): Promise<FolderMutationOutcome> {
@@ -236,9 +246,15 @@ export class VaultFolderDialogComponent implements OnDestroy {
 
   close(): void {
     this.operationToken += 1;
+    const folderDialogOpen = this.folderDialog?.nativeElement.open ?? false;
+    const deleteDialogOpen = this.deleteDialog?.nativeElement.open ?? false;
+    this.isOpen = false;
+    this.restoreOuterFocusAfterDeleteClose = !folderDialogOpen && deleteDialogOpen;
     this.deleteDialog?.close(false);
     this.folderDialog?.close();
-    this.isOpen = false;
+    if (!folderDialogOpen && !deleteDialogOpen) {
+      this.finishOuterClose(true);
+    }
     this.editingFolderId = "";
     this.folderName = "";
     this.deleteTrigger = null;
@@ -253,7 +269,19 @@ export class VaultFolderDialogComponent implements OnDestroy {
     if (reopenFolder && this.isOpen && this.editingFolderId) {
       const folderName = this.folderDialog?.nativeElement.querySelector<HTMLInputElement>("#folderName");
       const initialFocus = this.deleteTrigger?.isConnected ? this.deleteTrigger : folderName;
-      this.folderDialog?.open(undefined, initialFocus);
+      this.folderDialog?.open(this.outerTrigger, initialFocus);
+    }
+  }
+
+  onFolderDialogClosed(): void {
+    if (!this.isOpen) {
+      this.finishOuterClose(true);
+    }
+  }
+
+  onDeleteDialogClosed(): void {
+    if (!this.isOpen && this.restoreOuterFocusAfterDeleteClose) {
+      this.finishOuterClose(true);
     }
   }
 
@@ -296,6 +324,20 @@ export class VaultFolderDialogComponent implements OnDestroy {
       this.folderCreated.emit(folder);
     }
     return outcome;
+  }
+
+  private finishOuterClose(restoreFocus: boolean): void {
+    const trigger = this.outerTrigger;
+    const token = this.operationToken;
+    this.outerTrigger = null;
+    this.restoreOuterFocusAfterDeleteClose = false;
+    if (restoreFocus && trigger?.isConnected) {
+      window.setTimeout(() => {
+        if (this.operationToken === token && !this.isOpen && trigger.isConnected) {
+          trigger.focus();
+        }
+      });
+    }
   }
 
   private ownershipGuard(

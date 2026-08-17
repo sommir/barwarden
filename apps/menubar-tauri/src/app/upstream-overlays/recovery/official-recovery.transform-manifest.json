@@ -362,7 +362,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/vault-folder-dialog.component.ts",
-      "sha256": "5048a11bb56bb18d31ec54c16da152de152517c8bfd079b106fc4076f356f4fa"
+      "sha256": "d8596cb5c8f8a3833d66c5ee622d016ffb6fee40bbea415266e75c73f2f5c6c6"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/vault-folder.service.ts",
