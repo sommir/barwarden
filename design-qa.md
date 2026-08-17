@@ -1,30 +1,40 @@
-# AutoFill integrated vault — visual QA
+# Vault-home visual QA — iOS 27 foundations
 
-## Grounding
+## Evidence identity
 
-- List reference: `/var/folders/7t/mr61cc1x54s6t56gf074z6980000gn/T/codex-clipboard-f6281f22-aea8-4ec5-ad18-1588cf372d67.png`
-- Detail reference: `/var/folders/7t/mr61cc1x54s6t56gf074z6980000gn/T/codex-clipboard-4026f695-c952-4445-a734-db89dc195121.png`
-- Actual list capture: `.superpowers/sdd/2026-08-11-autofill-popup-context/task-list-actual.png`
-- Actual detail capture: `.superpowers/sdd/2026-08-11-autofill-popup-context/task-detail-actual.png`
-- Side-by-side list comparison: `.superpowers/sdd/2026-08-11-autofill-popup-context/task-list-comparison.png`
-- Side-by-side detail comparison: `.superpowers/sdd/2026-08-11-autofill-popup-context/task-detail-comparison.png`
+- Selected target: `docs/superpowers/specs/assets/barwarden-ios27-ui-visual-target.png` (1122 × 1402 px).
+- Structural references: `docs/ui-audit-2026-08-17/04-vault-main.png`, `09-search-results.png`, and `10-vault-dark.png` (each 480 × 600 px).
+- Light implementation: `docs/superpowers/specs/assets/barwarden-ios27-vault-light-implementation.png` (480 × 600 px).
+- Search implementation: `docs/superpowers/specs/assets/barwarden-ios27-vault-search-implementation.png` (480 × 600 px).
+- Dark implementation: `docs/superpowers/specs/assets/barwarden-ios27-vault-dark-implementation.png` (480 × 600 px).
+- Surface: native macOS Tauri popup, no browser and no device frame; the captures contain sanitized evidence-only values.
 
-The actual captures come from the signed `/Applications/Barwarden.app` build at the same 480 px popup width. Credential values were redacted or cropped from QA artifacts.
+The evidence build used a temporary local capture harness to expose the hidden tray window, hold it at 480 × 600, and supply deterministic AutoFill candidates. Those harness changes were removed after capture and are not part of the implementation diff. A previously exposed real-vault window was not retained as evidence.
 
-## Review
+## Same-input comparison
 
-- Layout: the suggestion group is integrated directly beneath vault search and before normal groups; no separate AutoFill route is exposed.
-- Hierarchy: section label/count, one compact candidate row, field-availability glyphs, and a single outlined Fill action follow the selected reference.
-- Detail: the Login card keeps the existing product composition and exposes one full-width primary `自动填充` action without field-specific explanatory copy.
-- Typography and spacing: existing Barwarden/Bitwarden tokens are preserved; headings, row rhythm, radii, and bottom navigation remain consistent with adjacent vault content.
-- Color and borders: the selected row uses the existing cool-blue surface and continuous outline; the primary detail action uses the product blue token.
-- Interaction: a signed live run recognized Termius, opened the integrated suggestion, and the generic list Fill wrote the detected Email field. The detail state rendered one generic AutoFill button and no username/password/TOTP-specific fill button.
-- Privacy: the suggestion response remained metadata-only, and the QA images do not retain the live username, password, or TOTP value.
+The target and light implementation, then the search and dark reference/implementation pairs, were opened together in one visual comparison input. A focused second comparison included the final light capture with AutoFill rows, the search capture proving the section disappears, and the dark capture.
 
-## Severity check
+- Search is a quiet 12 px contextual surface, with focus feedback instead of a persistent gray pill.
+- AutoFill suggestions sit directly below search. Their rows use continuous 52 px surfaces and capability-based username/password/TOTP actions; glyphs are blue, indigo, and orange without persistent button boxes.
+- Entering `Calendar` removes the AutoFill section and produces a single compact result row, preserving field actions and the generic overflow action.
+- Ordinary Vault rows and disclosure groups use fine separators with no shadowed card gaps. Secondary copy remains readable blue-gray.
+- The dark capture keeps the same hierarchy while moving to the approved solid navy surface ladder; semantic action colors remain distinguishable.
+- A separate bottom-scroll inspection confirmed the final `Example Support` row can rest fully above the bottom navigation.
 
-- P0: none.
-- P1: none.
-- P2: none.
+The selected target shows TOTP on every illustrative suggestion. The implementation intentionally shows TOTP only when that item actually has a TOTP secret; this is the approved capability-based behavior rather than a visual mismatch.
+
+## P0/P1/P2 history
+
+| Round | P0 | P1 | P2 | Outcome |
+| --- | --- | --- | --- | --- |
+| 1 | Not assessed | Not assessed | Not assessed | Native capture initially blocked. |
+| 2 | 0 | 0 | 0 | Passed after sanitized 480 × 600 light, search, dark, and bottom-scroll evidence was captured and compared. |
+
+## Verification context
+
+- Focused visual/Vault suite: 5 files, 112 tests passed.
+- Final web build: passed with only the recorded repository warning baseline.
+- Full `npm test`: 3,727 tests passed and 2 retained-overlay hash-lock tests failed because of unrelated, pre-existing dirty-worktree Vault overlay hunks; no unrelated source was changed.
 
 final result: passed
