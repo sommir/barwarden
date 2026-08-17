@@ -109,7 +109,7 @@ import { VaultContextualSectionOutletComponent } from "./vault-contextual-sectio
         />
       }
 
-      @if (vaultState === 'ready' || vaultState === 'no-results') {
+      @if (showContextualSection) {
         <bw-vault-contextual-section-outlet />
       }
 
@@ -261,6 +261,10 @@ export class VaultListPageComponent implements OnDestroy {
 
   get hasSearchQuery(): boolean {
     return this.vaultQuery.trim().length > 0;
+  }
+
+  get showContextualSection(): boolean {
+    return !this.hasSearchQuery && this.vaultState === "ready";
   }
 
   get vaultState(): VaultMainState {

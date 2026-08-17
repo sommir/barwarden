@@ -98,6 +98,34 @@ describe("VaultListPageComponent", () => {
     expect(host.querySelector("popup-page > popup-header h1")?.textContent).toContain("密码库");
   });
 
+  it("shows contextual suggestions only while the Vault search is empty", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems(demoVaultItems, demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector("bw-vault-contextual-section-outlet")).not.toBeNull();
+
+    fixture.componentInstance.setSearch("github");
+    fixture.detectChanges();
+    expect(host.querySelector("bw-vault-contextual-section-outlet")).toBeNull();
+
+    fixture.componentInstance.setSearch("   ");
+    fixture.detectChanges();
+    expect(host.querySelector("bw-vault-contextual-section-outlet")).not.toBeNull();
+  });
+
   it("reuses the existing vault section and rows for current website suggestions", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
