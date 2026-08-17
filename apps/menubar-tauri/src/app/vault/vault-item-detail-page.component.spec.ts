@@ -43,6 +43,7 @@ import {
   type VaultRemovalMutationOutcome,
 } from "./vault-actions.service";
 import { VaultFacade } from "./vault.facade";
+import { VaultDetailFieldComponent } from "./vault-detail-field.component";
 import { VaultItemDetailPageComponent } from "./vault-item-detail-page.component";
 import { OFFICIAL_TOTP_CLOCK } from "./official-totp.service.adapter";
 import { VaultRepromptService } from "./vault-reprompt.service";
@@ -70,14 +71,23 @@ describe("VaultItemDetailPageComponent", () => {
   afterEach(() => {
     document.head.querySelectorAll("style[data-vault-detail-production-css]")
       .forEach((node) => node.remove());
+    document.body.classList.remove("tw-bit-compact");
   });
 
   function installProductionCss(): HTMLStyleElement {
     const stylesheet = document.createElement("style");
     stylesheet.dataset["vaultDetailProductionCss"] = "true";
-    stylesheet.textContent = ["macos-tokens.css", "global.css"]
+    const source = ["macos-tokens.css", "global.css"]
       .map((file) => readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", file), "utf8"))
       .join("\n");
+    const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+    const tokens = new Map(
+      [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+        .map(([, name, value]) => [name, value.trim()]),
+    );
+    stylesheet.textContent = source.replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) =>
+      tokens.get(name) ?? value,
+    );
     document.head.append(stylesheet);
     return stylesheet;
   }
@@ -832,8 +842,95 @@ describe("VaultItemDetailPageComponent", () => {
       expect(getComputedStyle(card).borderRadius).toBe("0px");
       expect(getComputedStyle(card).boxShadow).toBe("none");
       expect(getComputedStyle(readOnlyControl).borderRadius).toBe("10px");
+
+      const fieldFixture = TestBed.createComponent(VaultDetailFieldComponent);
+      fieldFixture.componentRef.setInput("field", {
+        id: "review-control",
+        label: "Review control",
+        value: "value",
+      });
+      fieldFixture.nativeElement.classList.add("macos-page--vault-detail");
+      fieldFixture.detectChanges();
+      const officialReadOnlyControl = (fieldFixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>(".official-read-only-control")!;
+      expect(officialReadOnlyControl).not.toBeNull();
+      expect(getComputedStyle(officialReadOnlyControl).borderRadius).toBe("10px");
     } finally {
       stylesheet.remove();
+    }
+  });
+
+  it("computes Login dividers across real official section hosts with compact spacing", async () => {
+    installProductionCss();
+    const { fixture } = await createLiveContextFixture();
+    fixture.componentRef.setInput("id", demoVaultItems[0]!.id);
+    fixture.detectChanges();
+
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+
+    const host = fixture.nativeElement as HTMLElement;
+    const fill = host.querySelector<HTMLElement>(
+      "official-login-credentials > section[data-testid='autofill-detail-context']",
+    )!;
+    const ordinarySections = [
+      host.querySelector<HTMLElement>("official-login-credentials > section:not([data-testid])")!,
+      host.querySelector<HTMLElement>("official-login-uri-options > section")!,
+      host.querySelector<HTMLElement>("official-custom-fields > section")!,
+      host.querySelector<HTMLElement>("app-item-history-v2 > bit-section > section")!,
+    ];
+    expect(fill).not.toBeNull();
+    expect(ordinarySections.every(Boolean)).toBe(true);
+    expect(getComputedStyle(fill).borderTopWidth).not.toBe("1px");
+    expect(getComputedStyle(fill).paddingTop).not.toBe("16px");
+    for (const section of ordinarySections) {
+      expect(getComputedStyle(section).borderTopWidth).toBe("1px");
+      expect(getComputedStyle(section).paddingTop).toBe("16px");
+    }
+
+    document.body.classList.add("tw-bit-compact");
+    for (const section of ordinarySections) {
+      expect(getComputedStyle(section).paddingTop).toBe("12px");
+    }
+  });
+
+  it("computes Personal dividers across real official section hosts without styling the first section", async () => {
+    installProductionCss();
+    const card = {
+      ...demoVaultItems[1]!,
+      notes: "Travel account notes",
+      fields: [
+        ...demoVaultItems[1]!.fields,
+        { id: "custom:Region", label: "Region", value: "APAC", type: "text" as const },
+      ],
+    };
+    const { fixture } = await createFixture(undefined, undefined, [card]);
+    fixture.componentRef.setInput("id", card.id);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const first = host.querySelector<HTMLElement>("official-card-details > section")!;
+    const followingSections = [
+      host.querySelector<HTMLElement>("app-additional-options > section")!,
+      host.querySelector<HTMLElement>("official-custom-fields > section")!,
+      host.querySelector<HTMLElement>("app-item-history-v2 > bit-section > section")!,
+    ];
+    expect(first).not.toBeNull();
+    expect(followingSections.every(Boolean)).toBe(true);
+    expect(getComputedStyle(first).borderTopWidth).not.toBe("1px");
+    expect(getComputedStyle(first).paddingTop).not.toBe("16px");
+    for (const section of followingSections) {
+      expect(getComputedStyle(section).borderTopWidth).toBe("1px");
+      expect(getComputedStyle(section).paddingTop).toBe("16px");
+    }
+
+    document.body.classList.add("tw-bit-compact");
+    for (const section of followingSections) {
+      expect(getComputedStyle(section).paddingTop).toBe("12px");
     }
   });
 

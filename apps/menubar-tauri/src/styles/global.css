@@ -5740,16 +5740,71 @@ button.is-copy-failed {
   box-shadow: none;
 }
 
-.macos-page--vault-detail .cipher-view section + section {
+.macos-page--vault-detail .cipher-view :is(
+  section + section,
+  [data-testid="official-login-detail"] > :is(
+    official-login-uri-options,
+    app-additional-options,
+    official-custom-fields
+  ) > section,
+  [data-testid="official-login-detail"] > app-item-history-v2 > bit-section > section,
+  [data-testid="official-personal-cipher-detail"] > :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields,
+    app-item-history-v2
+  ) ~ :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields
+  ) > section,
+  [data-testid="official-personal-cipher-detail"] > :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields,
+    app-item-history-v2
+  ) ~ app-item-history-v2 > bit-section > section
+) {
   border-top: 1px solid var(--mac-border-subtle);
   padding-top: var(--mac-space-4);
 }
 
-.macos-page--vault-detail :is(input, textarea, select, .official-read-only-control) {
+.macos-page--vault-detail :is(input, textarea, select),
+.macos-page--vault-detail .official-read-only-field > .official-read-only-control {
   border-radius: 10px;
 }
 
-body.tw-bit-compact .macos-page--vault-detail .cipher-view section + section {
+body.tw-bit-compact .macos-page--vault-detail .cipher-view :is(
+  section + section,
+  [data-testid="official-login-detail"] > :is(
+    official-login-uri-options,
+    app-additional-options,
+    official-custom-fields
+  ) > section,
+  [data-testid="official-login-detail"] > app-item-history-v2 > bit-section > section,
+  [data-testid="official-personal-cipher-detail"] > :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields,
+    app-item-history-v2
+  ) ~ :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields
+  ) > section,
+  [data-testid="official-personal-cipher-detail"] > :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields,
+    app-item-history-v2
+  ) ~ app-item-history-v2 > bit-section > section
+) {
   padding-top: var(--mac-space-3);
 }
 
