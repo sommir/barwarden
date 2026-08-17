@@ -4497,6 +4497,7 @@ auth-account .macos-account-label {
 .macos-send-row,
 .macos-page--send .macos-send-row {
   min-height: 52px;
+  margin-bottom: 0;
   border: 0;
   border-bottom: 1px solid var(--mac-border-subtle);
   border-radius: 0;

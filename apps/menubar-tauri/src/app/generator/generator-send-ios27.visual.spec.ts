@@ -55,6 +55,7 @@ const officialUtilityHitTargetCss = `
   .tw-h-6 { height: 24px; }
   .tw-leading-5 { line-height: 20px; }
   .tw-py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
+  .tw-mb-1\\.5 { margin-bottom: 6px; }
   .tw-border-y { border-top-width: 1px; border-bottom-width: 1px; }
 `;
 
@@ -260,6 +261,7 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(list).display).toBe("block");
     expect(getComputedStyle(list).boxShadow).toBe("none");
     expect(getComputedStyle(row).minHeight).toBe("52px");
+    expect(getComputedStyle(row).marginBottom).toBe("0px");
     expect(getComputedStyle(row).borderRadius).toBe("0px");
     expect(actions).toHaveLength(2);
     expect(Array.from(actions, (action) => getComputedStyle(action).minWidth)).toEqual([
