@@ -21,6 +21,11 @@ import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { officialCurrentAccountTestProviders } from "../official-ui/official-current-account.test-support";
 import { ClipboardPolicyService } from "../settings/clipboard-policy.service";
 import { SendPageComponent } from "../send/send-page.component";
+import type {
+  RetainedTextSendErrors,
+  RetainedTextSendField,
+} from "../send/retained-text-send-form.service";
+import { OfficialSendAddEditComponent } from "../upstream-overlays/send/official-send-add-edit.component";
 import {
   GENERATOR_HISTORY_CLIPBOARD_HOST,
   GeneratorHistoryPageComponent,
@@ -52,6 +57,8 @@ let style: HTMLStyleElement;
 
 const officialUtilityHitTargetCss = `
   .tw-min-h-10 { min-height: 40px; }
+  .tw-mb-4 { margin-bottom: 16px; }
+  :root[data-bw-compact-mode="true"] .bit-compact\\:tw-mb-3 { margin-bottom: 12px; }
   .tw-h-6 { height: 24px; }
   .tw-leading-5 { line-height: 20px; }
   .tw-py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
@@ -82,11 +89,48 @@ describe("iOS 27 Generator visual contract", () => {
   it("keeps Send form groups flat with touch-safe controls and an explicit focus ring", () => {
     const css = style.textContent ?? "";
     expect(css).toMatch(/\.macos-send-form__group\s*\{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
-    expect(css).toMatch(/\.macos-send-form__field\s*\{[^}]*padding-block:\s*10px[^}]*border-bottom:/s);
+    expect(css).toMatch(/\.macos-send-form__field\s*\{[^}]*padding-block:\s*10px[^}]*border-bottom-width:\s*1px[^}]*border-bottom-style:\s*solid/s);
     expect(css).toMatch(/\.macos-send-form__field\s+:is\(input,\s*textarea,\s*select\)\s*\{[^}]*min-height:\s*44px[^}]*border-radius:\s*10px/s);
     expect(css).toMatch(/\.macos-send-form__field\s+:is\(input,\s*textarea,\s*select\):focus-visible\s*\{[^}]*outline:\s*2px\s+solid\s+var\(--mac-focus\)/s);
     expect(css).toMatch(/\.macos-page--send-form\s+:is\(button,\s*a\)\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s);
     expect(css).toMatch(/\.macos-page--send-form\s+bit-form-control\s*>\s*label\s*\{[^}]*min-height:\s*44px/s);
+  });
+
+  it("renders real Send form rows with continuous dividers and zero default or compact gaps", async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [OfficialSendAddEditComponent],
+      providers: [
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(OfficialSendAddEditComponent);
+    fixture.componentRef.setInput("mode", "add");
+    fixture.componentRef.setInput("editing", true);
+    fixture.componentRef.setInput("value", sendFormValue());
+    fixture.componentRef.setInput("errors", {} satisfies RetainedTextSendErrors);
+    fixture.componentRef.setInput("touched", new Set<RetainedTextSendField>());
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const rows = host.querySelectorAll<HTMLElement>(
+      ".macos-send-form__group .macos-send-form__field",
+    );
+    expect(rows.length).toBeGreaterThanOrEqual(8);
+    expect(Array.from(rows, (row) => cssPixels(getComputedStyle(row).marginBottom)))
+      .toEqual(Array.from(rows, () => 0));
+    expect(Array.from(rows, (row) => getComputedStyle(row).borderBottomWidth))
+      .toEqual(Array.from(rows, () => "1px"));
+    expect(Array.from(rows, (row) => getComputedStyle(row).borderBottomStyle))
+      .toEqual(Array.from(rows, () => "solid"));
+
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(Array.from(rows, (row) => cssPixels(getComputedStyle(row).marginBottom)))
+      .toEqual(Array.from(rows, () => 0));
+
+    fixture.destroy();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
   });
 
   it("renders the real Generator page with flat ordinary surfaces and touch-safe controls", async () => {
@@ -360,5 +404,19 @@ function generatorSettings(): GeneratorSettingsSnapshot {
       subaddressEmail: "",
       catchallDomain: "",
     },
+  };
+}
+
+function sendFormValue() {
+  return {
+    name: "Text Send",
+    text: "message",
+    hidden: false,
+    deletionPresetHours: 24 as const,
+    authType: "none" as const,
+    password: "",
+    maxAccessCount: "",
+    hideEmail: false,
+    notes: "",
   };
 }

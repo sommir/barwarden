@@ -635,7 +635,7 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
     authorityClass: "SendOptionsComponent", runtimeClass: "OfficialSendOptionsComponent",
     authoritySha256: "b8d23cdecd7b7df82ef54e072628b668e0fae78faf47237f5a8b10015b1b950c",
-    requiredRuntimeMembers: ["editing", "hideEmailAllowed", "value", "errors", "touched", "valueChange", "fieldBlur", "inputValue", "checked", "anyOptionFieldVisible", "maxAccessCountVisible", "hideEmailVisible", "privateNoteVisible"],
+    requiredRuntimeMembers: ["editing", "hideEmailAllowed", "value", "errors", "touched", "valueChange", "fieldBlur", "inputValue", "checked", "anyOptionFieldVisible", "maxAccessCountVisible", "hideEmailVisible", "privateNoteVisible", "syncMaxAccessCountAccessibility"],
     requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "ElementRef", "afterRenderEffect", "inject", "input", "output"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendErrors", "RetainedTextSendField", "RetainedTextSendFormValue"] }],
     mutationSearch: "privateNoteVisible", mutationReplacement: "damagedPrivateNoteVisible",
     patch: optionsTypeScriptPatch, transforms: staticPatchTransforms(optionsTypeScriptPatch),

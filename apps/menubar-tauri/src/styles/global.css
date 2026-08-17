@@ -2939,7 +2939,9 @@ auth-account .macos-account-label {
 
 .macos-send-form__field {
   padding-block: 10px;
-  border-bottom: 1px solid var(--mac-border-subtle);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
 }
 
 .macos-send-form__error {

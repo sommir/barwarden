@@ -86,8 +86,16 @@ describe("OfficialSendAddEditComponent", () => {
     const ids = ["name", "text", "password", "maxAccessCount"] as const;
     expect(ids.map((field) => host.querySelector(`#send-${field}`)?.getAttribute("aria-invalid")))
       .toEqual(["true", "true", "true", "true"]);
-    expect(ids.map((field) => host.querySelector(`#send-${field}`)?.getAttribute("aria-describedby")))
-      .toEqual(ids.map((field) => `send-error-${field}`));
+    expect(ids.slice(0, 3).map((field) => host.querySelector(`#send-${field}`)?.getAttribute("aria-describedby")))
+      .toEqual(ids.slice(0, 3).map((field) => `send-error-${field}`));
+    expect(host.querySelector("#send-maxAccessCount")?.getAttribute("aria-describedby")?.split(" "))
+      .toEqual([
+        host.querySelector("#send-maxAccessCount")
+          ?.closest("bit-form-field")
+          ?.querySelector("bit-hint")
+          ?.id,
+        "send-error-maxAccessCount",
+      ]);
     expect(ids.map((field) => host.querySelector(`#send-error-${field}`)?.getAttribute("role")))
       .toEqual(["alert", "alert", "alert", "alert"]);
     const maximum = host.querySelector<HTMLInputElement>("#send-maxAccessCount")!;
@@ -116,6 +124,46 @@ describe("OfficialSendAddEditComponent", () => {
     expect(save.getAttribute("aria-disabled")).toBe("true");
     expect(host.querySelector<HTMLInputElement>("#send-name")?.value).toBe("Readable");
     expect(host.querySelector<HTMLTextAreaElement>("#send-text")?.value).toBe("Still visible");
+  });
+
+  it("preserves the maximum-access hint association across valid, invalid, and corrected states", async () => {
+    await TestBed.configureTestingModule({ imports: [OfficialSendAddEditComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(OfficialSendAddEditComponent);
+    fixture.componentRef.setInput("mode", "add");
+    fixture.componentRef.setInput("editing", true);
+    fixture.componentRef.setInput("value", value());
+    fixture.componentRef.setInput("errors", {} satisfies RetainedTextSendErrors);
+    fixture.componentRef.setInput("touched", new Set<RetainedTextSendField>());
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const maximum = host.querySelector<HTMLInputElement>("#send-maxAccessCount")!;
+    const hint = maximum.closest("bit-form-field")!.querySelector<HTMLElement>("bit-hint")!;
+    expect(maximum.getAttribute("aria-describedby")).toBe(hint.id);
+
+    fixture.componentRef.setInput("value", { ...value(), maxAccessCount: "1.5" });
+    fixture.componentRef.setInput("errors", {
+      maxAccessCount: "invalid-positive-integer",
+    } satisfies RetainedTextSendErrors);
+    fixture.componentRef.setInput(
+      "touched",
+      new Set<RetainedTextSendField>(["maxAccessCount"]),
+    );
+    fixture.detectChanges();
+
+    expect(maximum.getAttribute("aria-describedby")?.split(" ")).toEqual([
+      hint.id,
+      "send-error-maxAccessCount",
+    ]);
+    expect(host.querySelector('[data-testid="send-error-maxAccessCount"][role="alert"]'))
+      .not.toBeNull();
+
+    fixture.componentRef.setInput("value", { ...value(), maxAccessCount: "2" });
+    fixture.componentRef.setInput("errors", {} satisfies RetainedTextSendErrors);
+    fixture.detectChanges();
+
+    expect(maximum.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(host.querySelector('[data-testid="send-error-maxAccessCount"]')).toBeNull();
   });
 
 });

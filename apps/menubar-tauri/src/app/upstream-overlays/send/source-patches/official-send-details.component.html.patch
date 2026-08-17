@@ -12,7 +12,7 @@
 -      <bit-label>Send {{ "name" | i18n | lowercase }}</bit-label>
 -      <input bitInput type="text" formControlName="name" [readonly]="!editing()" />
 +  <div class="macos-send-form__group">
-+    <bit-form-field class="macos-send-form__field">
++    <bit-form-field class="macos-send-form__field" [disableMargin]="true">
 +      <bit-label>{{ "i18nSendName" | i18n }}</bit-label>
 +      <input bitInput id="send-name" type="text" [value]="value().name" [readonly]="!editing()" [attr.aria-invalid]="touched().has('name') && errors().name ? 'true' : null" [attr.aria-describedby]="touched().has('name') && errors().name ? 'send-error-name' : null" (input)="valueChange.emit({ name: inputValue($event) })" (blur)="fieldBlur.emit('name')" />
 +      @if (touched().has("name") && errors().name) {
@@ -29,7 +29,7 @@
 @@ -19,2 +17,2 @@
 -    <bit-form-field>
 -      <bit-label>{{ "deletionDate" | i18n }}</bit-label>
-+    <bit-form-field class="macos-send-form__field">
++    <bit-form-field class="macos-send-form__field" [disableMargin]="true">
 +      <bit-label>{{ "i18nDeleteDate" | i18n }}</bit-label>
 @@ -22,6 +20 @@
 -        <input
@@ -65,7 +65,7 @@
 -      [hidden]="(availableAuthTypes$ | async).length === 1"
 -    >
 -      <bit-label>{{ "whoCanView" | i18n }}</bit-label>
-+    <bit-form-field class="macos-send-form__field" [disableMargin]="value().authType === 'none'">
++    <bit-form-field class="macos-send-form__field" [disableMargin]="true">
 +      <bit-label>{{ "i18nWhoCanAccess" | i18n }}</bit-label>
 @@ -54,6 +34 @@
 -        <input
@@ -100,7 +100,7 @@
 -        <bit-label>{{ (passwordRemoved ? "newPassword" : "password") | i18n }}</bit-label>
 -        <input bitInput type="password" formControlName="password" [readonly]="!editing()" />
 +    @if (value().authType === 'password') {
-+      <bit-form-field class="macos-send-form__field" disableMargin>
++      <bit-form-field class="macos-send-form__field" [disableMargin]="true">
 +        <bit-label>{{ originalHadPassword() ? ("i18nNewPassword" | i18n) : ("password" | i18n) }}</bit-label>
 +        <input bitInput id="send-password" type="password" [value]="value().password" [readonly]="!editing() || originalHadPassword()" [attr.aria-invalid]="touched().has('password') && errors().password ? 'true' : null" [attr.aria-describedby]="touched().has('password') && errors().password ? 'send-error-password' : null" (input)="valueChange.emit({ password: inputValue($event) })" (blur)="fieldBlur.emit('password')" />
 @@ -84,44 +50,5 @@

@@ -9,17 +9,7 @@ export class OfficialSendOptionsComponent {
   readonly editing = input.required<boolean>(); readonly hideEmailAllowed = input.required<boolean>(); readonly value = input.required<RetainedTextSendFormValue>(); readonly errors = input.required<RetainedTextSendErrors>(); readonly touched = input.required<ReadonlySet<RetainedTextSendField>>();
   readonly valueChange = output<Partial<RetainedTextSendFormValue>>(); readonly fieldBlur = output<RetainedTextSendField>();
   constructor() {
-    afterRenderEffect(() => {
-      const invalid = this.touched().has("maxAccessCount") && Boolean(this.errors().maxAccessCount);
-      const control = this.host.nativeElement.querySelector<HTMLElement>("#send-maxAccessCount");
-      if (invalid) {
-        control?.setAttribute("aria-invalid", "true");
-        control?.setAttribute("aria-describedby", "send-error-maxAccessCount");
-      } else {
-        control?.removeAttribute("aria-invalid");
-        control?.removeAttribute("aria-describedby");
-      }
-    });
+    afterRenderEffect(() => this.syncMaxAccessCountAccessibility());
   }
   inputValue(event: Event): string { return event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement ? event.target.value : ""; }
   checked(event: Event): boolean { return event.target instanceof HTMLInputElement && event.target.checked; }
@@ -27,4 +17,21 @@ export class OfficialSendOptionsComponent {
   maxAccessCountVisible(): boolean { return true; }
   hideEmailVisible(): boolean { return this.hideEmailAllowed(); }
   privateNoteVisible(): boolean { return true; }
+
+  private syncMaxAccessCountAccessibility(): void {
+    const invalid = this.touched().has("maxAccessCount") && Boolean(this.errors().maxAccessCount);
+    const control = this.host.nativeElement.querySelector<HTMLElement>("#send-maxAccessCount");
+    if (!control) return;
+    if (invalid) control.setAttribute("aria-invalid", "true");
+    else control.removeAttribute("aria-invalid");
+
+    const hintId = this.editing()
+      ? control.closest("bit-form-field")?.querySelector<HTMLElement>("bit-hint")?.id
+      : undefined;
+    const describedBy = [hintId, invalid ? "send-error-maxAccessCount" : undefined]
+      .filter((id): id is string => Boolean(id))
+      .join(" ");
+    if (describedBy) control.setAttribute("aria-describedby", describedBy);
+    else control.removeAttribute("aria-describedby");
+  }
 }
