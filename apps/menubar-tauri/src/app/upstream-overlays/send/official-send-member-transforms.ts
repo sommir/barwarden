@@ -350,6 +350,19 @@ const sendCreatedTemplateTransforms = [
     replacement: '      <button bitIconButton="bwi-popout" type="button" [attr.aria-label]="\'i18nPopOut\' | i18n" (click)="popOut.emit()"></button>',
   },
   {
+    search: `  <div
+    class="tw-flex tw-bg-background-alt tw-flex-col tw-justify-center tw-items-center tw-gap-2 tw-h-full tw-px-5"
+  >`,
+    replacement: `  <section class="macos-send-created__summary" aria-labelledby="send-created-title">`,
+  },
+  {
+    search: `    <div class="tw-size-[95px] tw-content-center">
+      <bit-svg [content]="sendCreatedIcon"></bit-svg>
+    </div>
+`,
+    replacement: "",
+  },
+  {
     search: `    <h3 tabindex="0" appAutofocus class="tw-font-medium">
       {{ "createdSendSuccessfully" | i18n }}
     </h3>
@@ -365,19 +378,32 @@ const sendCreatedTemplateTransforms = [
     <button bitButton type="button" buttonType="primary" (click)="copyLink()">
       <b>{{ "copyLink" | i18n }}</b>
     </button>`,
-    replacement: `    <h3 tabindex="0" class="tw-font-medium">
-      {{ "i18nSendCreatedSuccess" | i18n }}
-    </h3>
-    <p class="tw-text-center">
+    replacement: `    <div class="macos-send-created__icon" aria-hidden="true">
+      <bit-svg [content]="sendCreatedIcon" />
+    </div>
+    <h2 id="send-created-title" tabindex="-1">{{ "i18nSendCreatedSuccess" | i18n }}</h2>
+    <p>
       @if (send().hasPassword) {
         {{ "i18nSendPasswordExpires" | i18n: formattedExpiration() }}
       } @else {
         {{ "i18nSendExpires" | i18n: formattedExpiration() }}
       }
     </p>
-    <button data-testid="created-copy" bitButton type="button" buttonType="primary" (click)="copyLink.emit($event)">
-      <b>{{ "i18nCopySendLink" | i18n }}</b>
-    </button>`,
+    <label for="send-created-link">{{ "i18nCopySendLink" | i18n }}</label>
+    <input
+      id="send-created-link"
+      data-testid="created-link"
+      type="text"
+      readonly
+      [value]="link()"
+      [attr.aria-label]="'i18nCopySendLink' | i18n"
+    />`,
+  },
+  {
+    search: `  </div>
+  <popup-footer slot="footer">`,
+    replacement: `  </section>
+  <popup-footer slot="footer">`,
   },
   {
     search: `    <button bitButton type="button" buttonType="primary" (click)="copyLink()">
@@ -386,8 +412,8 @@ const sendCreatedTemplateTransforms = [
     <button bitButton type="button" buttonType="secondary" (click)="goBack()">
       {{ "close" | i18n }}
     </button>`,
-    replacement: `    <button data-testid="created-footer-copy" bitButton type="button" buttonType="primary" (click)="copyLink.emit($event)">
-      <b>{{ "i18nCopySendLink" | i18n }}</b>
+    replacement: `    <button data-testid="created-copy" bitButton type="button" buttonType="primary" (click)="copyLink.emit($event)">
+      {{ "i18nCopySendLink" | i18n }}
     </button>
     <button data-testid="created-close" bitButton type="button" buttonType="secondary" (click)="close.emit()">
       {{ "close" | i18n }}
@@ -605,7 +631,7 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
     authorityClass: "SendCreatedComponent", runtimeClass: "OfficialSendCreatedComponent",
     authoritySha256: "84f5fa48f78a9b9d52189fb43812ed7bd638f17e9f9f0f77d057a0911e27e5ae",
-    requiredRuntimeMembers: ["send", "formattedExpiration", "copyLink", "close", "popOut", "sendCreatedIcon", "backAction"],
+    requiredRuntimeMembers: ["send", "formattedExpiration", "link", "copyLink", "close", "popOut", "sendCreatedIcon", "backAction"],
     requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "@bitwarden/assets/svg", bindings: ["ActiveSendIcon"] }, { module: "@bitwarden/components", bindings: ["SvgModule"] }],
     mutationSearch: "readonly backAction", mutationReplacement: "readonly damagedBackAction",
     patch: createdTypeScriptPatch, transforms: staticPatchTransforms(createdTypeScriptPatch),

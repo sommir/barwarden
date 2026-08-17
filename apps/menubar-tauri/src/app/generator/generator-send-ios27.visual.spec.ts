@@ -26,6 +26,7 @@ import type {
   RetainedTextSendField,
 } from "../send/retained-text-send-form.service";
 import { OfficialSendAddEditComponent } from "../upstream-overlays/send/official-send-add-edit.component";
+import { OfficialSendCreatedComponent } from "../upstream-overlays/send/official-send-created.component";
 import {
   GENERATOR_HISTORY_CLIPBOARD_HOST,
   GeneratorHistoryPageComponent,
@@ -332,6 +333,45 @@ describe("iOS 27 Generator visual contract", () => {
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
+  });
+
+  it("renders the real Send created summary flat with touch-safe link and actions", async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [OfficialSendCreatedComponent],
+      providers: [
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(OfficialSendCreatedComponent);
+    fixture.componentRef.setInput("send", {
+      id: "send-created",
+      name: "One time secret",
+      deletionDate: "2026-08-19T00:00:00.000Z",
+      hasPassword: false,
+    });
+    fixture.componentRef.setInput("formattedExpiration", "1 天");
+    fixture.componentRef.setInput("link", "https://vault.example.test/#/send/access/key");
+    (fixture.nativeElement as HTMLElement).classList.add("macos-page--send-created");
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const summary = host.querySelector<HTMLElement>(".macos-send-created__summary")!;
+    const icon = host.querySelector<HTMLElement>(".macos-send-created__icon")!;
+    const link = host.querySelector<HTMLInputElement>('[data-testid="created-link"]')!;
+    const actions = host.querySelectorAll<HTMLElement>("popup-footer button");
+
+    expect(getComputedStyle(summary).borderRadius).toBe("0px");
+    expect(getComputedStyle(summary).boxShadow).toBe("none");
+    expect(getComputedStyle(icon).width).toBe("44px");
+    expect(getComputedStyle(icon).height).toBe("44px");
+    expect(getComputedStyle(link).minHeight).toBe("44px");
+    expect(getComputedStyle(link).borderRadius).toBe("10px");
+    expect(actions).toHaveLength(2);
+    expect(Array.from(actions, computedHitHeight).every((height) => height >= 44)).toBe(true);
+
+    fixture.destroy();
   });
 });
 

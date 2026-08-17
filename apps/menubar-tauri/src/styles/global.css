@@ -3225,6 +3225,39 @@ auth-account .macos-account-label {
   background: transparent !important;
 }
 
+.macos-send-created__summary {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin: 0 16px;
+  padding: 24px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-send-created__icon {
+  width: 44px;
+  height: 44px;
+  color: var(--mac-success);
+}
+
+.macos-send-created__summary :is(h2, p) {
+  margin: 0;
+}
+
+.macos-send-created__summary input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+.macos-page--send-created :is(button, a) {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .macos-page--vault-form [data-testid="custom-fields"] > .tw-bg-background,
 .macos-page--vault-form [data-testid="custom-fields"] > .tw-bg-background-alt {
   border-radius: 0 !important;

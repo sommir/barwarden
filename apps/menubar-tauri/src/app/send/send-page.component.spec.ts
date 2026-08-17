@@ -1807,9 +1807,12 @@ describe("SendCreatedPageComponent", () => {
     expect(host.textContent).toContain("已创建 Send");
     expect(host.textContent).toContain("Send 创建成功");
     expect(host.textContent).toContain("复制链接");
-    expect(host.querySelectorAll("button[bitbutton]")).toHaveLength(3);
+    expect(host.querySelectorAll("button[bitbutton]")).toHaveLength(2);
     expect(host.querySelector(".primary-action")).toBeNull();
     expect(host.querySelector(".secondary-action")).toBeNull();
+    const link = host.querySelector<HTMLInputElement>('[data-testid="created-link"]')!;
+    expect(link.readOnly).toBe(true);
+    expect(link.value).toBe("https://vault.example.test/#/send/access-token/url-key");
 
     host.querySelector<HTMLButtonElement>('[data-testid="created-copy"]')!.click();
     await fixture.whenStable();

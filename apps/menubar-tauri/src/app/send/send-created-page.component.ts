@@ -49,6 +49,7 @@ export class SendLinkBuilder {
       <bw-official-send-created
         [send]="send"
         [formattedExpiration]="formattedExpiration"
+        [link]="link"
         (copyLink)="copyLink($event)"
         (close)="close()"
         (popOut)="popOut()"
@@ -102,6 +103,11 @@ export class SendCreatedPageComponent implements OnDestroy {
     return hours < 24
       ? translateOfficialMessage("i18nHours", hours)
       : translateOfficialMessage("i18nDays", Math.ceil(hours / 24));
+  }
+
+  get link(): string {
+    const send = this.currentSend();
+    return send ? this.linkBuilder.linkFor(send) : "";
   }
 
   async copyLink(trigger?: Event): Promise<void> {
