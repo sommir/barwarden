@@ -1,6 +1,9 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -47,6 +50,31 @@ try {
   if (!(error instanceof Error) || !error.message.includes("Cannot set base providers")) {
     throw error;
   }
+}
+
+function installVaultVisualCss(): () => void {
+  const style = document.createElement("style");
+  const source = ["macos-tokens.css", "global.css"]
+    .map((filename) =>
+      readFileSync(
+        join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+        "utf8",
+      ),
+    )
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const macTokens = new Map(
+    [...rootDeclarations.matchAll(/(--mac-[\w-]+):\s*([^;]+);/g)].map(([, token, value]) => [
+      token,
+      value.trim(),
+    ]),
+  );
+  style.textContent = source.replace(/var\((--mac-[\w-]+)\)/g, (reference, token) =>
+    macTokens.get(token) ?? reference,
+  );
+  document.head.append(style);
+  return () => style.remove();
 }
 
 describe("VaultListPageComponent", () => {
@@ -906,6 +934,57 @@ describe("VaultListPageComponent", () => {
       expect(host.textContent).toContain("搜索结果");
       expect(host.textContent).toContain("Example Calendar");
       expect(host.textContent).not.toContain("Example Mail");
+    }
+  });
+
+  it("renders real search results as one continuous Vault list", async () => {
+    const cleanupCss = installVaultVisualCss();
+    const store = new PopupStateStore();
+    store.setItems(
+      [
+        { ...demoVaultItems[0]!, id: "search-one", name: "Search One", favorite: false },
+        { ...demoVaultItems[0]!, id: "search-two", name: "Search Two", favorite: false },
+      ],
+      demoFolders,
+    );
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [VaultListPageComponent],
+        providers: [
+          provideRouter([]),
+          { provide: PopupStateStore, useValue: store },
+          VaultFacade,
+          { provide: VaultActionsService, useValue: {} },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(VaultListPageComponent);
+      fixture.detectChanges();
+      fixture.componentInstance.setSearch("Search");
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const searchResults = host.querySelector<HTMLElement>(".vault-sections");
+      const group = searchResults?.querySelector<HTMLElement>("bit-item-group");
+      const rows = searchResults?.querySelectorAll<HTMLElement>(".vault-list-row");
+
+      expect(searchResults?.classList).toContain("vault-search-results");
+      expect(rows).toHaveLength(2);
+      expect(getComputedStyle(group!).borderTopWidth).toBe("0px");
+      expect(getComputedStyle(group!).borderRadius).toBe("0px");
+      expect(getComputedStyle(rows![0]!).minHeight).toBe("52px");
+      expect(getComputedStyle(rows![0]!).marginBottom).toBe("0px");
+      expect(getComputedStyle(rows![0]!).borderTopWidth).toBe("0px");
+      expect(getComputedStyle(rows![0]!).borderRightWidth).toBe("0px");
+      expect(getComputedStyle(rows![0]!).borderBottomWidth).toBe("1px");
+      expect(getComputedStyle(rows![0]!).borderLeftWidth).toBe("0px");
+      expect(getComputedStyle(rows![0]!).borderRadius).toBe("0px");
+      expect(getComputedStyle(rows![0]!).boxShadow).toBe("none");
+
+      fixture.destroy();
+    } finally {
+      cleanupCss();
     }
   });
 

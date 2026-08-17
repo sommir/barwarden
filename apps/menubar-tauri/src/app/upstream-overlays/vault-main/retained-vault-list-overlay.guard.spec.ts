@@ -96,7 +96,7 @@ const retainedOverlayLocks = [
   },
   {
     path: "apps/menubar-tauri/src/app/upstream-overlays/vault-main/retained-vault-list-item.component.html",
-    sha256: "4513a8d4a11d3c2ecf0f403e16f9dd61ef08695f1ae20122ac0ae85c8077713e",
+    sha256: "3d22fe02469ee022364a98f34ac321856bc71842e0da4c425a407cec3c8419ff",
     authority: "vault-list-items-container.component.html",
     retainedTransform: "compose official item, launch, retained copy-and-fill, and overflow primitives",
   },
@@ -242,7 +242,7 @@ describe("retained official Vault list overlays", () => {
   it("locks the retained official empty and no-results Vault state composition", () => {
     const route = readFileSync(vaultPageSource, "utf8");
 
-    expect(sha256(vaultPageSource)).toBe("1e0247aa2031c1ebfdb3f62d4f43f405ff4b56fcb1cd7c3cd7a10782d7190daf");
+    expect(sha256(vaultPageSource)).toBe("6088b9eb7e135ac739695e3f15a29e3854b9a33f2481a28916a18fff27798b97");
     for (const fragment of [
       "NoResults, VaultOpen",
       "<vault-fade-in-out>",

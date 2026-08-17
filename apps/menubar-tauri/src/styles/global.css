@@ -5512,6 +5512,51 @@ button.is-copy-failed {
   min-height: var(--mac-control-min-size);
 }
 
+/* Search results share the same continuous Vault surface as disclosure
+ * results. This route-specific layer deliberately outranks the reusable
+ * macos-list card treatment above. */
+.macos-page--vault-list .vault-search-results :is(bit-section, bit-item-group) {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.macos-page--vault-list .vault-search-results app-retained-vault-list-item > .vault-list-row {
+  display: flex;
+  position: relative;
+  min-height: var(--mac-row-height);
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+  color: var(--mac-text-primary);
+  contain: layout paint style;
+}
+
+.macos-page--vault-list .vault-search-results app-retained-vault-list-item > .vault-list-row:hover {
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, var(--mac-hover));
+}
+
+.macos-page--vault-list .vault-search-results app-retained-vault-list-item > .vault-list-row:focus-within {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-selected);
+  box-shadow: none;
+}
+
+.macos-page--vault-list .vault-search-results app-retained-vault-list-item > .vault-list-row.is-menu-open {
+  border-color: var(--mac-border-subtle);
+  background: color-mix(in srgb, var(--mac-accent) 9%, var(--mac-surface-solid));
+  box-shadow: none;
+}
+
+.macos-page--vault-list .vault-search-results bit-item-group app-retained-vault-list-item:last-child > .vault-list-row {
+  border-bottom: 0;
+}
+
 .macos-card,
 .macos-page--vault-detail :is(bit-card, .read-only-cipher-card, .cipher-item-details-card),
 .macos-page--vault-form :is(.cipher-form-card, .official-form-section),
