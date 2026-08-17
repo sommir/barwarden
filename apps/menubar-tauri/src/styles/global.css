@@ -2391,7 +2391,31 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   background: var(--bw-primary-hover) !important;
 }
 
+.macos-auth-card .macos-primary-action {
+  min-height: 44px;
+}
+
+.macos-auth-card :is(
+  [data-testid="two-factor-other-method"],
+  [data-testid="two-factor-back"],
+  [data-testid="new-device-resend"],
+  [data-testid="new-device-back"]
+) {
+  min-height: 44px;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  color: var(--mac-accent);
+  box-shadow: none;
+}
+
+.macos-auth-card :is([data-testid="two-factor-back"], [data-testid="new-device-back"]) {
+  color: var(--mac-text-secondary);
+}
+
 .macos-auth-validation {
+  min-height: 0;
   min-block-size: 0;
   overflow-wrap: anywhere;
 }

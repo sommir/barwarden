@@ -1,6 +1,8 @@
 import "zone.js";
 import "@angular/compiler";
 import { webcrypto } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   BrowserTestingModule,
@@ -9,6 +11,7 @@ import {
 import { By } from "@angular/platform-browser";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
+import postcss from "postcss";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AccountSessionStore } from "../../auth/account-session-store";
@@ -271,6 +274,62 @@ describe("auth challenge pages", () => {
     const newDeviceHost = newDevice.nativeElement as HTMLElement;
     expect(newDeviceHost.querySelector("bw-official-new-device-verification form.macos-auth-card")).not.toBeNull();
     expect(newDeviceHost.querySelector("[data-testid=new-device-continue].macos-primary-action")).not.toBeNull();
+  });
+
+  it("gives challenge secondary actions continuous 44px rows without changing the primary", () => {
+    const stylesheet = document.createElement("style");
+    const stylesheetSource = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+      "utf8",
+    );
+    const fixtureStyles = postcss.parse(stylesheetSource).nodes
+      .filter(
+        (node) =>
+          node.type === "rule" &&
+          ((node as postcss.Rule).selector.includes(".macos-auth-card") ||
+            (node as postcss.Rule).selector.includes(".macos-auth-validation")),
+      )
+      .map((node) => node.toString())
+      .join("\n");
+    stylesheet.textContent = fixtureStyles;
+    document.head.append(stylesheet);
+
+    const card = document.createElement("form");
+    card.className = "macos-auth-card";
+    const primary = document.createElement("button");
+    primary.className = "macos-primary-action";
+    primary.dataset.testid = "two-factor-continue";
+    card.append(primary);
+    const secondaryActions = [
+      "two-factor-other-method",
+      "two-factor-back",
+      "new-device-resend",
+      "new-device-back",
+    ].map((testId) => {
+      const action = document.createElement("button");
+      action.dataset.testid = testId;
+      card.append(action);
+      return action;
+    });
+    const validation = document.createElement("div");
+    validation.className = "macos-auth-validation";
+    document.body.append(card, validation);
+
+    try {
+      expect(getComputedStyle(primary).minHeight).toBe("44px");
+      for (const action of secondaryActions) {
+        const styles = getComputedStyle(action);
+        expect(styles.minHeight).toBe("44px");
+        expect(styles.borderTopWidth).toBe("0px");
+        expect(styles.borderTopLeftRadius).toBe("0");
+        expect(styles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      }
+      expect(getComputedStyle(validation).minHeight).toBe("0px");
+    } finally {
+      card.remove();
+      validation.remove();
+      stylesheet.remove();
+    }
   });
 
   it("keeps a single-line two-factor error compact so every recovery action remains in the first viewport", async () => {
