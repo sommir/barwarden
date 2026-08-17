@@ -20,4 +20,5 @@ export interface RecoveryPageCommand {
 export interface RecoveryPageActionResult {
   readonly terminal: boolean;
   readonly status: string;
+  readonly reason?: "duplicate" | "failure" | "stale";
 }

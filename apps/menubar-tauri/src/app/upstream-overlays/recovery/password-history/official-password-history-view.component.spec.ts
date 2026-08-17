@@ -80,8 +80,11 @@ describe("OfficialPasswordHistoryViewComponent", () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const list = host.querySelector("bit-item-group");
+    const rows = Array.from(list?.querySelectorAll(":scope > bit-item") ?? []);
     const copy = host.querySelector<HTMLButtonElement>("[data-testid='history-copy-0']")!;
     expect(list?.getAttribute("role")).toBe("list");
+    expect(rows).toHaveLength(1);
+    expect(rows.map((row) => row.getAttribute("role"))).toEqual(["listitem"]);
     expect(copy.getAttribute("aria-label")).toContain("Example Login");
     expect(copy.getAttribute("aria-label")).not.toContain("old-secret-1");
   });

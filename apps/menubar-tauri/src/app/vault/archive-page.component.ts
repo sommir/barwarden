@@ -57,6 +57,7 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
       #deleteDialog
       testId="archive-delete-confirmation"
       labelledBy="archive-delete-title"
+      [disableClose]="confirmationBusy"
       [attr.aria-busy]="confirmationBusy"
       (dismissed)="closeDeleteDialog()"
       (click)="onDeleteDialogClick($event)"
@@ -178,7 +179,7 @@ export class ArchivePageComponent implements OnDestroy {
     const outcome = await continuation();
     if (this.pendingConfirmation !== continuation) return;
     this.confirmationBusy = false;
-    if (outcome.terminal || outcome.status === "Vault changed; action not applied.") {
+    if (outcome.terminal || outcome.reason === "stale") {
       this.closeDeleteDialog();
       return;
     }
@@ -191,7 +192,8 @@ export class ArchivePageComponent implements OnDestroy {
     }
   }
 
-  closeDeleteDialog(): void {
+  closeDeleteDialog(force = false): void {
+    if (this.confirmationBusy && !force) return;
     this.pendingConfirmation = null;
     this.confirmationBusy = false;
     this.confirmationError.set("");
@@ -199,7 +201,7 @@ export class ArchivePageComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.closeDeleteDialog();
+    this.closeDeleteDialog(true);
     this.adapter.ngOnDestroy();
   }
 

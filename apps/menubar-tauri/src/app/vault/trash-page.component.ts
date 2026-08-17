@@ -55,6 +55,7 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
       #permanentDeleteDialog
       testId="permanent-delete-confirmation"
       labelledBy="permanent-delete-title"
+      [disableClose]="confirmationBusy"
       [attr.aria-busy]="confirmationBusy"
       (dismissed)="closePermanentDelete()"
       (click)="onPermanentDeleteDialogClick($event)"
@@ -168,7 +169,7 @@ export class TrashPageComponent implements OnDestroy {
     const outcome = await continuation();
     if (this.pendingConfirmation !== continuation) return;
     this.confirmationBusy = false;
-    if (outcome.terminal || outcome.status === "Vault changed; action not applied.") {
+    if (outcome.terminal || outcome.reason === "stale") {
       this.closePermanentDelete();
       return;
     }
@@ -181,7 +182,8 @@ export class TrashPageComponent implements OnDestroy {
     }
   }
 
-  closePermanentDelete(): void {
+  closePermanentDelete(force = false): void {
+    if (this.confirmationBusy && !force) return;
     this.pendingConfirmation = null;
     this.confirmationBusy = false;
     this.confirmationError.set("");
@@ -189,7 +191,7 @@ export class TrashPageComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.closePermanentDelete();
+    this.closePermanentDelete(true);
     this.adapter.ngOnDestroy();
   }
 

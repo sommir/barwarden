@@ -298,7 +298,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.html",
-      "sha256": "d59454c77693745339eb4f6c0dc83d3ff4c0f8a05406ca3f8fe04247b46d7640"
+      "sha256": "4f86ba75d27d001d503b0d6c70e606fcb81b7f54fd6e99c0b4af69e66fe7cac8"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
@@ -310,7 +310,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/recovery-command.ts",
-      "sha256": "2340b354f9fbfa8cb7e66dc1c8787b9f4108c367548baa8146047946566345f5"
+      "sha256": "35e2c4d46f5b339af170146ba2d2f9e98ed3c4317d62ba023021f6f69cf37794"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.html",
@@ -334,7 +334,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/archive-page.component.ts",
-      "sha256": "54508b46e313812bb6c39425e0da73ca86a19d7936a004571dd88021b897461d"
+      "sha256": "75d5ae814c102505b97de2c7aebb019c88b2d58d9555aa031a104e1f9a0ac3dc"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/folders-page.component.ts",
@@ -350,11 +350,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/recovery-page-actions.adapter.ts",
-      "sha256": "b698c68f84ffde97568b13c194068932fa5b9156eeaa46b9ba56ccb2307964be"
+      "sha256": "aaa005c799f95df5b07d5b01f39594ad207de878d5c6b87971f511016f5808bc"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/trash-page.component.ts",
-      "sha256": "c1d30fa9099096a3fd0816d75936fdc61a70a8c15f0be90dd8143fb510ab2add"
+      "sha256": "167b9e4da376b9c7ac9878c5bd927ecbfedc4c43610add37a9218cafeeba1658"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/vault-actions.service.ts",

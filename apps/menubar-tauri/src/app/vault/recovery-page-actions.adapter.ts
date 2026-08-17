@@ -180,7 +180,7 @@ export class RecoveryPageActionsAdapter implements OnDestroy {
     if (outcome.reason !== "stale" && this.isCurrent(context)) {
       this.store.setStatus(outcome.status);
     }
-    return result(false, outcome.status);
+    return result(false, outcome.status, outcome.reason);
   }
 
   private capture(command: RecoveryPageCommand): RecoveryActionContext | undefined {
@@ -248,12 +248,16 @@ function isConfirmationCommand(
   return command === "soft-delete" || command === "permanent-delete";
 }
 
-function result(terminal: boolean, status: string): RecoveryPageActionResult {
-  return { terminal, status };
+function result(
+  terminal: boolean,
+  status: string,
+  reason?: RecoveryPageActionResult["reason"],
+): RecoveryPageActionResult {
+  return reason ? { terminal, status, reason } : { terminal, status };
 }
 
 function staleResult(): RecoveryPageActionResult {
-  return result(false, "Vault changed; action not applied.");
+  return result(false, "Vault changed; action not applied.", "stale");
 }
 
 const cipherTypeQuery: Partial<Record<VaultItem["type"], string>> = {
