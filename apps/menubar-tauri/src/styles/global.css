@@ -3110,8 +3110,21 @@ auth-account .macos-account-label {
   margin: 0 16px 20px;
 }
 
+.macos-generator__mode bit-toggle > :is(input[type="radio"], label) {
+  min-height: 44px;
+}
+
 .macos-generator__settings {
   margin: 0 16px;
+}
+
+.macos-page--generator .macos-generator__settings [bitfieldcontainer] {
+  min-height: 44px;
+}
+
+.macos-page--generator .macos-generator__settings bit-form-control > label {
+  min-height: 44px;
+  align-items: center;
 }
 
 .macos-page--generator .macos-generator__settings :is(bit-card, bit-section) {

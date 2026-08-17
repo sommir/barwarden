@@ -7,11 +7,13 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+import { FormFieldModule } from "@bitwarden/components";
 
 import { PopupStateStore } from "../popup-state";
 import { PopupPageComponent } from "../layout/popup-page.component";
@@ -21,6 +23,20 @@ import { ClipboardPolicyService } from "../settings/clipboard-policy.service";
 import { GeneratorPageComponent } from "./generator-page.component";
 import { GeneratorService, type GeneratorSettingsSnapshot } from "./generator.service";
 
+@Component({
+  imports: [FormFieldModule, GeneratorPageComponent],
+  template: `
+    <bw-generator-page />
+    <aside data-testid="outside-generator-controls">
+      <bit-form-field>
+        <bit-label>Outside field</bit-label>
+        <input bitInput type="text" />
+      </bit-form-field>
+    </aside>
+  `,
+})
+class GeneratorVisualHostComponent {}
+
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 } catch (error) {
@@ -28,6 +44,14 @@ try {
 }
 
 let style: HTMLStyleElement;
+
+const officialUtilityHitTargetCss = `
+  .tw-min-h-10 { min-height: 40px; }
+  .tw-h-6 { height: 24px; }
+  .tw-leading-5 { line-height: 20px; }
+  .tw-py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
+  .tw-border-y { border-top-width: 1px; border-bottom-width: 1px; }
+`;
 
 beforeAll(() => {
   style = document.createElement("style");
@@ -38,6 +62,7 @@ beforeAll(() => {
     ))
     .join("\n")
     .replace(/^@import[^;]+;\s*/gm, "");
+  style.textContent += officialUtilityHitTargetCss;
   document.head.append(style);
 });
 
@@ -53,7 +78,7 @@ describe("iOS 27 Generator visual contract", () => {
     store.setUnlocked("user@example.com");
     TestBed.overrideComponent(PopupPageComponent, { set: { template: "<ng-content />" } });
     await TestBed.configureTestingModule({
-      imports: [GeneratorPageComponent],
+      imports: [GeneratorVisualHostComponent],
       providers: [
         provideRouter([]),
         OfficialI18nService,
@@ -65,7 +90,7 @@ describe("iOS 27 Generator visual contract", () => {
       ],
     }).compileComponents();
 
-    const fixture = TestBed.createComponent(GeneratorPageComponent);
+    const fixture = TestBed.createComponent(GeneratorVisualHostComponent);
     fixture.detectChanges(false);
     await new Promise((resolve) => setTimeout(resolve));
     await fixture.whenStable();
@@ -82,6 +107,24 @@ describe("iOS 27 Generator visual contract", () => {
     const historyRow = official.querySelector<HTMLElement>(".macos-generator__history-row")!;
     const history = official.querySelector<HTMLAnchorElement>(".macos-generator__history-link")!;
     const interactiveTargets = official.querySelectorAll<HTMLElement>("button, a");
+    const modeRadios = official.querySelectorAll<HTMLInputElement>(
+      '.macos-generator__mode bit-toggle input[type="radio"]',
+    );
+    const modeLabels = official.querySelectorAll<HTMLLabelElement>(
+      ".macos-generator__mode bit-toggle label",
+    );
+    const fieldShells = official.querySelectorAll<HTMLElement>(
+      ".macos-generator__settings [bitfieldcontainer]",
+    );
+    const checkboxes = official.querySelectorAll<HTMLInputElement>(
+      '.macos-generator__settings input[type="checkbox"][bitcheckbox]',
+    );
+    const checkboxLabels = Array.from(checkboxes, (checkbox) =>
+      checkbox.closest("bit-form-control")!.querySelector<HTMLLabelElement>("label")!,
+    );
+    const outsideField = host.querySelector<HTMLElement>(
+      '[data-testid="outside-generator-controls"] [bitfieldcontainer]',
+    )!;
 
     expect(official.querySelector("popup-page.macos-generator")).not.toBeNull();
     expect(result.compareDocumentPosition(mode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -101,6 +144,25 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual(Array.from(interactiveTargets, (target) => target === history ? "52px" : "44px"));
     expect(getComputedStyle(copy).minHeight).toBe("44px");
     expect(getComputedStyle(regenerate).minHeight).toBe("44px");
+    expect(modeRadios).toHaveLength(3);
+    expect(modeLabels).toHaveLength(3);
+    expect(Array.from(modeRadios, (radio, index) => modeLabels[index]?.htmlFor === radio.id))
+      .toEqual([true, true, true]);
+    expect(fieldShells.length).toBeGreaterThan(0);
+    expect(checkboxes.length).toBeGreaterThan(0);
+    expect(Array.from(checkboxes, computedHitHeight).every((height) => height <= 24)).toBe(true);
+    expect({
+      modeRadios: Array.from(modeRadios, computedHitHeight),
+      modeLabels: Array.from(modeLabels, computedHitHeight),
+      fieldShells: Array.from(fieldShells, computedHitHeight),
+      checkboxLabels: Array.from(checkboxLabels, computedHitHeight),
+    }).toEqual({
+      modeRadios: Array.from(modeRadios, () => 44),
+      modeLabels: Array.from(modeLabels, () => 44),
+      fieldShells: Array.from(fieldShells, () => 44),
+      checkboxLabels: Array.from(checkboxLabels, () => 44),
+    });
+    expect(computedHitHeight(outsideField)).toBe(40);
     expect(getComputedStyle(history).minHeight).toBe("52px");
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
@@ -110,6 +172,25 @@ describe("iOS 27 Generator visual contract", () => {
     document.documentElement.removeAttribute("data-bw-compact-mode");
   });
 });
+
+function computedHitHeight(target: Element): number {
+  const style = getComputedStyle(target);
+  const explicit = Math.max(cssPixels(style.minHeight), cssPixels(style.height));
+  const contentBox = cssPixels(style.lineHeight)
+    + cssPixels(style.paddingTop)
+    + cssPixels(style.paddingBottom)
+    + cssPixels(style.borderTopWidth)
+    + cssPixels(style.borderBottomWidth);
+  const descendantHeight = Math.max(
+    0,
+    ...Array.from(target.children, computedHitHeight),
+  );
+  return Math.max(explicit, contentBox, descendantHeight);
+}
+
+function cssPixels(value: string): number {
+  return value.endsWith("px") ? Number.parseFloat(value) : 0;
+}
 
 function generatorService() {
   const settings = generatorSettings();
