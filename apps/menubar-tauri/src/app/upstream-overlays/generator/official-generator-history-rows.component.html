@@ -1,5 +1,5 @@
 @for (credential of credentials$ | async; track credential) {
-  <bit-item>
+  <bit-item class="macos-generator-history__row">
     <bit-item-content>
       <bit-color-password class="tw-font-mono" [password]="credential.credential" />
       <div slot="secondary">

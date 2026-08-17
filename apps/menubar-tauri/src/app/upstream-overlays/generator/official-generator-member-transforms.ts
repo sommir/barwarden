@@ -429,10 +429,10 @@ export const officialGeneratorHistoryParentMemberContract = {
     runtimeMember("confirming", "Synchronous duplicate native confirmation guard.", "fc25fbbffb0fe3d3d7b3aea2cbffc89be50ac7d45a42b0501266c1eb64461cee"),
     runtimeMember("clearDialog", "Shared application bottom-sheet ownership.", "84203a93de5bf221fc56609190d7599fa94dda70719ce8109028ee09f4e10b60"),
     runtimeMember("clearTrigger", "Native dialog trigger focus restoration.", "8f22309f52e7f07643904bdd251ca14d38ced56aa782747cb7351606d905cf7f"),
-    runtimeMember("clearConfirm", "Native dialog initial confirmation focus.", "6c3866114a687c06fc1cffd8619ec53688326a3d4c63d21f7b7e1847822f2604"),
+    runtimeMember("clearCancel", "Native dialog initial cancel focus.", "59fd2e728a7c150ba2df3d93808c7b06455e592c7c19ff5dbc4bc935b33ee56d"),
     runtimeMember("constructor", "Tauri account and history adapter injection boundary.", "5a2b605f897e4b8839af048f7b7c036e195a9f2daf257dd4d0fd93da303b4b3c"),
     runtimeMember("ngOnInit", "Owned one-shot secure history projection lifecycle.", "7f1e206ea23cbea11c4537e976d226795186cc44cee6fd5b092710913ddbb66c"),
-    runtimeMember("clear", "Shared bottom sheet replaces official DialogService.", "81a5e9088ced73b2ba38f0dbd738c98c8ec061837d651957c393449ff9a33b1a"),
+    runtimeMember("clear", "Shared bottom sheet replaces official DialogService.", "3980dfabfa67775cc4c9857d3bccd322a491c63ee7dcba667e65ae3b8ea41ecd"),
     runtimeMember("cancelClear", "Native dialog cancel command boundary.", "b09c1ddd9c8036e86fb71113b726171d4e35bc76b18e281050782eadfd2c4f56"),
     runtimeMember("confirmClear", "Session-owned transactional clear command.", "5a0c76461165f51412d273f69e79443e67a9a964d3b8e1a93613569e5d49c49d"),
     runtimeMember("closeDialog", "Shared bottom-sheet deterministic close adapter.", "7e2b121ac24880bb6763b16ee2ce6d3c51b940e8ee5e9b765cdd227f19c28d6f"),
@@ -715,7 +715,7 @@ export const generatorTemplateContracts = [
         search:
           '  <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n  <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />',
         replacement:
-          '  @if (!(loading$ | async)) {\n    <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n    <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />\n  }',
+          '  @if (!(loading$ | async)) {\n    <section class="macos-generator-history__content" aria-live="polite">\n      <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n      <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />\n    </section>\n  }',
       },
       {
         search:
@@ -726,7 +726,7 @@ export const generatorTemplateContracts = [
       {
         search: "\n</popup-page>",
         replacement:
-          '\n  <bw-app-bottom-sheet\n    #clearDialog\n    labelledBy="generator-history-dialog-title"\n    describedBy="generator-history-dialog-description"\n    testId="generator-history-dialog"\n    (dismissed)="cancelClear()"\n  >\n    <form class="app-bottom-sheet-panel">\n      <header class="app-bottom-sheet-header">\n        <h2 id="generator-history-dialog-title">\n          {{ "clearGeneratorHistoryTitle" | i18n }}\n        </h2>\n      </header>\n      <div class="app-bottom-sheet-body">\n        <p id="generator-history-dialog-description">\n          {{ "cleargGeneratorHistoryDescription" | i18n }}\n        </p>\n      </div>\n      <footer class="app-bottom-sheet-footer">\n        <button\n          #clearConfirm\n          bitButton\n          buttonType="danger"\n          type="button"\n          [disabled]="confirming || (clearing$ | async)"\n          (click)="confirmClear()"\n        >\n          {{ "clearHistory" | i18n }}\n        </button>\n        <button\n          bitButton\n          buttonType="secondary"\n          type="button"\n          [disabled]="confirming || (clearing$ | async)"\n          (click)="cancelClear()"\n        >\n          {{ "cancel" | i18n }}\n        </button>\n      </footer>\n    </form>\n  </bw-app-bottom-sheet>\n</popup-page>',
+          '\n  <bw-app-bottom-sheet\n    #clearDialog\n    labelledBy="generator-history-dialog-title"\n    describedBy="generator-history-dialog-description"\n    testId="generator-history-dialog"\n    (dismissed)="cancelClear()"\n  >\n    <form class="app-bottom-sheet-panel">\n      <header class="app-bottom-sheet-header">\n        <h2 id="generator-history-dialog-title">\n          {{ "clearGeneratorHistoryTitle" | i18n }}\n        </h2>\n      </header>\n      <div class="app-bottom-sheet-body">\n        <p id="generator-history-dialog-description">\n          {{ "cleargGeneratorHistoryDescription" | i18n }}\n        </p>\n      </div>\n      <footer class="app-bottom-sheet-footer">\n        <button\n          #clearCancel\n          bitButton\n          buttonType="secondary"\n          type="button"\n          [disabled]="confirming || (clearing$ | async)"\n          (click)="cancelClear()"\n        >\n          {{ "cancel" | i18n }}\n        </button>\n        <button\n          bitButton\n          buttonType="danger"\n          type="button"\n          [disabled]="confirming || (clearing$ | async)"\n          (click)="confirmClear()"\n        >\n          {{ "clearHistory" | i18n }}\n        </button>\n      </footer>\n    </form>\n  </bw-app-bottom-sheet>\n</popup-page>',
       },
     ],
   },
@@ -738,6 +738,10 @@ export const generatorTemplateContracts = [
     authoritySha256:
       "2eef6e1fcc3d03b4685dacff58e9b7afb5204ac62038372f942e21c4b65a28b7",
     transforms: [
+      {
+        search: "  <bit-item>",
+        replacement: '  <bit-item class="macos-generator-history__row">',
+      },
       {
         search:
           '          [appCopyClick]="credential.credential"\n          [valueLabel]="getGeneratedValueText(credential)"\n          [label]="getCopyText(credential)"\n          showToast',

@@ -20,6 +20,10 @@ import { PopupPageComponent } from "../layout/popup-page.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { officialCurrentAccountTestProviders } from "../official-ui/official-current-account.test-support";
 import { ClipboardPolicyService } from "../settings/clipboard-policy.service";
+import {
+  GENERATOR_HISTORY_CLIPBOARD_HOST,
+  GeneratorHistoryPageComponent,
+} from "./generator-history-page.component";
 import { GeneratorPageComponent } from "./generator-page.component";
 import { GeneratorService, type GeneratorSettingsSnapshot } from "./generator.service";
 
@@ -171,6 +175,53 @@ describe("iOS 27 Generator visual contract", () => {
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
   });
+
+  it("renders real history as a continuous shadowless list with compact-safe rows", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    TestBed.overrideComponent(PopupPageComponent, { set: { template: "<ng-content />" } });
+    await TestBed.configureTestingModule({
+      imports: [GeneratorHistoryPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: PopupStateStore, useValue: store },
+        { provide: GeneratorService, useValue: generatorService() },
+        {
+          provide: GENERATOR_HISTORY_CLIPBOARD_HOST,
+          useValue: { copyText: vi.fn(async () => undefined) },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(GeneratorHistoryPageComponent);
+    fixture.detectChanges(false);
+    await new Promise((resolve) => setTimeout(resolve));
+    await fixture.whenStable();
+    fixture.changeDetectorRef.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const content = host.querySelector<HTMLElement>(".macos-generator-history__content");
+    const row = host.querySelector<HTMLElement>(".macos-generator-history__row");
+
+    expect(content).not.toBeNull();
+    expect(row).not.toBeNull();
+    expect(host.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+    const copy = row!.querySelector<HTMLButtonElement>("button")!;
+    expect(getComputedStyle(content!).boxShadow).toBe("none");
+    expect(getComputedStyle(row!).minHeight).toBe("52px");
+    expect(getComputedStyle(row!).borderRadius).toBe("0px");
+    expect(getComputedStyle(row!).boxShadow).toBe("none");
+    expect(getComputedStyle(copy).minHeight).toBe("44px");
+
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(getComputedStyle(row!).minHeight).toBe("44px");
+
+    fixture.destroy();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+  });
 });
 
 function computedHitHeight(target: Element): number {
@@ -205,6 +256,13 @@ function generatorService() {
     updatePasswordSettings: vi.fn(async () => settings),
     updatePassphraseSettings: vi.fn(async () => settings),
     updateUsernameSettings: vi.fn(async () => settings),
+    history: vi.fn(async () => [{
+      credential: "history-password",
+      category: "password",
+      generationDate: new Date("2026-08-17T00:00:00.000Z"),
+      algorithm: "password",
+    }]),
+    clearHistory: vi.fn(async () => undefined),
   };
 }
 

@@ -52,8 +52,8 @@ export class OfficialGeneratorHistoryComponent implements OnInit, OnDestroy {
   @ViewChild("clearDialog") private clearDialog?: AppBottomSheetComponent;
   @ViewChild("clearTrigger", { read: ElementRef })
   private clearTrigger?: ElementRef<HTMLButtonElement>;
-  @ViewChild("clearConfirm", { read: ElementRef })
-  private clearConfirm?: ElementRef<HTMLButtonElement>;
+  @ViewChild("clearCancel", { read: ElementRef })
+  private clearCancel?: ElementRef<HTMLButtonElement>;
 
   constructor(
     private accountService: OfficialGeneratorAccountAdapter,
@@ -81,7 +81,7 @@ export class OfficialGeneratorHistoryComponent implements OnInit, OnDestroy {
     }
 
     this.history.statusMessage.next(null);
-    sheet.open(this.clearTrigger?.nativeElement, this.clearConfirm?.nativeElement);
+    sheet.open(this.clearTrigger?.nativeElement, this.clearCancel?.nativeElement);
   };
 
   cancelClear(): void {

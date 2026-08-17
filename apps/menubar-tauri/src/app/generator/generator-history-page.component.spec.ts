@@ -74,6 +74,8 @@ describe("GeneratorHistoryPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector("bit-empty-credential-history bit-no-items")).not.toBeNull();
+    expect(host.querySelectorAll(".macos-generator-history__content")).toHaveLength(1);
+    expect(host.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
     expect(host.textContent).toContain("没有可显示的内容");
     expect(host.textContent).toContain("您最近没有生成任何内容");
     expect(clearButtonOrNull(host)).toBeNull();
@@ -104,8 +106,13 @@ describe("GeneratorHistoryPageComponent", () => {
     await render(fixture);
     const host = fixture.nativeElement as HTMLElement;
     const rows = host.querySelectorAll("bit-credential-generator-history bit-item");
+    const liveRegions = host.querySelectorAll('[aria-live="polite"]');
 
     expect(rows).toHaveLength(3);
+    expect(host.querySelectorAll(".macos-generator-history__content")).toHaveLength(1);
+    expect(liveRegions).toHaveLength(1);
+    expect(liveRegions[0]?.classList).toContain("macos-generator-history__content");
+    expect(host.querySelectorAll(".macos-generator-history__row")).toHaveLength(3);
     expect(rows[0]?.querySelector("bit-color-password")?.textContent).toContain("password-value");
     expect(rows[0]?.querySelector('[slot="secondary"]')?.textContent?.trim()).not.toBe("");
     expect(button(host, "复制密码").querySelector(".bwi-clone")).not.toBeNull();
@@ -243,9 +250,14 @@ describe("GeneratorHistoryPageComponent", () => {
     expect(clearDialog.hasAttribute("open")).toBe(true);
     expect(clearDialog.textContent).toContain("清除生成器历史记录");
     expect(clearDialog.textContent).toContain("若继续，所有条目将从生成器历史记录中永久删除。确定要继续吗？");
-    expect(document.activeElement).toBe(button(host, "清除历史记录", "dialog"));
+    const cancel = button(host, "取消", "dialog");
+    const dangerClear = button(host, "清除历史记录", "dialog");
+    expect(document.activeElement).toBe(cancel);
+    expect(cancel.compareDocumentPosition(dangerClear) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    expect(dangerClear.getAttribute("buttontype")).toBe("danger");
 
-    button(host, "取消").click();
+    cancel.click();
     await settle(fixture);
     expect(clearDialog.hasAttribute("open")).toBe(false);
     expect(document.activeElement).toBe(trigger);
@@ -257,6 +269,43 @@ describe("GeneratorHistoryPageComponent", () => {
     expect(clearDialog.hasAttribute("open")).toBe(false);
     expect(document.activeElement).toBe(trigger);
     expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it("does not let a nested close transition or its fallback restore focus early", async () => {
+    const { fixture } = await setup(generatorService({
+      history: vi.fn(async () => [credential("password", "value")]),
+    }));
+    await render(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = clearButton(host);
+    const clearDialog = dialog(host);
+    useDialogFallback(clearDialog);
+    clearDialog.style.transitionProperty = "transform";
+    clearDialog.style.transitionDuration = "200ms";
+    clearDialog.style.transitionDelay = "0s";
+    trigger.focus();
+    trigger.click();
+    await settle(fixture);
+    const cancel = button(host, "取消", "dialog");
+
+    expect(document.activeElement).toBe(cancel);
+    cancel.click();
+    expect(clearDialog.getAttribute("data-state")).toBe("closing");
+    expect(document.activeElement).toBe(cancel);
+
+    const nested = clearDialog.querySelector<HTMLElement>(".app-bottom-sheet-footer")!;
+    nested.dispatchEvent(transformTransitionEnd());
+    expect(clearDialog.hasAttribute("open")).toBe(true);
+    expect(document.activeElement).toBe(cancel);
+
+    clearDialog.dispatchEvent(transformTransitionEnd());
+    expect(clearDialog.hasAttribute("open")).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+
+    const copy = button(host, "复制密码");
+    copy.focus();
+    await new Promise((resolve) => window.setTimeout(resolve, 275));
+    expect(document.activeElement).toBe(copy);
   });
 
   it("suppresses duplicate clear and changes to the official empty state only after success", async () => {
@@ -558,6 +607,12 @@ function dialog(host: HTMLElement): HTMLDialogElement {
 function useDialogFallback(element: HTMLDialogElement): void {
   Object.defineProperty(element, "showModal", { configurable: true, value: undefined });
   Object.defineProperty(element, "close", { configurable: true, value: undefined });
+}
+
+function transformTransitionEnd(): Event {
+  const event = new Event("transitionend", { bubbles: true });
+  Object.defineProperty(event, "propertyName", { value: "transform" });
+  return event;
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {

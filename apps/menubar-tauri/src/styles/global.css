@@ -2915,7 +2915,7 @@ auth-account .macos-account-label {
 }
 
 .macos-page--generator :is(bit-card, bit-item),
-.macos-page--generator-history :is(bit-item, bit-no-items),
+.macos-page--generator-history bit-no-items,
 .macos-page--send :is(bit-item, bit-callout, bit-no-items),
 .macos-page--send-form :is(bit-card, bit-callout),
 .macos-page--send-created :is(bit-card, bit-callout),
@@ -3149,6 +3149,30 @@ auth-account .macos-account-label {
 }
 
 :root[data-bw-compact-mode="true"] .macos-generator .macos-generator__history-link {
+  min-height: 44px;
+}
+
+.macos-generator-history__content {
+  margin: 0 16px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-generator-history__row {
+  min-height: 52px;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-generator-history__row button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-generator-history__row {
   min-height: 44px;
 }
 

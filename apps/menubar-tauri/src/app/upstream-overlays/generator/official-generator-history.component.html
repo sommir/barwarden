@@ -5,8 +5,10 @@
     </ng-container>
   </popup-header>
   @if (!(loading$ | async)) {
-    <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />
-    <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />
+    <section class="macos-generator-history__content" aria-live="polite">
+      <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />
+      <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />
+    </section>
   }
   @if (statusMessage$ | async; as statusMessage) {
     <bw-macos-alert-strip
@@ -49,16 +51,7 @@
       </div>
       <footer class="app-bottom-sheet-footer">
         <button
-          #clearConfirm
-          bitButton
-          buttonType="danger"
-          type="button"
-          [disabled]="confirming || (clearing$ | async)"
-          (click)="confirmClear()"
-        >
-          {{ "clearHistory" | i18n }}
-        </button>
-        <button
+          #clearCancel
           bitButton
           buttonType="secondary"
           type="button"
@@ -66,6 +59,15 @@
           (click)="cancelClear()"
         >
           {{ "cancel" | i18n }}
+        </button>
+        <button
+          bitButton
+          buttonType="danger"
+          type="button"
+          [disabled]="confirming || (clearing$ | async)"
+          (click)="confirmClear()"
+        >
+          {{ "clearHistory" | i18n }}
         </button>
       </footer>
     </form>
