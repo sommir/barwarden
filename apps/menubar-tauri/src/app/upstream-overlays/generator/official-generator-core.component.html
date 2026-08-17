@@ -1,20 +1,6 @@
-<!-- FIXME: root$ should be powered using a reactive form -->
-<bit-toggle-group
-  fullWidth
-  class="tw-mb-4"
-  [selected]="(root$ | async).nav"
-  (selectedChange)="onRootChanged({ nav: $event })"
-  attr.aria-label="{{ 'type' | i18n }}"
->
-  @for (option of rootOptions$ | async; track option) {
-    <bit-toggle [value]="option.value">
-      {{ option.label }}
-    </bit-toggle>
-  }
-</bit-toggle-group>
-
-<bit-card class="tw-flex tw-justify-between tw-mb-4">
-  <div class="tw-grow tw-flex tw-items-center tw-min-w-0">
+<section class="macos-generator__result" aria-labelledby="generator-result-title">
+  <h2 id="generator-result-title" class="tw-sr-only">{{ "generator" | i18n }}</h2>
+  <div class="macos-generator__value">
     @let generatedValue = value$ | async;
     @if (generatedValue) {
       <bit-color-password class="tw-font-mono" [password]="generatedValue"></bit-color-password>
@@ -22,8 +8,19 @@
       <p class="macos-generator-preparing" role="status">{{ "i18nGenerating" | i18n }}</p>
     }
   </div>
-  <div class="tw-flex tw-items-center tw-space-x-1">
+  <div class="macos-generator__result-actions">
     <button
+      data-testid="generator-copy"
+      type="button"
+      bitIconButton="bwi-clone"
+      buttonType="primary"
+      [label]="credentialTypeCopyLabel$ | async"
+      [valueLabel]="credentialTypeLabel$ | async"
+      [disabled]="!(algorithm$ | async)"
+      [bwGeneratorClipboard]="value$ | async"
+    ></button>
+    <button
+      data-testid="generator-regenerate"
       type="button"
       bitIconButton="bwi-generate"
       buttonType="primaryGhost"
@@ -33,17 +30,24 @@
     >
       {{ credentialTypeGenerateLabel$ | async }}
     </button>
-    <button
-      type="button"
-      bitIconButton="bwi-clone"
-      buttonType="primaryGhost"
-      [label]="credentialTypeCopyLabel$ | async"
-      [valueLabel]="credentialTypeLabel$ | async"
-      [disabled]="!(algorithm$ | async)"
-      [bwGeneratorClipboard]="value$ | async"
-    ></button>
   </div>
-</bit-card>
+</section>
+<!-- FIXME: root$ should be powered using a reactive form -->
+<section class="macos-generator__mode">
+  <bit-toggle-group
+    fullWidth
+    [selected]="(root$ | async).nav"
+    (selectedChange)="onRootChanged({ nav: $event })"
+    attr.aria-label="{{ 'type' | i18n }}"
+  >
+    @for (option of rootOptions$ | async; track option) {
+      <bit-toggle [value]="option.value">
+        {{ option.label }}
+      </bit-toggle>
+    }
+  </bit-toggle-group>
+</section>
+<section class="macos-generator__settings">
 @let showAlgorithm = showAlgorithm$ | async;
 @let account = account$ | async;
 @switch (showAlgorithm?.id) {
@@ -105,3 +109,4 @@
     </div>
   </bit-section>
 }
+</section>

@@ -625,6 +625,11 @@ export const generatorTemplateContracts = [
       "c907585b53fe214b153707ad1dace68a5801cc30f0f9a2ac79c204ba1ba9734e",
     transforms: [
       {
+        search:
+          '<!-- FIXME: root$ should be powered using a reactive form -->\n<bit-toggle-group\n  fullWidth\n  class="tw-mb-4"\n  [selected]="(root$ | async).nav"\n  (selectedChange)="onRootChanged({ nav: $event })"\n  attr.aria-label="{{ \'type\' | i18n }}"\n>\n  @for (option of rootOptions$ | async; track option) {\n    <bit-toggle [value]="option.value">\n      {{ option.label }}\n    </bit-toggle>\n  }\n</bit-toggle-group>\n\n',
+        replacement: "",
+      },
+      {
         search: "<nudge-generator-spotlight></nudge-generator-spotlight>\n\n",
         replacement: "",
       },
@@ -642,9 +647,30 @@ export const generatorTemplateContracts = [
       },
       {
         search:
+          '<bit-card class="tw-flex tw-justify-between tw-mb-4">\n  <div class="tw-grow tw-flex tw-items-center tw-min-w-0">',
+        replacement:
+          '<section class="macos-generator__result" aria-labelledby="generator-result-title">\n  <h2 id="generator-result-title" class="tw-sr-only">{{ "generator" | i18n }}</h2>\n  <div class="macos-generator__value">',
+      },
+      {
+        search: '  <div class="tw-flex tw-items-center tw-space-x-1">',
+        replacement: '  <div class="macos-generator__result-actions">',
+      },
+      {
+        search:
+          '    <button\n      type="button"\n      bitIconButton="bwi-generate"\n      buttonType="primaryGhost"\n      (click)="generate(USER_REQUEST)"\n      [label]="credentialTypeGenerateLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n    >\n      {{ credentialTypeGenerateLabel$ | async }}\n    </button>\n    <button\n      type="button"\n      bitIconButton="bwi-clone"\n      buttonType="primaryGhost"\n      [label]="credentialTypeCopyLabel$ | async"\n      [valueLabel]="credentialTypeLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n      [bwGeneratorClipboard]="value$ | async"\n    ></button>',
+        replacement:
+          '    <button\n      data-testid="generator-copy"\n      type="button"\n      bitIconButton="bwi-clone"\n      buttonType="primary"\n      [label]="credentialTypeCopyLabel$ | async"\n      [valueLabel]="credentialTypeLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n      [bwGeneratorClipboard]="value$ | async"\n    ></button>\n    <button\n      data-testid="generator-regenerate"\n      type="button"\n      bitIconButton="bwi-generate"\n      buttonType="primaryGhost"\n      (click)="generate(USER_REQUEST)"\n      [label]="credentialTypeGenerateLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n    >\n      {{ credentialTypeGenerateLabel$ | async }}\n    </button>',
+      },
+      {
+        search: "  </div>\n</bit-card>\n@let showAlgorithm = showAlgorithm$ | async;",
+        replacement:
+          '  </div>\n</section>\n<!-- FIXME: root$ should be powered using a reactive form -->\n<section class="macos-generator__mode">\n  <bit-toggle-group\n    fullWidth\n    [selected]="(root$ | async).nav"\n    (selectedChange)="onRootChanged({ nav: $event })"\n    attr.aria-label="{{ \'type\' | i18n }}"\n  >\n    @for (option of rootOptions$ | async; track option) {\n      <bit-toggle [value]="option.value">\n        {{ option.label }}\n      </bit-toggle>\n    }\n  </bit-toggle-group>\n</section>\n<section class="macos-generator__settings">\n@let showAlgorithm = showAlgorithm$ | async;',
+      },
+      {
+        search:
           '@if ((category$ | async) !== "password") {\n  <bit-section>\n    <bit-section-header>\n      <h2 bitTypography="h6">{{ "options" | i18n }}</h2>\n    </bit-section-header>\n    <div class="tw-mb-4">\n      <bit-card>\n        <form [formGroup]="username" class="tw-container">\n          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"\n              formControlName="nav"\n              data-testid="username-type"\n            >\n            </bit-select>\n            @if (credentialTypeHint$ | async) {\n              <bit-hint>{{ credentialTypeHint$ | async }}</bit-hint>\n            }\n          </bit-form-field>\n        </form>\n        @if (showForwarder$ | async) {\n          <form [formGroup]="forwarder" class="tw-container">\n            <bit-form-field>\n              <bit-label>{{ "service" | i18n }}</bit-label>\n              <bit-select\n                [items]="forwarderOptions$ | async"\n                formControlName="nav"\n                data-testid="email-forwarding-service"\n              >\n              </bit-select>\n            </bit-form-field>\n          </form>\n        }\n        @if (showAlgorithm?.id === Algorithm.catchall) {\n          <tools-catchall-settings\n            [account]="account"\n            (onUpdated)="generate(\'catchall settings\')"\n          />\n        }\n        @if (forwarderId$ | async; as forwarderId) {\n          <tools-forwarder-settings [account]="account" [forwarder]="forwarderId" />\n        }\n        @if (showAlgorithm?.id === Algorithm.plusAddress) {\n          <tools-subaddress-settings\n            [account]="account"\n            (onUpdated)="generate(\'subaddress settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.username) {\n          <tools-username-settings\n            [account]="account"\n            (onUpdated)="generate(\'username settings\')"\n          />\n        }\n      </bit-card>\n    </div>\n  </bit-section>\n}\n',
         replacement:
-          '@if ((category$ | async) !== "password") {\n  <bit-section>\n    <bit-section-header>\n      <h2 bitTypography="h6">{{ "options" | i18n }}</h2>\n    </bit-section-header>\n    <div class="tw-mb-4">\n      <bit-card>\n        <form [formGroup]="username" class="tw-container">\n          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"\n              formControlName="nav"\n              data-testid="username-type"\n            >\n            </bit-select>\n            @if (credentialTypeHint$ | async) {\n              <bit-hint>{{ credentialTypeHint$ | async }}</bit-hint>\n            }\n          </bit-form-field>\n        </form>\n        @if (showAlgorithm?.id === Algorithm.catchall) {\n          <tools-catchall-settings\n            [account]="account"\n            (onUpdated)="generate(\'catchall settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.plusAddress) {\n          <tools-subaddress-settings\n            [account]="account"\n            (onUpdated)="generate(\'subaddress settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.username) {\n          <tools-username-settings\n            [account]="account"\n            (onUpdated)="generate(\'username settings\')"\n          />\n        }\n      </bit-card>\n    </div>\n  </bit-section>\n}\n',
+          '@if ((category$ | async) !== "password") {\n  <bit-section>\n    <bit-section-header>\n      <h2 bitTypography="h6">{{ "options" | i18n }}</h2>\n    </bit-section-header>\n    <div class="tw-mb-4">\n      <bit-card>\n        <form [formGroup]="username" class="tw-container">\n          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"\n              formControlName="nav"\n              data-testid="username-type"\n            >\n            </bit-select>\n            @if (credentialTypeHint$ | async) {\n              <bit-hint>{{ credentialTypeHint$ | async }}</bit-hint>\n            }\n          </bit-form-field>\n        </form>\n        @if (showAlgorithm?.id === Algorithm.catchall) {\n          <tools-catchall-settings\n            [account]="account"\n            (onUpdated)="generate(\'catchall settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.plusAddress) {\n          <tools-subaddress-settings\n            [account]="account"\n            (onUpdated)="generate(\'subaddress settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.username) {\n          <tools-username-settings\n            [account]="account"\n            (onUpdated)="generate(\'username settings\')"\n          />\n        }\n      </bit-card>\n    </div>\n  </bit-section>\n}\n</section>\n',
       },
     ],
   },
@@ -657,12 +683,22 @@ export const generatorTemplateContracts = [
       "d334de44aee06d8efbdfefbc79c3452247548005275a37f7e1a95fcef6b2691a",
     transforms: [
       {
+        search: "<popup-page>",
+        replacement: '<popup-page class="macos-generator">',
+      },
+      {
         search: "      <app-pop-out />\n      <app-current-account />",
         replacement: "      <bw-popup-header-actions />",
       },
       {
         search: "  <tools-credential-generator />",
         replacement: "  <bw-official-generator-core />",
+      },
+      {
+        search:
+          '  <bit-item>\n    <a type="button" bit-item-content routerLink="/generator-history">',
+        replacement:
+          '  <bit-item class="macos-generator__history-row">\n    <a class="macos-generator__history-link" bit-item-content routerLink="/generator-history">',
       },
     ],
   },

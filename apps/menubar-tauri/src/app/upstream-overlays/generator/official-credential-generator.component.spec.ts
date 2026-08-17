@@ -57,10 +57,34 @@ describe("OfficialCredentialGeneratorComponent", () => {
 
     expect(host.querySelector("popup-page bw-official-generator-core")).not.toBeNull();
     expect(host.querySelector("popup-header bw-popup-header-actions")).not.toBeNull();
-    expect(host.querySelector("bit-toggle-group + bit-card bit-color-password")).not.toBeNull();
+    expect(host.querySelector(".macos-generator__result bit-color-password")).not.toBeNull();
     expect(host.querySelector('a[routerlink="/generator-history"]')).not.toBeNull();
     expect(host.querySelector("nudge-generator-spotlight")).toBeNull();
     expect(host.querySelector("bit-color-password")?.className).toMatch(/tw-break-words/);
+  });
+
+  it("puts a labelled result before mode/settings with one primary copy action", async () => {
+    const { fixture } = await createFixture();
+    await render(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const result = host.querySelector<HTMLElement>(".macos-generator__result")!;
+    const mode = host.querySelector<HTMLElement>(".macos-generator__mode")!;
+    const settings = host.querySelector<HTMLElement>(".macos-generator__settings")!;
+    const copy = host.querySelector<HTMLButtonElement>('[data-testid="generator-copy"]')!;
+    const regenerate = host.querySelector<HTMLButtonElement>('[data-testid="generator-regenerate"]')!;
+
+    expect(result.compareDocumentPosition(mode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(mode.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(result.getAttribute("aria-labelledby")).toBe("generator-result-title");
+    expect(copy.getAttribute("aria-label")).toBeTruthy();
+    expect(regenerate.getAttribute("aria-label")).toBeTruthy();
+    expect(copy.getAttribute("buttontype")).toBe("primary");
+    expect(regenerate.getAttribute("buttontype")).toBe("primaryGhost");
+    expect(host.querySelectorAll('button[buttontype="primary"]')).toHaveLength(1);
+    expect(host.querySelectorAll(".macos-generator__mode bit-toggle-group")).toHaveLength(1);
+    expect(
+      host.querySelector('.macos-generator__history-link[routerlink="/generator-history"]'),
+    ).not.toBeNull();
   });
 
   it("generates initially, switches mode, and regenerates from the official icon actions", async () => {

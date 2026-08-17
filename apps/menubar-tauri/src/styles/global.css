@@ -3081,12 +3081,62 @@ auth-account .macos-account-label {
   background: transparent;
 }
 
-.macos-page--generator bw-official-generator-core > bit-card:first-of-type {
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
-  background: var(--mac-surface-solid);
-  color: var(--mac-text-primary);
+.macos-generator__result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 0 16px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  padding: 16px 0 20px;
+  background: transparent;
   box-shadow: none;
+}
+
+.macos-generator__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.macos-generator__result-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.macos-generator__mode {
+  margin: 0 16px 20px;
+}
+
+.macos-generator__settings {
+  margin: 0 16px;
+}
+
+.macos-page--generator .macos-generator__settings :is(bit-card, bit-section) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-generator :is(button, a) {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.macos-page--generator .macos-generator__history-row {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.macos-generator .macos-generator__history-link {
+  min-height: 52px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-generator .macos-generator__history-link {
+  min-height: 44px;
 }
 
 /* Upstream success and custom-field templates carry utility background

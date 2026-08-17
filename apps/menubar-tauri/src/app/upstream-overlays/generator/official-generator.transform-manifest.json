@@ -91,7 +91,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-credential-generator.component.html",
-      "sha256": "e6dc89bd308984a70a942c7423af4c70f24639c24529b7ec988e113dc3a79039"
+      "sha256": "162444a1391ae675bb13ca365e659a82dd347cb361455529e3e68b891927e2e2"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-core.component.ts",
@@ -99,7 +99,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-core.component.html",
-      "sha256": "8791ed33f4ab1da0b0f118237353b50cc275bd087784b008bb51127344eff555"
+      "sha256": "1e0b8519cf82afdd94368f5fdfcd46c26fda40f66aa59e84d060dab027f9c81d"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-header-actions.component.ts",
@@ -242,7 +242,7 @@
   ],
   "ancestryGuard": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-member-transforms.ts",
-    "sha256": "8f738bbd2844977a60dea26a9c8748bf9f309c24c21609eb8d584fa4bb2378ee"
+    "sha256": "5cab27542d8f4c608bb4869d219ce65dfbb55bebf1e5d3001a53ddb5df85c46e"
   },
   "internalBarrelBoundary": {
     "path": "apps/menubar-tauri/official-generator-internal-boundary.json",
@@ -4570,7 +4570,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-credential-generator.component.html",
-        "sha256": "e6dc89bd308984a70a942c7423af4c70f24639c24529b7ec988e113dc3a79039"
+        "sha256": "162444a1391ae675bb13ca365e659a82dd347cb361455529e3e68b891927e2e2"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-credential-generator.component.ts",
@@ -4586,7 +4586,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-core.component.html",
-        "sha256": "8791ed33f4ab1da0b0f118237353b50cc275bd087784b008bb51127344eff555"
+        "sha256": "1e0b8519cf82afdd94368f5fdfcd46c26fda40f66aa59e84d060dab027f9c81d"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-core.component.ts",
@@ -5353,7 +5353,7 @@
         "sha256": "162dd777bc2ad6abcd19e7ce8c6c78463ebabf63a73bd22ecf6cf8a9558f5286"
       }
     ],
-    "sha256": "b5174eabba6822ee462def68cca0400cea85b6b1ec26598fdd93e62af599ce09"
+    "sha256": "1b3bfbf8f7d967cfb144647ad501382c60876ec8cce5129b01bdbf21f3e620fe"
   },
   "removedDependencies": [
     "forwarded-email provider graph",

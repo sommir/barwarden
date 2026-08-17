@@ -15,16 +15,13 @@ describe("GeneratorPageComponent", () => {
     expect(source).not.toMatch(/bit-card|bit-toggle|operationEpoch|settings\s*=|value\s*=/);
   });
 
-  it("marks the main Generator route for the shared solid macOS presentation", () => {
+  it("marks the route host for the rendered Generator visual contract", () => {
     const root = process.cwd();
     const source = readFileSync(
       join(root, "apps/menubar-tauri/src/app/generator/generator-page.component.ts"),
       "utf8",
     );
-    const css = readFileSync(join(root, "apps/menubar-tauri/src/styles/global.css"), "utf8");
 
     expect(source).toContain('host: { class: "macos-page macos-page--generator" }');
-    expect(css).toMatch(/\.macos-page--generator[\s\S]*?background:\s*var\(--mac-canvas\)/);
-    expect(css).toMatch(/\.macos-page--generator\s+bw-official-generator-core\s*>\s*bit-card:first-of-type\s*{[^}]*background:\s*var\(--mac-surface-solid\)/s);
   });
 });
