@@ -50,6 +50,7 @@
         </bit-item-action>
         <bit-item-action class="macos-send-row__actions">
           <button
+            #moreTrigger
             [attr.data-popup-focus-key]="'send-item:' + send.id + ':more'"
             bitIconButton="bwi-ellipsis-v"
             size="small"
@@ -58,7 +59,14 @@
             [bitMenuTriggerFor]="sendActions"
           ></button>
           <bit-menu #sendActions [ariaLabel]="(('i18nMore' | i18n) + ' - ' + send.name)">
-            <button type="button" bitMenuItem variant="danger" (click)="delete.emit(send)">
+            <button
+              class="macos-send-row__delete-action"
+              data-testid="send-delete-action"
+              type="button"
+              bitMenuItem
+              variant="danger"
+              (click)="requestDelete(send, moreTrigger)"
+            >
               {{ "i18nDelete" | i18n }}
             </button>
           </bit-menu>

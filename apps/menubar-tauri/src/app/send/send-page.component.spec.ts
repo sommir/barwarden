@@ -382,6 +382,70 @@ describe("SendPageComponent", () => {
     expect(sendActions.calls).toEqual([]);
   });
 
+  it.each(["Cancel", "Escape"] as const)(
+    "restores the same More trigger after %s once the Delete menu item is detached",
+    async (dismissal) => {
+      const sendActions = new RecordingSendActions();
+      await TestBed.configureTestingModule({
+        imports: [SendPageComponent],
+        providers: [
+          PopupStateStore,
+          provideRouter([]),
+          { provide: SEND_ACTION_PORT, useValue: sendActions },
+        ],
+      }).compileComponents();
+      const store = TestBed.inject(PopupStateStore);
+      unlockForSendOperation(store);
+      store.setSends([demoSend({ id: "send-1", name: "Payroll token", type: "text" })]);
+      const fixture = TestBed.createComponent(SendPageComponent);
+      const requestDelete = vi.spyOn(fixture.componentInstance, "requestDelete");
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      document.body.append(host);
+      const more = host.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+      more.focus();
+      more.click();
+      await fixture.whenStable();
+      const staleDeleteItem = document.querySelector<HTMLButtonElement>(
+        '[role="menuitem"].tw-text-fg-danger',
+      )!;
+      expect(staleDeleteItem.isConnected).toBe(true);
+
+      staleDeleteItem.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const confirmation = host.querySelector<HTMLDialogElement>(
+        '[data-testid="send-permanent-delete-confirmation"]',
+      )!;
+      expect(requestDelete).toHaveBeenCalledTimes(1);
+      expect(host.querySelectorAll('[data-testid="send-permanent-delete-confirmation"]'))
+        .toHaveLength(1);
+      expect(confirmation.hasAttribute("open")).toBe(true);
+
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+      expect(staleDeleteItem.isConnected).toBe(false);
+      expect(document.querySelector('[role="menuitem"].tw-text-fg-danger')).toBeNull();
+
+      if (dismissal === "Cancel") {
+        buttonByText(host, "取消").click();
+      } else {
+        confirmation.dispatchEvent(new Event("cancel", { cancelable: true }));
+      }
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(confirmation.hasAttribute("open")).toBe(false);
+      expect(document.activeElement).toBe(more);
+      expect(requestDelete).toHaveBeenCalledTimes(1);
+      expect(confirmation.hasAttribute("open")).toBe(false);
+      expect(sendActions.calls).toEqual([]);
+
+      fixture.destroy();
+      host.remove();
+    },
+  );
+
   it("clears the pending Send when Escape dismisses the permanent deletion confirmation", async () => {
     const sendActions = new RecordingSendActions();
     await TestBed.configureTestingModule({

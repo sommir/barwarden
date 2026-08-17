@@ -115,7 +115,7 @@
 +  readonly open = output<OfficialTextSendListItem>();
 +  readonly copyLink = output<OfficialTextSendCopyRequest>();
 +  readonly delete = output<OfficialTextSendListItem>();
-@@ -67,32 +63,2 @@
+@@ -67,32 +63,3 @@
 -  constructor(
 -    protected dialogService: DialogService,
 -    protected environmentService: EnvironmentService,
@@ -148,10 +148,10 @@
 -    } catch (e) {
 -      this.logService.error(e);
 -    }
-+  trackById(_index: number, send: OfficialTextSendListItem): string {
-+    return send.id;
-@@ -100,11 +65,0 @@
--
++  requestDelete(send: OfficialTextSendListItem, trigger: BitIconButtonComponent): void {
++    trigger.getFocusTarget().focus();
++    this.delete.emit(send);
+@@ -101,9 +68,2 @@
 -  async copySendLink(send: SendView) {
 -    const env = await firstValueFrom(this.environmentService.environment$);
 -    const link = env.getSendUrl() + send.accessId + "/" + send.urlB64Key;
@@ -161,4 +161,5 @@
 -      title: null,
 -      message: this.i18nService.t("valueCopied", this.i18nService.t("sendLink")),
 -    });
--  }
++  trackById(_index: number, send: OfficialTextSendListItem): string {
++    return send.id;

@@ -21,6 +21,8 @@
     <popup-footer slot="footer">
       <button
         #clearTrigger
+        class="macos-generator-history__clear-action"
+        data-testid="generator-history-clear"
         [disabled]="clearing$ | async"
         bitButton
         type="submit"
@@ -52,6 +54,8 @@
       <footer class="app-bottom-sheet-footer">
         <button
           #clearCancel
+          class="macos-generator-history__sheet-action"
+          data-testid="generator-history-clear-cancel"
           bitButton
           buttonType="secondary"
           type="button"
@@ -61,6 +65,8 @@
           {{ "cancel" | i18n }}
         </button>
         <button
+          class="macos-generator-history__sheet-action"
+          data-testid="generator-history-clear-confirm"
           bitButton
           buttonType="danger"
           type="button"

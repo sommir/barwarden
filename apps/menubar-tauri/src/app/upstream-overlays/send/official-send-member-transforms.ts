@@ -95,7 +95,7 @@ const replaceBrowserAccountAndPopOutWithExistingPopupHeaderSlots = [
     replacement: `  <popup-header slot="header" pageTitle="Send">
     <ng-container slot="end">
       @if (!disabled()) {
-        <button bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+        <button class="macos-send__new-action" data-testid="send-new-action" bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
           {{ "new" | i18n }}
         </button>
       }
@@ -132,6 +132,8 @@ const retainOfficialPolicySearchFilterLoadingEmptyAndNoResultsBlocks = [
           (ngModelChange)="queryChange.emit($event ?? '')"
         />
         <button
+          class="macos-send__filter-action"
+          data-testid="send-filter-action"
           bitIconButton="bwi-sliders"
           buttonType="primaryGhost"
           type="button"
@@ -180,7 +182,7 @@ const removeFileNewSendChoice = [
           <p bitTypography="body2" class="tw-mx-6 tw-mt-2">{{ "i18nSendEmptyDescription" | i18n }}</p>
         </ng-container>
         @if (!disabled()) {
-          <button slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+          <button class="macos-send__empty-create-action" data-testid="send-empty-create-action" slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
             {{ "i18nCreateSend" | i18n }}
           </button>
         }
@@ -318,6 +320,7 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
         </bit-item-action>`,
     replacement: `        <bit-item-action class="macos-send-row__actions">
           <button
+            #moreTrigger
             [attr.data-popup-focus-key]="'send-item:' + send.id + ':more'"
             bitIconButton="bwi-ellipsis-v"
             size="small"
@@ -326,7 +329,14 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
             [bitMenuTriggerFor]="sendActions"
           ></button>
           <bit-menu #sendActions [ariaLabel]="(('i18nMore' | i18n) + ' - ' + send.name)">
-            <button type="button" bitMenuItem variant="danger" (click)="delete.emit(send)">
+            <button
+              class="macos-send-row__delete-action"
+              data-testid="send-delete-action"
+              type="button"
+              bitMenuItem
+              variant="danger"
+              (click)="requestDelete(send, moreTrigger)"
+            >
               {{ "i18nDelete" | i18n }}
             </button>
           </bit-menu>
@@ -625,7 +635,7 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
     authorityClass: "SendListItemsContainerComponent", runtimeClass: "OfficialSendListItemsContainerComponent",
     authoritySha256: "e341b2b8bfec76b52003a91186e05dcfee16ec9e403be658d18ac4d189c8a24b",
-    requiredRuntimeMembers: ["sends", "headerText", "open", "copyLink", "delete", "trackById"],
+    requiredRuntimeMembers: ["sends", "headerText", "open", "copyLink", "delete", "requestDelete", "trackById"],
     requiredImports: [{ module: "@angular/common", bindings: ["CommonModule"] }, { module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "../../official-ui/official-components", bindings: ["MenuComponent", "MenuItemComponent", "MenuTriggerForDirective"] }],
     mutationSearch: "readonly copyLink", mutationReplacement: "readonly damagedCopyLink",
     patch: listItemsTypeScriptPatch, transforms: staticPatchTransforms(listItemsTypeScriptPatch),

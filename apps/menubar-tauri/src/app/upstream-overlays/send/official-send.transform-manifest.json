@@ -91,15 +91,15 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.html",
-      "sha256": "48b5885fd7cf708d5df143b3e2ac81565791faa6cbd8f106a70505c9a971e0b2"
+      "sha256": "67a30966399a5df7ba362686232024230c19cb6328f338afbf7db932094e965a"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
-      "sha256": "0d656aa05fb9978ac55c3ce3126e0e5c87f3f1ee90e23442410edb64e86aabe2"
+      "sha256": "7f616d5033058df403963162c5aa3ecca2dee708c307b3329e9ebd45df6c94d5"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.html",
-      "sha256": "b35b7aa70595630ecb459a01b19d216e46d83b61e6272a3991aba94471b25673"
+      "sha256": "8ddc3e47ee188991ecf7278db45805d3a617dbb4f322aebd8257fdc27e7ca8ff"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
@@ -107,7 +107,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
-      "sha256": "a48d462ce62565bd171bf8fcab8e6669997a8dff9035b16b5e0ae7f8f398450f"
+      "sha256": "4102b9366c6e9c218b4192bfe4ea8cc3f1c2e09f3ca0d492a959dd82b7e87e35"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html",
@@ -151,7 +151,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-list-items-container.component.ts.patch",
-      "sha256": "62dca6dab147852246c9d7609c8cc0186b62589f852bfe4af319dad93336d68a"
+      "sha256": "eb99b8bf8c751367458e9c8074b5dee6eb79b9629e9b32bcb1d0a9e3e61e8aec"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-list.component.ts.patch",
@@ -194,7 +194,7 @@
   ],
   "transformContract": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
-    "sha256": "a48d462ce62565bd171bf8fcab8e6669997a8dff9035b16b5e0ae7f8f398450f"
+    "sha256": "4102b9366c6e9c218b4192bfe4ea8cc3f1c2e09f3ca0d492a959dd82b7e87e35"
   },
   "productionRoots": [
     "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",

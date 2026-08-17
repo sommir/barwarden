@@ -3213,6 +3213,14 @@ auth-account .macos-account-label {
   min-height: 44px;
 }
 
+.macos-page--generator-history :is(
+  .macos-generator-history__clear-action,
+  .macos-generator-history__sheet-action
+) {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 :root[data-bw-compact-mode="true"] .macos-generator-history__row {
   min-height: 44px;
 }
@@ -4580,6 +4588,16 @@ auth-account .macos-account-label {
 }
 
 .macos-send-row__actions button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.macos-page--send :is(
+  .macos-send__new-action,
+  .macos-send__filter-action,
+  .macos-send__empty-create-action
+),
+.bit-menu-panel [role="menu"] .macos-send-row__delete-action {
   min-width: 44px;
   min-height: 44px;
 }

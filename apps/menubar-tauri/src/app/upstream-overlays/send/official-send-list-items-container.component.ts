@@ -60,6 +60,11 @@ export class OfficialSendListItemsContainerComponent {
   readonly copyLink = output<OfficialTextSendCopyRequest>();
   readonly delete = output<OfficialTextSendListItem>();
 
+  requestDelete(send: OfficialTextSendListItem, trigger: BitIconButtonComponent): void {
+    trigger.getFocusTarget().focus();
+    this.delete.emit(send);
+  }
+
   trackById(_index: number, send: OfficialTextSendListItem): string {
     return send.id;
   }

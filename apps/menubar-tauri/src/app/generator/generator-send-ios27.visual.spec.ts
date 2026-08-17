@@ -262,9 +262,13 @@ describe("iOS 27 Generator visual contract", () => {
     const host = fixture.nativeElement as HTMLElement;
     const content = host.querySelector<HTMLElement>(".macos-generator-history__content");
     const row = host.querySelector<HTMLElement>(".macos-generator-history__row");
+    const clear = host.querySelector<HTMLButtonElement>(
+      '[data-testid="generator-history-clear"]',
+    );
 
     expect(content).not.toBeNull();
     expect(row).not.toBeNull();
+    expect(clear).not.toBeNull();
     expect(host.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
     const copy = row!.querySelector<HTMLButtonElement>("button")!;
     expect(getComputedStyle(content!).boxShadow).toBe("none");
@@ -272,9 +276,35 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(row!).borderRadius).toBe("0px");
     expect(getComputedStyle(row!).boxShadow).toBe("none");
     expect(getComputedStyle(copy).minHeight).toBe("44px");
+    expect(computedHitWidth(clear!)).toBeGreaterThanOrEqual(44);
+    expect(computedHitHeight(clear!)).toBeGreaterThanOrEqual(44);
+
+    clear!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const sheet = host.querySelector<HTMLDialogElement>(
+      '[data-testid="generator-history-dialog"]',
+    )!;
+    const cancel = sheet.querySelector<HTMLButtonElement>(
+      '[data-testid="generator-history-clear-cancel"]',
+    );
+    const danger = sheet.querySelector<HTMLButtonElement>(
+      '[data-testid="generator-history-clear-confirm"]',
+    );
+    expect(sheet.hasAttribute("open")).toBe(true);
+    expect(cancel).not.toBeNull();
+    expect(danger).not.toBeNull();
+    expect([cancel, danger].map((action) => computedHitWidth(action!)))
+      .toEqual([44, 44]);
+    expect([cancel, danger].map((action) => computedHitHeight(action!)))
+      .toEqual([44, 44]);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row!).minHeight).toBe("44px");
+    expect([clear, cancel, danger].map((action) => computedHitWidth(action!)))
+      .toEqual([44, 44, 44]);
+    expect([clear, cancel, danger].map((action) => computedHitHeight(action!)))
+      .toEqual([44, 44, 44]);
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
@@ -312,6 +342,8 @@ describe("iOS 27 Generator visual contract", () => {
     const list = host.querySelector<HTMLElement>(".macos-send-list")!;
     const row = host.querySelector<HTMLElement>(".macos-send-row")!;
     const actions = row.querySelectorAll<HTMLElement>(".macos-send-row__actions button");
+    const newAction = host.querySelector<HTMLButtonElement>('[data-testid="send-new-action"]');
+    const filterAction = host.querySelector<HTMLButtonElement>('[data-testid="send-filter-action"]');
 
     expect(getComputedStyle(list).display).toBe("block");
     expect(getComputedStyle(list).boxShadow).toBe("none");
@@ -327,9 +359,62 @@ describe("iOS 27 Generator visual contract", () => {
       "44px",
       "44px",
     ]);
+    expect(newAction).not.toBeNull();
+    expect(filterAction).not.toBeNull();
+    expect([newAction, filterAction].map((action) => computedHitWidth(action!)))
+      .toEqual([44, 44]);
+    expect([newAction, filterAction].map((action) => computedHitHeight(action!)))
+      .toEqual([44, 44]);
+
+    const more = row.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+    more.click();
+    await fixture.whenStable();
+    const deleteAction = document.querySelector<HTMLButtonElement>(
+      '[data-testid="send-delete-action"]',
+    );
+    expect(deleteAction).not.toBeNull();
+    expect(computedHitWidth(deleteAction!)).toBeGreaterThanOrEqual(44);
+    expect(computedHitHeight(deleteAction!)).toBeGreaterThanOrEqual(44);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row).minHeight).toBe("44px");
+    expect([newAction, filterAction, deleteAction].map((action) => computedHitWidth(action!)))
+      .toEqual([44, 44, 44]);
+    expect([newAction, filterAction, deleteAction].map((action) => computedHitHeight(action!)))
+      .toEqual([44, 44, 44]);
+
+    fixture.destroy();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+  });
+
+  it("renders the real empty Send Create action as a compact-safe 44px target", async () => {
+    TestBed.resetTestingModule();
+    TestBed.overrideComponent(PopupPageComponent, { set: { template: "<ng-content />" } });
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        PopupStateStore,
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const create = host.querySelector<HTMLButtonElement>(
+      '[data-testid="send-empty-create-action"]',
+    );
+
+    expect(host.querySelector("bw-official-send-list")).not.toBeNull();
+    expect(create).not.toBeNull();
+    expect(computedHitWidth(create!)).toBe(44);
+    expect(computedHitHeight(create!)).toBe(44);
+
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(computedHitWidth(create!)).toBe(44);
+    expect(computedHitHeight(create!)).toBe(44);
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
@@ -396,6 +481,20 @@ function computedHitHeight(target: Element): number {
     ...Array.from(target.children, computedHitHeight),
   );
   return Math.max(explicit, contentBox, descendantHeight);
+}
+
+function computedHitWidth(target: Element): number {
+  const style = getComputedStyle(target);
+  const explicit = Math.max(cssPixels(style.minWidth), cssPixels(style.width));
+  const contentBox = cssPixels(style.paddingLeft)
+    + cssPixels(style.paddingRight)
+    + cssPixels(style.borderLeftWidth)
+    + cssPixels(style.borderRightWidth);
+  const descendantWidth = Math.max(
+    0,
+    ...Array.from(target.children, computedHitWidth),
+  );
+  return Math.max(explicit, contentBox, descendantWidth);
 }
 
 function cssPixels(value: string): number {
