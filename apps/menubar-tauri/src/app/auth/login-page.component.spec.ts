@@ -36,6 +36,63 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+function installLoginVisualCss(): {
+  readonly exposeFocusVisible: (element: HTMLElement) => void;
+  readonly cleanup: () => void;
+} {
+  const style = document.createElement("style");
+  const productionCascade = postcss.root();
+  for (const filename of ["macos-tokens.css", "global.css"]) {
+    const stylesheet = postcss.parse(
+      readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", filename), "utf8"),
+    );
+    productionCascade.append(
+      stylesheet.nodes.filter(
+        (node) => !(node.type === "atrule" && node.name.toLowerCase() === "import"),
+      ),
+    );
+  }
+  style.textContent = productionCascade.toString();
+  document.head.append(style);
+
+  const productionSelector = ".macos-auth-card button:focus-visible";
+  const findRule = (rules: CSSRuleList): CSSStyleRule | null => {
+    for (const rule of Array.from(rules)) {
+      if (
+        "selectorText" in rule
+        && "style" in rule
+        && typeof rule.selectorText === "string"
+        && rule.selectorText.split(",").map((selector) => selector.trim()).includes(productionSelector)
+      ) {
+        return rule as CSSStyleRule;
+      }
+      if ("cssRules" in rule) {
+        const nested = findRule((rule as CSSGroupingRule).cssRules);
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+    return null;
+  };
+  const focusRule = style.sheet ? findRule(style.sheet.cssRules) : null;
+  if (!focusRule) {
+    style.remove();
+    throw new Error("Production login focus-visible rule was not loaded");
+  }
+  const focusProbe = document.createElement("style");
+  focusProbe.textContent = `.macos-auth-card button[data-production-focus-visible] { ${focusRule.style.cssText} }`;
+  document.head.append(focusProbe);
+
+  return {
+    exposeFocusVisible: (element) => element.setAttribute("data-production-focus-visible", ""),
+    cleanup: () => {
+      focusProbe.remove();
+      style.remove();
+    },
+  };
+}
+
 describe("LoginPageComponent", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -122,6 +179,28 @@ describe("LoginPageComponent", () => {
     expect(host.querySelector("bit-form-field.macos-field")).not.toBeNull();
     expect(host.querySelector("[data-testid=login-continue-button].macos-primary-action")).not.toBeNull();
     expect(host.querySelector("form [data-testid=login-email-input]")).not.toBeNull();
+  });
+
+  it("renders a 2px production focus outline on the focused login action", async () => {
+    const visualCss = installLoginVisualCss();
+    const { fixture } = await createPage();
+    const action = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      '[data-testid="login-continue-button"]',
+    );
+
+    try {
+      expect(action).not.toBeNull();
+      action!.focus();
+      expect(document.activeElement).toBe(action);
+      visualCss.exposeFocusVisible(action!);
+      const styles = getComputedStyle(action!);
+      expect(styles.outlineWidth).toBe("2px");
+      expect(styles.outlineStyle).toBe("solid");
+      expect(styles.outlineOffset).toBe("2px");
+    } finally {
+      fixture.destroy();
+      visualCss.cleanup();
+    }
   });
 
   it("renders one large Barwarden product title without a provider subtitle", async () => {

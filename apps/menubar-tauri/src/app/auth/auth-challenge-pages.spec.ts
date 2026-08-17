@@ -59,6 +59,55 @@ function newDeviceAuthFacade(overrides: Record<string, unknown> = {}): Record<st
   };
 }
 
+function installChallengeVisualCss(): () => void {
+  const style = document.createElement("style");
+  const productionCascade = postcss.root();
+  for (const filename of ["macos-tokens.css", "global.css"]) {
+    const stylesheet = postcss.parse(
+      readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", filename), "utf8"),
+    );
+    productionCascade.append(
+      stylesheet.nodes.filter(
+        (node) => !(node.type === "atrule" && node.name.toLowerCase() === "import"),
+      ),
+    );
+  }
+  const tokens = new Map<string, string>();
+  productionCascade.walkRules(":root", (rule) => {
+    rule.walkDecls((declaration) => {
+      if (declaration.prop.startsWith("--")) {
+        tokens.set(declaration.prop, declaration.value.trim());
+      }
+    });
+  });
+  style.textContent = productionCascade.toString();
+  document.head.append(style);
+
+  const materializeDirectTokens = (rules: CSSRuleList): void => {
+    for (const rule of Array.from(rules)) {
+      if ("style" in rule) {
+        const declaration = (rule as CSSStyleRule).style;
+        for (const property of Array.from(declaration)) {
+          const value = declaration.getPropertyValue(property).trim();
+          if (value.startsWith("var(") && value.endsWith(")") && !value.includes(",")) {
+            const token = tokens.get(value.slice(4, -1).trim());
+            if (token && !token.includes("var(")) {
+              declaration.setProperty(property, token, declaration.getPropertyPriority(property));
+            }
+          }
+        }
+      }
+      if ("cssRules" in rule) {
+        materializeDirectTokens((rule as CSSGroupingRule).cssRules);
+      }
+    }
+  };
+  if (style.sheet) {
+    materializeDirectTokens(style.sheet.cssRules);
+  }
+  return () => style.remove();
+}
+
 describe("auth challenge pages", () => {
   beforeEach(() => {
     vi.stubGlobal("crypto", webcrypto);
@@ -196,6 +245,49 @@ describe("auth challenge pages", () => {
     expect(host.querySelector("bit-form-control input[bitcheckbox]")) .toBeNull();
     expect(host.querySelector("button[bitbutton][data-testid='two-factor-continue']")).not.toBeNull();
     expect(host.querySelector(".official-login-challenge-content")).toBeNull();
+  });
+
+  it("makes the rendered remember-device label a 44px click target while keeping its checkbox compact", async () => {
+    const cleanupCss = installChallengeVisualCss();
+    const store = new PopupStateStore();
+    store.setAuthChallenge({
+      type: "twoFactor",
+      email: "user@example.com",
+      serverUrl: "https://bitwarden.example.com",
+      providers: ["0"],
+    });
+
+    await TestBed.configureTestingModule({
+      imports: [TwoFactorPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        { provide: AuthFacade, useValue: twoFactorAuthFacade() },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(TwoFactorPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const label = host.querySelector<HTMLLabelElement>("label.macos-two-factor-remember");
+    const checkbox = label?.querySelector<HTMLInputElement>('input[type="checkbox"][bitcheckbox]');
+
+    try {
+      expect(label).not.toBeNull();
+      expect(checkbox).not.toBeNull();
+      expect(getComputedStyle(label!).display).toBe("inline-flex");
+      expect(getComputedStyle(label!).minHeight).toBe("44px");
+      expect(getComputedStyle(checkbox!).width).toBe("24px");
+      expect(getComputedStyle(checkbox!).height).toBe("24px");
+
+      expect(checkbox!.checked).toBe(false);
+      label!.click();
+      fixture.detectChanges();
+      expect(checkbox!.checked).toBe(true);
+    } finally {
+      fixture.destroy();
+      cleanupCss();
+    }
   });
 
   it("updates the verification-code control only once for each typed character", async () => {
@@ -360,6 +452,123 @@ describe("auth challenge pages", () => {
       card.remove();
       validation.remove();
       stylesheet.remove();
+    }
+  });
+
+  it("keeps real two-factor and new-device action hierarchies on their production wrappers", async () => {
+    const cleanupCss = installChallengeVisualCss();
+    const expectAction = (
+      element: HTMLElement,
+      expectedColor: string,
+      expectedBackground: string,
+    ): void => {
+      const styles = getComputedStyle(element);
+      expect(styles.minHeight, element.dataset.testid).toBe("44px");
+      expect(styles.color, element.dataset.testid).toBe(expectedColor);
+      expect(styles.backgroundColor, element.dataset.testid).toBe(expectedBackground);
+    };
+
+    const twoFactorStore = new PopupStateStore();
+    twoFactorStore.setAuthChallenge({
+      type: "twoFactor",
+      email: "user@example.com",
+      serverUrl: "https://bitwarden.example.com",
+      providers: ["0", "1"],
+    });
+    await TestBed.configureTestingModule({
+      imports: [TwoFactorPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: twoFactorStore },
+        { provide: AuthFacade, useValue: twoFactorAuthFacade() },
+      ],
+    }).compileComponents();
+    const twoFactor = TestBed.createComponent(TwoFactorPageComponent);
+    twoFactor.detectChanges();
+    let twoFactorDestroyed = false;
+    let newDeviceFixture: { destroy(): void } | null = null;
+    const twoFactorHost = twoFactor.nativeElement as HTMLElement;
+    const twoFactorPrimary = twoFactorHost.querySelector<HTMLElement>(
+      '[data-testid="two-factor-continue"]',
+    )!;
+    const twoFactorWrapper = twoFactorPrimary.parentElement!;
+
+    try {
+      expect(twoFactorWrapper.classList.contains("tw-flex")).toBe(true);
+      expect(twoFactorWrapper.classList.contains("tw-flex-col")).toBe(true);
+      expect(twoFactorWrapper.classList.contains("tw-space-y-3")).toBe(true);
+      expect(
+        [...twoFactorWrapper.querySelectorAll<HTMLElement>("[data-testid]")]
+          .map((element) => element.dataset.testid),
+      ).toEqual(["two-factor-continue", "two-factor-other-method", "two-factor-back"]);
+      expectAction(twoFactorPrimary, "rgb(251, 253, 255)", "rgb(10, 102, 255)");
+      const otherMethod = twoFactorWrapper.querySelector<HTMLElement>(
+        '[data-testid="two-factor-other-method"]',
+      )!;
+      const twoFactorBack = twoFactorWrapper.querySelector<HTMLElement>(
+        '[data-testid="two-factor-back"]',
+      )!;
+      expectAction(otherMethod, "rgb(10, 102, 255)", "rgba(0, 0, 0, 0)");
+      expectAction(twoFactorBack, "rgb(83, 103, 132)", "rgba(0, 0, 0, 0)");
+      for (const secondary of [otherMethod, twoFactorBack]) {
+        expect(getComputedStyle(secondary).borderBottomWidth).toBe("1px");
+      }
+
+      twoFactor.destroy();
+      twoFactorDestroyed = true;
+      TestBed.resetTestingModule();
+
+      const newDeviceStore = new PopupStateStore();
+      newDeviceStore.setAuthChallenge({
+        type: "newDevice",
+        email: "user@example.com",
+        serverUrl: "https://bitwarden.example.com",
+      });
+      await TestBed.configureTestingModule({
+        imports: [NewDeviceVerificationPageComponent],
+        providers: [
+          provideRouter([]),
+          { provide: PopupStateStore, useValue: newDeviceStore },
+          { provide: AuthFacade, useValue: newDeviceAuthFacade() },
+        ],
+      }).compileComponents();
+      const newDevice = TestBed.createComponent(NewDeviceVerificationPageComponent);
+      newDeviceFixture = newDevice;
+      newDevice.detectChanges();
+      const newDeviceHost = newDevice.nativeElement as HTMLElement;
+      const newDevicePrimary = newDeviceHost.querySelector<HTMLElement>(
+        '[data-testid="new-device-continue"]',
+      )!;
+      const newDeviceWrapper = newDevicePrimary.parentElement!;
+
+      expect(newDeviceWrapper.classList.contains("tw-grid")).toBe(true);
+      expect(newDeviceWrapper.classList.contains("tw-gap-3")).toBe(true);
+      expect(
+        [...newDeviceWrapper.querySelectorAll<HTMLElement>("[data-testid]")]
+          .map((element) => element.dataset.testid),
+      ).toEqual(["new-device-continue", "new-device-back"]);
+      expect(
+        [...newDeviceHost.querySelectorAll<HTMLElement>("form.macos-auth-card [data-testid]")]
+          .map((element) => element.dataset.testid),
+      ).toEqual(["new-device-resend", "new-device-continue", "new-device-back"]);
+      expectAction(newDevicePrimary, "rgb(251, 253, 255)", "rgb(10, 102, 255)");
+      const resend = newDeviceHost.querySelector<HTMLElement>('[data-testid="new-device-resend"]')!;
+      const newDeviceBack = newDeviceWrapper.querySelector<HTMLElement>(
+        '[data-testid="new-device-back"]',
+      )!;
+      expectAction(resend, "rgb(10, 102, 255)", "rgba(0, 0, 0, 0)");
+      expectAction(newDeviceBack, "rgb(83, 103, 132)", "rgba(0, 0, 0, 0)");
+      for (const secondary of [resend, newDeviceBack]) {
+        expect(getComputedStyle(secondary).borderBottomWidth).toBe("1px");
+      }
+      newDevice.destroy();
+      newDeviceFixture = null;
+    } finally {
+      if (!twoFactorDestroyed) {
+        twoFactor.destroy();
+      }
+      newDeviceFixture?.destroy();
+      cleanupCss();
     }
   });
 

@@ -1365,6 +1365,10 @@ bw-vault-detail-field {
   line-height: 1.2;
 }
 
+.bit-menu-panel [role="menu"] [role="menuitem"][aria-pressed] {
+  min-height: 44px;
+}
+
 .bit-menu-panel [role="menu"] [role="menuitem"]:is(:hover, :focus-visible) {
   background: var(--mac-hover) !important;
 }
@@ -2275,7 +2279,7 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   display: inline-flex;
   align-items: center;
   gap: var(--mac-space-3);
-  min-height: 24px;
+  min-height: 44px;
   margin: 0 0 var(--mac-space-5);
   color: var(--mac-text-primary);
   cursor: pointer;
@@ -2367,7 +2371,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 .macos-auth-card button:focus-visible,
 .macos-auth-card [role="button"]:focus-visible,
 .macos-auth-card a:focus-visible {
-  outline: 2px solid var(--mac-focus);
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--mac-focus);
   outline-offset: 2px;
 }
 
@@ -2403,7 +2409,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 ) {
   min-height: 44px;
   border: 0;
-  border-bottom: 1px solid var(--mac-border-subtle);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
   border-radius: 0;
   background: transparent;
   color: var(--mac-accent);
@@ -2755,7 +2763,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   gap: var(--mac-space-3);
   border: 0;
   border-radius: 0;
-  border-bottom: 1px solid var(--mac-border-subtle);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
   padding: var(--mac-space-3);
   background: transparent;
   box-shadow: none;
@@ -2765,12 +2775,20 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 }
 
 [data-testid="lock-switch-pin"],
+[data-testid="lock-switch-biometric"],
 [data-testid="lock-switch-master-password"],
 [data-testid="lock-logout-button"],
 [data-testid="lock-switch-account"] {
-  min-height: 44px;
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px !important;
   border: 0;
-  border-bottom: 1px solid var(--mac-border-subtle);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -2782,11 +2800,17 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   gap: 0;
 }
 
-[data-testid="lock-switch-account"] {
+.macos-unlock-methods > .macos-primary-action {
   display: flex;
   width: 100%;
+  min-height: 44px !important;
   box-sizing: border-box;
   align-items: center;
+  justify-content: center;
+}
+
+[data-testid="lock-switch-account"] {
+  flex: 0 0 auto;
 }
 
 [data-testid="lock-logout-button"] {

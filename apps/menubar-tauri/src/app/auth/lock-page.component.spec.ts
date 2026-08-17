@@ -8,6 +8,7 @@ import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
+import postcss from "postcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OfficialLockComponent } from "../upstream-overlays/auth/lock/official-lock.component";
@@ -41,21 +42,20 @@ function deferred<T>() {
 
 function installLockVisualCss(): () => void {
   const style = document.createElement("style");
-  const source = ["macos-tokens.css", "global.css"]
-    .map((filename) => readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", filename), "utf8"))
-    .join("\n")
-    .replace(/^@import[^;]+;\s*/gm, "");
-  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
-  const tokens = new Map(
-    [...rootDeclarations.matchAll(/(--mac-[\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [
-      name,
-      value.trim(),
-    ]),
-  );
-
-  style.textContent = source.replace(/var\((--mac-[\w-]+)\)/g, (reference, name) =>
-    tokens.get(name) ?? reference,
-  );
+  const productionCascade = postcss.root();
+  for (const filename of ["macos-tokens.css", "global.css"]) {
+    const source = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+      "utf8",
+    );
+    const stylesheet = postcss.parse(source);
+    productionCascade.append(
+      stylesheet.nodes.filter(
+        (node) => !(node.type === "atrule" && node.name.toLowerCase() === "import"),
+      ),
+    );
+  }
+  style.textContent = productionCascade.toString();
   document.head.append(style);
   return () => style.remove();
 }
@@ -232,14 +232,17 @@ describe("LockPageComponent", () => {
         expect(styles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
         expect(styles.boxShadow).toBe("none");
       }
-      expect(getComputedStyle(alternatives[2]!).color).toBe("rgb(215, 0, 21)");
+      expect(getComputedStyle(document.documentElement).getPropertyValue("--mac-destructive").trim())
+        .toBe("#d70015");
+      expect(["rgb(215, 0, 21)", "var(--mac-destructive)"])
+        .toContain(getComputedStyle(alternatives[2]!).color);
     } finally {
       fixture.destroy();
       cleanupCss();
     }
   });
 
-  it("groups biometric alternatives into adjacent used-height rows", async () => {
+  it("renders biometric, PIN, and master-password methods as complete zero-gap row hierarchies", async () => {
     const cleanupCss = installLockVisualCss();
     const { fixture } = await create(vi.fn(async () => "unlocked" as const), vi.fn(async () => undefined), {
       availability: {
@@ -249,30 +252,78 @@ describe("LockPageComponent", () => {
       },
     });
     const host = fixture.nativeElement as HTMLElement;
-    const group = host.querySelector<HTMLElement>('[data-testid="lock-unlock-methods"]');
 
     try {
-      expect(group).not.toBeNull();
-      expect(group?.classList.contains("tw-space-y-3")).toBe(false);
-      expect([...group!.querySelectorAll<HTMLElement>("[data-testid]")].map((element) => element.dataset.testid))
-        .toEqual([
-          "lock-switch-pin",
-          "lock-switch-master-password",
-          "lock-logout-button",
-          "lock-switch-account",
-        ]);
+      const states = [
+        {
+          primary: "lock-biometric-button",
+          alternatives: [
+            "lock-switch-pin",
+            "lock-switch-master-password",
+            "lock-logout-button",
+            "lock-switch-account",
+          ],
+          next: "lock-switch-pin",
+        },
+        {
+          primary: "lock-pin-button",
+          alternatives: [
+            "lock-switch-biometric",
+            "lock-switch-master-password",
+            "lock-logout-button",
+            "lock-switch-account",
+          ],
+          next: "lock-switch-master-password",
+        },
+        {
+          primary: "lock-unlock-button",
+          alternatives: [
+            "lock-switch-biometric",
+            "lock-switch-pin",
+            "lock-logout-button",
+            "lock-switch-account",
+          ],
+          next: null,
+        },
+      ] as const;
 
-      const groupStyles = getComputedStyle(group!);
-      expect(groupStyles.display).toBe("flex");
-      expect(groupStyles.flexDirection).toBe("column");
-      expect(groupStyles.gap).toBe("0px");
-      const switchAccountStyles = getComputedStyle(
-        group!.querySelector<HTMLElement>('[data-testid="lock-switch-account"]')!,
-      );
-      expect(switchAccountStyles.display).toBe("flex");
-      expect(switchAccountStyles.alignItems).toBe("center");
-      expect(switchAccountStyles.width).toBe("100%");
-      expect(switchAccountStyles.minHeight).toBe("44px");
+      for (const state of states) {
+        const group = host.querySelector<HTMLElement>('[data-testid="lock-unlock-methods"]');
+        expect(group).not.toBeNull();
+        expect(group?.classList.contains("tw-space-y-3")).toBe(false);
+
+        const rows = [state.primary, ...state.alternatives].map((testId) =>
+          group!.querySelector<HTMLElement>(`[data-testid="${testId}"]`),
+        );
+        expect(rows).not.toContain(null);
+        expect([...group!.querySelectorAll<HTMLElement>("[data-testid]")].map((element) => element.dataset.testid))
+          .toEqual([state.primary, ...state.alternatives]);
+        expect([...group!.querySelectorAll(".macos-primary-action")]).toEqual([rows[0]]);
+
+        const groupStyles = getComputedStyle(group!);
+        expect(groupStyles.display).toBe("flex");
+        expect(groupStyles.flexDirection).toBe("column");
+        expect(groupStyles.gap).toBe("0px");
+        for (const row of rows) {
+          const styles = getComputedStyle(row!);
+          expect(styles.display).toBe("flex");
+          expect(styles.width).toBe("100%");
+          expect(styles.minHeight, row!.dataset.testid).toBe("44px");
+        }
+        for (const alternative of rows.slice(1)) {
+          const styles = getComputedStyle(alternative!);
+          expect(styles.borderTopWidth).toBe("0px");
+          expect(styles.borderBottomWidth).toBe("1px");
+          expect(styles.borderRadius).toBe("0px");
+          expect(styles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+          expect(styles.boxShadow).toBe("none");
+        }
+
+        if (state.next) {
+          group!.querySelector<HTMLButtonElement>(`[data-testid="${state.next}"]`)!.click();
+          fixture.detectChanges();
+        }
+      }
     } finally {
       fixture.destroy();
       cleanupCss();

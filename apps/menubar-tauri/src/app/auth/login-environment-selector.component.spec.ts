@@ -1,11 +1,15 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 import { OfficialEnvironmentSelectorComponent } from "../upstream-overlays/auth/environment/official-environment-selector.component";
@@ -28,6 +32,24 @@ function menuTrigger(host: HTMLElement): HTMLButtonElement {
 
 function afterDialogLifecycle(): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve));
+}
+
+function installEnvironmentVisualCss(): () => void {
+  const style = document.createElement("style");
+  const productionCascade = postcss.root();
+  for (const filename of ["macos-tokens.css", "global.css"]) {
+    const stylesheet = postcss.parse(
+      readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", filename), "utf8"),
+    );
+    productionCascade.append(
+      stylesheet.nodes.filter(
+        (node) => !(node.type === "atrule" && node.name.toLowerCase() === "import"),
+      ),
+    );
+  }
+  style.textContent = productionCascade.toString();
+  document.head.append(style);
+  return () => style.remove();
 }
 
 function dialogFocusableElements(dialog: HTMLDialogElement): HTMLElement[] {
@@ -55,6 +77,29 @@ async function openSelfHostedDialog(
 }
 
 describe("OfficialEnvironmentSelectorComponent", () => {
+  it("renders every official environment menu item with a 44px minimum hit target", async () => {
+    const cleanupCss = installEnvironmentVisualCss();
+    await TestBed.configureTestingModule({
+      imports: [OfficialEnvironmentSelectorComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(OfficialEnvironmentSelectorComponent);
+    fixture.detectChanges();
+
+    try {
+      menuTrigger(fixture.nativeElement as HTMLElement).click();
+      fixture.detectChanges();
+      const items = menuItems();
+
+      expect(items).toHaveLength(3);
+      for (const item of items) {
+        expect(getComputedStyle(item).minHeight).toBe("44px");
+      }
+    } finally {
+      fixture.destroy();
+      cleanupCss();
+    }
+  });
+
   it("selects a hosted region from the official menu overlay", async () => {
     await TestBed.configureTestingModule({
       imports: [OfficialEnvironmentSelectorComponent],

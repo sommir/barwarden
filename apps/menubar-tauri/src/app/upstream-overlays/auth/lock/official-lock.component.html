@@ -31,20 +31,20 @@
 
       @switch (activeMethod) {
         @case ("biometric") {
-          <button
-            type="button"
-            bitButton
-            buttonType="primary"
-            class="macos-primary-action"
-            block
-            [disabled]="submitting"
-            (click)="unlockWithBiometric()"
-            data-testid="lock-biometric-button"
-          >
-            {{ "i18nUnlockWithTouchId" | i18n }}
-          </button>
-
           <div class="macos-unlock-methods" data-testid="lock-unlock-methods">
+            <button
+              type="button"
+              bitButton
+              buttonType="primary"
+              class="macos-primary-action"
+              block
+              [disabled]="submitting"
+              (click)="unlockWithBiometric()"
+              data-testid="lock-biometric-button"
+            >
+              {{ "i18nUnlockWithTouchId" | i18n }}
+            </button>
+
             <p class="tw-text-center tw-mb-0">{{ "or" | i18n }}</p>
 
             @if (availability.pinEnabled) {
@@ -95,7 +95,9 @@
             (pinSubmitted)="unlockWithPin($event)"
             (loggedOut)="logout()"
             (methodSelected)="selectMethod($event)"
-          />
+          >
+            <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+          </bw-official-pin-lock>
         }
         @default {
           <bw-official-master-password-lock
@@ -105,7 +107,9 @@
             (unlocked)="unlockSucceeded($event)"
             (loggedOut)="logoutSucceeded()"
             (methodSelected)="selectMethod($event)"
-          />
+          >
+            <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+          </bw-official-master-password-lock>
         }
       }
     }
@@ -119,9 +123,5 @@
         </bit-callout>
       }
     </div>
-
-    @if (activeMethod !== "biometric") {
-      <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
-    }
   </section>
 </popup-page>
