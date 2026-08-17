@@ -17,7 +17,7 @@ The target and light implementation, then the search and dark reference/implemen
 
 - Search is a quiet 12 px contextual surface, with focus feedback instead of a persistent gray pill.
 - AutoFill suggestions sit directly below search. Their rows use continuous 52 px surfaces and capability-based username/password/TOTP actions; glyphs are blue, indigo, and orange without persistent button boxes.
-- Entering `Calendar` removes the AutoFill section and produces a single compact result row, preserving field actions and the generic overflow action.
+- Entering `Calendar` removes the AutoFill section and produces a single compact continuous result row with no card gap, outer border, or radius, while preserving field actions and the generic overflow action. The recapture starts at scroll position zero and keeps the full title/add/pop-out/account header visible.
 - Ordinary Vault rows and disclosure groups use fine separators with no shadowed card gaps. Secondary copy remains readable blue-gray.
 - The dark capture keeps the same hierarchy while moving to the approved solid navy surface ladder; semantic action colors remain distinguishable.
 - A separate bottom-scroll inspection confirmed the final `Example Support` row can rest fully above the bottom navigation.
@@ -30,11 +30,12 @@ The selected target shows TOTP on every illustrative suggestion. The implementat
 | --- | --- | --- | --- | --- |
 | 1 | Not assessed | Not assessed | Not assessed | Native capture initially blocked. |
 | 2 | 0 | 0 | 0 | Passed after sanitized 480 × 600 light, search, dark, and bottom-scroll evidence was captured and compared. |
+| 3 | 0 | 0 | 0 | Passed after the search result was flattened and recaptured with the complete header visible. |
 
 ## Verification context
 
-- Focused visual/Vault suite: 5 files, 112 tests passed.
+- Focused search/visual/guard suite after the final review fixes: 94 tests passed.
+- Full `npm test`: 250 files passed, 1 skipped; 3,730 tests passed, 8 skipped.
 - Final web build: passed with only the recorded repository warning baseline.
-- Full `npm test`: 3,727 tests passed and 2 retained-overlay hash-lock tests failed because of unrelated, pre-existing dirty-worktree Vault overlay hunks; no unrelated source was changed.
 
 final result: passed
