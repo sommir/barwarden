@@ -1498,6 +1498,28 @@ describe("AppComponent", () => {
     expect(hidePopup).not.toHaveBeenCalled();
   });
 
+  it("closes an overlay, then returns a secondary route, then hides the base popup", () => {
+    const overlayStack = {
+      consumeEscape: vi.fn().mockReturnValueOnce(true).mockReturnValue(false),
+    };
+    const routeCache = {
+      hasBackTarget: vi.fn().mockReturnValueOnce(true).mockReturnValue(false),
+      back: vi.fn(async () => true),
+    };
+    const hidePopup = vi.fn(async () => undefined);
+    const component = appComponentForEscape(hidePopup, routeCache, overlayStack);
+
+    component.hideOnEscape(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+    component.hideOnEscape(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+
+    expect(routeCache.back).toHaveBeenCalledOnce();
+    expect(hidePopup).not.toHaveBeenCalled();
+
+    component.hideOnEscape(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+
+    expect(hidePopup).toHaveBeenCalledOnce();
+  });
+
   it("keeps the popup visible while a menu or native select owns Escape", () => {
     const hidePopup = vi.fn().mockResolvedValue(undefined);
     const component = appComponentForEscape(hidePopup);
@@ -1543,7 +1565,11 @@ describe("AppComponent", () => {
   it("preserves native macOS Escape behavior in a popout window", () => {
     window.history.replaceState({}, "", "/?uilocation=popout");
     const hidePopup = vi.fn().mockResolvedValue(undefined);
-    const component = appComponentForEscape(hidePopup);
+    const routeCache = {
+      hasBackTarget: vi.fn().mockReturnValue(true),
+      back: vi.fn(async () => true),
+    };
+    const component = appComponentForEscape(hidePopup, routeCache);
     const event = new KeyboardEvent("keydown", {
       key: "Escape",
       cancelable: true,
@@ -1552,12 +1578,18 @@ describe("AppComponent", () => {
     component.hideOnEscape(event);
 
     expect(event.defaultPrevented).toBe(false);
+    expect(routeCache.hasBackTarget).not.toHaveBeenCalled();
+    expect(routeCache.back).not.toHaveBeenCalled();
     expect(hidePopup).not.toHaveBeenCalled();
     window.history.replaceState({}, "", "/");
   });
 });
 
-function appComponentForEscape(hidePopup: ReturnType<typeof vi.fn>): AppComponent {
+function appComponentForEscape(
+  hidePopup: ReturnType<typeof vi.fn>,
+  routeCache: unknown = null,
+  overlayStack?: unknown,
+): AppComponent {
   return new AppComponent(
     { restoreStartup: vi.fn() } as any,
     { navigateByUrl: vi.fn() } as any,
@@ -1568,8 +1600,10 @@ function appComponentForEscape(hidePopup: ReturnType<typeof vi.fn>): AppComponen
     null,
     null,
     null,
-    null,
+    routeCache as any,
     { hidePopup } as any,
+    null,
+    overlayStack as any,
   );
 }
 

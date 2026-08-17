@@ -20,6 +20,7 @@ import {
   twoFactorChallengeGuard,
   unlockedOnlyGuard,
 } from "./auth/auth-route-access";
+import type { Ios27RouteData } from "./platform/popup-route-metadata";
 
 function flattenRoutes(routeConfig: Routes, prefix = ""): string[] {
   return routeConfig.flatMap((route) => {
@@ -31,7 +32,81 @@ function flattenRoutes(routeConfig: Routes, prefix = ""): string[] {
   });
 }
 
+function flattenComponentRoutes(
+  routeConfig: Routes,
+  prefix = "",
+): Array<{ path: string; data: Record<string, unknown> | undefined }> {
+  return routeConfig.flatMap((route) => {
+    const routePath = route.path ?? "";
+    const path = routePath === "" ? prefix || "/" : `${prefix}/${routePath}`.replace(/\/+/g, "/");
+    const children = route.children
+      ? flattenComponentRoutes(route.children, path === "/" ? "" : path)
+      : [];
+    const current = route.component
+      ? [{ path, data: route.data as Record<string, unknown> | undefined }]
+      : [];
+
+    return [...current, ...children];
+  });
+}
+
+const routeAuthority: ReadonlyArray<readonly [string, Ios27RouteData]> = [
+  ["/login", { ios27Family: "auth", popupLayer: "base", bottomNavigation: false }],
+  ["/lock", { ios27Family: "auth", popupLayer: "base", bottomNavigation: false }],
+  ["/2fa", { ios27Family: "auth", popupLayer: "secondary", bottomNavigation: false }],
+  ["/new-device-verification", { ios27Family: "auth", popupLayer: "secondary", bottomNavigation: false }],
+  ["/hint", { ios27Family: "auth", popupLayer: "secondary", bottomNavigation: false }],
+  ["/tabs", { ios27Family: "shell", popupLayer: "base", bottomNavigation: true }],
+  ["/tabs/vault", { ios27Family: "vault", popupLayer: "base", bottomNavigation: true }],
+  ["/tabs/otp", { ios27Family: "otp", popupLayer: "base", bottomNavigation: true }],
+  ["/tabs/generator", { ios27Family: "generator", popupLayer: "base", bottomNavigation: true }],
+  ["/tabs/send", { ios27Family: "send", popupLayer: "base", bottomNavigation: true }],
+  ["/tabs/settings", { ios27Family: "settings", popupLayer: "base", bottomNavigation: true }],
+  ["/account-switcher", { ios27Family: "auth", popupLayer: "secondary", bottomNavigation: false }],
+  ["/vault-settings", { ios27Family: "settings", popupLayer: "secondary", bottomNavigation: false }],
+  ["/account-security", { ios27Family: "settings", popupLayer: "secondary", bottomNavigation: false }],
+  ["/settings-password", { ios27Family: "settings", popupLayer: "secondary", bottomNavigation: false }],
+  ["/autofill", { ios27Family: "settings", popupLayer: "secondary", bottomNavigation: false }],
+  ["/keyboard-shortcut", { ios27Family: "settings", popupLayer: "secondary", bottomNavigation: false }],
+  ["/appearance", { ios27Family: "settings", popupLayer: "secondary", bottomNavigation: false }],
+  ["/new-item", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/folders", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/archive", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/trash", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/view-cipher/:id", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/add-cipher", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/edit-cipher", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/clone-cipher", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/cipher-password-history", { ios27Family: "vault", popupLayer: "secondary", bottomNavigation: false }],
+  ["/generator-history", { ios27Family: "generator", popupLayer: "secondary", bottomNavigation: false }],
+  ["/add-send", { ios27Family: "send", popupLayer: "secondary", bottomNavigation: false }],
+  ["/edit-send", { ios27Family: "send", popupLayer: "secondary", bottomNavigation: false }],
+  ["/send-created", { ios27Family: "send", popupLayer: "secondary", bottomNavigation: false }],
+  ["/about", { ios27Family: "document", popupLayer: "secondary", bottomNavigation: false }],
+  ["/third-party-notices", { ios27Family: "document", popupLayer: "secondary", bottomNavigation: false }],
+  ["/third-party-licenses", { ios27Family: "document", popupLayer: "secondary", bottomNavigation: false }],
+];
+
 describe("popup routes", () => {
+  it("matches the complete route family, layer, and bottom-navigation authority", () => {
+    const actual = flattenComponentRoutes(routes);
+
+    expect(actual.map(({ path }) => path)).toEqual(routeAuthority.map(([path]) => path));
+    for (const [index, [path, expected]] of routeAuthority.entries()) {
+      const row = actual[index]!;
+      expect(row.path).toBe(path);
+      expect(row.data).toMatchObject(expected);
+      expect(Object.hasOwn(row.data ?? {}, "ios27Family"), `${path} family`).toBe(true);
+      expect(Object.hasOwn(row.data ?? {}, "popupLayer"), `${path} layer`).toBe(true);
+      expect(typeof row.data?.["bottomNavigation"], `${path} bottom navigation`).toBe("boolean");
+    }
+  });
+
+  it("preserves the account-switcher evidence state alongside typed route metadata", () => {
+    expect(routes.find((route) => route.path === "account-switcher")?.data?.["state"])
+      .toBe("account-switcher");
+  });
+
   it("redirects the retired standalone AutoFill route to the normal vault", () => {
     expect(routes.find((route) => route.path === "autofill-picker")).toEqual({
       path: "autofill-picker",
@@ -261,7 +336,11 @@ describe("popup routes", () => {
     const settingsPasswordRoute = routes.find((route) => route.path === "settings-password");
 
     expect(settingsPasswordRoute?.component).toBeDefined();
-    expect(settingsPasswordRoute?.data).toBeUndefined();
+    expect(settingsPasswordRoute?.data).toMatchObject({
+      ios27Family: "settings",
+      popupLayer: "secondary",
+      bottomNavigation: false,
+    });
   });
 
   it("routes keyboard-shortcut to the recorder page behind the unlocked-only guard", () => {

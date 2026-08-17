@@ -591,13 +591,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener("document:keydown.escape", ["$event"])
   hideOnEscape(event: KeyboardEvent): void {
-    if (this.overlayStack.consumeEscape(event)) {
-      return;
-    }
-    if (resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout") {
-      return;
-    }
+    if (this.overlayStack.consumeEscape(event)) return;
+    if (resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout") return;
     event.preventDefault();
+    if (this.routeCache?.hasBackTarget()) {
+      void this.routeCache.back().catch(() => undefined);
+      return;
+    }
     void this.popupLifecycleHost.hidePopup().catch(() => undefined);
   }
 

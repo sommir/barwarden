@@ -16,6 +16,7 @@ import { AppComponent } from "./app.component";
 import { PopupStateStore } from "./popup-state";
 import { POPUP_LIFECYCLE_HOST } from "./app.component";
 import { OfficialI18nService } from "./official-ui/official-i18n.service";
+import { PopupRouterCacheService } from "./platform/popup-router-cache.service";
 import { VaultFacade } from "./vault/vault.facade";
 
 try {
@@ -42,10 +43,22 @@ afterEach(() => {
 async function renderRoot({
   restoreStartup = vi.fn().mockResolvedValue("login"),
   navigateByUrl,
+  routeCache = {
+    clear: vi.fn(),
+    restore: vi.fn(async () => false),
+    hasBackTarget: vi.fn().mockReturnValue(false),
+    back: vi.fn(async () => true),
+  },
   store = new PopupStateStore(),
 }: {
   restoreStartup?: ReturnType<typeof vi.fn>;
   navigateByUrl?: (url: string, options?: { replaceUrl?: boolean }) => Promise<boolean>;
+  routeCache?: {
+    clear: ReturnType<typeof vi.fn>;
+    restore: ReturnType<typeof vi.fn>;
+    hasBackTarget: ReturnType<typeof vi.fn>;
+    back: ReturnType<typeof vi.fn>;
+  };
   store?: PopupStateStore;
 } = {}) {
   const timeout = { recordActivity: vi.fn() };
@@ -61,6 +74,7 @@ async function renderRoot({
       { provide: PopupStateStore, useValue: store },
       { provide: VaultTimeoutService, useValue: timeout },
       { provide: POPUP_LIFECYCLE_HOST, useValue: popupLifecycleHost },
+      { provide: PopupRouterCacheService, useValue: routeCache },
     ],
   }).compileComponents();
 
@@ -78,6 +92,7 @@ async function renderRoot({
     fixture,
     navigateByUrl: navigate,
     popupLifecycleHost,
+    routeCache,
     restoreStartup,
     store,
     timeout,
@@ -254,6 +269,25 @@ describe("AppComponent rendering", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     await vi.waitFor(() => expect(popupLifecycleHost.hidePopup).toHaveBeenCalledOnce());
+  });
+
+  it("uses mounted root Escape to return a secondary route before hiding", async () => {
+    const routeCache = {
+      clear: vi.fn(),
+      restore: vi.fn(async () => false),
+      hasBackTarget: vi.fn().mockReturnValue(true),
+      back: vi.fn(async () => true),
+    };
+    const { popupLifecycleHost } = await renderRoot({ routeCache });
+
+    document.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(routeCache.back).toHaveBeenCalledOnce();
+    expect(popupLifecycleHost.hidePopup).not.toHaveBeenCalled();
   });
 
   it("leaves Escape to an open native dialog", async () => {

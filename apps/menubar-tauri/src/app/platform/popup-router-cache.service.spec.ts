@@ -12,12 +12,14 @@ import {
   RouterOutlet,
   RouteReuseStrategy,
   provideRouter,
+  type Routes,
 } from "@angular/router";
 import { ScrollLayoutService } from "@bitwarden/components";
 import { describe, expect, it, vi } from "vitest";
 
 import { PopupRouterCacheService } from "./popup-router-cache.service";
 import { POPUP_ROUTER_CACHE_ROUTE_GRAPH } from "./popup-router-cache.lifecycle";
+import { ios27RouteData } from "./popup-route-metadata";
 import { PopupRouteReuseStrategy } from "./popup-route-reuse.strategy";
 import { retainedPopupRouteGraph } from "../app.routes";
 
@@ -66,11 +68,29 @@ class ScrollRouteHost implements OnInit, OnDestroy {
   }
 }
 
-@Component({ selector: "popup-vault-scroll-route", standalone: true, template: "" })
+@Component({
+  selector: "popup-vault-scroll-route",
+  standalone: true,
+  template: '<button data-popup-focus-key="vault:item-1">Vault item</button>',
+})
 class VaultScrollRouteComponent extends ScrollRouteHost {}
+
+@Component({
+  selector: "popup-otp-scroll-route",
+  standalone: true,
+  template: '<button data-popup-focus-key="otp:item-1">OTP item</button>',
+})
+class OtpScrollRouteComponent extends ScrollRouteHost {}
 
 @Component({ selector: "popup-folders-scroll-route", standalone: true, template: "" })
 class FoldersScrollRouteComponent extends ScrollRouteHost {}
+
+@Component({
+  selector: "popup-archive-scroll-route",
+  standalone: true,
+  template: '<button data-popup-focus-key="archive-item:item-1">Archive item</button>',
+})
+class ArchiveScrollRouteComponent extends ScrollRouteHost {}
 
 const redirectToVaultGuard: CanActivateFn = () => inject(Router).parseUrl("/tabs/vault");
 
@@ -303,9 +323,169 @@ describe("PopupRouterCacheService", () => {
     expect(restoredVaultHost.scrollTop).toBe(88);
     expect(foldersHost.scrollTop).toBe(12);
   });
+
+  it("returns an unretained detail to archive with scroll and focus", async () => {
+    const { fixture, router, service, scrollLayout } = await createService(
+      [
+        {
+          path: "archive",
+          component: ArchiveScrollRouteComponent,
+          data: ios27RouteData("vault", "secondary", false),
+        },
+        {
+          path: "view-cipher/:id",
+          component: CipherDetailRouteComponent,
+          data: ios27RouteData("vault", "secondary", false),
+        },
+        {
+          path: "tabs/vault",
+          component: VaultScrollRouteComponent,
+          data: ios27RouteData("vault", "base", true),
+        },
+      ],
+      true,
+      true,
+    );
+
+    await router.navigateByUrl("/archive");
+    fixture!.detectChanges();
+    const trigger = (fixture!.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-popup-focus-key="archive-item:item-1"]',
+    )!;
+    trigger.focus();
+    scrollLayout.scrollableRef()!.nativeElement.scrollTop = 121;
+    await router.navigateByUrl("/view-cipher/item-1");
+    fixture!.detectChanges();
+
+    expect((service as unknown as {
+      entries: Array<{ url: string; scrollTop: number; focusKey: string | null }>;
+    }).entries.at(-1)).toEqual({
+      url: "/archive",
+      scrollTop: 121,
+      focusKey: "archive-item:item-1",
+    });
+    expect(service.hasBackTarget()).toBe(true);
+    await expect(service.back()).resolves.toBe(true);
+    fixture!.detectChanges();
+    await fixture!.whenStable();
+    await Promise.resolve();
+
+    expect(router.url).toBe("/archive");
+    expect(scrollLayout.scrollableRef()!.nativeElement.scrollTop).toBe(121);
+    expect(document.activeElement?.getAttribute("data-popup-focus-key"))
+      .toBe("archive-item:item-1");
+  });
+
+  it("restores each main tab snapshot without making a base tab a back target", async () => {
+    const { fixture, router, service, scrollLayout } = await createService(
+      [
+        {
+          path: "tabs/vault",
+          component: VaultScrollRouteComponent,
+          data: ios27RouteData("vault", "base", true),
+        },
+        {
+          path: "tabs/otp",
+          component: OtpScrollRouteComponent,
+          data: ios27RouteData("otp", "base", true),
+        },
+      ],
+      true,
+    );
+
+    await router.navigateByUrl("/tabs/vault");
+    fixture!.detectChanges();
+    (fixture!.nativeElement as HTMLElement)
+      .querySelector<HTMLElement>('[data-popup-focus-key="vault:item-1"]')!
+      .focus();
+    scrollLayout.scrollableRef()!.nativeElement.scrollTop = 121;
+
+    await router.navigateByUrl("/tabs/otp");
+    fixture!.detectChanges();
+    (fixture!.nativeElement as HTMLElement)
+      .querySelector<HTMLElement>('[data-popup-focus-key="otp:item-1"]')!
+      .focus();
+    scrollLayout.scrollableRef()!.nativeElement.scrollTop = 42;
+
+    await router.navigateByUrl("/tabs/vault");
+    fixture!.detectChanges();
+    await fixture!.whenStable();
+    await Promise.resolve();
+
+    expect(scrollLayout.scrollableRef()!.nativeElement.scrollTop).toBe(121);
+    expect(document.activeElement?.getAttribute("data-popup-focus-key")).toBe("vault:item-1");
+    expect(service.hasBackTarget()).toBe(false);
+  });
+
+  it("uses CSS.escape and focuses the first eligible descendant of a keyed owner", async () => {
+    const { service } = await createService();
+    const owner = document.createElement("div");
+    const key = 'owner:"quoted"\\key';
+    owner.setAttribute("data-popup-focus-key", key);
+    const action = document.createElement("button");
+    owner.append(action);
+    document.body.append(owner);
+    const css = globalThis.CSS ?? ({} as typeof CSS);
+    const previousCss = globalThis.CSS;
+    const previousEscape = css.escape;
+    const escape = vi.fn((value: string) => value.replaceAll("\\", "\\\\").replaceAll('"', '\\"'));
+    Object.defineProperty(css, "escape", { configurable: true, value: escape });
+    Object.defineProperty(globalThis, "CSS", { configurable: true, value: css });
+
+    try {
+      restoreScrollAndFocus(service, { scrollTop: 0, focusKey: key });
+
+      expect(escape).toHaveBeenCalledWith(key);
+      expect(document.activeElement).toBe(action);
+    } finally {
+      owner.remove();
+      if (previousEscape === undefined) {
+        Reflect.deleteProperty(css, "escape");
+      } else {
+        Object.defineProperty(css, "escape", { configurable: true, value: previousEscape });
+      }
+      if (previousCss === undefined) {
+        Reflect.deleteProperty(globalThis, "CSS");
+      }
+    }
+  });
+
+  it("silently skips hidden, disabled, detached, and missing focus owners", async () => {
+    const { service } = await createService();
+    const baseline = document.createElement("button");
+    baseline.textContent = "baseline";
+    document.body.append(baseline);
+    baseline.focus();
+
+    const hidden = document.createElement("button");
+    hidden.hidden = true;
+    hidden.setAttribute("data-popup-focus-key", "edge:hidden");
+    document.body.append(hidden);
+    const disabled = document.createElement("button");
+    disabled.disabled = true;
+    disabled.setAttribute("data-popup-focus-key", "edge:disabled");
+    document.body.append(disabled);
+    const detached = document.createElement("button");
+    detached.setAttribute("data-popup-focus-key", "edge:detached");
+
+    try {
+      for (const focusKey of ["edge:hidden", "edge:disabled", "edge:detached", "edge:missing"]) {
+        expect(() => restoreScrollAndFocus(service, { scrollTop: 0, focusKey })).not.toThrow();
+        expect(document.activeElement).toBe(baseline);
+      }
+    } finally {
+      baseline.remove();
+      hidden.remove();
+      disabled.remove();
+    }
+  });
 });
 
-async function createService(routeConfig = retainedRoutes, mountRoutes = false, reuseTabsRoute = false) {
+async function createService(
+  routeConfig: Routes = retainedRoutes,
+  mountRoutes = false,
+  reuseTabsRoute = false,
+) {
   await TestBed.configureTestingModule({
     imports: mountRoutes ? [RoutedHostComponent] : [],
     providers: [
@@ -326,4 +506,13 @@ async function createService(routeConfig = retainedRoutes, mountRoutes = false, 
 
 function routeSnapshot(path: string): ActivatedRouteSnapshot {
   return { routeConfig: { path } } as ActivatedRouteSnapshot;
+}
+
+function restoreScrollAndFocus(
+  service: PopupRouterCacheService,
+  snapshot: { scrollTop: number; focusKey: string | null },
+): void {
+  (service as unknown as {
+    restoreScrollAndFocus(value: { scrollTop: number; focusKey: string | null }): void;
+  }).restoreScrollAndFocus(snapshot);
 }
