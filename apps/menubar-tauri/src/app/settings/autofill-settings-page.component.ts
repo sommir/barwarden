@@ -8,7 +8,6 @@ import {
   BitFormFieldComponent,
   BitHintDirective,
   BitLabelComponent,
-  CardComponent,
   CheckboxComponent,
   FormControlComponent,
   SectionComponent,
@@ -40,7 +39,6 @@ import { SettingsService } from "./settings.service";
     BitFormFieldComponent,
     BitHintDirective,
     BitLabelComponent,
-    CardComponent,
     CheckboxComponent,
     FormControlComponent,
     FormsModule,
@@ -55,35 +53,33 @@ import { SettingsService } from "./settings.service";
   template: `
     <popup-page>
       <popup-header slot="header" [pageTitle]="'i18nAutofill' | i18n" [showBackButton]="true" [backAction]="backAction" />
-      <div class="tw-p-4">
-        <bit-section>
-          <bit-section-header><h2 bitTypography="h6">{{ "i18nAutofillBehavior" | i18n }}</h2></bit-section-header>
-          <bit-card>
-            <bit-form-field>
-              <bit-label>{{ "i18nClearClipboard" | i18n }}</bit-label>
-              <bit-select [attr.aria-label]="'i18nClearClipboard' | i18n" [items]="clipboardClearOptions" [ngModel]="settings.clipboardClearSeconds" (ngModelChange)="setClipboardClearSecondsValue($event)" />
-              <bit-hint>{{ "i18nClearClipboardHint" | i18n }}</bit-hint>
-            </bit-form-field>
-            <bit-form-field disableMargin>
-              <bit-label>{{ "i18nAutofill" | i18n }}</bit-label>
-              <bit-select [attr.aria-label]="'i18nAutofill' | i18n" [items]="fillModeOptions" [ngModel]="settings.fillMode" (ngModelChange)="setFillModeValue($event)" />
-              <bit-hint>{{ "i18nAutofillModeHint" | i18n }}</bit-hint>
-            </bit-form-field>
-            <bit-form-control disableMargin>
-              <input
-                id="show-input-field-icon"
-                bitCheckbox
-                type="checkbox"
-                [attr.aria-label]="'i18nShowInputFieldIcon' | i18n"
-                [checked]="settings.showInputFieldIcon"
-                (change)="setShowInputFieldIcon($event)"
-              />
-              <bit-label>{{ "i18nShowInputFieldIcon" | i18n }}</bit-label>
-              <bit-hint>{{ "i18nShowInputFieldIconHint" | i18n }}</bit-hint>
-            </bit-form-control>
-          </bit-card>
-        </bit-section>
-      </div>
+      <bit-section>
+        <bit-section-header><h2 bitTypography="h6">{{ "i18nAutofillBehavior" | i18n }}</h2></bit-section-header>
+        <section class="settings-detail-group macos-continuous-group">
+          <bit-form-field class="settings-detail-row macos-continuous-row">
+            <bit-label>{{ "i18nClearClipboard" | i18n }}</bit-label>
+            <bit-select class="macos-form-control" [attr.aria-label]="'i18nClearClipboard' | i18n" [items]="clipboardClearOptions" [ngModel]="settings.clipboardClearSeconds" (ngModelChange)="setClipboardClearSecondsValue($event)" />
+            <bit-hint>{{ "i18nClearClipboardHint" | i18n }}</bit-hint>
+          </bit-form-field>
+          <bit-form-field class="settings-detail-row macos-continuous-row" disableMargin>
+            <bit-label>{{ "i18nAutofill" | i18n }}</bit-label>
+            <bit-select class="macos-form-control" [attr.aria-label]="'i18nAutofill' | i18n" [items]="fillModeOptions" [ngModel]="settings.fillMode" (ngModelChange)="setFillModeValue($event)" />
+            <bit-hint>{{ "i18nAutofillModeHint" | i18n }}</bit-hint>
+          </bit-form-field>
+          <bit-form-control class="settings-detail-row macos-continuous-row" disableMargin>
+            <input
+              id="show-input-field-icon"
+              bitCheckbox
+              type="checkbox"
+              [attr.aria-label]="'i18nShowInputFieldIcon' | i18n"
+              [checked]="settings.showInputFieldIcon"
+              (change)="setShowInputFieldIcon($event)"
+            />
+            <bit-label>{{ "i18nShowInputFieldIcon" | i18n }}</bit-label>
+            <bit-hint>{{ "i18nShowInputFieldIconHint" | i18n }}</bit-hint>
+          </bit-form-control>
+        </section>
+      </bit-section>
     </popup-page>
   `,
 })

@@ -23,7 +23,6 @@ import {
   BitLabelComponent,
   BitSuffixDirective,
   ButtonComponent,
-  CardComponent,
 } from "../official-ui/official-components";
 import {
   MacosAlertStripComponent,
@@ -51,7 +50,6 @@ class ShortcutRecorderControlDirective {}
     BitLabelComponent,
     BitSuffixDirective,
     ButtonComponent,
-    CardComponent,
     I18nPipe,
     MacosAlertStripComponent,
     PopupHeaderComponent,
@@ -68,54 +66,52 @@ class ShortcutRecorderControlDirective {}
         [backAction]="backAction"
       />
 
-      <div class="tw-p-4">
-        <bit-card>
-          <bit-form-field disableMargin>
-            <bit-label>{{ "i18nShowBarwarden" | i18n }}</bit-label>
-            <button
-              #shortcutRecorder
-              bwShortcutRecorder
-              bitButton
-              buttonType="secondary"
-              type="button"
-              class="macos-form-field__control"
-              data-testid="shortcut-recorder"
-              [attr.aria-label]="recorderAccessibleLabel"
-              [disabled]="view.pending"
-              [attr.aria-pressed]="recording"
-              (click)="startRecording()"
-              (keydown)="record($event)"
-            >
-              {{ displayValue }}
-            </button>
-            <button
-              bitSuffix
-              type="button"
-              bitIconButton="bwi-close"
-              class="macos-form-field__suffix"
-              [label]="'i18nShortcutClear' | i18n"
-              [attr.aria-label]="'i18nShortcutClear' | i18n"
-              data-testid="shortcut-clear"
-              [disabled]="view.pending || view.shortcut === null"
-              (click)="clear()"
-            ></button>
-            @if (hintMessage) {
-              <bit-hint>{{ hintMessage }}</bit-hint>
-            }
-          </bit-form-field>
-          @if (operationMessage) {
-            <bw-macos-alert-strip
-              [kind]="operationAlertKind"
-              [title]="operationAlertTitle"
-              [message]="operationMessage"
-              [actionLabel]="'i18nRetry' | i18n"
-              actionTestId="shortcut-retry"
-              testId="shortcut-operation-alert"
-              (action)="retry()"
-            />
+      <section class="settings-detail-group macos-continuous-group">
+        <bit-form-field class="settings-detail-row macos-continuous-row" disableMargin>
+          <bit-label>{{ "i18nShowBarwarden" | i18n }}</bit-label>
+          <button
+            #shortcutRecorder
+            bwShortcutRecorder
+            bitButton
+            buttonType="secondary"
+            type="button"
+            class="macos-form-field__control macos-form-control"
+            data-testid="shortcut-recorder"
+            [attr.aria-label]="recorderAccessibleLabel"
+            [disabled]="view.pending"
+            [attr.aria-pressed]="recording"
+            (click)="startRecording()"
+            (keydown)="record($event)"
+          >
+            {{ displayValue }}
+          </button>
+          <button
+            bitSuffix
+            type="button"
+            bitIconButton="bwi-close"
+            class="macos-form-field__suffix"
+            [label]="'i18nShortcutClear' | i18n"
+            [attr.aria-label]="'i18nShortcutClear' | i18n"
+            data-testid="shortcut-clear"
+            [disabled]="view.pending || view.shortcut === null"
+            (click)="clear()"
+          ></button>
+          @if (hintMessage) {
+            <bit-hint>{{ hintMessage }}</bit-hint>
           }
-        </bit-card>
-      </div>
+        </bit-form-field>
+        @if (operationMessage) {
+          <bw-macos-alert-strip
+            [kind]="operationAlertKind"
+            [title]="operationAlertTitle"
+            [message]="operationMessage"
+            [actionLabel]="'i18nRetry' | i18n"
+            actionTestId="shortcut-retry"
+            testId="shortcut-operation-alert"
+            (action)="retry()"
+          />
+        }
+      </section>
     </popup-page>
   `,
 })

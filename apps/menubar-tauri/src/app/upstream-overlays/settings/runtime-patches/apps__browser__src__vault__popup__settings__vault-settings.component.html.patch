@@ -9,33 +9,50 @@
 -    </ng-container>
 -  </popup-header>
 +  <popup-header slot="header" [pageTitle]="'i18nVaultOptions' | i18n" showBackButton [backAction]="backAction" />
-@@ -11 +6 @@
--      <a bit-item-content routerLink="/folders">
-+      <button type="button" bit-item-content (click)="navigate.emit('/folders')">
-@@ -14 +9 @@
+@@ -14 +9,2 @@
+-      <a
++      <button
++        type="button"
+@@ -18 +14 @@
+-        routerLink="/folders"
++        (click)="navigate.emit('/folders')"
+@@ -22 +18 @@
 -      </a>
 +      </button>
-@@ -17,2 +12,2 @@
--      <a data-test-id="archive-link" bit-item-content routerLink="/archive">
+@@ -25 +21,2 @@
+-      <a
++      <button
++        type="button"
+@@ -30 +27 @@
+-        routerLink="/archive"
++        (click)="navigate.emit('/archive')"
+@@ -32 +29 @@
 -        {{ "archiveNoun" | i18n }}
-+      <button type="button" bit-item-content data-test-id="archive-link" (click)="navigate.emit('/archive')">
 +        {{ "archive" | i18n }}
-@@ -20 +15 @@
+@@ -34 +31 @@
 -      </a>
 +      </button>
-@@ -23 +18 @@
--      <a bit-item-content routerLink="/trash">
-+      <button type="button" bit-item-content (click)="navigate.emit('/trash')">
-@@ -26 +21 @@
+@@ -37 +34,2 @@
+-      <a
++      <button
++        type="button"
+@@ -41 +39 @@
+-        routerLink="/trash"
++        (click)="navigate.emit('/trash')"
+@@ -45 +43 @@
 -      </a>
 +      </button>
-@@ -29 +24 @@
--      <button type="button" bit-item-content [disabled]="syncLoading" (click)="sync()">
-+      <button type="button" bit-item-content [disabled]="isSyncing" (click)="sync.emit()">
-@@ -31 +26 @@
+@@ -53,3 +51,3 @@
+-        [disabled]="syncLoading"
+-        [attr.aria-busy]="syncLoading"
+-        (click)="sync()"
++        [disabled]="isSyncing"
++        [attr.aria-busy]="isSyncing"
++        (click)="sync.emit()"
+@@ -58 +56 @@
 -        <span slot="secondary">{{ lastSync }}</span>
 +        <span slot="secondary">{{ syncLabel }}</span>
-@@ -33,5 +28,7 @@
+@@ -60,5 +58,7 @@
 -          @if (syncLoading) {
 -            <bit-spinner size="sm"></bit-spinner>
 -          } @else {
@@ -48,7 +65,7 @@
 +            [class.bwi-refresh]="!isSyncing"
 +            aria-hidden="true"
 +          ></i>
-@@ -41,0 +39,10 @@
+@@ -68,0 +69,10 @@
 +
 +  @if (syncError) {
 +    <bw-macos-alert-strip

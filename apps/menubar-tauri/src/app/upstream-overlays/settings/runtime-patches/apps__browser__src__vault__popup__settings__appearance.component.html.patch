@@ -10,114 +10,109 @@
 -  </popup-header>
 +<popup-page>
 +  <popup-header slot="header" [pageTitle]="'i18nAppearance' | i18n" showBackButton [backAction]="backAction" />
-@@ -9,10 +4,46 @@
--  <form [formGroup]="appearanceForm">
--    <bit-card>
--      <bit-form-field>
--        <bit-label>{{ "theme" | i18n }}</bit-label>
--        <bit-select formControlName="theme">
--          @for (o of themeOptions; track o.value) {
--            <bit-option [value]="o.value" [label]="o.name"></bit-option>
--          }
--        </bit-select>
--      </bit-form-field>
-+  <div class="tw-p-4">
+@@ -9 +4 @@
+-  <form
++  <div
+@@ -12 +6,0 @@
+-    [formGroup]="appearanceForm"
+@@ -14,8 +8,43 @@
+-    <bit-form-field class="settings-detail-row macos-continuous-row">
+-      <bit-label>{{ "theme" | i18n }}</bit-label>
+-      <bit-select formControlName="theme">
+-        @for (o of themeOptions; track o.value) {
+-          <bit-option [value]="o.value" [label]="o.name"></bit-option>
+-        }
+-      </bit-select>
+-    </bit-form-field>
 +    <bit-section>
 +      <bit-section-header>
 +        <h2 bitTypography="h6">{{ "i18nInterface" | i18n }}</h2>
 +      </bit-section-header>
-+      <bit-card>
-+        <bit-form-field>
-+          <bit-label>{{ "i18nLanguage" | i18n }}</bit-label>
-+          <bit-select
-+            [attr.aria-label]="'i18nLanguage' | i18n"
-+            [items]="languageOptions"
-+            [ngModel]="language ?? ''"
-+            (ngModelChange)="setLanguageValue($event)"
-+          />
-+        </bit-form-field>
-+        <bit-form-field>
-+          <bit-label>{{ "i18nTheme" | i18n }}</bit-label>
-+          <bit-select
-+            [attr.aria-label]="'i18nTheme' | i18n"
-+            [items]="themeOptions"
-+            [ngModel]="settings.theme"
-+            (ngModelChange)="setThemeValue($event)"
-+          />
-+        </bit-form-field>
-+        <bit-form-control>
-+          <input
-+            bitCheckbox
-+            type="checkbox"
-+            [attr.aria-label]="'i18nCompactMode' | i18n"
-+            [checked]="settings.compactMode"
-+            (change)="emitChecked($event, compactModeChange)"
-+          />
-+          <bit-label>{{ "i18nCompactMode" | i18n }}</bit-label>
-+        </bit-form-control>
-+        <bit-form-control disableMargin>
-+          <input
-+            bitCheckbox
-+            type="checkbox"
-+            [attr.aria-label]="'i18nAnimations' | i18n"
-+            [checked]="settings.animations"
-+            (change)="emitChecked($event, animationsChange)"
-+          />
-+          <bit-label>{{ "i18nAnimations" | i18n }}</bit-label>
-+        </bit-form-control>
-+      </bit-card>
++      <bit-form-field class="settings-detail-row macos-continuous-row">
++        <bit-label>{{ "i18nLanguage" | i18n }}</bit-label>
++        <bit-select
++          [attr.aria-label]="'i18nLanguage' | i18n"
++          [items]="languageOptions"
++          [ngModel]="language ?? ''"
++          (ngModelChange)="setLanguageValue($event)"
++        />
++      </bit-form-field>
++      <bit-form-field class="settings-detail-row macos-continuous-row">
++        <bit-label>{{ "i18nTheme" | i18n }}</bit-label>
++        <bit-select
++          [attr.aria-label]="'i18nTheme' | i18n"
++          [items]="themeOptions"
++          [ngModel]="settings.theme"
++          (ngModelChange)="setThemeValue($event)"
++        />
++      </bit-form-field>
++      <bit-form-control class="settings-detail-row macos-continuous-row">
++        <input
++          bitCheckbox
++          type="checkbox"
++          [attr.aria-label]="'i18nCompactMode' | i18n"
++          [checked]="settings.compactMode"
++          (change)="emitChecked($event, compactModeChange)"
++        />
++        <bit-label>{{ "i18nCompactMode" | i18n }}</bit-label>
++      </bit-form-control>
++      <bit-form-control class="settings-detail-row macos-continuous-row" disableMargin>
++        <input
++          bitCheckbox
++          type="checkbox"
++          [attr.aria-label]="'i18nAnimations' | i18n"
++          [checked]="settings.animations"
++          (change)="emitChecked($event, animationsChange)"
++        />
++        <bit-label>{{ "i18nAnimations" | i18n }}</bit-label>
++      </bit-form-control>
 +    </bit-section>
-@@ -20,25 +51,28 @@
--      <bit-form-control>
--        <input bitCheckbox formControlName="enableCompactMode" type="checkbox" />
--        <bit-label>{{ "compactMode" | i18n }}</bit-label>
--      </bit-form-control>
+@@ -23,22 +52,26 @@
+-    <bit-form-control class="settings-detail-row macos-continuous-row">
+-      <input bitCheckbox formControlName="enableCompactMode" type="checkbox" />
+-      <bit-label>{{ "compactMode" | i18n }}</bit-label>
+-    </bit-form-control>
 -
--      <bit-form-control disableMargin>
--        <input bitCheckbox formControlName="enableAnimations" type="checkbox" />
--        <bit-label>{{ "showAnimations" | i18n }}</bit-label>
--      </bit-form-control>
--    </bit-card>
+-    <bit-form-control class="settings-detail-row macos-continuous-row" disableMargin>
+-      <input bitCheckbox formControlName="enableAnimations" type="checkbox" />
+-      <bit-label>{{ "showAnimations" | i18n }}</bit-label>
+-    </bit-form-control>
 -    <h2 bitTypography="h6" class="tw-font-medium tw-mt-4">{{ "vaultCustomization" | i18n }}</h2>
--    <bit-card>
--      <bit-form-control>
--        <input bitCheckbox formControlName="enableFavicon" type="checkbox" />
--        <bit-label>
--          {{ "showIconsChangePasswordUrls" | i18n }}
--          <vault-permit-cipher-details-popover></vault-permit-cipher-details-popover>
--        </bit-label>
--      </bit-form-control>
--      <bit-form-control disableMargin>
--        <input bitCheckbox formControlName="showQuickCopyActions" type="checkbox" />
--        <bit-label>{{ "showQuickCopyActions" | i18n }}</bit-label>
--      </bit-form-control>
--    </bit-card>
+-    <bit-form-control class="settings-detail-row macos-continuous-row">
+-      <input bitCheckbox formControlName="enableFavicon" type="checkbox" />
+-      <bit-label>
+-        {{ "showIconsChangePasswordUrls" | i18n }}
+-        <vault-permit-cipher-details-popover></vault-permit-cipher-details-popover>
+-      </bit-label>
+-    </bit-form-control>
+-    <bit-form-control class="settings-detail-row macos-continuous-row" disableMargin>
+-      <input bitCheckbox formControlName="showQuickCopyActions" type="checkbox" />
+-      <bit-label>{{ "showQuickCopyActions" | i18n }}</bit-label>
+-    </bit-form-control>
 -  </form>
 +    <bit-section>
 +      <bit-section-header>
 +        <h2 bitTypography="h6">{{ "vault" | i18n }}</h2>
 +      </bit-section-header>
-+      <bit-card>
-+        <bit-form-control>
-+          <input
-+            bitCheckbox
-+            type="checkbox"
-+            [attr.aria-label]="'i18nShowFavicons' | i18n"
-+            [checked]="settings.showFavicons"
-+            (change)="emitChecked($event, showFaviconsChange)"
-+          />
-+          <bit-label>{{ "i18nShowFavicons" | i18n }}</bit-label>
-+        </bit-form-control>
-+        <bit-form-control disableMargin>
-+          <input
-+            bitCheckbox
-+            type="checkbox"
-+            [attr.aria-label]="'i18nShowQuickCopyActions' | i18n"
-+            [checked]="settings.showQuickCopyActions"
-+            (change)="emitChecked($event, showQuickCopyActionsChange)"
-+          />
-+          <bit-label>{{ "i18nShowQuickCopyActions" | i18n }}</bit-label>
-+        </bit-form-control>
-+      </bit-card>
++      <bit-form-control class="settings-detail-row macos-continuous-row">
++        <input
++          bitCheckbox
++          type="checkbox"
++          [attr.aria-label]="'i18nShowFavicons' | i18n"
++          [checked]="settings.showFavicons"
++          (change)="emitChecked($event, showFaviconsChange)"
++        />
++        <bit-label>{{ "i18nShowFavicons" | i18n }}</bit-label>
++      </bit-form-control>
++      <bit-form-control class="settings-detail-row macos-continuous-row" disableMargin>
++        <input
++          bitCheckbox
++          type="checkbox"
++          [attr.aria-label]="'i18nShowQuickCopyActions' | i18n"
++          [checked]="settings.showQuickCopyActions"
++          (change)="emitChecked($event, showQuickCopyActionsChange)"
++        />
++        <bit-label>{{ "i18nShowQuickCopyActions" | i18n }}</bit-label>
++      </bit-form-control>
 +    </bit-section>
 +  </div>

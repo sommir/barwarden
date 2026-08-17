@@ -43,13 +43,16 @@ describe("KeyboardShortcutPageComponent", () => {
 
     expect(host.querySelector("popup-page")).not.toBeNull();
     expect(host.querySelector("popup-header")?.textContent).toContain("快捷键");
-    expect(host.querySelector("bit-card")).not.toBeNull();
+    expect(host.querySelector("bit-card")).toBeNull();
+    expect(host.querySelector("section.settings-detail-group.macos-continuous-group"))
+      .not.toBeNull();
     expect(host.querySelector("bit-form-field")).not.toBeNull();
     expect(host.textContent).toContain("唤出 Barwarden");
     expect(recorder.textContent).toContain("⌥ B");
     expect(recorder.getAttribute("aria-label")).toBe("录制唤出 Barwarden 快捷键");
     expect(clear.getAttribute("aria-label")).toBe("清除快捷键");
     expect(recorder.classList).toContain("macos-form-field__control");
+    expect(recorder.classList).toContain("macos-form-control");
     expect(clear.classList).toContain("macos-form-field__suffix");
     expect(clear.hasAttribute("bitSuffix")).toBe(true);
     expect(clear.getAttribute("slot")).toBeNull();

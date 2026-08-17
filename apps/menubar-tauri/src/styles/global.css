@@ -5646,6 +5646,22 @@ button.is-copy-failed {
   color: var(--mac-text-primary);
 }
 
+.macos-page--settings-detail .settings-detail-group {
+  margin: 16px;
+  background: transparent;
+}
+
+.macos-page--settings-detail .settings-detail-row { padding-inline: 16px; }
+
+.macos-page--settings-detail :is(bit-card, .settings-password-handoff) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--settings-detail [aria-busy="true"] { cursor: progress; }
+
 .icon-action {
   width: 44px;
   min-width: 44px;

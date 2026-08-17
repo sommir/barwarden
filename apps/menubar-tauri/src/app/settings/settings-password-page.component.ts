@@ -27,7 +27,7 @@ import { I18nPipe } from "../official-ui/official-ui-common";
         <app-pop-out slot="end" />
       </popup-header>
 
-      <section class="settings-password-handoff">
+      <section class="settings-password-handoff settings-detail-group macos-continuous-group">
         <p class="empty-inline">
           {{ "i18nPasswordHandoffDescription" | i18n }}
         </p>

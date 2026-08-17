@@ -120,6 +120,46 @@ describe("VaultSettingsPageComponent", () => {
     expect(fixture.nativeElement.textContent).not.toContain("同步中");
   });
 
+  it("announces sync pending without allowing a duplicate", async () => {
+    let resolveSync!: () => void;
+    const syncNow = vi.fn(() => new Promise<void>((resolve) => { resolveSync = resolve; }));
+    await TestBed.configureTestingModule({
+      imports: [VaultSettingsPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: PopupStateStore, useValue: new PopupStateStore() },
+        { provide: VaultSessionService, useValue: { syncNow } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(VaultSettingsPageComponent);
+    fixture.detectChanges(false);
+    const button = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      "[data-testid='vault-sync-row']",
+    );
+    expect(button).not.toBeNull();
+    button!.click();
+    button!.click();
+    fixture.detectChanges();
+    expect(button!.getAttribute("aria-busy")).toBe("true");
+    expect(button!.disabled).toBe(true);
+    expect(syncNow).toHaveBeenCalledOnce();
+    const navigationRows = Array.from(
+      fixture.nativeElement.querySelectorAll<HTMLButtonElement>("button"),
+    );
+    expect(navigationRows.find((row) => row.textContent?.includes("文件夹"))?.dataset["popupFocusKey"])
+      .toBe("settings:folders");
+    expect(navigationRows.find((row) => row.textContent?.includes("归档"))?.dataset["popupFocusKey"])
+      .toBe("settings:archive");
+    expect(navigationRows.find((row) => row.textContent?.includes("回收站"))?.dataset["popupFocusKey"])
+      .toBe("settings:trash");
+    expect(fixture.nativeElement.querySelector('[data-settings-detail="vault-settings"]'))
+      .not.toBeNull();
+    resolveSync();
+    await fixture.whenStable();
+  });
+
   it("clears a previous sanitized sync failure before retrying", async () => {
     const syncNow = vi
       .fn<() => Promise<void>>()

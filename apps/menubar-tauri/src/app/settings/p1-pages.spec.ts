@@ -49,6 +49,77 @@ describe("P1 settings pages", () => {
   });
 
   it.each([
+    ["official-account-security.component.html", "account-security"],
+    ["official-vault-settings.component.html", "vault-settings"],
+    ["official-appearance.component.html", "appearance"],
+  ] as const)("marks %s as one continuous Settings detail surface", (file, id) => {
+    const html = readFileSync(resolve(
+      process.cwd(),
+      "apps/menubar-tauri/src/app/upstream-overlays/settings",
+      file,
+    ), "utf8");
+    expect(html).toContain(`data-settings-detail="${id}"`);
+    expect(html).toContain("macos-continuous-group");
+    expect(html).toContain("macos-continuous-row");
+    expect(html).not.toContain("<bit-card");
+  });
+
+  it("carries Vault Settings focus owners through both retained transform chains", () => {
+    const root = resolve(process.cwd(), "apps/menubar-tauri/src/app/upstream-overlays/settings");
+    const files = [
+      "official-vault-settings.component.html",
+      "generated/apps/browser/src/vault/popup/settings/vault-settings.component.html",
+      "source-patches/apps__browser__src__vault__popup__settings__vault-settings.component.html.patch",
+    ];
+    for (const file of files) {
+      const source = readFileSync(resolve(root, file), "utf8");
+      expect(source, file).toContain('data-popup-focus-key="settings:folders"');
+      expect(source, file).toContain('data-popup-focus-key="settings:archive"');
+      expect(source, file).toContain('data-popup-focus-key="settings:trash"');
+    }
+    const runtimePatchPath =
+      "runtime-patches/apps__browser__src__vault__popup__settings__vault-settings.component.html.patch";
+    const runtimePatch = readFileSync(resolve(root, runtimePatchPath), "utf8");
+    for (const key of ["settings:folders", "settings:archive", "settings:trash"]) {
+      expect(runtimePatch, `runtime patch must inherit ${key} from its generated authority`)
+        .not.toContain(key);
+    }
+    const transformManifest = JSON.parse(readFileSync(
+      resolve(root, "official-settings.transform-manifest.json"), "utf8",
+    )) as { authorities: Array<{
+      path: string;
+      patch: { path: string };
+      output: { path: string };
+    }> };
+    expect(transformManifest.authorities.find(({ path }) =>
+      path === "apps/browser/src/vault/popup/settings/vault-settings.component.html"),
+    ).toMatchObject({
+      patch: { path: expect.stringContaining("source-patches/apps__browser__src__vault__popup__settings__vault-settings.component.html.patch") },
+      output: { path: expect.stringContaining("generated/apps/browser/src/vault/popup/settings/vault-settings.component.html") },
+    });
+    const runtimeManifest = JSON.parse(readFileSync(
+      resolve(root, "official-settings.runtime-manifest.json"), "utf8",
+    )) as { authorities: Array<{
+      authority: { path: string };
+      patch: { path: string };
+      output: { path: string };
+    }> };
+    expect(runtimeManifest.authorities.find(({ authority }) =>
+      authority.path === "apps/browser/src/vault/popup/settings/vault-settings.component.html"),
+    ).toMatchObject({
+      patch: { path: expect.stringContaining(runtimePatchPath) },
+      output: { path: expect.stringContaining("official-vault-settings.component.html") },
+    });
+    const runtimeContract = readFileSync(
+      resolve(root, "official-settings-runtime-transforms.ts"),
+      "utf8",
+    );
+    expect(runtimeContract).toContain(
+      '"apps/browser/src/vault/popup/settings/vault-settings.component.html", "official-vault-settings.component.html"',
+    );
+  });
+
+  it.each([
     ["settings-page.component.ts", "bw-official-settings"],
     ["account-security-page.component.ts", "bw-official-account-security"],
     ["vault-settings-page.component.ts", "bw-official-vault-settings"],
@@ -129,7 +200,7 @@ describe("P1 settings pages", () => {
     }
   });
 
-  it("renders the official account security inventory with a live vault timeout setting", async () => {
+  it("renders the official account security inventory as a continuous Settings detail surface", async () => {
     const service = new SettingsStateService();
     const opened: string[] = [];
     await TestBed.configureTestingModule({
@@ -174,6 +245,11 @@ describe("P1 settings pages", () => {
     expect(host.querySelector('a[href="/fingerprint-phrase"]')).toBeNull();
     expect(host.querySelector('a[href="/settings-password"]')).toBeNull();
     expect(host.querySelectorAll(".bwi-external-link")).toHaveLength(2);
+    expect(host.querySelector('[data-settings-detail="account-security"].settings-detail-group'))
+      .not.toBeNull();
+    expect(host.querySelectorAll(".settings-detail-row.macos-continuous-row").length)
+      .toBeGreaterThan(0);
+    expect(host.querySelector("bit-card")).toBeNull();
     expect(
       host.querySelector('bit-select[aria-label="密码库超时"]'),
     ).not.toBeNull();
@@ -597,7 +673,7 @@ describe("P1 settings pages", () => {
     expect(host.textContent).not.toContain("private native opener details");
   });
 
-  it("renders actionable native single-field modes with standard clipboard timeout choices", async () => {
+  it("renders actionable native single-field modes as a continuous Settings detail surface", async () => {
     const service = new SettingsStateService();
     await TestBed.configureTestingModule({
       imports: [AutofillSettingsPageComponent],
@@ -622,11 +698,16 @@ describe("P1 settings pages", () => {
     expect(host.textContent).toContain("填充");
     expect(host.textContent).not.toContain("内容脚本");
     expect(host.querySelector('a[href="/blocked-domains"]')).toBeNull();
+    expect(host.querySelector("section.settings-detail-group.macos-continuous-group"))
+      .not.toBeNull();
+    expect(host.querySelector("bit-card")).toBeNull();
 
     expect(host.querySelector("input[type='number']")).toBeNull();
     expect(
       host.querySelector('bit-select[aria-label="清空剪贴板"]'),
     ).not.toBeNull();
+    expect(host.querySelector('bit-select[aria-label="清空剪贴板"]')?.classList)
+      .toContain("macos-form-control");
     expect(
       fixture.componentInstance.clipboardClearOptions.map(
         (option) => option.value,
@@ -653,7 +734,7 @@ describe("P1 settings pages", () => {
   });
 
 
-  it("renders appearance inventory with supported local settings active and unsupported ones deferred", async () => {
+  it("renders appearance inventory as a continuous Settings detail surface", async () => {
     const service = new SettingsStateService();
     await TestBed.configureTestingModule({
       imports: [AppearancePageComponent],
@@ -678,6 +759,11 @@ describe("P1 settings pages", () => {
     );
     expect(host.textContent).toContain("显示网站图标");
     expect(host.textContent).toContain("在密码库上显示快速复制操作");
+    expect(host.querySelector('[data-settings-detail="appearance"].settings-detail-group'))
+      .not.toBeNull();
+    expect(host.querySelectorAll(".settings-detail-row.macos-continuous-row").length)
+      .toBeGreaterThan(0);
+    expect(host.querySelector("bit-card")).toBeNull();
     expect(host.textContent).not.toContain("点击自动填充建议中的项目以填充");
     const quickCopyCheckbox = host.querySelector<HTMLInputElement>(
       'input[aria-label="在密码库上显示快速复制操作"]',
@@ -778,6 +864,8 @@ describe("P1 settings pages", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.textContent).toContain("更改主密码");
     expect(host.textContent).toContain("Web Vault");
+    expect(host.querySelectorAll("section.settings-password-handoff.settings-detail-group"))
+      .toHaveLength(1);
     const openButton = Array.from(
       host.querySelectorAll<HTMLButtonElement>("button"),
     ).find((button) => button.textContent?.includes("打开 Web Vault"));

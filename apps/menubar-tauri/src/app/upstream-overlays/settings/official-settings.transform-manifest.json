@@ -52,11 +52,11 @@
       "upstreamSha256": "8297a762f1225cab9463b409ad88783eb6faea08f798dfa940bcacdeeb309ec3",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__auth__popup__settings__account-security.component.html.patch",
-        "sha256": "cf080471e534b6e2b0ca8c90bf08b5b5799e7a3bfdb3cc4ae836daf0bf7a105c"
+        "sha256": "1f02a977044941d3e982b8a14ace2e74bb3473b2cfb56f031189a1fcc9a774d7"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/auth/popup/settings/account-security.component.html",
-        "sha256": "6467b0d6436db9a6e4544431cd1d75f67f7623638c998d37416861519555b78c"
+        "sha256": "7a4a5983d1e433bf66c8245c35ce410f751e7e3c9c7f5959c0c78253d755750d"
       }
     },
     {
@@ -76,11 +76,11 @@
       "upstreamSha256": "6f7c3686602eeac8a18badcf9fddfc62f65ff65f68cd0d866d6422ac67cb4775",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__vault__popup__settings__vault-settings.component.html.patch",
-        "sha256": "e812fe6ce8a65cc99f0b0c78853142caef2cd347fab3a874127cce706a13cf3e"
+        "sha256": "3b535fa68c2ab314c68451cd74eb0c56f90575c22673d545c2ebe29e92218ee9"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/vault/popup/settings/vault-settings.component.html",
-        "sha256": "f08f6a2fc01b143af808102dba1f9654f7ad59aa7fef86d4a7ea4d7575692cf7"
+        "sha256": "4b74880babcb092a8cc01cd666a9b6e769c6b06636936ee548302af86700befa"
       }
     },
     {
@@ -100,11 +100,11 @@
       "upstreamSha256": "0f27d507dac569ff92efd951c113c091709655da59fd2d26e587283e30daa60c",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__vault__popup__settings__appearance.component.html.patch",
-        "sha256": "06bb6005ab0a940e44471974717e7c143991af79b2c227467402fc7cc5b41dae"
+        "sha256": "b41fe8d971a8168f5de49ce1bf66585f2d73a8cd9b65e3eb5700995b5ccba4cd"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/vault/popup/settings/appearance.component.html",
-        "sha256": "81c9316f0f0f2197775180fe356a0154953c2672b96fa36edfbfde4b8e698888"
+        "sha256": "960a8d5c45f1ab67b406fd1ee399afe2c67597ec6fcc68665510d19408081964"
       }
     },
     {

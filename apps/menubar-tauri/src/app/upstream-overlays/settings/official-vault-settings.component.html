@@ -1,27 +1,57 @@
 <popup-page>
   <popup-header slot="header" [pageTitle]="'i18nVaultOptions' | i18n" showBackButton [backAction]="backAction" />
 
-  <bit-item-group>
+  <bit-item-group
+    class="settings-detail-group macos-continuous-group"
+    data-settings-detail="vault-settings"
+  >
     <bit-item>
-      <button type="button" bit-item-content (click)="navigate.emit('/folders')">
+      <button
+        type="button"
+        bit-item-content
+        class="settings-detail-row macos-continuous-row"
+        data-popup-focus-key="settings:folders"
+        (click)="navigate.emit('/folders')"
+      >
         {{ "folders" | i18n }}
         <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content data-test-id="archive-link" (click)="navigate.emit('/archive')">
+      <button
+        type="button"
+        bit-item-content
+        class="settings-detail-row macos-continuous-row"
+        data-test-id="archive-link"
+        data-popup-focus-key="settings:archive"
+        (click)="navigate.emit('/archive')"
+      >
         {{ "archive" | i18n }}
         <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content (click)="navigate.emit('/trash')">
+      <button
+        type="button"
+        bit-item-content
+        class="settings-detail-row macos-continuous-row"
+        data-popup-focus-key="settings:trash"
+        (click)="navigate.emit('/trash')"
+      >
         {{ "trash" | i18n }}
         <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content [disabled]="isSyncing" (click)="sync.emit()">
+      <button
+        type="button"
+        bit-item-content
+        class="settings-detail-row macos-continuous-row"
+        data-testid="vault-sync-row"
+        [disabled]="isSyncing"
+        [attr.aria-busy]="isSyncing"
+        (click)="sync.emit()"
+      >
         {{ "syncNow" | i18n }}
         <span slot="secondary">{{ syncLabel }}</span>
         <span slot="end">
