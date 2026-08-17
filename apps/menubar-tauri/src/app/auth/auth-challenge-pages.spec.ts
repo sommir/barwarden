@@ -287,11 +287,26 @@ describe("auth challenge pages", () => {
         (node) =>
           node.type === "rule" &&
           ((node as postcss.Rule).selector.includes(".macos-auth-card") ||
-            (node as postcss.Rule).selector.includes(".macos-auth-validation")),
+            (node as postcss.Rule).selector.includes(".macos-auth-validation") ||
+            (node as postcss.Rule).selector.includes(".macos-primary-action") ||
+            (node as postcss.Rule).selector === ":root"),
       )
       .map((node) => node.toString())
       .join("\n");
-    stylesheet.textContent = fixtureStyles;
+    const renderedStyles = postcss.parse(fixtureStyles);
+    const resolvedTokens = new Map([
+      ["var(--mac-accent)", "#0a66ff"],
+      ["var(--mac-border-subtle)", "#d4e1f2"],
+      ["var(--mac-control-min-size)", "40px"],
+      ["var(--mac-surface-solid)", "#fbfdff"],
+      ["var(--mac-text-secondary)", "#536784"],
+    ]);
+    renderedStyles.walkDecls((declaration) => {
+      for (const [token, value] of resolvedTokens) {
+        declaration.value = declaration.value.replaceAll(token, value);
+      }
+    });
+    stylesheet.textContent = renderedStyles.toString();
     document.head.append(stylesheet);
 
     const card = document.createElement("form");
@@ -316,14 +331,20 @@ describe("auth challenge pages", () => {
     document.body.append(card, validation);
 
     try {
-      expect(getComputedStyle(primary).minHeight).toBe("44px");
+      const primaryStyles = getComputedStyle(primary);
+      expect(primaryStyles.minHeight).toBe("44px");
+      expect(primaryStyles.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
       for (const action of secondaryActions) {
         const styles = getComputedStyle(action);
         expect(styles.minHeight).toBe("44px");
         expect(styles.borderTopWidth).toBe("0px");
+        expect(styles.borderBottomWidth).toBe("1px");
         expect(styles.borderTopLeftRadius).toBe("0");
         expect(styles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
       }
+      expect(getComputedStyle(secondaryActions[1]).color).not.toBe(
+        getComputedStyle(secondaryActions[0]).color,
+      );
       expect(getComputedStyle(validation).minHeight).toBe("0px");
     } finally {
       card.remove();

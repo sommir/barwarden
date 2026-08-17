@@ -2392,7 +2392,7 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 }
 
 .macos-auth-card .macos-primary-action {
-  min-height: 44px;
+  min-height: 44px !important;
 }
 
 .macos-auth-card :is(
