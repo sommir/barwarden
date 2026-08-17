@@ -31,24 +31,67 @@ describe("OfficialSendListComponent", () => {
     expect(existsSync(runtimePath)).toBe(true);
   });
 
-  it("renders populated Text rows with only the official view-before-edit, copy, and delete commands", async () => {
+  it("isolates row, Copy link, and danger Delete in More", async () => {
     const fixture = await createFixture({ sends: [textSend({ hasPassword: true })], state: "ready" });
     const commands = outputCommands(fixture.componentInstance);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    document.body.append(host);
+    const row = host.querySelector<HTMLElement>("bit-item")!;
     expect(host.textContent).toContain("Payroll token");
     expect(host.querySelectorAll("bit-item")).toHaveLength(1);
     expect(host.querySelector('a[href*="edit-send"]')).toBeNull();
 
-    host.querySelector<HTMLButtonElement>("[bit-item-content]")?.click();
-    host.querySelector<HTMLButtonElement>('[aria-label^="复制链接"]')?.click();
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    row.querySelector<HTMLButtonElement>("[bit-item-content]")!.click();
+    row.querySelector<HTMLButtonElement>('[aria-label^="复制链接"]')!.click();
+    const more = row.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+    expect(more).not.toBeNull();
+    expect(more.getAttribute("aria-label")).toContain("Payroll token");
+    expect(row.querySelector('[biticonbutton="bwi-trash"]')).toBeNull();
+    more.click();
+    await fixture.whenStable();
+    const menu = document.querySelector<HTMLElement>('[role="menu"][aria-label*="Payroll token"]')!;
+    const danger = menu.querySelector<HTMLButtonElement>('[role="menuitem"].tw-text-fg-danger')!;
+    expect(danger.textContent?.trim()).toBe("删除");
+    danger.click();
 
     expect(host.querySelector('[aria-label^="移除密码"]')).toBeNull();
     expect(host.querySelector('[bitIconButton="bwi-unlock"]')).toBeNull();
     expect("removePassword" in fixture.componentInstance).toBe(false);
     expect(commands).toEqual(["open:send-1", "copy:send-1", "delete:send-1"]);
+    expect(document.activeElement).toBe(more);
+
+    fixture.destroy();
+    host.remove();
+  });
+
+  it("supports keyboard menu navigation and returns focus to the contextual More trigger", async () => {
+    const fixture = await createFixture({ sends: [textSend()], state: "ready" });
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    document.body.append(host);
+    const more = host.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+    more.focus();
+    more.click();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise));
+
+    const menu = document.querySelector<HTMLElement>('[role="menu"][aria-label*="Payroll token"]')!;
+    expect(menu.getAttribute("aria-label")).toContain("Payroll token");
+    expect(document.activeElement).toBe(menu.querySelector('[role="menuitem"]'));
+
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+    );
+    fixture.detectChanges();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+
+    expect(document.querySelector('[role="menu"][aria-label*="Payroll token"]')).toBeNull();
+    expect(document.activeElement).toBe(more);
+
+    fixture.destroy();
+    host.remove();
   });
 
   it("emits search and filter commands and exposes only a Text new action", async () => {

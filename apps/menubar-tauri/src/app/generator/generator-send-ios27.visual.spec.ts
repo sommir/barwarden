@@ -20,6 +20,7 @@ import { PopupPageComponent } from "../layout/popup-page.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { officialCurrentAccountTestProviders } from "../official-ui/official-current-account.test-support";
 import { ClipboardPolicyService } from "../settings/clipboard-policy.service";
+import { SendPageComponent } from "../send/send-page.component";
 import {
   GENERATOR_HISTORY_CLIPBOARD_HOST,
   GeneratorHistoryPageComponent,
@@ -218,6 +219,60 @@ describe("iOS 27 Generator visual contract", () => {
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row!).minHeight).toBe("44px");
+
+    fixture.destroy();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+  });
+
+  it("renders Send as a flat shadowless list with compact-safe rows and actions", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setSends([{
+      id: "send-1",
+      accessId: "access-token",
+      type: "text",
+      name: "Payroll token",
+      notes: "",
+      revisionDate: "2026-08-17T00:00:00.000Z",
+      deletionDate: "2030-08-17T00:00:00.000Z",
+      disabled: false,
+      accessCount: 0,
+    }]);
+    TestBed.overrideComponent(PopupPageComponent, { set: { template: "<ng-content />" } });
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: PopupStateStore, useValue: store },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const list = host.querySelector<HTMLElement>(".macos-send-list")!;
+    const row = host.querySelector<HTMLElement>(".macos-send-row")!;
+    const actions = row.querySelectorAll<HTMLElement>(".macos-send-row__actions button");
+
+    expect(getComputedStyle(list).display).toBe("block");
+    expect(getComputedStyle(list).boxShadow).toBe("none");
+    expect(getComputedStyle(row).minHeight).toBe("52px");
+    expect(getComputedStyle(row).borderRadius).toBe("0px");
+    expect(actions).toHaveLength(2);
+    expect(Array.from(actions, (action) => getComputedStyle(action).minWidth)).toEqual([
+      "44px",
+      "44px",
+    ]);
+    expect(Array.from(actions, (action) => getComputedStyle(action).minHeight)).toEqual([
+      "44px",
+      "44px",
+    ]);
+
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(getComputedStyle(row).minHeight).toBe("44px");
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");

@@ -71,7 +71,7 @@ const replaceSendItemsServiceStateWithTypedInputs = [
     />
   }
   @if (loading()) {
-    <bit-item-group [attr.aria-label]="'i18nLoadingSends' | i18n">
+    <bit-item-group class="macos-send-list" [attr.aria-label]="'i18nLoadingSends' | i18n">
       @for (row of [0, 1, 2, 3, 4]; track row) {
         <div class="tw-flex tw-items-center tw-gap-3 tw-h-[59px] tw-px-3">
           <bit-skeleton edgeShape="circle" class="tw-size-8 tw-flex-none" />
@@ -226,8 +226,8 @@ const replaceRouterLinkWithOpenOutput = [
     </h2>
     <span bitTypography="body1" slot="end">{{ sends().length }}</span>
   </bit-section-header>
-  <bit-item-group>
-    <bit-item *ngFor="let send of sends(); trackBy: trackById">`,
+  <bit-item-group class="macos-send-list">
+    <bit-item class="macos-send-row" *ngFor="let send of sends(); trackBy: trackById">`,
   },
   {
     search: `        appA11yTitle="{{ 'edit' | i18n }} - {{ send.name }}"
@@ -282,16 +282,51 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
     replacement: '{{ "i18nDeleteDateValue" | i18n: (send.deletionDate | date: "mediumDate") }}',
   },
   {
-    search: `            (click)="copySendLink(send)"
-            label="{{ 'copyLink' | i18n }} - {{ send.name }}"`,
-    replacement: `            (click)="copyLink.emit({ send, trigger: $event })"
-            [attr.aria-label]="'i18nCopySendLinkFor' | i18n: send.name"`,
+    search: `        <bit-item-action>
+          <button
+            class="tw-p-1"
+            bitIconButton="bwi-clone"
+            size="small"
+            type="button"
+            (click)="copySendLink(send)"
+            label="{{ 'copyLink' | i18n }} - {{ send.name }}"
+          ></button>
+        </bit-item-action>`,
+    replacement: `        <bit-item-action class="macos-send-row__actions">
+          <button
+            class="tw-p-1"
+            bitIconButton="bwi-clone"
+            size="small"
+            type="button"
+            (click)="copyLink.emit({ send, trigger: $event })"
+            [attr.aria-label]="'i18nCopySendLinkFor' | i18n: send.name"
+          ></button>
+        </bit-item-action>`,
   },
   {
-    search: `            (click)="deleteSend(send)"
-            label="{{ 'delete' | i18n }} - {{ send.name }}"`,
-    replacement: `            (click)="delete.emit(send)"
-            [attr.aria-label]="'i18nDeleteSendFor' | i18n: send.name"`,
+    search: `        <bit-item-action>
+          <button
+            bitIconButton="bwi-trash"
+            size="small"
+            type="button"
+            (click)="deleteSend(send)"
+            label="{{ 'delete' | i18n }} - {{ send.name }}"
+          ></button>
+        </bit-item-action>`,
+    replacement: `        <bit-item-action class="macos-send-row__actions">
+          <button
+            bitIconButton="bwi-ellipsis-v"
+            size="small"
+            type="button"
+            [label]="(('i18nMore' | i18n) + ' - ' + send.name)"
+            [bitMenuTriggerFor]="sendActions"
+          ></button>
+          <bit-menu #sendActions [ariaLabel]="(('i18nMore' | i18n) + ' - ' + send.name)">
+            <button type="button" bitMenuItem variant="danger" (click)="delete.emit(send)">
+              {{ "i18nDelete" | i18n }}
+            </button>
+          </bit-menu>
+        </bit-item-action>`,
   },
 ] as const;
 
@@ -561,7 +596,7 @@ export const sendTypeScriptContracts = [
     authorityClass: "SendListItemsContainerComponent", runtimeClass: "OfficialSendListItemsContainerComponent",
     authoritySha256: "e341b2b8bfec76b52003a91186e05dcfee16ec9e403be658d18ac4d189c8a24b",
     requiredRuntimeMembers: ["sends", "headerText", "open", "copyLink", "delete", "trackById"],
-    requiredImports: [{ module: "@angular/common", bindings: ["CommonModule"] }, { module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }],
+    requiredImports: [{ module: "@angular/common", bindings: ["CommonModule"] }, { module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "../../official-ui/official-components", bindings: ["MenuComponent", "MenuItemComponent", "MenuTriggerForDirective"] }],
     mutationSearch: "readonly copyLink", mutationReplacement: "readonly damagedCopyLink",
     patch: listItemsTypeScriptPatch, transforms: staticPatchTransforms(listItemsTypeScriptPatch),
   },

@@ -77,7 +77,7 @@
     />
   }
   @if (loading()) {
-    <bit-item-group [attr.aria-label]="'i18nLoadingSends' | i18n">
+    <bit-item-group class="macos-send-list" [attr.aria-label]="'i18nLoadingSends' | i18n">
       @for (row of [0, 1, 2, 3, 4]; track row) {
         <div class="tw-flex tw-items-center tw-gap-3 tw-h-[59px] tw-px-3">
           <bit-skeleton edgeShape="circle" class="tw-size-8 tw-flex-none" />

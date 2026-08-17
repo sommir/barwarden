@@ -339,7 +339,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     buttonByText(host, "永久删除").click();
     await fixture.whenStable();
@@ -371,7 +371,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
 
     const confirmation = host.querySelector<HTMLDialogElement>(
@@ -399,7 +399,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     const confirmation = host.querySelector<HTMLDialogElement>(
       '[data-testid="send-permanent-delete-confirmation"]',
@@ -435,7 +435,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     const first = fixture.componentInstance.confirmDelete();
     await vi.waitFor(() => expect(sendActions.calls).toHaveLength(1));
@@ -479,7 +479,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
 
     const confirmation = host.querySelector<HTMLDialogElement>(
@@ -507,7 +507,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     const confirmation = host.querySelector<HTMLDialogElement>(
       '[data-testid="send-permanent-delete-confirmation"]',
@@ -543,7 +543,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     const first = fixture.componentInstance.confirmDelete();
     await vi.waitFor(() => expect(sendActions.calls).toHaveLength(1));
@@ -588,7 +588,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     buttonByText(host, "永久删除").click();
     await fixture.whenStable();
@@ -615,7 +615,7 @@ describe("SendPageComponent", () => {
     const fixture = TestBed.createComponent(SendPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     buttonByText(host, "取消").click();
     await fixture.whenStable();
@@ -883,6 +883,22 @@ function unlockForSendOperation(store: PopupStateStore): AuthSession {
   store.setUnlocked("user@example.test");
   store.setActiveSession(session);
   return session;
+}
+
+function clickSendDelete(host: HTMLElement): void {
+  const more = host.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]');
+  expect(more).not.toBeNull();
+  more!.click();
+
+  const menu = document.querySelector<HTMLElement>(
+    '[role="menu"][aria-label*="Payroll token"]',
+  );
+  expect(menu).not.toBeNull();
+  const danger = menu!.querySelector<HTMLButtonElement>(
+    '[role="menuitem"].tw-text-fg-danger',
+  );
+  expect(danger).not.toBeNull();
+  danger!.click();
 }
 
 function demoSend(overrides: Partial<SendItem>): SendItem {

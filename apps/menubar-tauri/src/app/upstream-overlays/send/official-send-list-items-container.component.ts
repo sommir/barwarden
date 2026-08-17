@@ -9,6 +9,11 @@ import { ItemContentComponent } from "@bitwarden/components/item/item-content.co
 import { ItemGroupComponent } from "@bitwarden/components/item/item-group.component";
 import { SectionComponent } from "@bitwarden/components/section/section.component";
 import { SectionHeaderComponent } from "@bitwarden/components/section/section-header.component";
+import {
+  MenuComponent,
+  MenuItemComponent,
+  MenuTriggerForDirective,
+} from "../../official-ui/official-components";
 import { I18nPipe } from "../../official-ui/official-ui-common";
 
 export interface OfficialTextSendListItem {
@@ -38,6 +43,9 @@ export interface OfficialTextSendCopyRequest {
     ItemComponent,
     ItemContentComponent,
     ItemGroupComponent,
+    MenuComponent,
+    MenuItemComponent,
+    MenuTriggerForDirective,
     SectionComponent,
     SectionHeaderComponent,
   ],

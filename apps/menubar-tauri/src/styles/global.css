@@ -4486,6 +4486,34 @@ auth-account .macos-account-label {
   margin-block-start: 0;
 }
 
+.macos-send-list {
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-send-row,
+.macos-page--send .macos-send-row {
+  min-height: 52px;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-send-row__actions button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-send-row,
+:root[data-bw-compact-mode="true"] .macos-page--send .macos-send-row {
+  min-height: 44px;
+}
+
 .send-list {
   display: grid;
   gap: 12px;
