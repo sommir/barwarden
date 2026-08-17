@@ -373,6 +373,14 @@ describe("iOS 27 Generator visual contract", () => {
 
     fixture.destroy();
   });
+
+  it("keeps compact rows touch-safe and removes nonessential motion", () => {
+    const css = style.textContent ?? "";
+    expect(css).toMatch(/:root\[data-bw-compact-mode="true"\][\s\S]*?\.macos-generator__history-link\s*\{[^}]*min-height:\s*44px/s);
+    expect(css).toMatch(/:root\[data-bw-compact-mode="true"\][\s\S]*?\.macos-generator-history__row\s*\{[^}]*min-height:\s*44px/s);
+    expect(css).toMatch(/:root\[data-bw-compact-mode="true"\][\s\S]*?\.macos-send-row\s*\{[^}]*min-height:\s*44px/s);
+    expect(css).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.bit-menu-panel \[role="menu"\][\s\S]*?animation:\s*none/s);
+  });
 });
 
 function computedHitHeight(target: Element): number {
