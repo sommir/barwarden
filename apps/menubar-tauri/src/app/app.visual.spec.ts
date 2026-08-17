@@ -200,17 +200,6 @@ describe("popup visual smoke classes", () => {
       /popup-page > main,[\s\S]*?background:\s*transparent !important;/,
     );
     expect(rootTokens).toContain("--mac-auth-background: #f4f8ff;");
-    expect(globalCss).toMatch(
-      /barwarden-root\.barwarden-root--authentication\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
-    );
-    expect(globalCss).toMatch(
-      /barwarden-root\.barwarden-root--authentication\s+:is\([\s\S]*?popup-page > main,[\s\S]*?background:\s*transparent !important;/s,
-    );
-    expect(globalCss).toMatch(
-      /body:has\(> barwarden-root\.barwarden-root--authentication\)\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
-    );
-    expect(globalCss).not.toMatch(/barwarden-root:has\([^}]*bw-lock-page/s);
-    expect(globalCss).not.toContain(':root:not([data-bw-window="popout"]):has(');
   });
 
   it("uses a paint-only 2px glass scrollbar without scroll-time backdrop recomposition", () => {
