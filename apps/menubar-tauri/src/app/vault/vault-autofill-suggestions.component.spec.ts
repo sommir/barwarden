@@ -137,6 +137,10 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     expect(row?.querySelector("[data-testid='vault-autofill-capability-summary']")).toBeNull();
     expect(row?.querySelectorAll("bit-item-action > button[biticonbutton][data-testid='vault-autofill-field-action']"))
       .toHaveLength(3);
+    const actionFields = [...row!.querySelectorAll<HTMLElement>(
+      '[data-testid="vault-autofill-field-action"]',
+    )].map((button) => button.dataset["field"]);
+    expect(actionFields).toEqual(["username", "password", "totp"]);
     expect(row?.querySelector("button[biticonbutton='bwi-user'][data-field='username']"))
       .not.toBeNull();
     expect(row?.querySelector("button[biticonbutton='bwi-key'][data-field='password']"))
@@ -201,6 +205,7 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     harness.fieldActions.execute.mockResolvedValue({ status: "filled", field: "password" });
 
     harness.host.querySelector<HTMLButtonElement>("[data-testid='vault-autofill-field-action'][data-field='password']")?.click();
+    expect(harness.router.navigateByUrl).not.toHaveBeenCalled();
     await vi.waitFor(() => expect(harness.fieldActions.execute).toHaveBeenCalledWith(
       { application: APPLICATION, fillContext: CONTEXT }, SESSION, selected, "password",
       { mismatchConfirmed: false, requiresReprompt: false },

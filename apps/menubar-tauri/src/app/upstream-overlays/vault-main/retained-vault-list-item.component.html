@@ -30,19 +30,19 @@
     @if (showQuickCopyActions) {
       @if (usernameField; as field) {
         <bit-item-action>
-          <button bitIconButton="bwi-user" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('username' | i18n)" (click)="fillField(field, $event)"></button>
+          <button bitIconButton="bwi-user" data-field="username" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('username' | i18n)" (click)="fillField(field, $event)"></button>
         </bit-item-action>
       }
       @if (cipher.viewPassword) {
         @if (passwordField; as field) {
           <bit-item-action>
-            <button bitIconButton="bwi-key" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('password' | i18n)" (click)="fillField(field, $event)"></button>
+            <button bitIconButton="bwi-key" data-field="password" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('password' | i18n)" (click)="fillField(field, $event)"></button>
           </bit-item-action>
         }
       }
       @if (otpField; as field) {
         <bit-item-action>
-          <button bitIconButton="bwi-clock" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('verificationCode' | i18n)" (click)="fillField(field, $event)"></button>
+          <button bitIconButton="bwi-clock" data-field="totp" size="small" type="button" [label]="'i18nCopyAndFillField' | i18n: ('verificationCode' | i18n)" (click)="fillField(field, $event)"></button>
         </bit-item-action>
       }
     }

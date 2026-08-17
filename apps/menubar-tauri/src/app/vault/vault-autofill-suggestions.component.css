@@ -5,6 +5,7 @@
 .vault-autofill-suggestions {
   display: block;
   width: 100%;
+  background: color-mix(in srgb, var(--mac-surface-contextual) 62%, transparent);
 }
 
 .vault-autofill-suggestions__layout {

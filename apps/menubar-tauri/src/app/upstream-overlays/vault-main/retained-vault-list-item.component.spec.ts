@@ -58,6 +58,17 @@ describe("RetainedVaultListItemComponent", () => {
     expect(host.querySelector(".bwi-paperclip")).toBeNull();
   });
 
+  it("marks credential actions with stable semantic field names", async () => {
+    const fixture = await createLoginRow();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-field="username"] .bwi-user')).not.toBeNull();
+    expect(host.querySelector('[data-field="password"] .bwi-key')).not.toBeNull();
+    expect(host.querySelector('[data-field="totp"] .bwi-clock')).not.toBeNull();
+    expect([...host.querySelectorAll("[data-field]")].map((node) => node.getAttribute("data-field")))
+      .toEqual(["username", "password", "totp"]);
+  });
+
   it("keeps the official retained menu order without Fill or collection branches", async () => {
     const fixture = await createLoginRow();
     const host = fixture.nativeElement as HTMLElement;
