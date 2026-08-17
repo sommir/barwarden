@@ -1,6 +1,9 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
@@ -34,6 +37,27 @@ function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   const promise = new Promise<T>((res) => { resolve = res; });
   return { promise, resolve };
+}
+
+function installLockVisualCss(): () => void {
+  const style = document.createElement("style");
+  const source = ["macos-tokens.css", "global.css"]
+    .map((filename) => readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", filename), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const tokens = new Map(
+    [...rootDeclarations.matchAll(/(--mac-[\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [
+      name,
+      value.trim(),
+    ]),
+  );
+
+  style.textContent = source.replace(/var\((--mac-[\w-]+)\)/g, (reference, name) =>
+    tokens.get(name) ?? reference,
+  );
+  document.head.append(style);
+  return () => style.remove();
 }
 
 describe("LockPageComponent", () => {
@@ -151,6 +175,68 @@ describe("LockPageComponent", () => {
     expect(host.querySelector(".macos-auth-identity__secondary")?.textContent).toContain(account.serverUrl);
     expect(host.querySelector("bw-official-master-password-lock form.macos-auth-card")).not.toBeNull();
     expect(host.querySelector("[data-testid=lock-unlock-button].macos-primary-action")).not.toBeNull();
+  });
+
+  it("renders the biometric identity and alternatives as flat continuous rows", async () => {
+    const cleanupCss = installLockVisualCss();
+    const { fixture } = await create(vi.fn(async () => "unlocked" as const), vi.fn(async () => undefined), {
+      availability: {
+        pinEnabled: true,
+        biometricEnabled: true,
+        biometricAvailability: "available",
+      },
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    const identity = host.querySelector<HTMLElement>(".macos-auth-identity");
+    const biometric = host.querySelector<HTMLElement>('[data-testid="lock-biometric-button"]');
+    const alternativeIds = [
+      "lock-switch-pin",
+      "lock-switch-master-password",
+      "lock-logout-button",
+      "lock-switch-account",
+    ];
+    const alternatives = alternativeIds.map((testId) =>
+      host.querySelector<HTMLElement>(`[data-testid="${testId}"]`),
+    );
+
+    try {
+      expect(identity).not.toBeNull();
+      expect(biometric).not.toBeNull();
+      expect(alternatives).not.toContain(null);
+      expect([...host.querySelectorAll(".macos-primary-action")]).toEqual([biometric]);
+      expect(identity!.compareDocumentPosition(biometric!) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+      for (let index = 0; index < alternatives.length - 1; index += 1) {
+        expect(
+          alternatives[index]!.compareDocumentPosition(alternatives[index + 1]!)
+            & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).not.toBe(0);
+      }
+
+      const identityStyles = getComputedStyle(identity!);
+      expect(identityStyles.borderTopWidth).toBe("0px");
+      expect(identityStyles.borderRightWidth).toBe("0px");
+      expect(identityStyles.borderBottomWidth).toBe("1px");
+      expect(identityStyles.borderLeftWidth).toBe("0px");
+      expect(identityStyles.borderRadius).toBe("0px");
+      expect(identityStyles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(identityStyles.boxShadow).toBe("none");
+
+      for (const alternative of alternatives) {
+        const styles = getComputedStyle(alternative!);
+        expect(styles.minHeight).toBe("44px");
+        expect(styles.borderTopWidth).toBe("0px");
+        expect(styles.borderRightWidth).toBe("0px");
+        expect(styles.borderBottomWidth).toBe("1px");
+        expect(styles.borderLeftWidth).toBe("0px");
+        expect(styles.borderRadius).toBe("0px");
+        expect(styles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+        expect(styles.boxShadow).toBe("none");
+      }
+      expect(getComputedStyle(alternatives[2]!).color).toBe("rgb(215, 0, 21)");
+    } finally {
+      fixture.destroy();
+      cleanupCss();
+    }
   });
 
   it("renders one Barwarden heading without a provider subtitle", async () => {

@@ -2753,13 +2753,31 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: var(--mac-space-3);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
   padding: var(--mac-space-3);
-  background: color-mix(in srgb, var(--mac-surface-solid) 86%, transparent);
+  background: transparent;
+  box-shadow: none;
   color: var(--mac-text-secondary);
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+[data-testid="lock-switch-pin"],
+[data-testid="lock-switch-master-password"],
+[data-testid="lock-logout-button"],
+[data-testid="lock-switch-account"] {
+  min-height: 44px;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-testid="lock-logout-button"] {
+  color: var(--mac-destructive);
 }
 
 .macos-auth-identity__icon {
