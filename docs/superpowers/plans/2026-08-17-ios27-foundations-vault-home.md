@@ -21,6 +21,8 @@
 - Do not change vault data, encryption, sync, candidate ranking, native AutoFill contracts, reprompt, or domain-mismatch rules.
 - Do not add a UI framework, new page, custom SVG system, filter chips, or result-count control.
 - Preserve unrelated changes in the dirty worktree and stage only files named by each task.
+- The user explicitly authorized implementation directly on the current `main` branch; do not create a worktree or switch branches.
+- New visual regressions must assert computed styles or rendered component behavior, not grep source text. Existing source-inspection tests may remain when unrelated to this slice.
 
 ## Scope Boundary
 
@@ -51,26 +53,38 @@ The approved specification spans several independent surfaces. This plan deliber
 - Consumes: existing `--mac-*` and `--bw-*` custom-property consumers.
 - Produces: `--mac-surface-contextual`, `--mac-action-username`, `--mac-action-password`, `--mac-action-totp`, `--mac-icon-website`, and `--mac-icon-card`; raises `--mac-control-min-size` to `44px`.
 
-- [ ] **Step 1: Write the failing light-theme token test**
+- [ ] **Step 1: Write the failing light-theme computed-style test**
 
-Add this test to `app.visual.spec.ts`:
+Add this test helper and test to `app.visual.spec.ts`:
 
 ```ts
-it("pins the approved luminous Vault palette and semantic field colors", () => {
-  const tokens = readFileSync(
-    join(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"),
-    "utf8",
-  );
+function installVisualCss(...paths: readonly string[]): () => void {
+  const style = document.createElement("style");
+  style.textContent = paths
+    .map((path) => readFileSync(join(process.cwd(), path), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  document.head.append(style);
+  return () => style.remove();
+}
 
-  expect(tokens).toContain("--mac-canvas: #f4f8ff;");
-  expect(tokens).toContain("--mac-surface-solid: #fbfdff;");
-  expect(tokens).toContain("--mac-surface-contextual: #eaf2ff;");
-  expect(tokens).toContain("--mac-text-primary: #111827;");
-  expect(tokens).toContain("--mac-text-secondary: #536784;");
-  expect(tokens).toContain("--mac-action-username: #0a66ff;");
-  expect(tokens).toContain("--mac-action-password: #6657d9;");
-  expect(tokens).toContain("--mac-action-totp: #e98a15;");
-  expect(tokens).toContain("--mac-control-min-size: 44px;");
+it("resolves the approved luminous palette and semantic field colors", () => {
+  const cleanup = installVisualCss("apps/menubar-tauri/src/styles/macos-tokens.css");
+  const root = document.documentElement;
+  root.removeAttribute("data-bw-theme");
+  const style = getComputedStyle(root);
+
+  expect(style.getPropertyValue("--mac-canvas").trim()).toBe("#f4f8ff");
+  expect(style.getPropertyValue("--mac-surface-solid").trim()).toBe("#fbfdff");
+  expect(style.getPropertyValue("--mac-surface-contextual").trim()).toBe("#eaf2ff");
+  expect(style.getPropertyValue("--mac-text-primary").trim()).toBe("#111827");
+  expect(style.getPropertyValue("--mac-text-secondary").trim()).toBe("#536784");
+  expect(style.getPropertyValue("--mac-action-username").trim()).toBe("#0a66ff");
+  expect(style.getPropertyValue("--mac-action-password").trim()).toBe("#6657d9");
+  expect(style.getPropertyValue("--mac-action-totp").trim()).toBe("#e98a15");
+  expect(style.getPropertyValue("--mac-control-min-size").trim()).toBe("44px");
+
+  cleanup();
 });
 ```
 
@@ -126,24 +140,26 @@ Change the light `:root` variables in `macos-tokens.css` to this contract, retai
 
 Replace the menu-bar-only light overrides with `--mac-canvas: rgb(244 248 255 / 94%)`, `--mac-surface-raised: rgb(255 255 255 / 92%)`, and `--mac-popup-material: rgb(244 248 255 / 94%)` so native transparency does not reintroduce the gray cast.
 
-- [ ] **Step 4: Write the failing dark-theme and accessibility token test**
+- [ ] **Step 4: Write the failing dark-theme computed-style test**
 
 Add to the same test file:
 
 ```ts
 it("defines a solid dark surface ladder and brighter semantic actions", () => {
-  const tokens = readFileSync(
-    join(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"),
-    "utf8",
-  );
+  const cleanup = installVisualCss("apps/menubar-tauri/src/styles/macos-tokens.css");
+  const root = document.documentElement;
+  root.setAttribute("data-bw-theme", "dark");
+  const style = getComputedStyle(root);
 
-  expect(tokens).toMatch(/:root\[data-bw-theme="dark"\][\s\S]*--mac-canvas: #101621;/);
-  expect(tokens).toMatch(/:root\[data-bw-theme="dark"\][\s\S]*--mac-surface-solid: #151d2a;/);
-  expect(tokens).toMatch(/:root\[data-bw-theme="dark"\][\s\S]*--mac-surface-contextual: #1a2638;/);
-  expect(tokens).toMatch(/:root\[data-bw-theme="dark"\][\s\S]*--mac-action-username: #4c8dff;/);
-  expect(tokens).toMatch(/:root\[data-bw-theme="dark"\][\s\S]*--mac-action-password: #9b8cff;/);
-  expect(tokens).toMatch(/:root\[data-bw-theme="dark"\][\s\S]*--mac-action-totp: #ffb454;/);
-  expect(tokens).toMatch(/prefers-reduced-transparency: reduce[\s\S]*--mac-popup-material: var\(--mac-canvas\);/);
+  expect(style.getPropertyValue("--mac-canvas").trim()).toBe("#101621");
+  expect(style.getPropertyValue("--mac-surface-solid").trim()).toBe("#151d2a");
+  expect(style.getPropertyValue("--mac-surface-contextual").trim()).toBe("#1a2638");
+  expect(style.getPropertyValue("--mac-action-username").trim()).toBe("#4c8dff");
+  expect(style.getPropertyValue("--mac-action-password").trim()).toBe("#9b8cff");
+  expect(style.getPropertyValue("--mac-action-totp").trim()).toBe("#ffb454");
+
+  root.removeAttribute("data-bw-theme");
+  cleanup();
 });
 ```
 
@@ -341,26 +357,42 @@ expect(actionFields).toEqual(["username", "password", "totp"]);
 
 Also dispatch a click on the password action and assert the row-body router navigation spy remains untouched before the existing field-action expectation.
 
-- [ ] **Step 5: Write the failing semantic-color and target-size visual test**
+- [ ] **Step 5: Write the failing semantic-color and target-size computed-style test**
 
 Add to `app.visual.spec.ts`:
 
 ```ts
 it("uses unboxed semantic field glyphs inside 44px action targets", () => {
-  const css = readFileSync(
-    join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
-    "utf8",
+  const cleanup = installVisualCss(
+    "apps/menubar-tauri/src/styles/macos-tokens.css",
+    "apps/menubar-tauri/src/styles/global.css",
   );
+  const row = document.createElement("bit-item");
+  row.className = "vault-list-row";
+  row.innerHTML = `
+    <bit-item-action><button biticonbutton data-field="username"><i class="bwi"></i></button></bit-item-action>
+    <bit-item-action><button biticonbutton data-field="password"><i class="bwi"></i></button></bit-item-action>
+    <bit-item-action><button biticonbutton data-field="totp"><i class="bwi"></i></button></bit-item-action>
+  `;
+  document.body.append(row);
 
-  const target = cssDeclarations(css, ".vault-list-row bit-item-action button[biticonbutton]");
-  expect(target).toContain("width: var(--mac-control-min-size);");
-  expect(target).toContain("min-width: var(--mac-control-min-size);");
-  expect(target).toContain("height: var(--mac-control-min-size);");
-  expect(target).toContain("border: 0 !important;");
-  expect(target).toContain("background: transparent !important;");
-  expect(css).toMatch(/\[data-field="username"\][\s\S]*color: var\(--mac-action-username\);/);
-  expect(css).toMatch(/\[data-field="password"\][\s\S]*color: var\(--mac-action-password\);/);
-  expect(css).toMatch(/\[data-field="totp"\][\s\S]*color: var\(--mac-action-totp\);/);
+  const username = row.querySelector<HTMLElement>('[data-field="username"]')!;
+  const usernameGlyph = username.querySelector<HTMLElement>(".bwi")!;
+  const passwordGlyph = row.querySelector<HTMLElement>('[data-field="password"] .bwi')!;
+  const totpGlyph = row.querySelector<HTMLElement>('[data-field="totp"] .bwi')!;
+  const target = getComputedStyle(username);
+
+  expect(target.width).toBe("44px");
+  expect(target.minWidth).toBe("44px");
+  expect(target.height).toBe("44px");
+  expect(target.borderTopWidth).toBe("0px");
+  expect(target.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(usernameGlyph).color).toBe("rgb(10, 102, 255)");
+  expect(getComputedStyle(passwordGlyph).color).toBe("rgb(102, 87, 217)");
+  expect(getComputedStyle(totpGlyph).color).toBe("rgb(233, 138, 21)");
+
+  row.remove();
+  cleanup();
 });
 ```
 
@@ -455,31 +487,24 @@ git commit -m "style: color vault credential actions semantically"
 - Consumes: approved tokens from Task 1 and current `.vault-root-header*`, `.vault-hierarchy*`, `.vault-list-row`, and `.vault-sections` selectors.
 - Produces: one continuous Vault content surface with 12 px search radius, 52 px rows, fine separators, and no ordinary-list shadow.
 
-- [ ] **Step 1: Replace the old card-oriented visual assertions with the approved contract**
+- [ ] **Step 1: Replace the old card-oriented assertions with a computed-style contract**
 
-Update the existing “styles the Vault hierarchy” test in `app.visual.spec.ts` so its core assertions are:
-
-```ts
-expect(search).toContain("min-height: 44px;");
-expect(search).toContain("border-radius: 12px;");
-expect(search).toContain("background: var(--mac-surface-contextual);");
-expect(search).toContain("box-shadow: none;");
-expect(trigger).toContain("min-height: 44px;");
-expect(trigger).toContain("background: transparent;");
-expect(expandedParent).toContain("border: 0;");
-expect(expandedParent).toContain("background: transparent;");
-expect(nestedGroup).toContain("border: 0;");
-expect(nestedGroup).toContain("border-radius: 0;");
-```
-
-Add a new focused assertion:
+Update the existing “styles the Vault hierarchy” test in `app.visual.spec.ts`. Install tokens and global CSS with `installVisualCss()`, mount `.vault-root-header__search`, `.vault-hierarchy__trigger[aria-expanded="true"]`, `.vault-hierarchy__items bit-item-group`, and `.vault-list-row`, then assert these computed values:
 
 ```ts
-const row = cssDeclarations(globalCss, ".vault-hierarchy__items .vault-list-row");
-expect(row).toContain("min-height: var(--mac-row-height);");
-expect(row).toContain("border-bottom: 1px solid var(--mac-border-subtle);");
-expect(row).toContain("border-radius: 0;");
-expect(row).toContain("box-shadow: none;");
+expect(getComputedStyle(search).minHeight).toBe("44px");
+expect(getComputedStyle(search).borderRadius).toBe("12px");
+expect(getComputedStyle(search).backgroundColor).toBe("rgb(234, 242, 255)");
+expect(getComputedStyle(search).boxShadow).toBe("none");
+expect(getComputedStyle(trigger).minHeight).toBe("44px");
+expect(getComputedStyle(trigger).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+expect(getComputedStyle(trigger).borderTopWidth).toBe("0px");
+expect(getComputedStyle(group).borderTopWidth).toBe("0px");
+expect(getComputedStyle(group).borderRadius).toBe("0px");
+expect(getComputedStyle(row).minHeight).toBe("52px");
+expect(getComputedStyle(row).borderBottomWidth).toBe("1px");
+expect(getComputedStyle(row).borderRadius).toBe("0px");
+expect(getComputedStyle(row).boxShadow).toBe("none");
 ```
 
 - [ ] **Step 2: Run the visual test to verify it fails**
