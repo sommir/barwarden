@@ -146,6 +146,16 @@ describe("P1 settings pages", () => {
     expect(about).not.toContain("bw-floating-tab-switcher");
   });
 
+  it("keeps About metadata as a real Sheet while the About page stays flat", () => {
+    const page = readFileSync(resolve(process.cwd(),
+      "apps/menubar-tauri/src/app/upstream-overlays/settings/official-about.component.html"), "utf8");
+    const dialog = readFileSync(resolve(process.cwd(),
+      "apps/menubar-tauri/src/app/upstream-overlays/settings/official-about-dialog.component.html"), "utf8");
+    expect(page).toContain("about-continuous-list");
+    expect(page).not.toContain("<bit-card");
+    expect(dialog).toContain("bit-dialog");
+  });
+
   it("keeps page surfaces solid while preference overrides preserve non-color feedback", () => {
     const css = readFileSync(
       resolve(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),

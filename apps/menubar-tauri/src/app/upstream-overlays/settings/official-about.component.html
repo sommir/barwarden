@@ -1,11 +1,12 @@
 <popup-page>
   <popup-header slot="header" [pageTitle]="'i18nAbout' | i18n" showBackButton [backAction]="backAction" />
 
-  <bit-item-group>
+  <bit-item-group class="about-continuous-list macos-continuous-group">
     <bit-item>
       <button
         type="button"
         bit-item-content
+        class="macos-continuous-row"
         (click)="metadataViewChange.emit('troubleshooting')"
         (keydown)="activateMetadataFromKeyboard($event)"
       >
@@ -16,6 +17,7 @@
       <button
         type="button"
         bit-item-content
+        class="macos-continuous-row"
         (click)="metadataViewChange.emit('about')"
         (keydown)="activateMetadataFromKeyboard($event)"
       >
@@ -23,24 +25,34 @@
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content (click)="openThirdPartyNotices.emit()">
+      <button
+        type="button"
+        bit-item-content
+        class="macos-continuous-row"
+        (click)="openThirdPartyNotices.emit()"
+      >
         {{ "i18nThirdPartyOpenSourceLicenses" | i18n }}
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content (click)="openHelp.emit()">
+      <button type="button" bit-item-content class="macos-continuous-row" (click)="openHelp.emit()">
         {{ "helpCenter" | i18n }}
         <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content (click)="openWebVault.emit()">
+      <button type="button" bit-item-content class="macos-continuous-row" (click)="openWebVault.emit()">
         Web Vault
         <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content (click)="openProjectSource.emit()">
+      <button
+        type="button"
+        bit-item-content
+        class="macos-continuous-row"
+        (click)="openProjectSource.emit()"
+      >
         {{ "i18nProjectSource" | i18n }}
         <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
       </button>

@@ -59,6 +59,15 @@ describe("ThirdPartyNoticesPageComponent", () => {
     expect(host.querySelector("pre")).toBeNull();
     expect(host.textContent).not.toContain("| Ecosystem |");
 
+    const counts = host.querySelector<HTMLElement>(".third-party-notices-counts")!;
+    const groups = host.querySelector<HTMLElement>(".third-party-license-groups")!;
+    const list = groups.querySelector<HTMLElement>("ul")!;
+    expect(getComputedStyle(counts).boxShadow).toBe("none");
+    expect(getComputedStyle(groups).borderRadius).toBe("0px");
+    expect(getComputedStyle(groups).boxShadow).toBe("none");
+    expect(getComputedStyle(list).overflowY).not.toBe("auto");
+    expect(getComputedStyle(list).maxHeight).toBe("none");
+
     host
       .querySelector<HTMLButtonElement>("[data-testid='view-complete-third-party-licenses']")!
       .click();

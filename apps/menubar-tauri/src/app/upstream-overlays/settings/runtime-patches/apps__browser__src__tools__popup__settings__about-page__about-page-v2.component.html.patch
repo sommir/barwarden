@@ -9,47 +9,59 @@
 -    </ng-container>
 -  </popup-header>
 +  <popup-header slot="header" [pageTitle]="'i18nAbout' | i18n" showBackButton [backAction]="backAction" />
-@@ -11,2 +6,7 @@
--      <button type="button" bit-item-content (click)="troubleshoot()">
+@@ -11,2 +6,8 @@
+-      <button type="button" bit-item-content class="macos-continuous-row" (click)="troubleshoot()">
 -        {{ "troubleshooting" | i18n }}
 +      <button
 +        type="button"
 +        bit-item-content
++        class="macos-continuous-row"
 +        (click)="metadataViewChange.emit('troubleshooting')"
 +        (keydown)="activateMetadataFromKeyboard($event)"
 +      >
 +        {{ "i18nTroubleshooting" | i18n }}
-@@ -16,2 +16,7 @@
--      <button type="button" bit-item-content (click)="about()">
+@@ -16,2 +17,8 @@
+-      <button type="button" bit-item-content class="macos-continuous-row" (click)="about()">
 -        {{ "aboutBitwarden" | i18n }}
 +      <button
 +        type="button"
 +        bit-item-content
++        class="macos-continuous-row"
 +        (click)="metadataViewChange.emit('about')"
 +        (keydown)="activateMetadataFromKeyboard($event)"
 +      >
 +        {{ "i18nAboutProduct" | i18n: metadata.productName }}
-@@ -21 +26,6 @@
--      <button type="button" bit-item-content (click)="launchHelp()">
-+      <button type="button" bit-item-content (click)="openThirdPartyNotices.emit()">
+@@ -21 +28,11 @@
+-      <button type="button" bit-item-content class="macos-continuous-row" (click)="launchHelp()">
++      <button
++        type="button"
++        bit-item-content
++        class="macos-continuous-row"
++        (click)="openThirdPartyNotices.emit()"
++      >
 +        {{ "i18nThirdPartyOpenSourceLicenses" | i18n }}
 +      </button>
 +    </bit-item>
 +    <bit-item>
-+      <button type="button" bit-item-content (click)="openHelp.emit()">
-@@ -27,2 +37,2 @@
--      <button type="button" bit-item-content (click)="openWebVault()">
++      <button type="button" bit-item-content class="macos-continuous-row" (click)="openHelp.emit()">
+@@ -27,2 +44,2 @@
+-      <button type="button" bit-item-content class="macos-continuous-row" (click)="openWebVault()">
 -        {{ "bitWebVaultApp" | i18n }}
-+      <button type="button" bit-item-content (click)="openWebVault.emit()">
++      <button type="button" bit-item-content class="macos-continuous-row" (click)="openWebVault.emit()">
 +        Web Vault
-@@ -31,0 +42,6 @@
+@@ -31,0 +49,11 @@
 +    <bit-item>
-+      <button type="button" bit-item-content (click)="openProjectSource.emit()">
++      <button
++        type="button"
++        bit-item-content
++        class="macos-continuous-row"
++        (click)="openProjectSource.emit()"
++      >
 +        {{ "i18nProjectSource" | i18n }}
 +        <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
 +      </button>
 +    </bit-item>
-@@ -32,0 +49,27 @@
+@@ -32,0 +61,27 @@
 +
 +  <p class="about-version-summary">{{ metadata.productName }} {{ metadata.appVersion }}</p>
 +

@@ -2825,6 +2825,15 @@ auth-account .macos-account-label {
   line-height: 1.4;
 }
 
+.macos-page--about .about-continuous-list,
+.macos-page--about .about-continuous-list bit-item,
+.macos-page--about .app-update-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .app-update-card {
   display: grid;
   gap: var(--mac-space-3);

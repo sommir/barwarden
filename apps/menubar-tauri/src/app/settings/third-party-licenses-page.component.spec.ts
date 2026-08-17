@@ -55,5 +55,9 @@ describe("ThirdPartyLicensesPageComponent", () => {
     expect(content?.textContent).toContain("Permission is hereby granted");
     expect(getComputedStyle(content!).whiteSpace).toBe("pre-wrap");
     expect(getComputedStyle(content!).userSelect).toBe("text");
+    expect(getComputedStyle(content!).borderRadius).toBe("0px");
+    expect(getComputedStyle(content!).boxShadow).toBe("none");
+    expect(getComputedStyle(content!).overflowX).not.toBe("auto");
+    expect(content!.scrollWidth - content!.clientWidth).toBe(0);
   });
 });

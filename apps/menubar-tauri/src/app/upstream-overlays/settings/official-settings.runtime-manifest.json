@@ -4,7 +4,7 @@
   "license": "GPL-3.0-only",
   "task1TransformManifest": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-settings.transform-manifest.json",
-    "sha256": "32c8e1742a04a2db5d44defe1242abebb13d119291c554f63ebf322e857cb286"
+    "sha256": "6d2526a81da42edbe2ad4cfa45345f69d65c0b296741a0144a21ab304311f401"
   },
   "runtimeTransformContract": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-settings-runtime-transforms.ts",
@@ -150,15 +150,15 @@
       "authority": {
         "path": "apps/browser/src/tools/popup/settings/about-page/about-page-v2.component.html",
         "generatedPath": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/tools/popup/settings/about-page/about-page-v2.component.html",
-        "sha256": "ee5e4431ec5599cd0136e9115db2e95289c648b9f4bf506836c75a87664f7b1a"
+        "sha256": "49905e5cd658d5ca8de33736bd1d2ac77b3af4655b993b401e7639b1d0bd76bb"
       },
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/runtime-patches/apps__browser__src__tools__popup__settings__about-page__about-page-v2.component.html.patch",
-        "sha256": "9187daaef857e810a6ab235919a0d443b4e0ffc01a95b015d6668eddbd7393c4"
+        "sha256": "581d8a48cf542667343c39a0211c2c5c195a5fc85bf5c0cdb885bfdf61daf705"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-about.component.html",
-        "sha256": "d5cf31669f0ec6d08e69c0e1a6a2a1af973726b641491395872086f491a9571f"
+        "sha256": "f3ee2708f52ea03488bd18597234be705c118b97b039859f6c6804cb40b48e11"
       }
     },
     {
