@@ -175,9 +175,9 @@ describe("guarded official Settings source", () => {
     }
 
     expect(routeLinks(read(`${overlayRoot}/generated/apps/browser/src/tools/popup/settings/settings-v2.component.html`))).toEqual([
+      "/appearance",
       "/account-security",
       "/vault-settings",
-      "/appearance",
       "/about",
     ]);
     expect(routeLinks(read(`${overlayRoot}/generated/apps/browser/src/vault/popup/settings/vault-settings.component.html`))).toEqual([

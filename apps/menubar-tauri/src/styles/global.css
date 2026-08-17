@@ -3002,6 +3002,12 @@ auth-account .macos-account-label {
   margin-top: var(--mac-space-1);
 }
 
+.macos-page--settings .settings-group + .settings-group { margin-top: 22px; }
+.macos-page--settings .settings-group__title { margin: 0 16px 8px; }
+.macos-page--settings .settings-group__items { margin-inline: 0; }
+.macos-page--settings .settings-row { border: 0; border-radius: 0; }
+.macos-page--settings bit-item + bit-item { margin-top: 0; }
+
 .macos-page :is(input, select, textarea):focus-visible,
 .macos-page :is(button, a):focus-visible {
   outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);

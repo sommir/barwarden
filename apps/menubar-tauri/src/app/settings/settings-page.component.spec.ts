@@ -31,6 +31,38 @@ try {
 }
 
 describe("SettingsPageComponent", () => {
+  it("renders the approved four continuous Settings groups without changing navigation", async () => {
+    await TestBed.configureTestingModule({
+      imports: [SettingsPageComponent],
+      providers: [
+        provideRouter([]), OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        ...officialCurrentAccountTestProviders(), PopupStateStore, SettingsService,
+        { provide: LAUNCH_AT_LOGIN_HOST, useValue: {
+          getLaunchAtLogin: async () => false,
+          setLaunchAtLogin: async (enabled: boolean) => enabled,
+        } satisfies LaunchAtLoginHost },
+        { provide: AuthFacade, useValue: { lock: () => undefined, logout: async () => undefined } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(SettingsPageComponent);
+    const navigateByUrl = vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockResolvedValue(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const groups = Array.from(fixture.nativeElement.querySelectorAll<HTMLElement>("[data-settings-group]"));
+    expect(groups.map((group) => group.dataset["settingsGroup"]))
+      .toEqual(["general", "security", "application", "information"]);
+    expect(groups.map((group) => group.querySelectorAll("bit-item").length)).toEqual([2, 1, 3, 1]);
+    expect(fixture.nativeElement.querySelectorAll("bit-card")).toHaveLength(0);
+    Array.from(fixture.nativeElement.querySelectorAll<HTMLButtonElement>("button.settings-row"))
+      .forEach((row) => row.click());
+    expect(navigateByUrl.mock.calls.map(([route]) => route)).toEqual([
+      "/appearance", "/account-security", "/autofill",
+      "/keyboard-shortcut", "/vault-settings", "/about",
+    ]);
+  });
+
   it("loads the confirmed login-item state and keeps it stable while a change is pending", async () => {
     let resolveMutation!: (enabled: boolean) => void;
     const host: LaunchAtLoginHost = {
@@ -219,11 +251,11 @@ describe("SettingsPageComponent", () => {
       row.click();
     }
     expect(navigateByUrl.mock.calls.map(([route]) => route)).toEqual([
+      "/appearance",
       "/account-security",
       "/autofill",
       "/keyboard-shortcut",
       "/vault-settings",
-      "/appearance",
       "/about",
     ]);
   });

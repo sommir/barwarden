@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component } from "@angular/core";
 import { RouterModule } from "@angular/router";
 
 import { JslibModule } from "@bitwarden/angular/jslib.module";
-import { ItemModule } from "@bitwarden/components";
+import { ItemModule, TypographyModule } from "@bitwarden/components";
 
 import { CurrentAccountComponent } from "../../../auth/popup/account-switching/current-account.component";
 import { PopOutComponent } from "../../../platform/popup/components/pop-out.component";
@@ -22,6 +22,7 @@ import { PopupPageComponent } from "../../../platform/popup/layout/popup-page.co
     PopOutComponent,
     ItemModule,
     CurrentAccountComponent,
+    TypographyModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
