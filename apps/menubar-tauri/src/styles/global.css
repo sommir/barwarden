@@ -5111,6 +5111,38 @@ bw-retained-new-item-dropdown {
   background: color-mix(in srgb, var(--mac-accent) 9%, var(--mac-surface-solid));
 }
 
+.vault-list-row bit-item-action button[biticonbutton] {
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
+  border: 0 !important;
+  border-radius: 10px;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.vault-list-row bit-item-action button[biticonbutton]:hover {
+  background: var(--mac-hover) !important;
+}
+
+.vault-list-row bit-item-action button[biticonbutton]:active {
+  background: var(--mac-pressed) !important;
+}
+
+.vault-list-row [data-field="username"] .bwi {
+  color: var(--mac-action-username);
+}
+
+.vault-list-row [data-field="password"] .bwi {
+  color: var(--mac-action-password);
+}
+
+.vault-list-row [data-field="totp"] .bwi {
+  color: var(--mac-action-totp);
+}
+
 .vault-hierarchy__items bit-item-group > .vault-list-row:last-child {
   border-bottom: 0;
 }

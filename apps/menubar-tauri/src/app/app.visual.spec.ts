@@ -80,10 +80,18 @@ function cssDeclarations(css: string, selector: string): string {
 
 function installVisualCss(...paths: readonly string[]): () => void {
   const style = document.createElement("style");
-  style.textContent = paths
+  const source = paths
     .map((path) => readFileSync(join(process.cwd(), path), "utf8"))
     .join("\n")
     .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const macTokens = new Map(
+    [...rootDeclarations.matchAll(/(--mac-[\w-]+):\s*([^;]+);/g)]
+      .map(([, token, value]) => [token, value.trim()]),
+  );
+  style.textContent = source.replace(/var\((--mac-[\w-]+)\)/g, (reference, token) =>
+    macTokens.get(token) ?? reference,
+  );
   document.head.append(style);
   return () => style.remove();
 }
@@ -113,6 +121,39 @@ describe("popup visual smoke classes", () => {
     expect(style.getPropertyValue("--mac-control-min-size").trim()).toBe("44px");
 
     root.removeAttribute("data-bw-window");
+    cleanup();
+  });
+
+  it("uses unboxed semantic field glyphs inside 44px action targets", () => {
+    const cleanup = installVisualCss(
+      "apps/menubar-tauri/src/styles/macos-tokens.css",
+      "apps/menubar-tauri/src/styles/global.css",
+    );
+    const row = document.createElement("bit-item");
+    row.className = "vault-list-row";
+    row.innerHTML = `
+      <bit-item-action><button biticonbutton data-field="username"><i class="bwi"></i></button></bit-item-action>
+      <bit-item-action><button biticonbutton data-field="password"><i class="bwi"></i></button></bit-item-action>
+      <bit-item-action><button biticonbutton data-field="totp"><i class="bwi"></i></button></bit-item-action>
+    `;
+    document.body.append(row);
+
+    const username = row.querySelector<HTMLElement>('[data-field="username"]')!;
+    const usernameGlyph = username.querySelector<HTMLElement>(".bwi")!;
+    const passwordGlyph = row.querySelector<HTMLElement>('[data-field="password"] .bwi')!;
+    const totpGlyph = row.querySelector<HTMLElement>('[data-field="totp"] .bwi')!;
+    const target = getComputedStyle(username);
+
+    expect(target.width).toBe("44px");
+    expect(target.minWidth).toBe("44px");
+    expect(target.height).toBe("44px");
+    expect(target.borderTopWidth).toBe("0px");
+    expect(target.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(usernameGlyph).color).toBe("rgb(10, 102, 255)");
+    expect(getComputedStyle(passwordGlyph).color).toBe("rgb(102, 87, 217)");
+    expect(getComputedStyle(totpGlyph).color).toBe("rgb(233, 138, 21)");
+
+    row.remove();
     cleanup();
   });
 
