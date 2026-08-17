@@ -291,7 +291,7 @@ describe("VaultFolderDialogComponent", () => {
       if (folderSheet.open) {
         dispatchTransformTransitionEnd(folderSheet);
       }
-      await Promise.resolve();
+      await nextTask();
 
       expect(document.activeElement).toBe(opener);
 
@@ -303,7 +303,7 @@ describe("VaultFolderDialogComponent", () => {
       if (folderSheet.open) {
         dispatchTransformTransitionEnd(folderSheet);
       }
-      await Promise.resolve();
+      await nextTask();
       expect(document.activeElement).toBe(nextOpener);
     } finally {
       transitionStyles.mockRestore();
@@ -359,6 +359,117 @@ describe("VaultFolderDialogComponent", () => {
         expect(document.activeElement).toBe(opener);
       } finally {
         opener.remove();
+      }
+    },
+  );
+
+  it.each(["folder-first", "delete-first"] as const)(
+    "waits for both terminal Sheets before restoring the outer opener when %s settles",
+    async (closeOrder) => {
+      const store = unlockedStore();
+      const folder = store.saveFolder({ id: "work", name: "Work" });
+      const folderService = {
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(async () => ({ committed: true as const, status: "" })),
+      };
+      const fixture = await setup(store, folderService);
+      const host = fixture.nativeElement as HTMLElement;
+      const opener = document.createElement("button");
+      const focusSentinel = document.createElement("button");
+      const nextOpener = document.createElement("button");
+      document.body.append(opener, focusSentinel, nextOpener);
+      const outerFocus = vi.spyOn(opener, "focus");
+      let outerFocusEvents = 0;
+      opener.addEventListener("focus", () => {
+        outerFocusEvents += 1;
+      });
+      const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+      const transitionStyles = vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+        element instanceof HTMLDialogElement
+          ? {
+              transitionProperty: "transform",
+              transitionDuration: "200ms",
+              transitionDelay: "0s",
+            } as CSSStyleDeclaration
+          : nativeGetComputedStyle(element));
+
+      try {
+        opener.focus();
+        fixture.componentInstance.openFor(folder, opener);
+        fixture.detectChanges(false);
+        await Promise.resolve();
+
+        const folderSheet = host.querySelector<HTMLDialogElement>("[data-testid='folder-dialog']")!;
+        const deleteSheet = host.querySelector<HTMLDialogElement>(
+          "[data-testid='delete-folder-confirmation']",
+        )!;
+        const deleteButton = Array.from(folderSheet.querySelectorAll<HTMLButtonElement>("button"))
+          .find((button) => button.getAttribute("aria-label") === "删除文件夹")!;
+        deleteButton.focus();
+        deleteButton.click();
+        fixture.detectChanges(false);
+        await Promise.resolve();
+
+        expect(folderSheet.open).toBe(true);
+        expect(deleteSheet.open).toBe(true);
+        outerFocus.mockClear();
+        outerFocusEvents = 0;
+        await fixture.componentInstance.confirmDelete();
+        fixture.detectChanges(false);
+
+        const [firstSheet, secondSheet] = closeOrder === "folder-first"
+          ? [folderSheet, deleteSheet]
+          : [deleteSheet, folderSheet];
+        dispatchTransformTransitionEnd(firstSheet);
+        await nextTask();
+
+        expect(firstSheet.open).toBe(false);
+        expect(secondSheet.open).toBe(true);
+        expect(document.activeElement).not.toBe(opener);
+        expect(outerFocus).not.toHaveBeenCalled();
+        expect(outerFocusEvents).toBe(0);
+
+        dispatchTransformTransitionEnd(secondSheet);
+        expect(folderSheet.open).toBe(false);
+        expect(deleteSheet.open).toBe(false);
+        expect(document.activeElement).not.toBe(opener);
+        expect(outerFocus).not.toHaveBeenCalled();
+        expect(outerFocusEvents).toBe(0);
+
+        focusSentinel.focus();
+        await nextTask();
+        expect(document.activeElement).toBe(opener);
+        expect(outerFocus).toHaveBeenCalledTimes(1);
+        expect(outerFocusEvents).toBe(1);
+
+        nextOpener.focus();
+        fixture.componentInstance.openFor(undefined, nextOpener);
+        fixture.detectChanges(false);
+        await Promise.resolve();
+        const folderName = folderSheet.querySelector<HTMLInputElement>("#folderName")!;
+        expect(document.activeElement).toBe(folderName);
+
+        fixture.componentInstance.close();
+        dispatchTransformTransitionEnd(folderSheet);
+        fixture.componentInstance.openFor(undefined, nextOpener);
+        fixture.detectChanges(false);
+        await Promise.resolve();
+        expect(document.activeElement).toBe(folderName);
+        await nextTask();
+        expect(document.activeElement).toBe(folderName);
+        expect(outerFocus).toHaveBeenCalledTimes(1);
+        expect(outerFocusEvents).toBe(1);
+
+        fixture.componentInstance.close();
+        dispatchTransformTransitionEnd(folderSheet);
+        await nextTask();
+        expect(document.activeElement).toBe(nextOpener);
+      } finally {
+        transitionStyles.mockRestore();
+        opener.remove();
+        focusSentinel.remove();
+        nextOpener.remove();
       }
     },
   );

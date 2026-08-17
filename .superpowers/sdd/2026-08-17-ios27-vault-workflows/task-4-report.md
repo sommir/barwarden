@@ -79,3 +79,29 @@ The visual test was then moved from hand-authored markup to `NewItemPageComponen
 - Brief 8-suite command, including recovery guard: **8 files, 98 tests passed**.
 - `npm run typecheck:official-recovery`: passed.
 - `npm run build:web`: passed (1124 modules transformed) with only warning-baseline output.
+
+## Needs Fixes follow-up — terminal dual-Sheet close barrier
+
+### Root cause and TDD
+
+- A fast successful Delete could leave both production Sheets in their closing transition. The edit Sheet still owned an independent restore path, while the component's folder `closed` callback could clear and schedule the outer opener before the delete Sheet had settled.
+- The new real-DOM transition test covers both callback orders with both native dialogs open: edit-first was valid RED because focus returned while Delete was still open; delete-first was the control. RED result: **1 failed, 28 passed (29 total)**.
+- The same test observes the real outer button's focus calls/events, requires no restore after the first callback, requires exactly one restore after the second callback, and immediately starts a new open before a pending restore to prove the stale operation cannot steal focus.
+- Focused GREEN: **29/29 folder-dialog tests passed**. Existing nested Cancel/Escape reopen chains, terminal Save/Delete, disabled saving behavior, and the New Item folder-cancel path remain covered.
+
+### Trigger ownership and implementation
+
+- Terminal closure now disables each Sheet's internal focus restoration and sets one shared `pendingOuterRestore` owned by `VaultFolderDialogComponent`.
+- Both real `closed` callbacks call `maybeRestoreOuterFocus()`. It restores only when the workflow is terminal and both Sheet elements report `open === false`; it consumes the pending state and outer trigger once before scheduling focus.
+- The scheduled focus remains guarded by the operation token, `isOpen`, and `trigger.isConnected`. A subsequent `openFor` invalidates the old operation before replacing the outer trigger, so no stale callback can affect the new Sheet.
+- Single-Sheet terminal focus assertions wait through the close-settlement task because the centralized restore intentionally runs after the official dialog autofocus fallback. Public bottom-sheet APIs, animation timing, service calls, routing, and `openFor(folder?, trigger?)` compatibility are unchanged.
+
+### Recovery provenance and verification
+
+- Pre-update recovery manifest working-tree SHA-256: `a193efd2352354a30198187ad6d8a1d81e86b67d187dff20dc02bc17fceead28`.
+- Ran `npm run update:i18n-retained-manifests`; the truthful `vault-folder-dialog.component.ts` runtime SHA-256 is `9f3feeff57873ecb5d202f022198d95fae5cd0dc7a55426de730a96524034db3`.
+- The updater produced only that Task 4 runtime hunk plus the pre-existing `official-i18n.service.ts` hunk. Only the folder-dialog hash belongs to this follow-up; the user's i18n hunk remains unstaged.
+- Brief 8-suite command including recovery guard: **8 files, 102 tests passed**.
+- `npm run typecheck:official-recovery`: passed.
+- `npm run build:web`: passed (1124 modules transformed) with only the repository's warning-baseline output.
+- No browser or native app was opened. Staging is limited to the exact component, focus tests, report, and the one manifest runtime-hash hunk; all unrelated dirty work remains untouched.

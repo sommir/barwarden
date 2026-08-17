@@ -212,7 +212,7 @@ describe("NewItemPageComponent", () => {
       .find((button) => button.textContent?.trim() === "取消")!;
     cancel.click();
     fixture.detectChanges();
-    await Promise.resolve();
+    await new Promise((resolve) => window.setTimeout(resolve));
     expect(document.activeElement).toBe(trigger);
   });
 });
