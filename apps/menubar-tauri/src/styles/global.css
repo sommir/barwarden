@@ -2038,7 +2038,7 @@ bw-vault-detail-field {
 bw-login-environment-selector {
   display: block;
   width: min(100%, 360px);
-  margin: var(--mac-space-3) auto 0;
+  margin: 12px auto 0;
 }
 
 .official-login-environment {
@@ -2116,29 +2116,23 @@ bw-login-environment-selector > .tw-mb-1 {
 }
 
 bw-login-environment-selector [bitTypography="body2"] {
-  display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
-  min-height: 28px;
+  display: flex;
+  min-height: 52px;
   align-items: center;
   justify-content: center;
-  gap: 2px;
   margin: 0;
-  border: 1px solid color-mix(in srgb, var(--mac-border-subtle) 72%, transparent);
-  border-radius: 999px;
-  padding: 3px 9px;
-  background: color-mix(in srgb, var(--mac-surface-solid) 55%, transparent);
+  border: 0;
+  border-block: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
   color: var(--mac-text-secondary);
-  font-size: 12px;
-  font-weight: 450;
-  line-height: 1.25;
-  text-align: center;
 }
 
 bw-login-environment-selector [bitTypography="body2"] button {
   display: inline-flex;
   min-width: 0;
-  min-height: 24px;
+  min-height: 44px;
   align-items: center;
   gap: 1px;
   padding: 0 2px !important;
@@ -2227,12 +2221,12 @@ popup-page:has(.macos-auth-page) [data-testid="popup-layout-scroll-region"] {
   width: min(100%, 360px);
   min-width: 0;
   margin-inline: auto;
-  padding: var(--mac-space-5);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
-  background: var(--mac-surface-solid);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--mac-text-primary);
-  box-shadow: 0 1px 2px var(--mac-shadow);
+  box-shadow: none;
 }
 
 bw-official-anonymous-shell auth-anon-layout {
@@ -2319,6 +2313,12 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   color: var(--mac-text-primary);
 }
 
+.macos-auth-card input,
+.macos-auth-card select,
+.macos-auth-card textarea {
+  border-radius: 10px !important;
+}
+
 .macos-field [bitfieldcontainer] {
   min-width: 0;
   min-height: var(--mac-form-control-height);
@@ -2359,10 +2359,16 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   background: transparent !important;
 }
 
-.macos-field :is(input, select, textarea):focus-visible,
-.macos-auth-card :is(button, [role="button"], a):focus-visible {
+.macos-field :is(input, select, textarea):focus-visible {
   outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
   outline-offset: 1px;
+}
+
+.macos-auth-card button:focus-visible,
+.macos-auth-card [role="button"]:focus-visible,
+.macos-auth-card a:focus-visible {
+  outline: 2px solid var(--mac-focus);
+  outline-offset: 2px;
 }
 
 .macos-auth-card .macos-field :is(input, select, textarea):focus-visible {

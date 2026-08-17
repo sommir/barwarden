@@ -9,6 +9,7 @@ import { By } from "@angular/platform-browser";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 import { provideRouter, Router } from "@angular/router";
 import { BehaviorSubject, Observable, of } from "rxjs";
+import postcss from "postcss";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PopupStateStore } from "../popup-state";
@@ -163,21 +164,64 @@ describe("LoginPageComponent", () => {
     );
   });
 
-  it("presents the environment selector as a centered secondary control below the auth card", () => {
-    const styles = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
+  it("uses a flat auth form and a continuous 52px environment row", () => {
+    const stylesheet = document.createElement("style");
+    const stylesheetSource = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+      "utf8",
+    );
+    const fixtureSelectors = [
+      ".macos-auth-card",
+      ".macos-auth-card input",
+      "bw-login-environment-selector",
+      'bw-login-environment-selector [bitTypography="body2"]',
+      'bw-login-environment-selector [bitTypography="body2"] button',
+    ];
+    const fixtureStyles = postcss.parse(stylesheetSource).nodes
+      .filter(
+        (node) =>
+          node.type === "rule" &&
+          fixtureSelectors.some((selector) => (node as postcss.Rule).selector.includes(selector)),
+      )
+      .map((node) => node.toString())
+      .join("\n");
+    stylesheet.textContent = fixtureStyles;
+    document.head.append(stylesheet);
 
-    expect(styles).toMatch(
-      /bw-login-environment-selector\s*{[^}]*margin:\s*var\(--mac-space-3\) auto 0;/s,
-    );
-    expect(styles).toMatch(
-      /bw-login-environment-selector\s*>\s*\.tw-mb-1\s*{[^}]*display:\s*flex;[^}]*justify-content:\s*center;/s,
-    );
-    expect(styles).toMatch(
-      /bw-login-environment-selector\s+\[bitTypography="body2"\]\s*{[^}]*border-radius:\s*999px;[^}]*font-size:\s*12px;[^}]*text-align:\s*center;/s,
-    );
-    expect(styles).toMatch(
-      /bw-login-environment-selector\s+\[bitTypography="body2"\]\s+button\s*{[^}]*font-weight:\s*600;/s,
-    );
+    const authCard = document.createElement("form");
+    authCard.className = "macos-auth-card";
+    const input = document.createElement("input");
+    const action = document.createElement("button");
+    authCard.append(input, action);
+
+    const environmentSelector = document.createElement("bw-login-environment-selector");
+    const environmentRow = document.createElement("div");
+    environmentRow.setAttribute("bitTypography", "body2");
+    const environmentButton = document.createElement("button");
+    environmentRow.append(environmentButton);
+    environmentSelector.append(environmentRow);
+    document.body.append(authCard, environmentSelector);
+
+    try {
+      const cardStyles = getComputedStyle(authCard);
+      const inputStyles = getComputedStyle(input);
+      const rowStyles = getComputedStyle(environmentRow);
+      const environmentButtonStyles = getComputedStyle(environmentButton);
+
+      expect(cardStyles.borderTopWidth).toBe("0px");
+      expect(cardStyles.borderTopLeftRadius).toBe("0");
+      expect(cardStyles.boxShadow).toBe("none");
+      expect(cardStyles.paddingTop).toBe("0px");
+      expect(inputStyles.borderRadius).toBe("10px");
+      expect(getComputedStyle(environmentSelector).display).toBe("block");
+      expect(rowStyles.minHeight).toBe("52px");
+      expect(rowStyles.borderTopLeftRadius).toBe("0");
+      expect(environmentButtonStyles.minHeight).toBe("44px");
+    } finally {
+      authCard.remove();
+      environmentSelector.remove();
+      stylesheet.remove();
+    }
   });
 
   it("keeps invalid email on the email stage and focuses the master-password field after a valid email submit", async () => {
