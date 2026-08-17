@@ -5341,9 +5341,10 @@ bw-retained-new-item-dropdown {
 
 .otp-page__list {
   overflow: hidden;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   background: var(--mac-surface-solid);
+  box-shadow: none;
 }
 
 bw-otp-code-row {
@@ -5353,13 +5354,23 @@ bw-otp-code-row {
 .otp-code-row {
   display: grid;
   min-width: 0;
-  min-height: 64px;
+  min-height: 56px;
   grid-template-columns: 28px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--mac-space-2);
-  border-bottom: 1px solid var(--mac-border-subtle);
+  border: 0;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
+  border-radius: 0;
   padding: var(--mac-space-2) var(--mac-space-3);
   background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+body.tw-bit-compact .otp-code-row {
+  min-height: 52px;
+  padding-block: 4px;
 }
 
 bw-otp-code-row:last-child .otp-code-row {
@@ -5440,7 +5451,7 @@ bw-otp-code-row:last-child .otp-code-row {
 .otp-code-row__copy {
   display: flex;
   min-width: 116px;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   justify-content: flex-end;
   gap: var(--mac-space-2);
@@ -5494,7 +5505,7 @@ bw-otp-code-row:last-child .otp-code-row {
 }
 
 .otp-code-row__retry {
-  min-height: 32px;
+  min-height: 44px;
   border-radius: var(--mac-control-radius);
   padding-inline: var(--mac-space-2);
   color: var(--mac-accent);
@@ -5536,12 +5547,13 @@ button.is-copy-failed {
   place-items: center;
   align-content: center;
   gap: var(--mac-space-2);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   padding: var(--mac-space-5);
-  background: var(--mac-surface-solid);
+  background: transparent;
   color: var(--mac-text-secondary);
   text-align: center;
+  box-shadow: none;
 }
 
 .otp-page__empty > .bwi {

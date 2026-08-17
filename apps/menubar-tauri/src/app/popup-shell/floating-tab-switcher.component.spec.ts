@@ -36,6 +36,23 @@ try {
 }
 
 describe("FloatingTabSwitcherComponent", () => {
+  it("marks the actual OTP segment as the route focus trigger", async () => {
+    await TestBed.configureTestingModule({
+      imports: [FloatingTabSwitcherComponent],
+      providers: [
+        provideRouter(routes),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(FloatingTabSwitcherComponent);
+    fixture.componentRef.setInput("tabs", tabs);
+    fixture.detectChanges();
+    const otp = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("OTP"));
+    expect(otp?.dataset["popupFocusKey"]).toBe("tab:/tabs/otp");
+  });
+
   it("renders one icon above one label per segment and exposes its selected grid state", async () => {
     await TestBed.configureTestingModule({
       imports: [FloatingTabSwitcherComponent],

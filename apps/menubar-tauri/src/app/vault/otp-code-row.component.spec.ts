@@ -71,6 +71,14 @@ describe("OtpCodeRowComponent", () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
 
+    fixture.componentRef.setInput("copied", true);
+    fixture.detectChanges();
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("aria-live")).toBe("polite");
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.textContent).toContain("GitHub");
+    expect(host.querySelector(".otp-code-row__countdown")?.getAttribute("aria-live")).toBeNull();
+    fixture.componentRef.setInput("copied", false);
+    fixture.detectChanges();
+
     expect(host.textContent).toContain("GitHub");
     expect(host.textContent).toContain("ops@example.com");
     expect(host.textContent).toContain("123 456");

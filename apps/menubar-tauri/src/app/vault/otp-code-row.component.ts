@@ -33,6 +33,15 @@ type OtpRowState =
   imports: [AsyncPipe, I18nPipe, VaultItemIconComponent],
   template: `
     <article class="otp-code-row">
+      @if (copied) {
+        <span
+          class="tw-sr-only"
+          data-testid="otp-copy-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >{{ "i18nCopiedOtpForItem" | i18n: item.name }}</span>
+      }
       <bw-vault-item-icon class="otp-code-row__icon" [item]="item" />
       <div class="otp-code-row__identity">
         <div class="otp-code-row__name">{{ item.name }}</div>
