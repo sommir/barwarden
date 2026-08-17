@@ -25,6 +25,7 @@
               type="button"
               [attr.aria-label]="'i18nViewItem' | i18n: item.name"
               [attr.data-testid]="'archive-view-' + item.id"
+              [attr.data-popup-focus-key]="'archive-item:' + item.id"
               (click)="emit('view', item)"
             >
               <div slot="start" class="tw-justify-start tw-w-7 tw-flex">
@@ -35,17 +36,19 @@
             </button>
             <bit-item-action slot="end">
               <button
+                #moreTrigger
                 type="button"
                 bitIconButton="bwi-ellipsis-v"
                 size="small"
                 [label]="'i18nArchiveOptions' | i18n: item.name"
                 [bitMenuTriggerFor]="moreOptions"
+                [attr.data-popup-focus-key]="'archive-item:' + item.id"
               ></button>
               <bit-menu #moreOptions [ariaLabel]="'i18nArchiveOptions' | i18n: item.name">
-                <button type="button" bitMenuItem (click)="emit('edit', item)">{{ "i18nEdit" | i18n }}</button>
-                <button type="button" bitMenuItem (click)="emit('clone', item)">{{ "i18nClone" | i18n }}</button>
-                <button type="button" bitMenuItem (click)="emit('unarchive', item)">{{ "i18nUnarchive" | i18n }}</button>
-                <button type="button" bitMenuItem variant="danger" (click)="emit('soft-delete', item)">
+                <button type="button" bitMenuItem [attr.data-popup-focus-key]="'archive-item:' + item.id" (click)="emit('edit', item)">{{ "i18nEdit" | i18n }}</button>
+                <button type="button" bitMenuItem [attr.data-popup-focus-key]="'archive-item:' + item.id" (click)="emit('clone', item)">{{ "i18nClone" | i18n }}</button>
+                <button type="button" bitMenuItem (click)="emit('unarchive', item, moreTrigger.getFocusTarget())">{{ "i18nUnarchive" | i18n }}</button>
+                <button type="button" bitMenuItem variant="danger" (click)="emit('soft-delete', item, moreTrigger.getFocusTarget())">
                   {{ "i18nDelete" | i18n }}
                 </button>
               </bit-menu>

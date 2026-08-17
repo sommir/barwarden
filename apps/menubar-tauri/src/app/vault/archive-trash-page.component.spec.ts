@@ -351,7 +351,6 @@ describe("Archive and Trash pages", () => {
     const fixture = TestBed.createComponent(TrashPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-
     host.querySelector<HTMLButtonElement>("[aria-label='回收站选项 Deleted login']")!.click();
     clickMenuAction("恢复");
     await fixture.whenStable();
@@ -377,6 +376,47 @@ describe("Archive and Trash pages", () => {
     expect(actions.permanentlyDeleteItemWithOutcome).toHaveBeenCalledWith(discardItem, expect.any(Function));
     expect(store.snapshot().deletedItems).toEqual([]);
     expect(store.snapshot().statusMessage).toBe("Item permanently deleted");
+  });
+
+  it("keeps a failed permanent-delete Sheet open and permits retry", async () => {
+    const store = new PopupStateStore();
+    const item = { ...demoVaultItems[0], id: "deleted-retry", name: "Retry login" };
+    unlock(store);
+    store.setDeletedItems([item]);
+    const actions = {
+      permanentlyDeleteItemWithOutcome: vi.fn()
+        .mockResolvedValueOnce({ committed: false, reason: "failure", status: "无法永久删除项目，请重试。" })
+        .mockResolvedValueOnce(committed(item, "Item permanently deleted")),
+    };
+    await TestBed.configureTestingModule({
+      imports: [TrashPageComponent],
+      providers: [provideRouter([]), { provide: Router, useValue: routeRouter("/trash") },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultActionsService, useValue: actions }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TrashPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>("[aria-label='回收站选项 Retry login']")!.click();
+    clickMenuAction("永久删除");
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const sheet = host.querySelector<HTMLDialogElement>("[data-testid='permanent-delete-confirmation']")!;
+    const submit = sheet.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const cancel = sheet.querySelector<HTMLButtonElement>("[data-testid='permanent-delete-cancel']")!;
+    expect(document.activeElement).toBe(cancel);
+    submit.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(sheet.open).toBe(true);
+    expect(sheet.closest("bw-app-bottom-sheet")?.getAttribute("aria-busy")).toBe("false");
+    expect(sheet.querySelectorAll("[role='alert']")).toHaveLength(1);
+    expect(sheet.textContent).toContain("无法永久删除项目，请重试。");
+    submit.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(sheet.open).toBe(false);
+    expect(actions.permanentlyDeleteItemWithOutcome).toHaveBeenCalledTimes(2);
   });
 
   it("renders official empty states for Archive and Trash", async () => {

@@ -5667,6 +5667,38 @@ button.is-copy-failed {
   overflow: hidden;
 }
 
+body .macos-page--vault-recovery :is(bit-section, bit-item-group) {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+body .macos-page--vault-recovery bit-item {
+  min-height: 52px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body .macos-page--vault-recovery bit-item:last-child {
+  border-bottom: 0;
+}
+
+body .macos-page--vault-recovery bit-item-action button,
+body .macos-page--vault-recovery [data-testid^="history-copy-"] {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+body.tw-bit-compact .macos-page--vault-recovery bit-item {
+  min-height: 52px;
+}
+
 .macos-list app-retained-vault-list-item [data-testid="vault-item-content"] {
   background: transparent !important;
 }

@@ -12,6 +12,7 @@ import { demoVaultItems, type VaultItem } from "../vault-demo";
 import { toRecoveryPopupCipherView } from "./popup-cipher-view.adapter";
 import {
   RecoveryPageActionsAdapter,
+  type RecoveryPageActionResult,
   type RecoveryConfirmationRequest,
   type RecoveryRepromptRequest,
 } from "./recovery-page-actions.adapter";
@@ -233,7 +234,7 @@ describe("RecoveryPageActionsAdapter", () => {
   it.each(["soft-delete", "permanent-delete"] as const)(
     "requires explicit confirmation before %s",
     async (command) => {
-      let continuation: (() => Promise<void>) | undefined;
+      let continuation: (() => Promise<RecoveryPageActionResult>) | undefined;
       const requestConfirmation: RecoveryConfirmationRequest = (_command, _item, next) => {
         continuation = next;
         return true;
@@ -257,21 +258,24 @@ describe("RecoveryPageActionsAdapter", () => {
     },
   );
 
-  it("shows the destructive warning before reprompting a protected permanent delete", async () => {
+  it("reprompts before opening permanent-delete confirmation and forwards the trigger", async () => {
     const sequence: string[] = [];
-    let confirmationContinuation: (() => Promise<void>) | undefined;
+    const trigger = document.createElement("button");
+    let confirmationTrigger: HTMLElement | undefined;
+    let confirmationContinuation: (() => Promise<RecoveryPageActionResult>) | undefined;
     let repromptContinuation: (() => Promise<void>) | undefined;
     const harness = setup({
       location: "trash",
       reprompt: true,
-      requestConfirmation: (_command, _item, next) => {
-        sequence.push("confirmation");
-        confirmationContinuation = next;
-        return true;
-      },
       requestReprompt: (_itemId, next) => {
         sequence.push("reprompt");
         repromptContinuation = next;
+        return true;
+      },
+      requestConfirmation: (_command, _item, next, invokingTrigger) => {
+        sequence.push("confirmation");
+        confirmationContinuation = next;
+        confirmationTrigger = invokingTrigger;
         return true;
       },
     });
@@ -280,15 +284,15 @@ describe("RecoveryPageActionsAdapter", () => {
       command: "permanent-delete",
       location: "trash",
       item: harness.view,
-    })).resolves.toEqual({ terminal: false, status: "Confirmation required." });
-    expect(sequence).toEqual(["confirmation"]);
+      trigger,
+    })).resolves.toEqual({ terminal: false, status: "Verification required." });
+    expect(sequence).toEqual(["reprompt"]);
     expect(harness.server.deleteCipher).not.toHaveBeenCalled();
-
-    await confirmationContinuation!();
-    expect(sequence).toEqual(["confirmation", "reprompt"]);
-    expect(harness.server.deleteCipher).not.toHaveBeenCalled();
-
     await repromptContinuation!();
+    expect(sequence).toEqual(["reprompt", "confirmation"]);
+    expect(confirmationTrigger).toBe(trigger);
+    await expect(confirmationContinuation!())
+      .resolves.toEqual({ terminal: true, status: "Item permanently deleted" });
     expect(harness.server.deleteCipher).toHaveBeenCalledOnce();
   });
 

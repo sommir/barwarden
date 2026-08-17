@@ -69,6 +69,22 @@ describe("OfficialPasswordHistoryViewComponent", () => {
     fixture.detectChanges();
     expect(host.textContent).toContain("列表中没有密码");
   });
+
+  it("exposes a semantic history list and contextual copy name without the secret", async () => {
+    await TestBed.configureTestingModule({
+      imports: [OfficialPasswordHistoryViewComponent],
+      providers: [OfficialI18nService, { provide: I18nService, useExisting: OfficialI18nService }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(OfficialPasswordHistoryViewComponent);
+    fixture.componentRef.setInput("cipher", projectLoginDetail(loginItem()).cipher);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const list = host.querySelector("bit-item-group");
+    const copy = host.querySelector<HTMLButtonElement>("[data-testid='history-copy-0']")!;
+    expect(list?.getAttribute("role")).toBe("list");
+    expect(copy.getAttribute("aria-label")).toContain("Example Login");
+    expect(copy.getAttribute("aria-label")).not.toContain("old-secret-1");
+  });
 });
 
 function loginItem(): VaultItem {

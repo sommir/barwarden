@@ -1,5 +1,5 @@
 import { DialogModule as CdkDialogModule } from "@angular/cdk/dialog";
-import { Component, Inject, type OnDestroy, Optional, ViewChild } from "@angular/core";
+import { Component, ElementRef, Inject, type OnDestroy, Optional, signal, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 
 import { TauriHostService } from "../../host/tauri-host.service";
@@ -14,6 +14,7 @@ import {
 import { AppBottomSheetComponent } from "../official-ui/app-bottom-sheet.component";
 import { AppFeedbackService } from "../official-ui/app-feedback.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { MacosAlertStripComponent } from "../official-ui/macos-alert-strip.component";
 import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component";
 import { PopupStateStore } from "../popup-state";
 import {
@@ -22,6 +23,7 @@ import {
 } from "./popup-cipher-view.adapter";
 import {
   RecoveryPageActionsAdapter,
+  type RecoveryPageActionResult,
   type RecoveryPageCommand,
 } from "./recovery-page-actions.adapter";
 import { VaultActionsService } from "./vault-actions.service";
@@ -38,6 +40,7 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
     DialogComponent,
     DialogFooterDirective,
     I18nPipe,
+    MacosAlertStripComponent,
     OfficialArchiveComponent,
     VaultRepromptDialogComponent,
   ],
@@ -54,6 +57,7 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
       #deleteDialog
       testId="archive-delete-confirmation"
       labelledBy="archive-delete-title"
+      [attr.aria-busy]="confirmationBusy"
       (dismissed)="closeDeleteDialog()"
       (click)="onDeleteDialogClick($event)"
     >
@@ -61,10 +65,16 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
         <span bitDialogTitle id="archive-delete-title">{{ "i18nDeleteItemTitle" | i18n }}</span>
         <ng-container bitDialogContent>
           <p>{{ "i18nArchiveDeleteContent" | i18n }}</p>
+          @if (confirmationError()) {
+            <bw-macos-alert-strip kind="danger" urgency="assertive"
+              [message]="confirmationError()" testId="recovery-confirmation-error" />
+          }
         </ng-container>
         <ng-container bitDialogFooter>
-          <button bitButton buttonType="danger" type="submit">{{ "i18nDelete" | i18n }}</button>
-          <button bitButton buttonType="secondary" type="button" (click)="closeDeleteDialog()">{{ "cancel" | i18n }}</button>
+          <button bitButton buttonType="danger" type="submit" [disabled]="confirmationBusy">{{ "i18nDelete" | i18n }}</button>
+          <button #confirmationCancel bitAutofocus bitButton buttonType="secondary" type="button"
+            data-testid="archive-delete-cancel" [disabled]="confirmationBusy"
+            (click)="closeDeleteDialog()">{{ "cancel" | i18n }}</button>
         </ng-container>
       </form>
     </bw-app-bottom-sheet>
@@ -73,9 +83,13 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
 export class ArchivePageComponent implements OnDestroy {
   @ViewChild(VaultRepromptDialogComponent) private repromptDialog?: VaultRepromptDialogComponent;
   @ViewChild("deleteDialog") private deleteDialog?: AppBottomSheetComponent;
+  @ViewChild("confirmationCancel", { read: ElementRef })
+  private confirmationCancel?: ElementRef<HTMLButtonElement>;
 
   private readonly adapter: RecoveryPageActionsAdapter;
-  private pendingConfirmation: (() => Promise<void>) | null = null;
+  readonly confirmationError = signal("");
+  confirmationBusy = false;
+  private pendingConfirmation: (() => Promise<RecoveryPageActionResult>) | null = null;
   private readonly popOutHost: PopOutHost;
   private itemsCache?: {
     readonly source: ReturnType<PopupStateStore["snapshot"]>["archivedItems"];
@@ -95,14 +109,8 @@ export class ArchivePageComponent implements OnDestroy {
       router,
       actions,
       (itemId, continuation) => this.requestReprompt(itemId, continuation),
-      (command, _item, continuation) => {
-        if (command !== "soft-delete") {
-          return false;
-        }
-        this.pendingConfirmation = continuation;
-        this.deleteDialog?.open();
-        return true;
-      },
+      (command, _item, continuation, trigger) =>
+        command === "soft-delete" ? this.openConfirmation(continuation, trigger) : false,
       this.feedback,
     );
   }
@@ -129,6 +137,9 @@ export class ArchivePageComponent implements OnDestroy {
   }
 
   async execute(command: RecoveryPageCommand): Promise<void> {
+    if (command.command === "soft-delete") {
+      await Promise.resolve();
+    }
     await this.adapter.execute(command);
   }
 
@@ -161,8 +172,17 @@ export class ArchivePageComponent implements OnDestroy {
   async confirmDelete(event?: Event): Promise<void> {
     event?.preventDefault();
     const continuation = this.pendingConfirmation;
-    this.closeDeleteDialog();
-    await continuation?.();
+    if (!continuation || this.confirmationBusy) return;
+    this.confirmationBusy = true;
+    this.confirmationError.set("");
+    const outcome = await continuation();
+    if (this.pendingConfirmation !== continuation) return;
+    this.confirmationBusy = false;
+    if (outcome.terminal || outcome.status === "Vault changed; action not applied.") {
+      this.closeDeleteDialog();
+      return;
+    }
+    this.confirmationError.set(outcome.status);
   }
 
   onDeleteDialogClick(event: Event): void {
@@ -173,6 +193,8 @@ export class ArchivePageComponent implements OnDestroy {
 
   closeDeleteDialog(): void {
     this.pendingConfirmation = null;
+    this.confirmationBusy = false;
+    this.confirmationError.set("");
     this.deleteDialog?.close();
   }
 
@@ -186,6 +208,17 @@ export class ArchivePageComponent implements OnDestroy {
       return false;
     }
     this.repromptDialog.openFor(itemId, continuation);
+    return true;
+  }
+
+  private openConfirmation(
+    continuation: () => Promise<RecoveryPageActionResult>,
+    trigger?: HTMLElement,
+  ): boolean {
+    this.pendingConfirmation = continuation;
+    this.confirmationError.set("");
+    this.confirmationBusy = false;
+    this.deleteDialog?.open(trigger, this.confirmationCancel?.nativeElement ?? null);
     return true;
   }
 }

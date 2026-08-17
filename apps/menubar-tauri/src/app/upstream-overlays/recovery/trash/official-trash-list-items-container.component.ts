@@ -43,7 +43,11 @@ export class OfficialTrashListItemsContainerComponent {
   @Input({ required: true }) readonly items: readonly RetainedPopupCipherView[] = [];
   @Output() readonly command = new EventEmitter<RecoveryPageCommand>();
 
-  emit(command: RecoveryPageCommand["command"], item: RetainedPopupCipherView): void {
-    this.command.emit({ command, location: "trash", item });
+  emit(
+    command: RecoveryPageCommand["command"],
+    item: RetainedPopupCipherView,
+    trigger?: HTMLElement,
+  ): void {
+    this.command.emit({ command, location: "trash", item, trigger });
   }
 }

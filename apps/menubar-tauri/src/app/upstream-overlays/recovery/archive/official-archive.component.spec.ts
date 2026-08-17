@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { OfficialI18nService } from "../../../official-ui/official-i18n.service";
 import { demoVaultItems } from "../../../vault-demo";
 import { toRecoveryPopupCipherView } from "../../../vault/popup-cipher-view.adapter";
+import type { RecoveryPageCommand } from "../recovery-command";
 import { OfficialArchiveComponent } from "./official-archive.component";
 
 try {
@@ -51,27 +52,28 @@ describe("OfficialArchiveComponent", () => {
     const commands: unknown[] = [];
     fixture.componentInstance.command.subscribe((command) => commands.push(command));
     const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector<HTMLButtonElement>("[aria-label='归档选项 GitHub']")!;
 
     host.querySelector<HTMLButtonElement>("[data-testid='archive-view-github']")!.click();
-    host.querySelector<HTMLButtonElement>("[aria-label='归档选项 GitHub']")!.click();
+    trigger.click();
     fixture.detectChanges();
     clickMenuAction("编辑");
-    host.querySelector<HTMLButtonElement>("[aria-label='归档选项 GitHub']")!.click();
+    trigger.click();
     fixture.detectChanges();
     clickMenuAction("克隆");
-    host.querySelector<HTMLButtonElement>("[aria-label='归档选项 GitHub']")!.click();
+    trigger.click();
     fixture.detectChanges();
     clickMenuAction("取消归档");
-    host.querySelector<HTMLButtonElement>("[aria-label='归档选项 GitHub']")!.click();
+    trigger.click();
     fixture.detectChanges();
     clickMenuAction("删除");
 
     expect(commands).toEqual([
-      { command: "view", location: "archive", item: view },
-      { command: "edit", location: "archive", item: view },
-      { command: "clone", location: "archive", item: view },
-      { command: "unarchive", location: "archive", item: view },
-      { command: "soft-delete", location: "archive", item: view },
+      { command: "view", location: "archive", item: view, trigger: undefined },
+      { command: "edit", location: "archive", item: view, trigger: undefined },
+      { command: "clone", location: "archive", item: view, trigger: undefined },
+      { command: "unarchive", location: "archive", item: view, trigger },
+      { command: "soft-delete", location: "archive", item: view, trigger },
     ]);
   });
 
@@ -80,6 +82,22 @@ describe("OfficialArchiveComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector("bit-no-items")).not.toBeNull();
     expect(host.textContent).toContain("归档中没有项目");
+  });
+
+  it("emits the real Archive More trigger and stable focus key", async () => {
+    const fixture = await createArchive();
+    const commands: RecoveryPageCommand[] = [];
+    fixture.componentInstance.command.subscribe((value) => commands.push(value));
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector<HTMLButtonElement>("[aria-label='归档选项 GitHub']")!;
+    expect(trigger.dataset["popupFocusKey"]).toBe("archive-item:github");
+    trigger.click();
+    fixture.detectChanges();
+    clickMenuAction("删除");
+    expect(commands.at(-1)).toEqual({
+      command: "soft-delete", location: "archive",
+      item: fixture.componentInstance.items[0], trigger,
+    });
   });
 });
 

@@ -170,6 +170,20 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(document.querySelector<HTMLElement>(".otp-code-row")!).minHeight).toBe("52px");
   });
 
+  it("keeps recovery rows flat and actions 44 pixels in compact mode", () => {
+    document.body.className = "tw-bit-compact";
+    document.body.innerHTML = `<main class="macos-page--vault-recovery"><bit-item-group>
+      <bit-item><button data-testid="history-copy-0">Copy</button></bit-item>
+    </bit-item-group></main>`;
+    const row = getComputedStyle(document.querySelector<HTMLElement>("bit-item")!);
+    const action = getComputedStyle(document.querySelector<HTMLElement>("button")!);
+    expect(row.borderRadius).toBe("0px");
+    expect(row.boxShadow).toBe("none");
+    expect(row.minHeight).toBe("52px");
+    expect(action.minHeight).toBe("44px");
+    expect(action.minWidth).toBe("44px");
+  });
+
   it("renders real retained form groups flat with 44px rounded controls and compact spacing", async () => {
     TestBed.resetTestingModule();
     const store = new PopupStateStore();

@@ -55,6 +55,7 @@ type ProtectedContinuation = () => void | Promise<void>;
             <bit-label>{{ "masterPass" | i18n }}</bit-label>
             <input
               #passwordInput
+              bitAutofocus
               bitInput
               type="password"
               autocomplete="current-password"

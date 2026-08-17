@@ -10,6 +10,7 @@ import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.servic
 import { OfficialI18nService } from "../../../official-ui/official-i18n.service";
 import { demoVaultItems } from "../../../vault-demo";
 import { toRecoveryPopupCipherView } from "../../../vault/popup-cipher-view.adapter";
+import type { RecoveryPageCommand } from "../recovery-command";
 import { OfficialTrashListItemsContainerComponent } from "./official-trash-list-items-container.component";
 
 try {
@@ -45,20 +46,34 @@ describe("OfficialTrashListItemsContainerComponent", () => {
     const commands: unknown[] = [];
     fixture.componentInstance.command.subscribe((command) => commands.push(command));
     const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector<HTMLButtonElement>("[aria-label='回收站选项 GitHub']")!;
 
     host.querySelector<HTMLButtonElement>("[data-testid='trash-view-github']")!.click();
-    host.querySelector<HTMLButtonElement>("[aria-label='回收站选项 GitHub']")!.click();
+    trigger.click();
     fixture.detectChanges();
     clickMenuAction("恢复");
-    host.querySelector<HTMLButtonElement>("[aria-label='回收站选项 GitHub']")!.click();
+    trigger.click();
     fixture.detectChanges();
     clickMenuAction("永久删除");
 
     expect(commands).toEqual([
-      { command: "view", location: "trash", item },
-      { command: "restore", location: "trash", item },
-      { command: "permanent-delete", location: "trash", item },
+      { command: "view", location: "trash", item, trigger: undefined },
+      { command: "restore", location: "trash", item, trigger },
+      { command: "permanent-delete", location: "trash", item, trigger },
     ]);
+  });
+
+  it("marks permanent delete dangerous and emits its real More trigger", async () => {
+    const fixture = await createList(); const commands: RecoveryPageCommand[] = [];
+    fixture.componentInstance.command.subscribe((value) => commands.push(value));
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector<HTMLButtonElement>("[aria-label='回收站选项 GitHub']")!;
+    expect(trigger.dataset["popupFocusKey"]).toBe("trash-item:github");
+    trigger.click(); fixture.detectChanges();
+    const danger = Array.from(document.body.querySelectorAll<HTMLButtonElement>("[role='menuitem']"))
+      .find((button) => button.textContent?.includes("永久删除"))!;
+    expect(danger.getAttribute("variant")).toBe("danger"); danger.click();
+    expect(commands[0]?.trigger).toBe(trigger);
   });
 });
 

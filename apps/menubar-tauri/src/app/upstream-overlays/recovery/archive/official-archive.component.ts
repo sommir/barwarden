@@ -53,7 +53,11 @@ export class OfficialArchiveComponent {
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
     this.back.emit();
 
-  emit(command: RecoveryPageCommand["command"], item: RetainedPopupCipherView): void {
-    this.command.emit({ command, location: "archive", item });
+  emit(
+    command: RecoveryPageCommand["command"],
+    item: RetainedPopupCipherView,
+    trigger?: HTMLElement,
+  ): void {
+    this.command.emit({ command, location: "archive", item, trigger });
   }
 }

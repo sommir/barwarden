@@ -14,6 +14,7 @@ export interface RecoveryPageCommand {
   readonly command: RecoveryCommand;
   readonly location: RecoveryLocation;
   readonly item: RetainedPopupCipherView;
+  readonly trigger?: HTMLElement;
 }
 
 export interface RecoveryPageActionResult {
