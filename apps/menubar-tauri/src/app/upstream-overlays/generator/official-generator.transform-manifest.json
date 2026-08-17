@@ -4554,7 +4554,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
-        "sha256": "f54d1fce406c5f88c8146ca36b3d6e071c256e6254f1d77b994b7f51166e1d66"
+        "sha256": "3db4b593328849b8a210286aad2bc881b0abe2784897a91fdf312a0f8a89f209"
       },
       {
         "path": "apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
@@ -5381,7 +5381,7 @@
         "sha256": "162dd777bc2ad6abcd19e7ce8c6c78463ebabf63a73bd22ecf6cf8a9558f5286"
       }
     ],
-    "sha256": "317452e2e5ba3d2af14a9bd5c5635799702d78ced9c61b92e98154ff054483b0"
+    "sha256": "eff3a6b1435751a0994d264c76804ba4c991f172aa8d91af82cbfb48fa274be0"
   },
   "removedDependencies": [
     "forwarded-email provider graph",
