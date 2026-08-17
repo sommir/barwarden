@@ -151,7 +151,7 @@ import { VaultContextualSectionOutletComponent } from "./vault-contextual-sectio
         </div>
       } @else {
         @if (hasSearchQuery) {
-          <div class="tw-flex tw-flex-col tw-gap-3 tw-px-3 tw-pb-3 vault-sections macos-list">
+          <div class="tw-flex tw-flex-col tw-px-4 tw-pb-4 vault-sections macos-list">
             @for (section of sections; track section.id) {
               <app-vault-list-items-container
                 [section]="section"

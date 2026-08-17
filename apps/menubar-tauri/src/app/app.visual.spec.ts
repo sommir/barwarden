@@ -594,7 +594,11 @@ describe("popup visual smoke classes", () => {
     expect(officialItemContent).toContain("bit-compact:tw-py-1.5 bit-compact:tw-px-2");
   });
 
-  it("styles the Vault hierarchy as a quiet native surface with a title-bar add control", () => {
+  it("styles the Vault hierarchy as one continuous native surface with a title-bar add control", () => {
+    const cleanup = installVisualCss(
+      "apps/menubar-tauri/src/styles/macos-tokens.css",
+      "apps/menubar-tauri/src/styles/global.css",
+    );
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
@@ -605,10 +609,8 @@ describe("popup visual smoke classes", () => {
     );
     const header = cssDeclarations(globalCss, ".vault-root-header");
     const title = cssDeclarations(globalCss, ".vault-root-header__title");
-    const search = cssDeclarations(globalCss, ".vault-root-header__search");
     const hierarchy = cssDeclarations(globalCss, ".vault-hierarchy");
     const node = cssDeclarations(globalCss, ".vault-hierarchy__node");
-    const trigger = cssDeclarations(globalCss, ".vault-hierarchy__trigger");
     const content = cssDeclarations(globalCss, ".vault-hierarchy__content");
     const openContent = cssDeclarations(globalCss, ".vault-hierarchy__content.is-open");
     const headerAdd = cssDeclarations(
@@ -627,15 +629,42 @@ describe("popup visual smoke classes", () => {
       globalCss,
       ":is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] .bwi",
     );
+    const vault = document.createElement("div");
+    vault.innerHTML = `
+      <div class="vault-root-header__search"></div>
+      <button class="vault-hierarchy__trigger" aria-expanded="true"></button>
+      <div class="vault-hierarchy__items">
+        <bit-item-group>
+          <bit-item class="vault-list-row"></bit-item>
+          <bit-item class="vault-list-row"></bit-item>
+        </bit-item-group>
+      </div>
+    `;
+    document.body.append(vault);
+
+    const search = vault.querySelector<HTMLElement>(".vault-root-header__search")!;
+    const trigger = vault.querySelector<HTMLElement>(".vault-hierarchy__trigger")!;
+    const group = vault.querySelector<HTMLElement>("bit-item-group")!;
+    const row = vault.querySelector<HTMLElement>(".vault-list-row")!;
 
     expect(header).toContain("display: grid;");
     expect(header).toContain(
       "grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);",
     );
     expect(title).toContain("text-align: center;");
-    expect(search).toContain("border-radius: 999px;");
-    expect(search).toContain("min-height: 42px;");
-    expect(search).toContain("margin: 0 var(--mac-space-5) var(--mac-space-1);");
+    expect(getComputedStyle(search).minHeight).toBe("44px");
+    expect(getComputedStyle(search).borderRadius).toBe("12px");
+    expect(getComputedStyle(search).backgroundColor).toBe("rgb(234, 242, 255)");
+    expect(getComputedStyle(search).boxShadow).toBe("none");
+    expect(getComputedStyle(trigger).minHeight).toBe("44px");
+    expect(getComputedStyle(trigger).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(trigger).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(group).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(group).borderRadius).toBe("0px");
+    expect(getComputedStyle(row).minHeight).toBe("52px");
+    expect(getComputedStyle(row).borderBottomWidth).toBe("1px");
+    expect(getComputedStyle(row).borderRadius).toBe("0px");
+    expect(getComputedStyle(row).boxShadow).toBe("none");
     expect(globalCss).toMatch(
       /popup-page\s*>\s*main\s*>\s*div:has\(bw-root-search\),[\s\S]*?popup-page\s*>\s*main\s*>\s*div:has\(bit-search\)\s*{[^}]*padding-block:\s*var\(--mac-space-2\) !important;/,
     );
@@ -646,8 +675,6 @@ describe("popup visual smoke classes", () => {
     expect(hierarchy).toContain("flex-direction: column;");
     expect(node).toContain("display: block;");
     expect(node).toContain("flex: 0 0 auto;");
-    expect(trigger).toContain("min-height: 40px;");
-    expect(trigger).toContain("background: transparent;");
     expect(motionCss).toContain("--mac-disclosure-motion: 200ms;");
     expect(motionCss).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*--mac-disclosure-motion:\s*1ms;/,
@@ -678,6 +705,9 @@ describe("popup visual smoke classes", () => {
     expect(headerAddContent).toContain("gap: 0 !important;");
     expect(headerAddLabel).toContain("display: none;");
     expect(headerAddIcon).toContain("transform: translateY(1px);");
+
+    vault.remove();
+    cleanup();
   });
 
   it("keeps retained fade content visible after native route transitions", () => {
@@ -742,14 +772,10 @@ describe("popup visual smoke classes", () => {
     expect(menuTriggerSource).toContain('.withTransformOriginOn(\'[role="menu"]\')');
   });
 
-  it("connects expanded Vault parents and nested rows into one enclosure", () => {
+  it("keeps the continuous Vault list's final-row separator removal scoped to item groups", () => {
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
-    );
-    const expandedParent = cssDeclarations(
-      globalCss,
-      '.vault-hierarchy__trigger[aria-expanded="true"]',
     );
     const nestedGroup = cssDeclarations(
       globalCss,
@@ -764,8 +790,6 @@ describe("popup visual smoke classes", () => {
       ".vault-hierarchy__items bit-item-group app-retained-vault-list-item:last-child > .vault-list-row",
     );
 
-    expect(expandedParent).toContain("border-radius: 12px 12px 0 0;");
-    expect(expandedParent).toContain("background: var(--mac-surface-solid);");
     expect(globalCss).not.toContain(
       ".vault-hierarchy__node:has(> .vault-hierarchy__content) > .vault-hierarchy__trigger",
     );

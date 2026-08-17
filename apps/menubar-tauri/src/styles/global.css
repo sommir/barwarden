@@ -4737,21 +4737,21 @@ auth-account .macos-account-label {
 
 .vault-root-header__search {
   display: flex;
-  min-height: 42px;
+  min-height: 44px;
   align-items: center;
   gap: var(--mac-space-2);
-  margin: 0 var(--mac-space-5) var(--mac-space-1);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 999px;
+  margin: 0 var(--mac-space-4) var(--mac-space-1);
+  border: 1px solid color-mix(in srgb, var(--mac-accent) 18%, var(--mac-border-subtle));
+  border-radius: 12px;
   padding: 0 14px;
-  background: color-mix(in srgb, var(--mac-surface-solid) 88%, transparent);
+  background: var(--mac-surface-contextual);
   color: var(--mac-text-secondary);
-  box-shadow: 0 5px 18px color-mix(in srgb, var(--mac-shadow) 35%, transparent);
+  box-shadow: none;
 }
 
 .vault-root-header__search:focus-within {
   border-color: color-mix(in srgb, var(--mac-focus) 54%, var(--mac-border-subtle));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 22%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mac-focus) 22%, transparent);
 }
 
 .vault-root-header__search > .bwi {
@@ -4822,11 +4822,11 @@ bw-retained-new-item-dropdown {
 .vault-hierarchy__trigger {
   display: flex;
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   justify-content: space-between;
   gap: var(--mac-space-2);
-  padding: 0 var(--mac-space-3);
+  padding: 0 var(--mac-space-2);
   background: transparent;
   color: var(--mac-text-secondary);
   font-size: 13px;
@@ -4846,10 +4846,9 @@ bw-retained-new-item-dropdown {
 }
 
 .vault-hierarchy__trigger[aria-expanded="true"] {
-  border: 1px solid var(--mac-border-subtle);
-  border-bottom: 0;
-  border-radius: 12px 12px 0 0;
-  background: var(--mac-surface-solid);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--mac-text-primary);
 }
 
@@ -4880,9 +4879,10 @@ bw-retained-new-item-dropdown {
 
 .vault-hierarchy__children {
   overflow: hidden;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   background: var(--mac-surface-solid);
+  box-shadow: none;
 }
 
 /* A menu-bar window has a single native material field. Route shells must be
@@ -4962,7 +4962,7 @@ bw-retained-new-item-dropdown {
 }
 
 .vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__children {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 /* A root disclosure is one connected surface: only its outer lower corners
@@ -5067,13 +5067,14 @@ bw-retained-new-item-dropdown {
 
 .vault-hierarchy__items bit-item-group {
   overflow: hidden;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   background: var(--mac-surface-solid);
+  box-shadow: none;
 }
 
 .vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__items bit-item-group {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 .vault-hierarchy__children > .vault-hierarchy__items bit-item-group {
@@ -5099,6 +5100,7 @@ bw-retained-new-item-dropdown {
   border-bottom: 1px solid var(--mac-border-subtle);
   border-radius: 0;
   background: var(--mac-surface-solid);
+  box-shadow: none;
   color: var(--mac-text-primary);
   contain: layout paint style;
 }

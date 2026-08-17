@@ -898,6 +898,11 @@ describe("VaultListPageComponent", () => {
     }
     expect(host.textContent?.includes("没有搜索到匹配的项目")).toBe(hasNoResults);
     if (evidenceState === "search-results") {
+      const sections = host.querySelector<HTMLElement>(".vault-sections");
+
+      expect(sections?.classList.contains("tw-gap-3")).toBe(false);
+      expect(sections?.classList.contains("tw-px-4")).toBe(true);
+      expect(sections?.classList.contains("tw-pb-4")).toBe(true);
       expect(host.textContent).toContain("搜索结果");
       expect(host.textContent).toContain("Example Calendar");
       expect(host.textContent).not.toContain("Example Mail");
