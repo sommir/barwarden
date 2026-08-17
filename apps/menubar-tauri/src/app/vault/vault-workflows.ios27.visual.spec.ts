@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Component, importProvidersFrom, provideZoneChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
+import { NgSelectModule } from "@ng-select/ng-select";
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -36,7 +37,7 @@ try {
 }
 
 @Component({
-  imports: [OfficialPersonalCipherFormComponent],
+  imports: [NgSelectModule, OfficialPersonalCipherFormComponent],
   template: `
     <main class="macos-page--vault-form">
       <div class="cipher-form-scroll">
@@ -45,11 +46,27 @@ try {
           [config]="config"
           [beforeSubmit]="beforeSubmit"
         ></bw-official-personal-cipher-form>
+        <ng-select
+          class="visual-multi-select"
+          [items]="multiSelectItems"
+          bindLabel="listName"
+          [multiple]="true"
+        ></ng-select>
       </div>
     </main>
+    <aside data-testid="outside-sheet">
+      <ng-select
+        [items]="multiSelectItems"
+        bindLabel="listName"
+        [multiple]="true"
+      ></ng-select>
+    </aside>
   `,
 })
 class VaultFormVisualHostComponent {
+  readonly multiSelectItems = [
+    { id: "collection-1", listName: "Personal", labelName: "Personal" },
+  ];
   readonly config: RetainedOfficialPersonalCipherFormConfig =
     buildOfficialPersonalCipherFormConfig({
       mode: "add",
@@ -64,8 +81,15 @@ class VaultFormVisualHostComponent {
 let style: HTMLStyleElement;
 beforeAll(() => {
   style = document.createElement("style");
-  style.textContent = ["macos-tokens.css", "global.css"]
-    .map((file) => readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", file), "utf8"))
+  style.textContent = [
+    join(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"),
+    join(
+      process.cwd(),
+      "vendor/bitwarden-clients/libs/components/src/multi-select/scss/bw.theme.css",
+    ),
+    join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+  ]
+    .map((file) => readFileSync(file, "utf8"))
     .join("\n");
   document.head.append(style);
 });
@@ -111,12 +135,24 @@ describe("iOS 27 Vault workflows", () => {
     const host = fixture.nativeElement as HTMLElement;
     const card = host.querySelector<HTMLElement>(".cipher-form-scroll bit-card")!;
     const input = host.querySelector<HTMLInputElement>('input[formcontrolname="name"]')!;
+    const fieldShell = input.closest<HTMLElement>("[bitfieldcontainer]")!;
+    const ngSelectShell = host.querySelector<HTMLElement>(
+      ".cipher-form-scroll .visual-multi-select .ng-select-container",
+    )!;
+    const outsideNgSelectShell = host.querySelector<HTMLElement>(
+      '[data-testid="outside-sheet"] .ng-select-container',
+    )!;
     expect(card).not.toBeNull();
     expect(input).not.toBeNull();
+    expect(fieldShell).not.toBeNull();
+    expect(ngSelectShell).not.toBeNull();
     expect(getComputedStyle(card).borderRadius).toBe("0px");
     expect(getComputedStyle(card).boxShadow).toBe("none");
-    expect(getComputedStyle(input).borderRadius).toBe("10px");
-    expect(getComputedStyle(input).minHeight).toBe("44px");
+    expect(getComputedStyle(fieldShell).borderRadius).toBe("10px");
+    expect(getComputedStyle(fieldShell).minHeight).toBe("44px");
+    expect(getComputedStyle(ngSelectShell).borderRadius).toBe("10px");
+    expect(getComputedStyle(ngSelectShell).minHeight).toBe("44px");
+    expect(getComputedStyle(outsideNgSelectShell).borderRadius).toBe("11px");
 
     document.body.classList.add("tw-bit-compact");
     expect(getComputedStyle(host.querySelector<HTMLElement>(".cipher-form-scroll section")!)

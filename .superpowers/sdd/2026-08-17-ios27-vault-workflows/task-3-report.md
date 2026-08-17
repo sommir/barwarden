@@ -43,3 +43,44 @@ exit 0
 - `global.css` already contained unrelated authentication changes; only the Task 3 vault-form styling hunk is staged.
 - The pre-existing recovery manifest and all other unrelated modified, deleted, and untracked worktree files were preserved and left unstaged.
 - No restore, reset, broad add, browser, or native run was used.
+
+## Review fix — RED
+
+- A real deferred Login page test reproduced the dirty-navigation race: after cancelling the discard dialog, `savePending` became false and the transport lock was lost while the original write was still in flight.
+- The existing deferred Card/Identity/Secure Note dirty-navigation matrix was tightened to require the personal operation token, disabled submit state, and duplicate-write suppression to remain owned until the old transport settles.
+- Real retained Login and personal forms reproduced focus on hidden/disabled first invalid controls; a Login case also reproduced failure to continue when the first candidate refused focus.
+- The production stylesheet cascade over a mounted retained Bitwarden form and a real `ng-select` reproduced the visible-shell mismatch: `[bitfieldcontainer]` had no page radius override and `.ng-select-container` retained the official 11 px radius.
+- Real Login and personal page paths added assertions for the debounced Bitwarden button spinner, `aria-busy`, `aria-disabled`, polite status, and failure cleanup.
+
+## Review fix — GREEN
+
+- Operation invalidation now advances the stale-result epoch without releasing the in-flight transport token. Dirty-confirm cancellation therefore keeps `savePending` and duplicate suppression active; settle clears the token normally while the invalidated epoch rejects the late result.
+- Invalid-control selection excludes forms, hidden and hidden-type inputs, disabled controls, `aria-hidden`/`inert` subtrees, computed `display:none`/`visibility:hidden`, and zero-client-rect controls when a real layout engine is present. If `focus({ preventScroll: true })` does not take effect or throws, selection continues to the next candidate before centered automatic scrolling.
+- Vault-page CSS now applies 44 px minimum hit area and 10 px radius to the visible `[bitfieldcontainer]` and `.ng-select-container` shells. The selector remains under `.macos-page--vault-form .cipher-form-scroll`; an outside sheet control retains the official 11 px radius.
+- Both Button loading paths expose the real delayed spinner and clear it after Login or personal failure without clearing typed data.
+
+## Review fix — provenance
+
+- No retained class member was added or removed. The two `focusFirstInvalidControl` runtime-only canonical member hashes and the personal member manifest entry were truthfully refreshed for the hardened implementation.
+- Ran `npm run update:i18n-retained-manifests`; retained only the two Task 3 runtime hashes. Pinned authority revision and authority hashes are unchanged; the pre-existing recovery manifest work remains outside this task scope.
+- The strict official typecheck profiles required `Array.from(querySelectorAll(...))` because their DOM library does not include iterable `NodeList`; member and runtime hashes were refreshed after that compatibility-only adjustment.
+
+## Review fix — verification
+
+```text
+npx vitest run apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-login-cipher-form.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/cipher-form/official-personal-cipher-form.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/cipher-form/cipher-form-overlay.guard.spec.ts apps/menubar-tauri/src/app/upstream-overlays/cipher-form/personal-cipher-form-overlay.guard.spec.ts apps/menubar-tauri/src/app/vault/personal-cipher-save-operation.spec.ts apps/menubar-tauri/src/app/vault/vault-add-edit-page.component.spec.ts apps/menubar-tauri/src/app/vault/vault-workflows.ios27.visual.spec.ts
+
+Test Files  7 passed (7)
+Tests       386 passed (386)
+
+npm run typecheck:official-login
+exit 0
+
+npm run typecheck:official-personal
+exit 0
+```
+
+## Review fix — scope
+
+- The follow-up changes are limited to the two retained form runtimes/tests and their member/runtime pins, personal operation/page ownership and tests, the real-cascade visual test, the page-scoped Vault CSS hunk, and this report.
+- Unrelated authentication CSS, recovery/i18n work, native autofill changes, deleted matcher files, and all other dirty-worktree content remain unstaged and unmodified by this commit.

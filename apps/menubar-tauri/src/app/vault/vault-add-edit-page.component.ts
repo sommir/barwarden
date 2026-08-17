@@ -656,13 +656,11 @@ export class VaultAddEditPageComponent implements OnDestroy {
   private invalidateOperations(): void {
     this.invalidateLoginOperation();
     this.personalOperation.invalidate();
-    this.officialPersonalForm?.enableFormFields();
   }
 
   private invalidateLoginOperation(): void {
     this.saveEpoch += 1;
-    this.loginOperationToken = null;
-    if (!this.loginCommitTerminal) {
+    if (this.loginOperationToken === null && !this.loginCommitTerminal) {
       this.officialLoginForm?.enableFormFields();
     }
   }

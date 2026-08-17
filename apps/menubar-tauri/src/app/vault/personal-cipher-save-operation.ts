@@ -87,7 +87,6 @@ export class PersonalCipherSaveOperation {
 
   invalidate(): void {
     this.operationEpoch += 1;
-    this.operationToken = null;
   }
 
   async submit(

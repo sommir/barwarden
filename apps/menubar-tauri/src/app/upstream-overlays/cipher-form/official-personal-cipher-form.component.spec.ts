@@ -492,12 +492,42 @@ describe("OfficialPersonalCipherFormComponent", () => {
     const fixture = await render("add", CipherType.Card, empty);
     const name = (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLInputElement>('input[formcontrolname="name"]')!;
+    const focus = vi.spyOn(name, "focus");
     name.scrollIntoView = vi.fn();
     await fixture.componentInstance.submit();
     fixture.detectChanges(false);
     expect(name.getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(name);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     expect(name.scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" });
+  });
+
+  it("skips a disabled first invalid personal control and focuses the next visible invalid control", async () => {
+    const empty = personalView(CipherType.Card);
+    empty.name = "";
+    const fixture = await render("add", CipherType.Card, empty);
+    const host = fixture.nativeElement as HTMLElement;
+    const name = host.querySelector<HTMLInputElement>('input[formcontrolname="name"]')!;
+    const cardholder = host.querySelector<HTMLInputElement>(
+      'input[formcontrolname="cardholderName"]',
+    )!;
+    const cipherForm = member<any>(fixture.componentInstance, "cipherForm");
+    cipherForm.controls.cardDetails.controls.cardholderName.setErrors({ required: true });
+    fixture.detectChanges(false);
+    name.disabled = true;
+    const nameFocus = vi.spyOn(name, "focus");
+    const cardholderFocus = vi.spyOn(cardholder, "focus");
+    cardholder.scrollIntoView = vi.fn();
+
+    await fixture.componentInstance.submit();
+    fixture.detectChanges(false);
+
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(cardholder.getAttribute("aria-invalid")).toBe("true");
+    expect(nameFocus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(cardholder);
+    expect(cardholderFocus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(cardholder.scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" });
   });
 
   it("awaits beforeSubmit while disabled and suppresses local save, toast, and output", async () => {

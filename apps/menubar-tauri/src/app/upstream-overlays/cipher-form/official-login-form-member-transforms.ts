@@ -397,9 +397,9 @@ export const loginFormMemberContracts: readonly MemberContractEntry[] = [
         {
           runtimeMember: "focusFirstInvalidControl",
           justification:
-            "Moves keyboard focus and centers the first invalid retained control after submit.",
+            "Filters unavailable candidates, then focuses and centers the first usable invalid retained control.",
           canonicalSha256:
-            "25794cdc78f4fdea920c2ce8ed384ba14c3d47076e26406678084f331075602b",
+            "3954cee166b07ade4a641a6efc469f157349483c4cf20df9df4dc53c936affb9",
         },
         {
           runtimeMember: "cipherForSubmit",

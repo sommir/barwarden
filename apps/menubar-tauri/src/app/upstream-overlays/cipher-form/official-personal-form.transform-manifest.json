@@ -99,7 +99,7 @@
   "runtimes": [
     {
       "path": "official-personal-cipher-form.component.ts",
-      "sha256": "7f719db4cb6f8d473fbd1d1170514005ec23ce35ef1bda714a8b83641a642952"
+      "sha256": "f2ea3f24b19b26cf84afaa2351589faf59f3e9b6e5a423ccffb57c14cb9ff7db"
     },
     {
       "path": "official-personal-cipher-form.component.html",
@@ -164,7 +164,7 @@
       "authority": "libs/vault/src/cipher-form/components/cipher-form.component.ts",
       "authoritySha256": "b29250c6046fc1f72513a2b5dcc599c79c8ee98d12504d168b012cc12f36dd82",
       "runtime": "official-personal-cipher-form.component.ts",
-      "runtimeSha256": "7f719db4cb6f8d473fbd1d1170514005ec23ce35ef1bda714a8b83641a642952",
+      "runtimeSha256": "f2ea3f24b19b26cf84afaa2351589faf59f3e9b6e5a423ccffb57c14cb9ff7db",
       "members": [
         {
           "authorityMember": "bitSubmit",
@@ -375,8 +375,8 @@
         },
         {
           "runtimeMember": "focusFirstInvalidControl",
-          "canonicalSha256": "25794cdc78f4fdea920c2ce8ed384ba14c3d47076e26406678084f331075602b",
-          "justification": "Moves keyboard focus and centers the first invalid retained personal control after submit."
+          "canonicalSha256": "3954cee166b07ade4a641a6efc469f157349483c4cf20df9df4dc53c936affb9",
+          "justification": "Filters unavailable candidates, then focuses and centers the first usable invalid retained personal control."
         },
         {
           "runtimeMember": "cipherForSubmit",

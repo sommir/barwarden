@@ -43,6 +43,44 @@ import {
 } from "./official-personal-form-container";
 import { OfficialPersonalItemDetailsComponent } from "./official-personal-item-details.component";
 
+const invalidControlSelector = [
+  'input[aria-invalid="true"]',
+  'textarea[aria-invalid="true"]',
+  'select[aria-invalid="true"]',
+  '[role="combobox"][aria-invalid="true"]',
+  ".ng-invalid[tabindex]",
+].join(",");
+
+function isFocusableInvalidControl(
+  candidate: HTMLElement,
+  form: HTMLFormElement,
+): boolean {
+  if (
+    candidate === form ||
+    candidate.matches('input[type="hidden"], :disabled') ||
+    candidate.closest('[hidden], [aria-hidden="true"], [inert]')
+  ) {
+    return false;
+  }
+
+  for (let current: HTMLElement | null = candidate; current; current = current.parentElement) {
+    const style = getComputedStyle(current);
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.visibility === "collapse"
+    ) {
+      return false;
+    }
+    if (current === form) {
+      break;
+    }
+  }
+
+  const browserHasLayout = document.documentElement.getClientRects().length > 0;
+  return !browserHasLayout || candidate.getClientRects().length > 0;
+}
+
 @Component({
   selector: "bw-official-personal-cipher-form",
   templateUrl: "./official-personal-cipher-form.component.html",
@@ -261,13 +299,28 @@ export class OfficialPersonalCipherFormComponent
 
   focusFirstInvalidControl(): HTMLElement | null {
     this.changeDetectorRef.detectChanges();
-    const target =
-      this.formElement?.nativeElement.querySelector<HTMLElement>(
-        'input[aria-invalid="true"],textarea[aria-invalid="true"],select[aria-invalid="true"],[role="combobox"][aria-invalid="true"],.ng-invalid[tabindex]:not(form)',
-      ) ?? null;
-    target?.focus({ preventScroll: true });
-    target?.scrollIntoView?.({ block: "center", behavior: "auto" });
-    return target;
+    const form = this.formElement?.nativeElement;
+    if (!form) {
+      return null;
+    }
+    for (const candidate of Array.from(
+      form.querySelectorAll<HTMLElement>(invalidControlSelector),
+    )) {
+      if (!isFocusableInvalidControl(candidate, form)) {
+        continue;
+      }
+      try {
+        candidate.focus({ preventScroll: true });
+      } catch {
+        continue;
+      }
+      if (document.activeElement !== candidate) {
+        continue;
+      }
+      candidate.scrollIntoView?.({ block: "center", behavior: "auto" });
+      return candidate;
+    }
+    return null;
   }
 
   private cipherForSubmit(): CipherView {

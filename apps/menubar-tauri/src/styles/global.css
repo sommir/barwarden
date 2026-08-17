@@ -5847,6 +5847,14 @@ body.tw-bit-compact .macos-page--vault-detail .cipher-view :is(
   border-radius: 10px;
 }
 
+.macos-page--vault-form .cipher-form-scroll :is(
+  [bitfieldcontainer],
+  .ng-select-container
+) {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
 body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   margin-bottom: 16px;
 }

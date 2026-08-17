@@ -859,13 +859,61 @@ describe("OfficialLoginCipherFormComponent", () => {
     const fixture = await render("add", CipherView.fromJSON({ type: CipherType.Login })!, true);
     const name = (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLInputElement>('input[formcontrolname="name"]')!;
+    const focus = vi.spyOn(name, "focus");
     name.scrollIntoView = vi.fn();
     await fixture.componentInstance.submit();
     fixture.detectChanges();
     await settle(fixture);
     expect(name.getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(name);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     expect(name.scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" });
+  });
+
+  it("skips a hidden first invalid Login control and focuses the next visible invalid control", async () => {
+    const fixture = await render("add", CipherView.fromJSON({ type: CipherType.Login })!, true);
+    const host = fixture.nativeElement as HTMLElement;
+    const name = host.querySelector<HTMLInputElement>('input[formcontrolname="name"]')!;
+    const username = host.querySelector<HTMLInputElement>('input[formcontrolname="username"]')!;
+    const cipherForm = Reflect.get(fixture.componentInstance, "cipherForm");
+    cipherForm.controls.loginDetails.controls.username.setErrors({ required: true });
+    fixture.detectChanges();
+    name.hidden = true;
+    const nameFocus = vi.spyOn(name, "focus");
+    const usernameFocus = vi.spyOn(username, "focus");
+    username.scrollIntoView = vi.fn();
+
+    await fixture.componentInstance.submit();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(username.getAttribute("aria-invalid")).toBe("true");
+    expect(nameFocus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(username);
+    expect(usernameFocus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(username.scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" });
+  });
+
+  it("continues to the next invalid Login control when an earlier candidate refuses focus", async () => {
+    const fixture = await render("add", CipherView.fromJSON({ type: CipherType.Login })!, true);
+    const host = fixture.nativeElement as HTMLElement;
+    const name = host.querySelector<HTMLInputElement>('input[formcontrolname="name"]')!;
+    const username = host.querySelector<HTMLInputElement>('input[formcontrolname="username"]')!;
+    const cipherForm = Reflect.get(fixture.componentInstance, "cipherForm");
+    cipherForm.controls.loginDetails.controls.username.setErrors({ required: true });
+    fixture.detectChanges();
+    const nameFocus = vi.spyOn(name, "focus").mockImplementation(() => undefined);
+    const usernameFocus = vi.spyOn(username, "focus");
+    username.scrollIntoView = vi.fn();
+
+    await fixture.componentInstance.submit();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    expect(nameFocus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(document.activeElement).toBe(username);
+    expect(usernameFocus).toHaveBeenCalledWith({ preventScroll: true });
   });
 });
 
