@@ -4754,23 +4754,37 @@ auth-account .macos-account-label {
 
 .new-item-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.new-item-option-row + .new-item-option-row {
+  border-top: 1px solid var(--mac-border-subtle);
 }
 
 .new-item-option {
   display: grid;
-  min-height: 112px;
-  grid-template-columns: 34px minmax(0, 1fr);
-  align-items: start;
-  gap: 10px;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
-  padding: 13px 12px;
-  background: var(--mac-surface-solid);
+  width: 100%;
+  min-height: 52px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 12px;
+  background: transparent;
   color: var(--mac-text-primary);
   text-decoration: none;
   box-shadow: none;
+}
+
+body.tw-bit-compact .new-item-option {
+  min-height: 52px;
+  padding-block: 4px;
 }
 
 .new-item-option:hover {
@@ -5615,6 +5629,35 @@ button.is-copy-failed {
 .macos-page--vault-recovery bit-item:focus-within {
   border-color: color-mix(in srgb, var(--mac-focus) 42%, var(--mac-border-subtle));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 30%, transparent);
+}
+
+.macos-page--vault-recovery bw-official-folders bit-item-group {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.macos-page--vault-recovery bw-official-folders bit-item {
+  min-height: 52px;
+  margin-bottom: 0;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--vault-recovery bw-official-folders bit-item:last-child {
+  border-bottom: 0;
+}
+
+.macos-page--vault-recovery bw-official-folders bit-item:focus-within {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-selected);
+  box-shadow: none;
 }
 
 .macos-list app-retained-vault-list-item [data-testid="vault-item-content"],

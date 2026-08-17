@@ -45,6 +45,7 @@ import { VaultDisclosureGroupComponent } from "./vault-disclosure-group.componen
                         type="button"
                         class="vault-hierarchy__child macos-pressable"
                         [attr.data-vault-child]="child.id"
+                        [attr.data-popup-focus-key]="child.id === 'archive' || child.id === 'trash' ? 'vault-child:' + child.id : null"
                         [attr.aria-expanded]="child.items ? isChildOpen(child) : null"
                         [attr.aria-controls]="child.items ? 'vault-child-' + child.id : null"
                         (click)="activateChild(child)"

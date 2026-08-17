@@ -79,7 +79,8 @@ import {
           <button bitButton buttonType="danger" type="submit" [disabled]="isSaving">
             {{ isSaving ? ("i18nDeleting" | i18n) : ("i18nDelete" | i18n) }}
           </button>
-          <button bitButton buttonType="secondary" type="button" [disabled]="isSaving" (click)="closeDeleteDialog()">
+          <button #deleteCancel bitButton buttonType="secondary" type="button"
+            data-testid="delete-folder-cancel" [disabled]="isSaving" (click)="closeDeleteDialog()">
             {{ "cancel" | i18n }}
           </button>
         </ng-container>
@@ -90,6 +91,7 @@ import {
 export class VaultFolderDialogComponent implements OnDestroy {
   @ViewChild("folderDialog") private folderDialog?: AppBottomSheetComponent;
   @ViewChild("deleteDialog") private deleteDialog?: AppBottomSheetComponent;
+  @ViewChild("deleteCancel", { read: ElementRef }) private deleteCancel?: ElementRef<HTMLButtonElement>;
   @Output() readonly folderCreated = new EventEmitter<VaultFolder>();
 
   editingFolderId = "";
@@ -112,7 +114,7 @@ export class VaultFolderDialogComponent implements OnDestroy {
     this.operationToken += 1;
   }
 
-  openFor(folder?: VaultFolder): void {
+  openFor(folder?: VaultFolder, trigger?: HTMLElement | null): void {
     this.operationToken += 1;
     this.deleteDialog?.close(false);
     this.folderDialog?.close(false);
@@ -128,7 +130,7 @@ export class VaultFolderDialogComponent implements OnDestroy {
     this.isOpen = true;
     this.changeDetectorRef.detectChanges();
     const folderName = this.folderDialog?.nativeElement.querySelector<HTMLInputElement>("#folderName");
-    this.folderDialog?.open(undefined, folderName);
+    this.folderDialog?.open(trigger, folderName);
   }
 
   async save(): Promise<FolderMutationOutcome> {
@@ -171,7 +173,7 @@ export class VaultFolderDialogComponent implements OnDestroy {
     }
     this.deleteTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.folderDialog?.close(false);
-    this.deleteDialog?.open();
+    this.deleteDialog?.open(this.deleteTrigger, this.deleteCancel?.nativeElement ?? null);
   }
 
   cancelDelete(event: Event): void {

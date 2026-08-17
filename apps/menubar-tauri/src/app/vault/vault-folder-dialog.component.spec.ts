@@ -181,6 +181,33 @@ describe("VaultFolderDialogComponent", () => {
     expect(document.activeElement).toBe(deleteFolder);
   });
 
+  it("focuses Cancel in delete confirmation and returns to the invoking Delete button", async () => {
+    const store = unlockedStore();
+    const folder = store.saveFolder({ id: "work", name: "Work" });
+    const fixture = await setup(store, { create: vi.fn(), update: vi.fn(), delete: vi.fn() });
+    const host = fixture.nativeElement as HTMLElement;
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    fixture.componentInstance.openFor(folder, opener);
+    fixture.detectChanges(false);
+    await Promise.resolve();
+
+    const deleteButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.getAttribute("aria-label") === "删除文件夹")!;
+    deleteButton.focus();
+    deleteButton.click();
+    fixture.detectChanges(false);
+    await Promise.resolve();
+
+    const cancel = host.querySelector<HTMLButtonElement>("[data-testid='delete-folder-cancel']")!;
+    expect(document.activeElement).toBe(cancel);
+    cancel.click();
+    fixture.detectChanges(false);
+    await Promise.resolve();
+    expect(document.activeElement).toBe(deleteButton);
+    opener.remove();
+  });
+
   it("returns to the edit dialog with a fixed error when deletion fails", async () => {
     const store = unlockedStore();
     store.saveFolder({ id: "work", name: "Work" });

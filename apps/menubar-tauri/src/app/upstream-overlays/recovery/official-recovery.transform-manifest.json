@@ -286,7 +286,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.html",
-      "sha256": "758982e482ac48ad73cfd537f4ca761db473077653c325380137be133dd45545"
+      "sha256": "c778b1bf1e4773a33bc07eef4940e254ae3286ba0a556f847b3c8481d124235f"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
@@ -338,7 +338,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/folders-page.component.ts",
-      "sha256": "3f918d74a26cd44e60ac07fa6155bedf4ea54f4d439c6bc4b9666d5e3c951798"
+      "sha256": "4e877ac8bec2595ef3c8bf4ff481566ef8e26639ec4c0099ef5dd2b3515bc2ea"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/opaque-cipher-payload.ts",
@@ -362,7 +362,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/vault-folder-dialog.component.ts",
-      "sha256": "41701a9e94878c31c1e66f2cafe90f0b2bb0bb84e3a31b81a8758e2299e37610"
+      "sha256": "5048a11bb56bb18d31ec54c16da152de152517c8bfd079b106fc4076f356f4fa"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/vault-folder.service.ts",

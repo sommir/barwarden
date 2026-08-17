@@ -23,6 +23,8 @@ import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { PopupStateStore } from "../popup-state";
 import { OfficialPersonalCipherFormComponent } from "../upstream-overlays/cipher-form/official-personal-cipher-form.component";
 import { RETAINED_LOGIN_FORM_STATUS_STORE } from "./retained-login-form.adapter";
+import { NewItemPageComponent } from "./new-item-page.component";
+import { FoldersPageComponent } from "./folders-page.component";
 import {
   buildOfficialPersonalCipherFormConfig,
   type RetainedOfficialPersonalCipherFormConfig,
@@ -96,6 +98,62 @@ beforeAll(() => {
 afterAll(() => { style.remove(); document.body.className = ""; document.body.replaceChildren(); });
 
 describe("iOS 27 Vault workflows", () => {
+  it("keeps real New Item rows flat and touchable in compact mode", async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [NewItemPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(NewItemPageComponent);
+    document.body.className = "tw-bit-compact";
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const group = getComputedStyle(host.querySelector<HTMLElement>(".new-item-grid")!);
+    const row = getComputedStyle(host.querySelector<HTMLElement>(".new-item-option")!);
+    expect(group.borderRadius).toBe("0px");
+    expect(group.boxShadow).toBe("none");
+    expect(row.borderRadius).toBe("0px");
+    expect(row.minHeight).toBe("52px");
+    fixture.destroy();
+    document.body.className = "";
+  });
+
+  it("keeps real folder rows continuous and touchable in compact mode", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setItems([], [{ id: "work", name: "Work" }]);
+    await TestBed.configureTestingModule({
+      imports: [FoldersPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(FoldersPageComponent);
+    document.body.className = "tw-bit-compact";
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const group = getComputedStyle(host.querySelector<HTMLElement>("bit-item-group")!);
+    const row = getComputedStyle(host.querySelector<HTMLElement>("bit-item")!);
+    expect(group.borderRadius).toBe("0px");
+    expect(group.boxShadow).toBe("none");
+    expect(row.borderRadius).toBe("0px");
+    expect(row.marginBottom).toBe("0px");
+    expect(row.minHeight).toBe("52px");
+    host.querySelector<HTMLButtonElement>("[data-testid='new-folder-button']")!.click();
+    fixture.detectChanges();
+    const sheet = getComputedStyle(host.querySelector<HTMLElement>(".app-bottom-sheet[open]")!);
+    expect(sheet.borderRadius).toBe("var(--mac-sheet-radius) var(--mac-sheet-radius) 0 0");
+    fixture.destroy();
+    document.body.className = "";
+  });
+
   it("renders OTP as a flat continuous list with accessible actions", () => {
     document.body.innerHTML = `<main class="macos-page--otp"><div class="otp-page__list">
       <article class="otp-code-row"><button class="otp-code-row__copy"><span class="otp-code-row__code">123 456</span></button><button class="otp-code-row__retry">Retry</button></article>

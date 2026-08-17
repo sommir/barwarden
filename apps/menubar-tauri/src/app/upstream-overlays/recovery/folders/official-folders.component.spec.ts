@@ -56,6 +56,10 @@ describe("OfficialFoldersComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector("[data-testid='new-folder-button']")?.getAttribute("data-popup-focus-key"))
+      .toBe("folders:new");
+    expect(host.querySelector("[data-testid='edit-folder-work']")?.getAttribute("data-popup-focus-key"))
+      .toBe("folder:work");
     expect(host.querySelector("popup-header")).not.toBeNull();
     expect(host.querySelector("bit-item-group bit-item bit-item-content")).not.toBeNull();
     host.querySelector<HTMLButtonElement>("[data-testid='edit-folder-work']")!.click();
@@ -64,6 +68,8 @@ describe("OfficialFoldersComponent", () => {
 
     fixture.componentRef.setInput("folders", []);
     fixture.detectChanges();
+    expect(host.querySelector("[data-testid='empty-new-folder-button']")?.getAttribute("data-popup-focus-key"))
+      .toBe("folders:new");
     expect(host.querySelector("bit-no-items")).not.toBeNull();
     host.querySelector<HTMLButtonElement>("[data-testid='empty-new-folder-button']")!.click();
     expect(added).toBe(1);

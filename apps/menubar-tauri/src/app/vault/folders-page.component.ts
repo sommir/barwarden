@@ -60,7 +60,8 @@ export class FoldersPageComponent {
   }
 
   openFolderDialog(folder?: FolderView): void {
-    this.folderDialog?.openFor(folder ? fromFolderView(folder) : undefined);
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.folderDialog?.openFor(folder ? fromFolderView(folder) : undefined, trigger);
   }
 
   async back(): Promise<void> {

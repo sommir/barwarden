@@ -161,6 +161,10 @@ describe("VaultHierarchyComponent", () => {
 
     host.querySelector<HTMLButtonElement>('[data-vault-node="hidden"]')!.click();
     fixture.detectChanges();
+    expect(host.querySelector('[data-vault-child="archive"]')?.getAttribute("data-popup-focus-key"))
+      .toBe("vault-child:archive");
+    expect(host.querySelector('[data-vault-child="trash"]')?.getAttribute("data-popup-focus-key"))
+      .toBe("vault-child:trash");
     host.querySelector<HTMLButtonElement>('[data-vault-child="archive"]')!.click();
     await fixture.whenStable();
 

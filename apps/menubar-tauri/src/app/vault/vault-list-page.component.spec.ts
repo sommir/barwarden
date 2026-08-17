@@ -219,11 +219,11 @@ describe("VaultListPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector("popup-page")?.getAttribute("data-vault-state")).toBe("empty");
-    expect(
-      host.querySelector<HTMLButtonElement>(
-        "popup-header bw-retained-new-item-dropdown app-new-item-dropdown button[bitbutton]",
-      ),
-    ).not.toBeNull();
+    const newItemTrigger = host.querySelector<HTMLButtonElement>(
+      "popup-header bw-retained-new-item-dropdown app-new-item-dropdown button[bitbutton]",
+    )!;
+    expect(newItemTrigger).not.toBeNull();
+    expect(newItemTrigger.dataset["popupFocusKey"]).toBe("vault:new-item");
   });
 
   it("does not archive a protected Login from the row menu before reprompt", async () => {
