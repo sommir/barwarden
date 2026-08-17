@@ -639,6 +639,12 @@ describe("popup visual smoke classes", () => {
           <bit-item class="vault-list-row"></bit-item>
         </bit-item-group>
       </div>
+      <div class="vault-hierarchy__children">
+        <button class="vault-hierarchy__child macos-pressable" aria-expanded="true"></button>
+      </div>
+      <div class="vault-hierarchy__content">
+        <p class="vault-hierarchy__empty"></p>
+      </div>
     `;
     document.body.append(vault);
 
@@ -646,6 +652,8 @@ describe("popup visual smoke classes", () => {
     const trigger = vault.querySelector<HTMLElement>(".vault-hierarchy__trigger")!;
     const group = vault.querySelector<HTMLElement>("bit-item-group")!;
     const row = vault.querySelector<HTMLElement>(".vault-list-row")!;
+    const childTrigger = vault.querySelector<HTMLElement>(".vault-hierarchy__child")!;
+    const empty = vault.querySelector<HTMLElement>(".vault-hierarchy__empty")!;
 
     expect(header).toContain("display: grid;");
     expect(header).toContain(
@@ -665,6 +673,11 @@ describe("popup visual smoke classes", () => {
     expect(getComputedStyle(row).borderBottomWidth).toBe("1px");
     expect(getComputedStyle(row).borderRadius).toBe("0px");
     expect(getComputedStyle(row).boxShadow).toBe("none");
+    expect(getComputedStyle(childTrigger).minHeight).toBe("44px");
+    expect(getComputedStyle(empty).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(empty).borderBottomWidth).toBe("0px");
+    expect(getComputedStyle(empty).borderRadius).toBe("0px");
+    expect(getComputedStyle(empty).boxShadow).toBe("none");
     expect(globalCss).toMatch(
       /popup-page\s*>\s*main\s*>\s*div:has\(bw-root-search\),[\s\S]*?popup-page\s*>\s*main\s*>\s*div:has\(bit-search\)\s*{[^}]*padding-block:\s*var\(--mac-space-2\) !important;/,
     );

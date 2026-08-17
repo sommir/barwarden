@@ -4969,14 +4969,14 @@ bw-retained-new-item-dropdown {
  * are rounded.  The previous standalone empty-state card created two rounded
  * top corners directly underneath the already rounded header. */
 .vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__empty {
-  border-top: 0;
-  border-radius: 0 0 12px 12px;
+  border: 0;
+  border-radius: 0;
 }
 
 .vault-hierarchy__child {
   display: grid;
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   grid-template-columns: 28px minmax(0, 1fr) auto 14px;
   align-items: center;
   gap: var(--mac-space-2);
@@ -5047,10 +5047,11 @@ bw-retained-new-item-dropdown {
 
 .vault-hierarchy__empty {
   margin: 0;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   padding: var(--mac-space-5) var(--mac-space-4);
   background: var(--mac-surface-solid);
+  box-shadow: none;
   color: var(--mac-text-secondary);
   font-size: 13px;
   text-align: center;
