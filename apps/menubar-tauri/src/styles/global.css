@@ -2851,15 +2851,20 @@ auth-account .macos-account-label {
   box-shadow: none;
 }
 
-.macos-page--account-switcher auth-account + auth-account {
-  margin-top: 0;
+.macos-page--account-switcher bit-section:has(auth-account) > section {
+  display: grid;
+  gap: 0;
+}
+
+.macos-page--account-switcher bit-section:has(auth-account) > section > div:has(> auth-account) {
+  margin: 0;
 }
 
 .macos-page--account-switcher auth-account button[bit-item-content] {
   min-height: 52px;
 }
 
-auth-account .tw-italic {
+.macos-page--account-switcher auth-account .tw-italic {
   overflow-wrap: anywhere;
   white-space: normal;
 }

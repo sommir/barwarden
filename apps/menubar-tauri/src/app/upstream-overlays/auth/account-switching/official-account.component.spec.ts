@@ -4,18 +4,30 @@ import "@angular/compiler";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { Location } from "@angular/common";
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
-import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
+import { provideRouter } from "@angular/router";
+import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
+import { AuthService } from "@bitwarden/common/auth/abstractions/auth.service";
+import { AvatarService } from "@bitwarden/common/auth/abstractions/avatar.service";
+import { AuthenticationStatus } from "@bitwarden/common/auth/enums/authentication-status";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+import { PlatformUtilsService } from "@bitwarden/common/platform/abstractions/platform-utils.service";
+import { DialogService } from "@bitwarden/components";
+import { BehaviorSubject } from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 
 import { OfficialAccountSwitcherAdapter } from "../../../auth/official-account-switcher.adapter";
+import { OfficialI18nService } from "../../../official-ui/official-i18n.service";
 import { OfficialAccountComponent } from "./official-account.component";
-import { presentAvailableAccounts } from "./official-account-switcher.component";
+import {
+  OfficialAccountSwitcherComponent,
+  presentAvailableAccounts,
+} from "./official-account-switcher.component";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -44,78 +56,129 @@ function installAccountVisualCss(): () => void {
     ]),
   );
 
-  style.textContent = `auth-account + auth-account { margin-top: 12px; }\n${source.replace(
+  style.textContent = source.replace(
     /var\((--mac-[\w-]+)\)/g,
     (reference, name) => tokens.get(name) ?? reference,
-  )}`;
+  );
   document.head.append(style);
   return () => style.remove();
 }
 
-@Component({
-  standalone: true,
-  imports: [OfficialAccountComponent],
-  host: { class: "macos-page--account-switcher" },
-  template: `
-    <auth-account [account]="accounts[0]"></auth-account>
-    <auth-account [account]="accounts[1]"></auth-account>
-  `,
-})
-class AccountVisualTestHostComponent {
-  readonly accounts = [
-    {
-      id: "current",
-      name: "current-account-with-a-very-long-name@example.test",
-      email: "current-account-with-a-very-long-name@example.test",
-      server: "an-extremely-long-self-hosted-vault-hostname.example.test",
-      status: "unlocked" as const,
-      isActive: true,
-    },
-    {
-      id: "locked",
-      name: "locked-account@example.test",
-      email: "locked-account@example.test",
-      server: "vault.example.test",
-      status: "locked" as const,
-      isActive: false,
-    },
-  ];
-}
-
 describe("OfficialAccountComponent authorization copy", () => {
-  it("renders continuous 52 px account rows with wrapping written status and one row action", async () => {
+  it("renders the product account wrappers as continuous 52 px rows with one row action", async () => {
     const cleanupCss = installAccountVisualCss();
     const select = vi.fn(async () => undefined);
+    const add = vi.fn(async () => undefined);
+    const accounts = [
+      {
+        id: "current",
+        email: "current-account-with-a-very-long-name@example.test",
+        serverUrl: "https://an-extremely-long-self-hosted-vault-hostname.example.test",
+        status: "unlocked" as const,
+        isActive: true,
+      },
+      {
+        id: "locked",
+        email: "locked-account@example.test",
+        serverUrl: "https://vault.example.test",
+        status: "locked" as const,
+        isActive: false,
+      },
+    ];
+    const accountsSubject = new BehaviorSubject(accounts);
+    const activeAccountSubject = new BehaviorSubject(accounts[0]!);
+    const adapter = {
+      accounts$: accountsSubject.asObservable(),
+      activeAccount$: activeAccountSubject.asObservable(),
+      activeAuthorization$: new BehaviorSubject<"unlocked">("unlocked").asObservable(),
+      loading$: new BehaviorSubject(false).asObservable(),
+      error$: new BehaviorSubject<string | null>(null).asObservable(),
+      refresh: vi.fn(async () => undefined),
+      select,
+      add,
+      lock: vi.fn(async () => undefined),
+      lockAll: vi.fn(async () => undefined),
+      logout: vi.fn(async () => undefined),
+    };
+    const dialogService = { openSimpleDialog: vi.fn(async () => false) };
 
     try {
       await TestBed.configureTestingModule({
-        imports: [AccountVisualTestHostComponent],
+        imports: [OfficialAccountSwitcherComponent],
         providers: [
+          provideRouter([]),
+          OfficialI18nService,
+          { provide: I18nService, useExisting: OfficialI18nService },
           {
             provide: OfficialAccountSwitcherAdapter,
-            useValue: { add: vi.fn(async () => undefined), select },
+            useValue: adapter,
           },
           {
-            provide: I18nService,
-            useValue: { t: (key: string) => key },
+            provide: DialogService,
+            useValue: dialogService,
           },
+          {
+            provide: AccountService,
+            useValue: {
+              activeAccount$: new BehaviorSubject({
+                id: accounts[0]!.id,
+                email: accounts[0]!.email,
+                name: accounts[0]!.email,
+                emailVerified: true,
+                creationDate: undefined,
+              }).asObservable(),
+            },
+          },
+          {
+            provide: AvatarService,
+            useValue: {
+              avatarColor$: new BehaviorSubject("#175DDC").asObservable(),
+            },
+          },
+          {
+            provide: AuthService,
+            useValue: {
+              activeAccountStatus$: new BehaviorSubject(
+                AuthenticationStatus.Unlocked,
+              ).asObservable(),
+            },
+          },
+          { provide: PlatformUtilsService, useValue: { isFirefox: () => false } },
+          { provide: Location, useValue: { back: vi.fn() } },
         ],
       }).compileComponents();
 
-      const fixture = TestBed.createComponent(AccountVisualTestHostComponent);
+      const fixture = TestBed.createComponent(OfficialAccountSwitcherComponent);
       fixture.detectChanges();
-      const parent = fixture.nativeElement as HTMLElement;
-      document.body.append(parent);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      document.body.append(host);
 
-      const accounts = [...parent.querySelectorAll<HTMLElement>("auth-account")];
-      const rows = accounts.map((account) => account.querySelector<HTMLElement>("bit-item")!);
-      const buttons = accounts.map((account) => account.querySelectorAll("button"));
-      const labels = [...parent.querySelectorAll<HTMLElement>(".macos-account-label")];
-      const writtenStatus = accounts[0]!.querySelector<HTMLElement>(".tw-italic")!;
-      const statusIcon = accounts[0]!.querySelector<HTMLElement>("bit-icon[slot='end']")!;
+      const renderedAccounts = [...host.querySelectorAll<HTMLElement>("auth-account")];
+      const rows = renderedAccounts.map((account) =>
+        account.querySelector<HTMLElement>("bit-item")!,
+      );
+      const wrappers = renderedAccounts.map((account) => account.parentElement!);
+      const buttons = renderedAccounts.map((account) => account.querySelectorAll("button"));
+      const labels = [...host.querySelectorAll<HTMLElement>(".macos-account-label")];
+      const writtenStatus = renderedAccounts[0]!.querySelector<HTMLElement>(".tw-italic")!;
+      const statusIcon = renderedAccounts[0]!.querySelector<HTMLElement>("bit-icon[slot='end']")!;
+      const accountSection = renderedAccounts[0]!.closest<HTMLElement>("bit-section")!;
+      const accountLayout = accountSection.querySelector<HTMLElement>(":scope > section")!;
 
-      expect(accounts).toHaveLength(2);
-      expect(rows).toHaveLength(2);
+      expect(renderedAccounts).toHaveLength(3);
+      expect(rows).toHaveLength(3);
+      expect(wrappers.every((wrapper) => wrapper.parentElement === accountLayout)).toBe(true);
+      expect(
+        renderedAccounts.some((account) => account.nextElementSibling?.matches("auth-account")),
+      ).toBe(false);
+      expect(getComputedStyle(accountLayout).display).toBe("grid");
+      expect(getComputedStyle(accountLayout).gap).toBe("0px");
+      for (const wrapper of wrappers) {
+        expect(getComputedStyle(wrapper).marginTop).toBe("0px");
+        expect(getComputedStyle(wrapper).marginBottom).toBe("0px");
+      }
       for (const row of rows) {
         const styles = getComputedStyle(row);
         expect(styles.minHeight).toBe("52px");
@@ -126,7 +189,6 @@ describe("OfficialAccountComponent authorization copy", () => {
         expect(styles.borderRadius).toBe("0px");
         expect(styles.boxShadow).toBe("none");
       }
-      expect(getComputedStyle(accounts[1]!).marginTop).toBe("0px");
       for (const buttonsInRow of buttons) {
         expect(buttonsInRow).toHaveLength(1);
         expect(getComputedStyle(buttonsInRow[0]!).minHeight).toBe("52px");
@@ -147,9 +209,11 @@ describe("OfficialAccountComponent authorization copy", () => {
       (buttons[1]![0] as HTMLButtonElement).click();
       expect(select).toHaveBeenCalledOnce();
       expect(select).toHaveBeenCalledWith("locked");
+      expect(add).not.toHaveBeenCalled();
+      expect(dialogService.openSimpleDialog).not.toHaveBeenCalled();
 
       fixture.destroy();
-      parent.remove();
+      host.remove();
     } finally {
       cleanupCss();
       TestBed.resetTestingModule();
