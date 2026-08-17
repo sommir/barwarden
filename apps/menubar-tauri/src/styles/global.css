@@ -5300,10 +5300,10 @@ bw-retained-new-item-dropdown {
  * rather than a font baseline. */
 :is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] {
   display: grid;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   border-radius: 999px;
   padding: 0 !important;
   place-items: center;
@@ -5519,6 +5519,7 @@ bw-otp-code-row:last-child .otp-code-row {
 }
 
 .otp-code-row__retry {
+  min-width: 44px;
   min-height: 44px;
   border-radius: var(--mac-control-radius);
   padding-inline: var(--mac-space-2);

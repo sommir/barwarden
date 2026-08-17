@@ -710,8 +710,8 @@ describe("popup visual smoke classes", () => {
       /bw-vault-hierarchy,[\s\S]*app-vault-list-items-container,[\s\S]*bw-retained-new-item-dropdown\s*{\s*display:\s*block;/,
     );
     expect(globalCss).not.toContain(".vault-progressive-loading");
-    expect(headerAdd).toContain("width: 36px;");
-    expect(headerAdd).toContain("height: 36px;");
+    expect(headerAdd).toContain("width: 44px;");
+    expect(headerAdd).toContain("height: 44px;");
     expect(headerAdd).toContain("border-radius: 999px;");
     expect(headerAdd).toContain("place-items: center;");
     expect(headerAdd).toContain("font-size: 0;");

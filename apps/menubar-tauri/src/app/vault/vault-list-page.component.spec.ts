@@ -224,6 +224,12 @@ describe("VaultListPageComponent", () => {
     )!;
     expect(newItemTrigger).not.toBeNull();
     expect(newItemTrigger.dataset["popupFocusKey"]).toBe("vault:new-item");
+    const cleanupVisualCss = installVaultVisualCss();
+    const computedTrigger = getComputedStyle(newItemTrigger);
+    expect(computedTrigger.width).toBe("44px");
+    expect(computedTrigger.height).toBe("44px");
+    cleanupVisualCss();
+    fixture.destroy();
   });
 
   it("does not archive a protected Login from the row menu before reprompt", async () => {
