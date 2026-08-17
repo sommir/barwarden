@@ -293,18 +293,27 @@ describe("auth challenge pages", () => {
       )
       .map((node) => node.toString())
       .join("\n");
+    const rootTokens = new Map<string, string>();
+    postcss
+      .parse(
+        readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"), "utf8"),
+      )
+      .walkRules(":root", (rule) => {
+        rule.walkDecls((declaration) => {
+          if (declaration.prop.startsWith("--")) {
+            rootTokens.set(declaration.prop, declaration.value);
+          }
+        });
+      });
+    // This probe proves the challenge-specific literal wins over the generic
+    // primary action's important token declaration.
+    rootTokens.set("--mac-control-min-size", "40px");
     const renderedStyles = postcss.parse(fixtureStyles);
-    const resolvedTokens = new Map([
-      ["var(--mac-accent)", "#0a66ff"],
-      ["var(--mac-border-subtle)", "#d4e1f2"],
-      ["var(--mac-control-min-size)", "40px"],
-      ["var(--mac-surface-solid)", "#fbfdff"],
-      ["var(--mac-text-secondary)", "#536784"],
-    ]);
     renderedStyles.walkDecls((declaration) => {
-      for (const [token, value] of resolvedTokens) {
-        declaration.value = declaration.value.replaceAll(token, value);
-      }
+      declaration.value = declaration.value.replace(
+        /var\((--[\w-]+)\)/g,
+        (_match, token: string) => rootTokens.get(token) ?? _match,
+      );
     });
     stylesheet.textContent = renderedStyles.toString();
     document.head.append(stylesheet);
@@ -333,7 +342,7 @@ describe("auth challenge pages", () => {
     try {
       const primaryStyles = getComputedStyle(primary);
       expect(primaryStyles.minHeight).toBe("44px");
-      expect(primaryStyles.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+      expect(primaryStyles.backgroundColor).toBe("rgb(10, 102, 255)");
       for (const action of secondaryActions) {
         const styles = getComputedStyle(action);
         expect(styles.minHeight).toBe("44px");
@@ -342,9 +351,9 @@ describe("auth challenge pages", () => {
         expect(styles.borderTopLeftRadius).toBe("0");
         expect(styles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
       }
-      expect(getComputedStyle(secondaryActions[1]).color).not.toBe(
-        getComputedStyle(secondaryActions[0]).color,
-      );
+      expect(getComputedStyle(secondaryActions[0]).color).toBe("rgb(10, 102, 255)");
+      expect(getComputedStyle(secondaryActions[1]).color).toBe("rgb(83, 103, 132)");
+      expect(getComputedStyle(secondaryActions[2]).color).toBe("rgb(10, 102, 255)");
       expect(getComputedStyle(validation).minHeight).toBe("0px");
     } finally {
       card.remove();
