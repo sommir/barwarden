@@ -120,7 +120,7 @@ interface LoginSaveOwnership {
         <button slot="end" bitIconButton="bwi-popout" type="button" [label]="'i18nPopOut' | i18n" (click)="popOut()"></button>
       </popup-header>
 
-      <div class="cipher-form-scroll macos-list">
+      <div class="cipher-form-scroll macos-list" [attr.aria-busy]="savePending">
         @if (cipherType.type === 'login') {
           <bw-official-login-cipher-form
             formId="official-login-cipher-form"
@@ -138,11 +138,14 @@ interface LoginSaveOwnership {
 
       <popup-footer slot="footer">
         @if (cipherType.type === 'login') {
-          <button bitButton buttonType="primary" type="submit" form="official-login-cipher-form" [disabled]="!canSubmitOfficialLogin">{{ "save" | i18n }}</button>
+          <button bitButton buttonType="primary" type="submit" form="official-login-cipher-form" [disabled]="!canSubmitOfficialLogin" [loading]="savePending" [attr.aria-busy]="savePending">{{ "save" | i18n }}</button>
         } @else {
-          <button bitButton buttonType="primary" type="submit" form="official-personal-cipher-form" [disabled]="!canSubmitOfficialPersonal">{{ "save" | i18n }}</button>
+          <button bitButton buttonType="primary" type="submit" form="official-personal-cipher-form" [disabled]="!canSubmitOfficialPersonal" [loading]="savePending" [attr.aria-busy]="savePending">{{ "save" | i18n }}</button>
         }
         <button bitButton buttonType="secondary" type="button" (click)="cancel($event)">{{ "cancel" | i18n }}</button>
+        <span class="tw-sr-only" data-testid="vault-save-status" role="status" aria-live="polite" aria-atomic="true">
+          {{ savePending ? ("i18nSaving" | i18n) : "" }}
+        </span>
       </popup-footer>
     </popup-page>
   `,
@@ -241,6 +244,10 @@ export class VaultAddEditPageComponent implements OnDestroy {
       Boolean(state.activeSession?.crypto?.userKeyB64) &&
       !(this.routePath === "edit-cipher" && this.selectedItem?.requiresVaultSyncBeforeEdit)
     );
+  }
+
+  get savePending(): boolean {
+    return this.loginOperationToken !== null || this.personalOperation.pending;
   }
 
   async popOut(): Promise<void> {

@@ -486,6 +486,20 @@ describe("OfficialPersonalCipherFormComponent", () => {
     );
   });
 
+  it("focuses and centers the first invalid personal-item control", async () => {
+    const empty = personalView(CipherType.Card);
+    empty.name = "";
+    const fixture = await render("add", CipherType.Card, empty);
+    const name = (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLInputElement>('input[formcontrolname="name"]')!;
+    name.scrollIntoView = vi.fn();
+    await fixture.componentInstance.submit();
+    fixture.detectChanges(false);
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(name);
+    expect(name.scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" });
+  });
+
   it("awaits beforeSubmit while disabled and suppresses local save, toast, and output", async () => {
     let release!: (value: boolean) => void;
     const transport = new Promise<boolean>((resolve) => {

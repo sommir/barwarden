@@ -33,8 +33,10 @@ describe("PersonalCipherSaveOperation", () => {
       writePort: () => write,
     });
 
+    expect(operation.pending).toBe(false);
     const first = operation.submit(personalSubmit("add", CipherType.Card));
     await vi.waitFor(() => expect(write.createCardCipher).toHaveBeenCalledOnce());
+    expect(operation.pending).toBe(true);
     await expect(operation.submit(personalSubmit("add", CipherType.Card))).resolves.toEqual({
       committed: false,
       reason: "duplicate",
@@ -44,6 +46,7 @@ describe("PersonalCipherSaveOperation", () => {
     pending.resolve(returned);
     await expect(first).resolves.toEqual({ committed: true, item: returned });
 
+    expect(operation.pending).toBe(false);
     expect(store.snapshot().items[0]).toBe(returned);
     expect(operation.submitDisabled).toBe(true);
     expect(store.snapshot().statusMessage).toBe("项目已保存，但无法打开。");

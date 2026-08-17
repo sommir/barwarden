@@ -473,7 +473,7 @@ export const personalFormMemberContracts: readonly MemberContractEntry[] = [
             {
               "kind": "replace",
               "search": "\nsubmit = async () => {\n};\n[[/member-skeleton]]\n[[statement:0]]\nif (!this.config.organizationDataOwnershipDisabled && this.config.organizations.length === 0) {\n    this.toastService.showToast({\n        variant: \"error\",\n        message: this.i18nService.t(\"cannotSaveItemNoConfirmedOrgs\"),\n    });\n    return;\n}\n[[/statement:0]]\n[[statement:1]]\nlet successToast: string = \"editedItem\";\n[[/statement:1]]\n[[statement:2]]\nif (this.cipherForm.invalid) {\n    this.cipherForm.markAllAsTouched();\n    const invalidFieldsCount = this.countInvalidFields(this.cipherForm);\n    if (invalidFieldsCount > 0) {\n        this.toastService.showToast({\n            variant: \"error\",\n            title: null,\n            message: invalidFieldsCount === 1\n                ? this.i18nService.t(\"singleFieldNeedsAttention\")\n                : this.i18nService.t(\"multipleFieldsNeedAttention\", invalidFieldsCount),\n        });\n    }\n    return;\n}\n[[/statement:2]]\n[[statement:3]]\nif (this.beforeSubmit) {\n    const shouldSubmit = await this.beforeSubmit();\n    if (!shouldSubmit) {\n        return;\n    }\n}\n[[/statement:3]]\n[[statement:4]]\nconst userCanArchive = await firstValueFrom(this.accountService.activeAccount$.pipe(getUserId, switchMap((userId) => this.cipherArchiveService.userCanArchive$(userId))));\n[[/statement:4]]\n[[statement:5]]\nif (!userCanArchive && this.updatedCipherView.archivedDate) {\n    this.updatedCipherView.archivedDate = null;\n    successToast = \"itemRestored\";\n}\n[[/statement:5]]\n[[statement:6]]\nconst savedCipher = await this.addEditFormService.saveCipher(this.updatedCipherView, this.config);\n[[/statement:6]]\n[[statement:7]]\nthis.cipherFormCacheService.clearCache();\n[[/statement:7]]\n[[statement:8]]\nthis.toastService.showToast({\n    variant: \"success\",\n    title: null,\n    message: this.i18nService.t(this.config.mode === \"edit\" || this.config.mode === \"partial-edit\"\n        ? successToast\n        : \"addedItem\"),\n});\n[[/statement:8]]\n[[statement:9]]\nthis.cipherSaved.emit(savedCipher);\n[[/statement:9]]\n[[end-member]]",
-              "replacement": "\nsubmit = async (): Promise<void> => {\n};\n[[/member-skeleton]]\n[[statement:0]]\nif (typeof this.beforeSubmit !== \"function\") {\n    return;\n}\n[[/statement:0]]\n[[statement:1]]\nif (this.cipherForm.invalid) {\n    this.cipherForm.markAllAsTouched();\n    const invalidFieldsCount = this.countInvalidFields(this.cipherForm);\n    if (invalidFieldsCount > 0) {\n        this.toastService.showToast({\n            variant: \"error\",\n            title: null,\n            message: invalidFieldsCount === 1\n                ? this.i18nService.t(\"singleFieldNeedsAttention\")\n                : this.i18nService.t(\"multipleFieldsNeedAttention\", invalidFieldsCount),\n        });\n    }\n    return;\n}\n[[/statement:1]]\n[[statement:2]]\nconst cipher = this.cipherForSubmit();\n[[/statement:2]]\n[[statement:3]]\nthis.disableFormFields();\n[[/statement:3]]\n[[statement:4]]\ntry {\n    await this.beforeSubmit(cipher);\n}\nfinally {\n    this.enableFormFields();\n}\n[[/statement:4]]\n[[end-member]]"
+              "replacement": "\nsubmit = async (): Promise<void> => {\n};\n[[/member-skeleton]]\n[[statement:0]]\nif (typeof this.beforeSubmit !== \"function\") {\n    return;\n}\n[[/statement:0]]\n[[statement:1]]\nif (this.cipherForm.invalid) {\n    this.cipherForm.markAllAsTouched();\n    this.focusFirstInvalidControl();\n    const invalidFieldsCount = this.countInvalidFields(this.cipherForm);\n    if (invalidFieldsCount > 0) {\n        this.toastService.showToast({\n            variant: \"error\",\n            title: null,\n            message: invalidFieldsCount === 1\n                ? this.i18nService.t(\"singleFieldNeedsAttention\")\n                : this.i18nService.t(\"multipleFieldsNeedAttention\", invalidFieldsCount),\n        });\n    }\n    return;\n}\n[[/statement:1]]\n[[statement:2]]\nconst cipher = this.cipherForSubmit();\n[[/statement:2]]\n[[statement:3]]\nthis.disableFormFields();\n[[/statement:3]]\n[[statement:4]]\ntry {\n    await this.beforeSubmit(cipher);\n}\nfinally {\n    this.enableFormFields();\n}\n[[/statement:4]]\n[[end-member]]"
             }
           ],
           "retainedAuthorityFragments": [
@@ -485,6 +485,11 @@ export const personalFormMemberContracts: readonly MemberContractEntry[] = [
       ],
       "runtimeOnlyMembers": [
         {
+          "runtimeMember": "formElement",
+          "justification": "Scopes invalid-control lookup to this retained personal form element.",
+          "canonicalSha256": "c89eadf07e48038831dda4127f5ea1df54899956419e826b69b39013c5f287a9"
+        },
+        {
           "runtimeMember": "protectedOriginalCipherView",
           "justification": "Keeps denied server values outside Angular controls for unchanged-value restoration.",
           "canonicalSha256": "4688d84fb485a576580561416bbdea8f49dd871268faf01958cb1aab91b9c0b0"
@@ -493,6 +498,11 @@ export const personalFormMemberContracts: readonly MemberContractEntry[] = [
           "runtimeMember": "canViewSecrets:get",
           "justification": "Exposes the retained personal-form permission supplied by the native page boundary.",
           "canonicalSha256": "1bb55d9d2aceecf4fc34faf0c6c3e898f140b2be5776dd26db2a18cbfc4425af"
+        },
+        {
+          "runtimeMember": "focusFirstInvalidControl",
+          "justification": "Moves keyboard focus and centers the first invalid retained personal control after submit.",
+          "canonicalSha256": "25794cdc78f4fdea920c2ce8ed384ba14c3d47076e26406678084f331075602b"
         },
         {
           "runtimeMember": "cipherForSubmit",
@@ -1864,7 +1874,7 @@ export const personalFormTemplateContracts: readonly PersonalTemplateContract[] 
         {
           search: loginFormTemplateContracts[0].operations[0].search,
           replacement:
-            '<form [id]="formId" [formGroup]="cipherForm" [bitSubmit]="submit">\n  @if (!loading) {\n    <!-- TODO: Should we show a loading spinner here? Or emit a ready event for the container to handle loading state -->\n    <vault-item-details-section\n      [config]="config"\n      [originalCipherView]="originalCipherView"\n    ></vault-item-details-section>\n\n    @if (config.cipherType === CipherType.Identity) {\n      <vault-identity-section\n        [disabled]="false"\n        [originalCipherView]="originalCipherView"\n      ></vault-identity-section>\n    }\n\n    @if (config.cipherType === CipherType.Card) {\n      <vault-card-details-section\n        [originalCipherView]="originalCipherView"\n        [disabled]="false"\n      ></vault-card-details-section>\n    }\n\n    <vault-additional-options-section\n      [disableSectionMargin]="config.mode !== \'edit\'"\n    ></vault-additional-options-section>',
+            '<form #formElement [id]="formId" [formGroup]="cipherForm" [bitSubmit]="submit">\n  @if (!loading) {\n    <!-- TODO: Should we show a loading spinner here? Or emit a ready event for the container to handle loading state -->\n    <vault-item-details-section\n      [config]="config"\n      [originalCipherView]="originalCipherView"\n    ></vault-item-details-section>\n\n    @if (config.cipherType === CipherType.Identity) {\n      <vault-identity-section\n        [disabled]="false"\n        [originalCipherView]="originalCipherView"\n      ></vault-identity-section>\n    }\n\n    @if (config.cipherType === CipherType.Card) {\n      <vault-card-details-section\n        [originalCipherView]="originalCipherView"\n        [disabled]="false"\n      ></vault-card-details-section>\n    }\n\n    <vault-additional-options-section\n      [disableSectionMargin]="config.mode !== \'edit\'"\n    ></vault-additional-options-section>',
         },
       ],
     },

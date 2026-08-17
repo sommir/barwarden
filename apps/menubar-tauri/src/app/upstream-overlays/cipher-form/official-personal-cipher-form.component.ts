@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef,
   Component,
   DestroyRef,
+  ElementRef,
   EventEmitter,
   forwardRef,
   inject,
@@ -68,6 +69,8 @@ export class OfficialPersonalCipherFormComponent
 {
   @ViewChild(BitSubmitDirective)
   private bitSubmit: BitSubmitDirective;
+  @ViewChild("formElement", { read: ElementRef })
+  private formElement?: ElementRef<HTMLFormElement>;
   private destroyRef = inject(DestroyRef);
   private _firstInitialized = false;
   private protectedOriginalCipherView: CipherView | null = null;
@@ -256,6 +259,17 @@ export class OfficialPersonalCipherFormComponent
     }, 0);
   }
 
+  focusFirstInvalidControl(): HTMLElement | null {
+    this.changeDetectorRef.detectChanges();
+    const target =
+      this.formElement?.nativeElement.querySelector<HTMLElement>(
+        'input[aria-invalid="true"],textarea[aria-invalid="true"],select[aria-invalid="true"],[role="combobox"][aria-invalid="true"],.ng-invalid[tabindex]:not(form)',
+      ) ?? null;
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView?.({ block: "center", behavior: "auto" });
+    return target;
+  }
+
   private cipherForSubmit(): CipherView {
     const cipher = freshPersonalCipherView(this.updatedCipherView);
     if (this.config.mode === "clone") {
@@ -297,6 +311,7 @@ export class OfficialPersonalCipherFormComponent
     }
     if (this.cipherForm.invalid) {
       this.cipherForm.markAllAsTouched();
+      this.focusFirstInvalidControl();
       const invalidFieldsCount = this.countInvalidFields(this.cipherForm);
       if (invalidFieldsCount > 0) {
         this.toastService.showToast({

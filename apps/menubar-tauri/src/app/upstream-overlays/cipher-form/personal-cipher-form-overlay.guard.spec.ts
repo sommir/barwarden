@@ -157,8 +157,10 @@ describe("official personal form source foundation", () => {
     expect(personalFormMemberContracts).toHaveLength(8);
     const allowedRuntimeOnly: Readonly<Record<string, readonly string[]>> = {
       "official-personal-cipher-form.component.ts": [
+        "formElement",
         "protectedOriginalCipherView",
         "canViewSecrets:get",
+        "focusFirstInvalidControl",
         "cipherForSubmit",
         "stripServerState",
         "restoreDeniedControlState",

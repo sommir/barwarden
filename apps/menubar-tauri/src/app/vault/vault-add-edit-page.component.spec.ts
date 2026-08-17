@@ -392,6 +392,44 @@ describe("VaultAddEditPageComponent", () => {
     await first;
   });
 
+  it("exposes polite pending feedback, suppresses duplicate writes, and retains Login data after failure", async () => {
+    await new OfficialI18nService().setLocale("zh-CN");
+    const cipherWrite = new RecordingCipherWrite();
+    const pending = deferred<VaultItem>();
+    vi.spyOn(cipherWrite, "createLoginCipher").mockReturnValue(pending.promise);
+    const session = fakeAuthSession(TEST_USER_KEY);
+    const { fixture } = await createFixture("1", "add-cipher", "", demoVaultItems, {
+      session,
+      cipherWrite,
+    });
+    const official = await initializeOfficialForm(fixture, "Retained typed Login");
+
+    const first = official.submit();
+    await vi.waitFor(() => expect(cipherWrite.createLoginCipher).toHaveBeenCalledOnce());
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const scroll = host.querySelector<HTMLElement>(".cipher-form-scroll")!;
+    const status = host.querySelector<HTMLElement>('[data-testid="vault-save-status"]')!;
+    expect(scroll.getAttribute("aria-busy")).toBe("true");
+    expect(status.getAttribute("role")).toBe("status");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.textContent).toContain("保存中");
+
+    await official.submit();
+    expect(cipherWrite.createLoginCipher).toHaveBeenCalledOnce();
+
+    pending.reject(new Error("private transport failure"));
+    await first;
+    fixture.detectChanges();
+
+    expect(
+      host.querySelector<HTMLInputElement>('input[formcontrolname="name"]')?.value,
+    ).toBe("Retained typed Login");
+    expect(scroll.getAttribute("aria-busy")).toBe("false");
+    expect(status.textContent?.trim()).toBe("");
+  });
+
   it("keeps a committed result and fixed feedback when navigation returns false", async () => {
     const cipherWrite = new RecordingCipherWrite();
     const returned = savedLogin("committed-navigation-false");

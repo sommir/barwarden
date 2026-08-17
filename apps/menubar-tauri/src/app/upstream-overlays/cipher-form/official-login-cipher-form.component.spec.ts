@@ -854,6 +854,19 @@ describe("OfficialLoginCipherFormComponent", () => {
       "有 1 个字段需要您注意。",
     );
   });
+
+  it("focuses and centers the first invalid Login control", async () => {
+    const fixture = await render("add", CipherView.fromJSON({ type: CipherType.Login })!, true);
+    const name = (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLInputElement>('input[formcontrolname="name"]')!;
+    name.scrollIntoView = vi.fn();
+    await fixture.componentInstance.submit();
+    fixture.detectChanges();
+    await settle(fixture);
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(name);
+    expect(name.scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" });
+  });
 });
 
 function deferred<T>() {
