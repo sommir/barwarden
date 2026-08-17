@@ -239,6 +239,46 @@ describe("LockPageComponent", () => {
     }
   });
 
+  it("groups biometric alternatives into adjacent used-height rows", async () => {
+    const cleanupCss = installLockVisualCss();
+    const { fixture } = await create(vi.fn(async () => "unlocked" as const), vi.fn(async () => undefined), {
+      availability: {
+        pinEnabled: true,
+        biometricEnabled: true,
+        biometricAvailability: "available",
+      },
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    const group = host.querySelector<HTMLElement>('[data-testid="lock-unlock-methods"]');
+
+    try {
+      expect(group).not.toBeNull();
+      expect(group?.classList.contains("tw-space-y-3")).toBe(false);
+      expect([...group!.querySelectorAll<HTMLElement>("[data-testid]")].map((element) => element.dataset.testid))
+        .toEqual([
+          "lock-switch-pin",
+          "lock-switch-master-password",
+          "lock-logout-button",
+          "lock-switch-account",
+        ]);
+
+      const groupStyles = getComputedStyle(group!);
+      expect(groupStyles.display).toBe("flex");
+      expect(groupStyles.flexDirection).toBe("column");
+      expect(groupStyles.gap).toBe("0px");
+      const switchAccountStyles = getComputedStyle(
+        group!.querySelector<HTMLElement>('[data-testid="lock-switch-account"]')!,
+      );
+      expect(switchAccountStyles.display).toBe("flex");
+      expect(switchAccountStyles.alignItems).toBe("center");
+      expect(switchAccountStyles.width).toBe("100%");
+      expect(switchAccountStyles.minHeight).toBe("44px");
+    } finally {
+      fixture.destroy();
+      cleanupCss();
+    }
+  });
+
   it("renders one Barwarden heading without a provider subtitle", async () => {
     const { fixture } = await create();
     const host = fixture.nativeElement as HTMLElement;

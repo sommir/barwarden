@@ -44,7 +44,7 @@
             {{ "i18nUnlockWithTouchId" | i18n }}
           </button>
 
-          <div class="tw-flex tw-flex-col tw-space-y-3">
+          <div class="macos-unlock-methods" data-testid="lock-unlock-methods">
             <p class="tw-text-center tw-mb-0">{{ "or" | i18n }}</p>
 
             @if (availability.pinEnabled) {
@@ -83,6 +83,8 @@
             >
               {{ "logOut" | i18n }}
             </button>
+
+            <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
           </div>
         }
         @case ("pin") {
@@ -118,6 +120,8 @@
       }
     </div>
 
-    <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+    @if (activeMethod !== "biometric") {
+      <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+    }
   </section>
 </popup-page>

@@ -11,7 +11,7 @@ const root = process.cwd();
 const vendorRoot = join(root, "vendor/bitwarden-clients");
 const overlayRoot = join(root, "apps/menubar-tauri/src/app/upstream-overlays/auth/lock");
 const manifestPath = join(overlayRoot, "official-master-password-lock.transform-manifest.json");
-const manifestDigest = "42dde6207577d7bbd6d1c39397d5b0bbbcad9ecb1608b29ae38c18f4fb7ce582";
+const manifestDigest = "ebcbcf57b0052452aeb5201b82d57b744e72d05eec21e280685587a460ea70e0";
 const expectedRevision = [
   "https://github.com/bitwarden/clients.git",
   "f47b6946e01aed474875789081966d311d5b8289",
@@ -283,6 +283,18 @@ function transformBiometricBranch(authority: string): string {
     "<p class=\"tw-text-center tw-mb-0\">或</p>",
     "biometric separator",
   );
+  result = replaceExact(
+    result,
+    '<div class="tw-flex tw-flex-col tw-space-y-3">',
+    '<div class="macos-unlock-methods" data-testid="lock-unlock-methods">',
+    "biometric continuous method group",
+  );
+  result = replaceExact(
+    result,
+    "  </button>\n</div>",
+    "  </button>\n\n  <a bitLink routerLink=\"/account-switcher\" data-testid=\"lock-switch-account\">切换账户</a>\n</div>",
+    "biometric account switch row",
+  );
   return result;
 }
 
@@ -436,7 +448,9 @@ ${biometricBranch}
       }
     </div>
 
-    <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">切换账户</a>
+    @if (activeMethod !== "biometric") {
+      <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">切换账户</a>
+    }
   </section>
 </popup-page>
 `);

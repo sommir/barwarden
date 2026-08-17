@@ -2776,6 +2776,19 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   box-shadow: none;
 }
 
+.macos-unlock-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+[data-testid="lock-switch-account"] {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+}
+
 [data-testid="lock-logout-button"] {
   color: var(--mac-destructive);
 }
