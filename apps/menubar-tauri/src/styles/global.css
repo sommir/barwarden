@@ -5624,7 +5624,8 @@ button.is-copy-failed {
   max-width: 100%;
 }
 
-.macos-continuous-group {
+.macos-continuous-group,
+.macos-page--settings bit-item-group.macos-continuous-group {
   overflow: visible;
   border: 0;
   border-radius: 0;

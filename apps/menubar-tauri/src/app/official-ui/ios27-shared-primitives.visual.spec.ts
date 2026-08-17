@@ -39,14 +39,14 @@ describe("iOS 27 shared primitives", () => {
     style.dataset["ios27Test"] = "true";
     frameDocument.body.innerHTML = `
       <main class="macos-page--settings">
-        <section class="macos-continuous-group">
+        <bit-item-group class="macos-continuous-group">
           <bit-item>
             <bit-item-action><button class="macos-continuous-row">Row</button></bit-item-action>
           </bit-item>
           <bit-item>
             <bit-item-action><button class="macos-continuous-row">Last row</button></bit-item-action>
           </bit-item>
-        </section>
+        </bit-item-group>
       </main>
       <section class="macos-continuous-group direct-row-group">
         <button class="macos-continuous-row">Direct row</button>
@@ -81,6 +81,7 @@ describe("iOS 27 shared primitives", () => {
     const sheet = frameWindow.getComputedStyle(frameDocument.querySelector<HTMLElement>(".app-bottom-sheet")!);
 
     expect(group.borderRadius).toBe("0px");
+    expect(group.backgroundColor).toBe("rgba(0, 0, 0, 0)");
     expect(group.boxShadow).toBe("none");
     expect(item.borderBottomWidth).toBe("1px");
     expect(item.margin).toBe("0px");
