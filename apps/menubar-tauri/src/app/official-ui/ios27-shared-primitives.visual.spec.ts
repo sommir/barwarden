@@ -38,9 +38,19 @@ describe("iOS 27 shared primitives", () => {
     const style = installVisualCss(frameDocument);
     style.dataset["ios27Test"] = "true";
     frameDocument.body.innerHTML = `
-      <section class="macos-continuous-group">
-        <button class="macos-continuous-row">Row</button>
-        <button class="macos-continuous-row">Last row</button>
+      <main class="macos-page--settings">
+        <section class="macos-continuous-group">
+          <bit-item>
+            <bit-item-action><button class="macos-continuous-row">Row</button></bit-item-action>
+          </bit-item>
+          <bit-item>
+            <bit-item-action><button class="macos-continuous-row">Last row</button></bit-item-action>
+          </bit-item>
+        </section>
+      </main>
+      <section class="macos-continuous-group direct-row-group">
+        <button class="macos-continuous-row">Direct row</button>
+        <button class="macos-continuous-row">Last direct row</button>
       </section>
       <input class="macos-form-control" />
       <button class="icon-action">Action</button>
@@ -49,7 +59,22 @@ describe("iOS 27 shared primitives", () => {
     `;
 
     const group = frameWindow.getComputedStyle(frameDocument.querySelector<HTMLElement>(".macos-continuous-group")!);
-    const row = frameWindow.getComputedStyle(frameDocument.querySelector<HTMLElement>(".macos-continuous-row")!);
+    const itemHosts = frameDocument.querySelectorAll<HTMLElement>(
+      ".macos-page--settings .macos-continuous-group > bit-item",
+    );
+    const item = frameWindow.getComputedStyle(itemHosts[0]!);
+    const lastItem = frameWindow.getComputedStyle(itemHosts[1]!);
+    const itemAction = frameWindow.getComputedStyle(
+      itemHosts[0]!.querySelector<HTMLElement>(":scope > bit-item-action")!,
+    );
+    const row = frameWindow.getComputedStyle(
+      itemHosts[0]!.querySelector<HTMLElement>(".macos-continuous-row")!,
+    );
+    const directRows = frameDocument.querySelectorAll<HTMLElement>(
+      ".direct-row-group > .macos-continuous-row",
+    );
+    const directRow = frameWindow.getComputedStyle(directRows[0]!);
+    const lastDirectRow = frameWindow.getComputedStyle(directRows[1]!);
     const control = frameWindow.getComputedStyle(frameDocument.querySelector<HTMLElement>(".macos-form-control")!);
     const action = frameWindow.getComputedStyle(frameDocument.querySelector<HTMLElement>(".icon-action")!);
     const menu = frameWindow.getComputedStyle(frameDocument.querySelector<HTMLElement>('[role="menu"]')!);
@@ -57,10 +82,28 @@ describe("iOS 27 shared primitives", () => {
 
     expect(group.borderRadius).toBe("0px");
     expect(group.boxShadow).toBe("none");
-    expect(row.minHeight).toBe("52px");
+    expect(item.borderBottomWidth).toBe("1px");
+    expect(item.margin).toBe("0px");
+    expect(item.overflow).toBe("visible");
+    expect(item.borderRadius).toBe("0px");
+    expect(item.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(item.boxShadow).toBe("none");
+    expect(lastItem.margin).toBe("0px");
+    expect(lastItem.borderRadius).toBe("0px");
+    expect(lastItem.borderBottomWidth).toBe("0px");
+    expect(lastItem.boxShadow).toBe("none");
+    expect(itemAction.margin).toBe("0px");
+    expect(itemAction.overflow).toBe("visible");
+    expect(itemAction.borderRadius).toBe("0px");
+    expect(itemAction.borderBottomWidth).toBe("0px");
+    expect(itemAction.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(itemAction.boxShadow).toBe("none");
+    expect(Number.parseFloat(row.minHeight)).toBeGreaterThanOrEqual(52);
     expect(row.borderRadius).toBe("0px");
-    expect(row.borderBottomWidth).toBe("1px");
+    expect(row.borderBottomWidth).toBe("0px");
     expect(row.boxShadow).toBe("none");
+    expect(directRow.borderBottomWidth).toBe("1px");
+    expect(lastDirectRow.borderBottomWidth).toBe("0px");
     expect(control.minHeight).toBe("44px");
     expect(control.borderRadius).toBe("10px");
     expect(action.width).toBe("44px");

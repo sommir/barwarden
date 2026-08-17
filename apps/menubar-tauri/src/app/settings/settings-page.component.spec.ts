@@ -54,6 +54,21 @@ describe("SettingsPageComponent", () => {
     expect(groups.map((group) => group.dataset["settingsGroup"]))
       .toEqual(["general", "security", "application", "information"]);
     expect(groups.map((group) => group.querySelectorAll("bit-item").length)).toEqual([2, 1, 3, 1]);
+    for (const group of groups) {
+      const continuousGroup = group.querySelector<HTMLElement>(
+        ":scope > .macos-continuous-group",
+      );
+      const itemHosts = Array.from(
+        continuousGroup?.querySelectorAll<HTMLElement>(":scope > bit-item") ?? [],
+      );
+      expect(continuousGroup).not.toBeNull();
+      expect(itemHosts).not.toHaveLength(0);
+      for (const itemHost of itemHosts) {
+        expect(
+          itemHost.querySelector(":scope > bit-item-action > .macos-continuous-row"),
+        ).not.toBeNull();
+      }
+    }
     expect(fixture.nativeElement.querySelectorAll("bit-card")).toHaveLength(0);
     Array.from(fixture.nativeElement.querySelectorAll<HTMLButtonElement>("button.settings-row"))
       .forEach((row) => row.click());

@@ -5632,20 +5632,33 @@ button.is-copy-failed {
   box-shadow: none;
 }
 
+.macos-continuous-group > :is(bit-item, bit-item-action),
+.macos-continuous-group > bit-item > bit-item-action,
+.macos-page--settings .macos-continuous-group > bit-item {
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .macos-continuous-row {
   display: flex;
   width: 100%;
   min-height: 52px;
   align-items: center;
   border: 0;
-  border-bottom: 1px solid var(--mac-border-subtle);
   border-radius: 0;
   background: var(--mac-surface-solid);
   color: var(--mac-text-primary);
   box-shadow: none;
 }
 
-.macos-continuous-row:last-child { border-bottom: 0; }
+.macos-continuous-group > bit-item:not(:last-child),
+.macos-continuous-group > .macos-continuous-row:not(:last-child) {
+  border-bottom: 1px solid var(--mac-border-subtle);
+}
 
 .macos-form-control {
   min-height: 44px;

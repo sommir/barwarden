@@ -416,7 +416,18 @@ describe("P1 settings pages", () => {
     const fixture = TestBed.createComponent(AboutPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelectorAll("bit-item-group bit-item")).toHaveLength(6);
+    const continuousGroup = host.querySelector<HTMLElement>(
+      ".about-continuous-list.macos-continuous-group",
+    );
+    const itemHosts = Array.from(
+      continuousGroup?.querySelectorAll<HTMLElement>(":scope > bit-item") ?? [],
+    );
+    expect(itemHosts).toHaveLength(6);
+    for (const itemHost of itemHosts) {
+      expect(
+        itemHost.querySelector(":scope > bit-item-action > .macos-continuous-row"),
+      ).not.toBeNull();
+    }
     expect(
       Array.from(
         host.querySelectorAll<HTMLButtonElement>(
