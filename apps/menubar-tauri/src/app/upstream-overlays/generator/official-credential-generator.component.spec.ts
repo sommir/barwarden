@@ -87,6 +87,24 @@ describe("OfficialCredentialGeneratorComponent", () => {
     ).not.toBeNull();
   });
 
+  it("publishes structural focus keys without exposing the generated credential", async () => {
+    const sensitiveCredential = "orbit-lantern-copper-signal";
+    const service = generatorService({
+      generate: vi.fn(async () => result(sensitiveCredential, "password")),
+    });
+    const { fixture } = await createFixture(service);
+    await render(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const generatorKeys = [...host.querySelectorAll<HTMLElement>("[data-popup-focus-key]")].map(
+      (node) => node.getAttribute("data-popup-focus-key"),
+    );
+
+    expect(generatorKeys).toContain("generator:copy");
+    expect(generatorKeys).toContain("generator:history");
+    expect(generatorKeys.join("\n")).not.toContain(sensitiveCredential);
+    expect(host.querySelector("[data-bw-focus-key]")).toBeNull();
+  });
+
   it("generates initially, switches mode, and regenerates from the official icon actions", async () => {
     const service = generatorService();
     const { fixture } = await createFixture(service);

@@ -659,7 +659,7 @@ export const generatorTemplateContracts = [
         search:
           '    <button\n      type="button"\n      bitIconButton="bwi-generate"\n      buttonType="primaryGhost"\n      (click)="generate(USER_REQUEST)"\n      [label]="credentialTypeGenerateLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n    >\n      {{ credentialTypeGenerateLabel$ | async }}\n    </button>\n    <button\n      type="button"\n      bitIconButton="bwi-clone"\n      buttonType="primaryGhost"\n      [label]="credentialTypeCopyLabel$ | async"\n      [valueLabel]="credentialTypeLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n      [bwGeneratorClipboard]="value$ | async"\n    ></button>',
         replacement:
-          '    <button\n      data-testid="generator-copy"\n      type="button"\n      bitIconButton="bwi-clone"\n      buttonType="primary"\n      [label]="credentialTypeCopyLabel$ | async"\n      [valueLabel]="credentialTypeLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n      [bwGeneratorClipboard]="value$ | async"\n    ></button>\n    <button\n      data-testid="generator-regenerate"\n      type="button"\n      bitIconButton="bwi-generate"\n      buttonType="primaryGhost"\n      (click)="generate(USER_REQUEST)"\n      [label]="credentialTypeGenerateLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n    >\n      {{ credentialTypeGenerateLabel$ | async }}\n    </button>',
+          '    <button\n      data-testid="generator-copy"\n      data-popup-focus-key="generator:copy"\n      type="button"\n      bitIconButton="bwi-clone"\n      buttonType="primary"\n      [label]="credentialTypeCopyLabel$ | async"\n      [valueLabel]="credentialTypeLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n      [bwGeneratorClipboard]="value$ | async"\n    ></button>\n    <button\n      data-testid="generator-regenerate"\n      type="button"\n      bitIconButton="bwi-generate"\n      buttonType="primaryGhost"\n      (click)="generate(USER_REQUEST)"\n      [label]="credentialTypeGenerateLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n    >\n      {{ credentialTypeGenerateLabel$ | async }}\n    </button>',
       },
       {
         search: "  </div>\n</bit-card>\n@let showAlgorithm = showAlgorithm$ | async;",
@@ -698,7 +698,7 @@ export const generatorTemplateContracts = [
         search:
           '  <bit-item>\n    <a type="button" bit-item-content routerLink="/generator-history">',
         replacement:
-          '  <bit-item class="macos-generator__history-row">\n    <a class="macos-generator__history-link" bit-item-content routerLink="/generator-history">',
+          '  <bit-item class="macos-generator__history-row">\n    <a class="macos-generator__history-link" data-popup-focus-key="generator:history" bit-item-content routerLink="/generator-history">',
       },
     ],
   },
@@ -739,6 +739,11 @@ export const generatorTemplateContracts = [
       "2eef6e1fcc3d03b4685dacff58e9b7afb5204ac62038372f942e21c4b65a28b7",
     transforms: [
       {
+        search: "@for (credential of credentials$ | async; track credential) {",
+        replacement:
+          "@for (credential of credentials$ | async; track credential; let historyIndex = $index) {",
+      },
+      {
         search: "  <bit-item>",
         replacement: '  <bit-item class="macos-generator-history__row">',
       },
@@ -746,7 +751,7 @@ export const generatorTemplateContracts = [
         search:
           '          [appCopyClick]="credential.credential"\n          [valueLabel]="getGeneratedValueText(credential)"\n          [label]="getCopyText(credential)"\n          showToast',
         replacement:
-          '          [label]="getCopyText(credential)"\n          (click)="copy(credential, $event.currentTarget)"',
+          '          [attr.data-popup-focus-key]="\'generator-history:\' + credential.generationDate.getTime() + \':\' + historyIndex"\n          [label]="getCopyText(credential)"\n          (click)="copy(credential, $event.currentTarget)"',
       },
     ],
   },

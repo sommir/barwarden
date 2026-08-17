@@ -10,6 +10,7 @@
       <button
         bit-item-content
         [attr.aria-label]="'i18nViewItem' | i18n: send.name"
+        [attr.data-popup-focus-key]="'send-item:' + send.id"
         (click)="open.emit(send)"
         type="button"
       >
@@ -39,6 +40,7 @@
         <bit-item-action class="macos-send-row__actions">
           <button
             class="tw-p-1"
+            [attr.data-popup-focus-key]="'send-item:' + send.id + ':copy'"
             bitIconButton="bwi-clone"
             size="small"
             type="button"
@@ -48,6 +50,7 @@
         </bit-item-action>
         <bit-item-action class="macos-send-row__actions">
           <button
+            [attr.data-popup-focus-key]="'send-item:' + send.id + ':more'"
             bitIconButton="bwi-ellipsis-v"
             size="small"
             type="button"

@@ -121,6 +121,28 @@ describe("GeneratorHistoryPageComponent", () => {
     expect(clearButton(host).disabled).toBe(false);
   });
 
+  it("publishes structural history-row focus keys without exposing credential values", async () => {
+    const sensitiveCredential = "orbit-lantern-copper-signal";
+    const { fixture } = await setup(
+      generatorService({
+        history: vi.fn(async () => [
+          credential("password", sensitiveCredential, "2026-07-11T08:09:10.000Z"),
+        ]),
+      }),
+    );
+    await render(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const generatorKeys = [...host.querySelectorAll<HTMLElement>("[data-popup-focus-key]")].map(
+      (node) => node.getAttribute("data-popup-focus-key"),
+    );
+
+    expect(
+      generatorKeys.some((key) => /^generator-history:\d{1,16}:\d{1,4}$/.test(key ?? "")),
+    ).toBe(true);
+    expect(generatorKeys.join("\n")).not.toContain(sensitiveCredential);
+    expect(host.querySelector("[data-bw-focus-key]")).toBeNull();
+  });
+
   it("copies only through the native clipboard policy host", async () => {
     const clipboard = new RecordingHost();
     const entry = credential("username", "copied-user");

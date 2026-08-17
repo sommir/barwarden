@@ -124,6 +124,7 @@ const retainOfficialPolicySearchFilterLoadingEmptyAndNoResultsBlocks = [
     @if (state() !== "empty") {
       <div class="tw-flex tw-gap-1 tw-items-center">
         <bit-search
+          data-popup-focus-key="send:search"
           class="tw-flex-1"
           autocomplete="off"
           [placeholder]="'i18nSearchSend' | i18n"
@@ -235,6 +236,7 @@ const replaceRouterLinkWithOpenOutput = [
         [queryParams]="{ sendId: send.id, type: send.type }"
         appStopClick`,
     replacement: `        [attr.aria-label]="'i18nViewItem' | i18n: send.name"
+        [attr.data-popup-focus-key]="'send-item:' + send.id"
         (click)="open.emit(send)"`,
   },
 ] as const;
@@ -295,6 +297,7 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
     replacement: `        <bit-item-action class="macos-send-row__actions">
           <button
             class="tw-p-1"
+            [attr.data-popup-focus-key]="'send-item:' + send.id + ':copy'"
             bitIconButton="bwi-clone"
             size="small"
             type="button"
@@ -315,6 +318,7 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
         </bit-item-action>`,
     replacement: `        <bit-item-action class="macos-send-row__actions">
           <button
+            [attr.data-popup-focus-key]="'send-item:' + send.id + ':more'"
             bitIconButton="bwi-ellipsis-v"
             size="small"
             type="button"

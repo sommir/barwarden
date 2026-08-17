@@ -116,6 +116,36 @@ describe("OfficialSendListComponent", () => {
     expect(host.querySelector('[value="file"]')).toBeNull();
   });
 
+  it("publishes structural Send focus keys without exposing visible Send values", async () => {
+    const fixture = await createFixture({
+      sends: [
+        textSend({
+          id: "m12-text-send",
+          name: "Example Send",
+          text: "secret body",
+          accessUrl: "https://send.example.test/m12-text-send",
+        }),
+      ],
+      state: "ready",
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const sendKeys = [...host.querySelectorAll<HTMLElement>("[data-popup-focus-key]")].map((node) =>
+      node.getAttribute("data-popup-focus-key"),
+    );
+
+    expect(sendKeys).toEqual(
+      expect.arrayContaining([
+        "send:search",
+        "send-item:m12-text-send",
+        "send-item:m12-text-send:copy",
+        "send-item:m12-text-send:more",
+      ]),
+    );
+    expect(sendKeys.join("\n")).not.toMatch(/Example Send|secret body|https?:\/\//);
+    expect(host.querySelector("[data-bw-focus-key]")).toBeNull();
+  });
+
   it.each([
     ["loading", { loading: true, state: "empty" }, "正在加载 Send"],
     ["empty", { state: "empty" }, "安全地发送敏感信息"],

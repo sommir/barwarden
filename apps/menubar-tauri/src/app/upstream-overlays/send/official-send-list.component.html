@@ -17,6 +17,7 @@
     @if (state() !== "empty") {
       <div class="tw-flex tw-gap-1 tw-items-center">
         <bit-search
+          data-popup-focus-key="send:search"
           class="tw-flex-1"
           autocomplete="off"
           [placeholder]="'i18nSearchSend' | i18n"
