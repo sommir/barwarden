@@ -2,6 +2,8 @@ import "zone.js";
 import "@angular/compiler";
 
 import { webcrypto } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   BrowserTestingModule,
@@ -9,7 +11,7 @@ import {
 } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 
@@ -64,6 +66,21 @@ describe("VaultItemDetailPageComponent", () => {
       ],
     });
   });
+
+  afterEach(() => {
+    document.head.querySelectorAll("style[data-vault-detail-production-css]")
+      .forEach((node) => node.remove());
+  });
+
+  function installProductionCss(): HTMLStyleElement {
+    const stylesheet = document.createElement("style");
+    stylesheet.dataset["vaultDetailProductionCss"] = "true";
+    stylesheet.textContent = ["macos-tokens.css", "global.css"]
+      .map((file) => readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", file), "utf8"))
+      .join("\n");
+    document.head.append(stylesheet);
+    return stylesheet;
+  }
 
   async function createFixture(
     actionsOverride?: Partial<Pick<VaultActionsService,
@@ -749,7 +766,7 @@ describe("VaultItemDetailPageComponent", () => {
     expect(footer?.parentElement?.tagName).toBe("POPUP-PAGE");
     expect(host.querySelector(".popup-page.detail-page")).toBeNull();
     expect(host.querySelector(".detail-header")).toBeNull();
-    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("查看登录");
+    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("GitHub");
     expect(host.textContent).toContain("GitHub");
     expect(host.textContent).toContain("登录凭据");
     expect(host.textContent).toContain("自动填充选项");
@@ -772,6 +789,52 @@ describe("VaultItemDetailPageComponent", () => {
     expect(host.querySelectorAll('[aria-label^="前往"]').length).toBe(2);
     expect(host.querySelector('[data-testid="toggle-password"]')).not.toBeNull();
     expect(host.querySelector("footer a[bitbutton]")?.textContent).toContain("编辑");
+  });
+
+  it("uses item h1, type-folder metadata, contextual Fill first, and exact keys", async () => {
+    installProductionCss();
+    const { fixture } = await createLiveContextFixture();
+    fixture.componentRef.setInput("id", demoVaultItems[0]!.id);
+    fixture.detectChanges();
+
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector("popup-header h1")?.textContent?.trim()).toBe(demoVaultItems[0]!.name);
+    expect(host.querySelector(".vault-detail-heading__metadata")?.textContent).toMatch(/登录.*·.*Work/);
+    expect(host.querySelector("[data-testid='official-item-identity']")?.getAttribute("aria-hidden")).toBe("true");
+    const visible = Array.from(host.querySelectorAll<HTMLElement>(".cipher-view section"))
+      .filter((node) => getComputedStyle(node).display !== "none");
+    expect(visible[0]?.querySelector("[data-testid='autofill-detail-primary-action']")).not.toBeNull();
+    expect(host.querySelector(`[data-popup-focus-key='detail-edit:${demoVaultItems[0]!.id}']`)).not.toBeNull();
+  });
+
+  it("computes flat ordinary detail cards and 10px read-only controls from production CSS", async () => {
+    const stylesheet = installProductionCss();
+
+    try {
+      const { fixture } = await createFixture();
+      fixture.componentRef.setInput("id", demoVaultItems[0]!.id);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      const card = host.querySelector<HTMLElement>(".macos-page--vault-detail .cipher-view bit-card")!;
+      const readOnlyControl = host.querySelector<HTMLElement>(
+        ".macos-page--vault-detail .cipher-view input[readonly]",
+      )!;
+      expect(card).not.toBeNull();
+      expect(readOnlyControl).not.toBeNull();
+      expect(getComputedStyle(card).borderRadius).toBe("0px");
+      expect(getComputedStyle(card).boxShadow).toBe("none");
+      expect(getComputedStyle(readOnlyControl).borderRadius).toBe("10px");
+    } finally {
+      stylesheet.remove();
+    }
   });
 
   it("marks the detail composition as a secondary macOS page without primary navigation", async () => {
@@ -1092,9 +1155,9 @@ describe("VaultItemDetailPageComponent", () => {
   });
 
   it.each([
-    ["card", "查看支付卡", "Visa 详细信息", ["Travel Ops", "04 / 2029"], "登录凭据"],
-    ["identity", "查看身份", "个人详细信息", ["Example Person", "me@example.com", "+1 555 0100"], "登录凭据"],
-    ["note", "查看笔记", "附加选项", ["plain"], "登录凭据"],
+    ["card", "Travel card", "Visa 详细信息", ["Travel Ops", "04 / 2029"], "登录凭据"],
+    ["identity", "Personal identity", "个人详细信息", ["Example Person", "me@example.com", "+1 555 0100"], "登录凭据"],
+    ["note", "Recovery note", "附加选项", ["plain"], "登录凭据"],
   ])(
     "renders typed detail sections for %s items",
     async (itemId, title, sectionTitle, expectedTexts, unexpectedText) => {

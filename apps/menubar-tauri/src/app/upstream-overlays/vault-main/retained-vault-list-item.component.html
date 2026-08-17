@@ -2,6 +2,7 @@
   <button
     bit-item-content
     data-testid="vault-item-content"
+    [attr.data-popup-focus-key]="'vault-item:' + cipher.id"
     type="button"
     class="tw-h-[52px]"
     (click)="selectCipher()"

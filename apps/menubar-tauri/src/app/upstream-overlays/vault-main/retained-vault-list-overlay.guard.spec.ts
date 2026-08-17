@@ -96,7 +96,7 @@ const retainedOverlayLocks = [
   },
   {
     path: "apps/menubar-tauri/src/app/upstream-overlays/vault-main/retained-vault-list-item.component.html",
-    sha256: "3d22fe02469ee022364a98f34ac321856bc71842e0da4c425a407cec3c8419ff",
+    sha256: "1d3859eb4392c2ed564b163277387f933066bef7269dcc33f8ca4dc930a839d0",
     authority: "vault-list-items-container.component.html",
     retainedTransform: "compose official item, launch, retained copy-and-fill, and overflow primitives",
   },
@@ -108,7 +108,7 @@ const retainedOverlayLocks = [
   },
   {
     path: "apps/menubar-tauri/src/app/upstream-overlays/vault-main/item-more-options.component.html",
-    sha256: "fc77e13746f565bf72cd1fff1dff37384b5ce94deaf68da236d2897e560dd653",
+    sha256: "8b7bb7276f698d15b17375f8c8b6f813488c45d521e0a5baefef1c5eb79021de",
     authority: "item-more-options.component.html",
     retainedTransform: "retain View, Favorite, authorized Edit/Clone, Archive, and Delete in official order",
   },

@@ -5722,6 +5722,37 @@ button.is-copy-failed {
   box-shadow: none;
 }
 
+.macos-page--vault-detail .official-detail-identity-duplicate {
+  display: none;
+}
+
+.vault-detail-heading__metadata {
+  margin: 2px 0 0;
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.macos-page--vault-detail .cipher-view bit-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--vault-detail .cipher-view section + section {
+  border-top: 1px solid var(--mac-border-subtle);
+  padding-top: var(--mac-space-4);
+}
+
+.macos-page--vault-detail :is(input, textarea, select, .official-read-only-control) {
+  border-radius: 10px;
+}
+
+body.tw-bit-compact .macos-page--vault-detail .cipher-view section + section {
+  padding-top: var(--mac-space-3);
+}
+
 .macos-page--vault-detail :is(.official-read-only-control, .official-read-only-field, .official-detail-item),
 .macos-page--vault-form :is(.cipher-form-field, .official-form-section) {
   min-width: 0;

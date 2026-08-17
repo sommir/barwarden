@@ -120,10 +120,13 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
     <popup-page class="macos-page macos-page--vault-detail">
       <popup-header
         slot="header"
-        [pageTitle]="'i18nViewItemType' | i18n: typeLabel"
+        [pageTitle]="detailHeading"
         showBackButton
         [backAction]="backAction"
       >
+        @if (item) {
+          <p class="vault-detail-heading__metadata">{{ detailMetadata }}</p>
+        }
         @if (isArchived) {
           <button bit-chip-action type="button" [label]="'i18nArchived' | i18n"></button>
         }
@@ -165,7 +168,13 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
       <popup-footer slot="footer">
         @if (item) {
           @if (!isDeleted) {
-            <a bitButton buttonType="primary" routerLink="/edit-cipher" [queryParams]="cipherQueryParams">{{ "i18nEdit" | i18n }}</a>
+            <a
+              bitButton
+              buttonType="primary"
+              routerLink="/edit-cipher"
+              [queryParams]="cipherQueryParams"
+              [attr.data-popup-focus-key]="'detail-edit:' + item.id"
+            >{{ "i18nEdit" | i18n }}</a>
           } @else {
             <button bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nRestore' | i18n" (click)="restore()">{{ "i18nRestore" | i18n }}</button>
           }
@@ -383,6 +392,14 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     return this.item
       ? vaultItemTypeLabel(this.item.type)
       : translateOfficialMessage("i18nItem");
+  }
+
+  get detailHeading(): string {
+    return this.item?.name || translateOfficialMessage("i18nItem");
+  }
+
+  get detailMetadata(): string {
+    return `${this.typeLabel} · ${this.folderLabel}`;
   }
 
   get fieldsById(): Record<string, VaultField> {

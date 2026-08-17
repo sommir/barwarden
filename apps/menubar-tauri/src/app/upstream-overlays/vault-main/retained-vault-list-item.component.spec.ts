@@ -48,6 +48,8 @@ describe("RetainedVaultListItemComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector("bit-item [data-testid='vault-item-content']")).not.toBeNull();
+    expect(host.querySelector("[data-testid='vault-item-content']")?.getAttribute("data-popup-focus-key"))
+      .toBe("vault-item:github");
     expect(host.querySelector("[data-testid='item-name']")?.textContent).toContain("GitHub");
     expect(host.querySelector("[slot='secondary']")?.textContent).toContain("ops@example.com");
     expect(host.querySelector('[aria-label="打开"]')).not.toBeNull();
