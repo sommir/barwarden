@@ -5609,6 +5609,49 @@ button.is-copy-failed {
   max-width: 100%;
 }
 
+.macos-continuous-group {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-continuous-row {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  box-shadow: none;
+}
+
+.macos-continuous-row:last-child { border-bottom: 0; }
+
+.macos-form-control {
+  min-height: 44px;
+  border: 1px solid var(--mac-border);
+  border-radius: 10px;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+}
+
+.icon-action {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+
+.macos-page :is(input, select, textarea, button, a):focus-visible {
+  outline: 2px solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
 .vault-skeleton-stack {
   overflow: visible;
   border: 0;
