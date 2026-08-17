@@ -354,6 +354,7 @@ describe("auth challenge pages", () => {
       expect(getComputedStyle(secondaryActions[0]).color).toBe("rgb(10, 102, 255)");
       expect(getComputedStyle(secondaryActions[1]).color).toBe("rgb(83, 103, 132)");
       expect(getComputedStyle(secondaryActions[2]).color).toBe("rgb(10, 102, 255)");
+      expect(getComputedStyle(secondaryActions[3]).color).toBe("rgb(83, 103, 132)");
       expect(getComputedStyle(validation).minHeight).toBe("0px");
     } finally {
       card.remove();
