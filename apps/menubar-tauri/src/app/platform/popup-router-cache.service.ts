@@ -67,9 +67,13 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   private entries: CacheEntry[] = [];
   private readonly tabSnapshots = new Map<PopupTabRoute, PopupUiSnapshot>();
   private restoring = false;
+  private tabSnapshotEpoch = 0;
+  private tabCaptureSuppressed = false;
+  private focusRestoreObserver: MutationObserver | null = null;
   private readonly routerSubscription: Subscription;
 
   private readonly onFocusIn = (event: FocusEvent): void => {
+    if (this.tabCaptureSuppressed) return;
     const tab = popupTabRoute(this.router.url);
     const key = closestPopupFocusKey(event.target);
     if (!tab || !key || TAB_SWITCHER_FOCUS_KEY.test(key)) return;
@@ -84,17 +88,25 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
     this.document.addEventListener("focusin", this.onFocusIn);
     this.routerSubscription = this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart && !this.restoring) {
-        this.captureTabSnapshot();
+        this.cancelPendingFocusRestore();
+        if (!this.tabCaptureSuppressed) {
+          this.captureTabSnapshot();
+        }
         this.captureScrollAndFocus();
       } else if (event instanceof NavigationEnd) {
+        const captureWasSuppressed = this.tabCaptureSuppressed;
+        this.tabCaptureSuppressed = false;
         this.record(event.urlAfterRedirects);
-        this.scheduleTabRestore(event.urlAfterRedirects);
+        if (!captureWasSuppressed) {
+          this.scheduleTabRestore(event.urlAfterRedirects);
+        }
       }
     });
   }
 
   ngOnDestroy(): void {
     this.document.removeEventListener("focusin", this.onFocusIn);
+    this.cancelPendingFocusRestore();
     this.routerSubscription.unsubscribe();
   }
 
@@ -107,6 +119,9 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   }
 
   clear(): void {
+    this.tabSnapshotEpoch += 1;
+    this.tabCaptureSuppressed = true;
+    this.cancelPendingFocusRestore();
     this.entries = [];
     this.tabSnapshots.clear();
     this.routeReuse.clear();
@@ -224,11 +239,16 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
     if (!tab) return;
     const snapshot = this.tabSnapshots.get(tab);
     if (!snapshot) return;
+    const epoch = this.tabSnapshotEpoch;
 
     afterNextRender(
       {
         write: () => {
-          if (popupTabRoute(this.router.url) === tab) {
+          if (
+            epoch === this.tabSnapshotEpoch
+            && this.tabSnapshots.get(tab) === snapshot
+            && popupTabRoute(this.router.url) === tab
+          ) {
             this.restoreScrollAndFocus(snapshot);
           }
         },
@@ -238,6 +258,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   }
 
   private restoreScrollAndFocus(snapshot: PopupUiSnapshot): void {
+    this.cancelPendingFocusRestore();
     const host = this.scrollLayout.scrollableRef()?.nativeElement;
     if (host) {
       host.scrollTop = snapshot.scrollTop;
@@ -246,17 +267,40 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
 
     const owner = findFocusOwner(this.document, snapshot.focusKey);
     if (!owner) return;
-    const target = isEligibleFocusTarget(owner)
-      ? owner
-      : Array.from(owner.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
-          .find(isEligibleFocusTarget);
-    if (!target?.isConnected) return;
-
-    try {
-      target.focus({ preventScroll: true });
-    } catch {
-      // Restoration is best-effort when the route changed again mid-render.
+    const target = eligibleFocusTarget(owner);
+    if (target) {
+      focusWithoutScroll(target);
+      return;
     }
+
+    const MutationObserverConstructor = this.document.defaultView?.MutationObserver;
+    if (!MutationObserverConstructor) return;
+    const observer = new MutationObserverConstructor(() => {
+      if (
+        this.focusRestoreObserver !== observer
+        || !owner.isConnected
+        || findFocusOwner(this.document, snapshot.focusKey!) !== owner
+      ) {
+        observer.disconnect();
+        return;
+      }
+      const appearedTarget = eligibleFocusTarget(owner);
+      if (!appearedTarget) return;
+      this.cancelPendingFocusRestore();
+      focusWithoutScroll(appearedTarget);
+    });
+    this.focusRestoreObserver = observer;
+    observer.observe(owner, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ["aria-disabled", "aria-hidden", "class", "disabled", "hidden", "inert", "style"],
+    });
+  }
+
+  private cancelPendingFocusRestore(): void {
+    this.focusRestoreObserver?.disconnect();
+    this.focusRestoreObserver = null;
   }
 
   private async navigateFallback(): Promise<void> {
@@ -331,4 +375,20 @@ function isEligibleFocusTarget(element: HTMLElement): boolean {
   }
 
   return element.matches(FOCUSABLE_SELECTOR) && element.tabIndex >= 0;
+}
+
+function eligibleFocusTarget(owner: HTMLElement): HTMLElement | undefined {
+  return isEligibleFocusTarget(owner)
+    ? owner
+    : Array.from(owner.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+        .find(isEligibleFocusTarget);
+}
+
+function focusWithoutScroll(target: HTMLElement): void {
+  if (!target.isConnected) return;
+  try {
+    target.focus({ preventScroll: true });
+  } catch {
+    // Restoration is best-effort when the route changed again mid-render.
+  }
 }

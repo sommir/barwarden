@@ -177,6 +177,8 @@ describe("OtpPageComponent", () => {
     expect(host.querySelector("popup-page > popup-header bw-popup-header-actions")).not.toBeNull();
     expect(host.querySelectorAll("bw-otp-code-row")).toHaveLength(2);
     const otpRows = host.querySelectorAll<HTMLElement>(".otp-code-row");
+    expect(Array.from(otpRows).map((row) => row.getAttribute("data-popup-focus-key")))
+      .toEqual(["otp-item:github", "otp-item:calendar"]);
     expect(getComputedStyle(otpRows[0]!).borderBottomWidth).toBe("1px");
     expect(getComputedStyle(otpRows[1]!).borderBottomWidth).toBe("0px");
     expect(getComputedStyle(otpRows[0]!).minHeight).toBe("56px");
@@ -184,6 +186,7 @@ describe("OtpPageComponent", () => {
     expect(getComputedStyle(otpRows[0]!).minHeight).toBe("52px");
     document.body.classList.remove("tw-bit-compact");
     const copyTarget = host.querySelector<HTMLElement>("[data-testid='otp-code']")!;
+    expect(copyTarget.closest("[data-popup-focus-key]")).toBe(otpRows[0]);
     expect(getComputedStyle(copyTarget).minWidth).toBe("116px");
     expect(getComputedStyle(copyTarget).minHeight).toBe("44px");
     expect(host.textContent).toContain("项目 (2)");
@@ -237,7 +240,11 @@ describe("OtpPageComponent", () => {
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
     fixture.detectChanges();
 
-    const retryTarget = fixture.nativeElement.querySelector<HTMLElement>("[data-testid='otp-retry']")!;
+    const host = fixture.nativeElement as HTMLElement;
+    const retryTarget = host.querySelector<HTMLElement>("[data-testid='otp-retry']")!;
+    const owner = host.querySelector<HTMLElement>("article.otp-code-row")!;
+    expect(owner.getAttribute("data-popup-focus-key")).toBe("otp-item:github");
+    expect(retryTarget.closest("[data-popup-focus-key]")).toBe(owner);
     expect(getComputedStyle(retryTarget).minWidth).toBe("44px");
     expect(getComputedStyle(retryTarget).minHeight).toBe("44px");
 

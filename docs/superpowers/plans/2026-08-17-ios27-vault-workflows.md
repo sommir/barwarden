@@ -28,6 +28,7 @@ This table is the authoritative focus-key registry for the Vault/OTP/New Item/fo
 |---|---|---|
 | Vault → New Item | `vault:new-item` | Real retained `app-new-item-dropdown > button[bitbutton]`, decorated in `apps/menubar-tauri/src/app/vault/retained-new-item-dropdown.component.ts` |
 | Main nav → OTP | `tab:/tabs/otp` | Segment button in `apps/menubar-tauri/src/app/popup-shell/floating-tab-switcher.component.ts` |
+| OTP row → copy/retry | `otp-item:<id>` | Real `.otp-code-row` article owner in `apps/menubar-tauri/src/app/vault/otp-code-row.component.ts`; the ready copy and unavailable retry controls are focusable descendants |
 | Active row → detail/edit/clone | `vault-item:<id>` | Row and View/Edit/Clone menu items in `apps/menubar-tauri/src/app/upstream-overlays/vault-main/retained-vault-list-item.component.html` and `item-more-options.component.html` |
 | New Item → form/folder | `new-item:type:<1|2|3|4>`, `new-item:folder` | Anchors/button in `apps/menubar-tauri/src/app/vault/new-item-page.component.ts` |
 | Detail → edit/history | `detail-edit:<id>`, `detail-history:<id>` | Footer link in `vault-item-detail-page.component.ts`; history button in `upstream-overlays/cipher-detail/official-item-history.component.html` |

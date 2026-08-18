@@ -32,7 +32,10 @@ type OtpRowState =
   standalone: true,
   imports: [AsyncPipe, I18nPipe, VaultItemIconComponent],
   template: `
-    <article class="otp-code-row">
+    <article
+      class="otp-code-row"
+      [attr.data-popup-focus-key]="'otp-item:' + item.id"
+    >
       @if (copied) {
         <span
           class="tw-sr-only"

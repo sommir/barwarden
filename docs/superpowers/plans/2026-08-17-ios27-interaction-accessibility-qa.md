@@ -243,13 +243,17 @@ git commit -m "feat: restore ios27 navigation context"
 - Create: `apps/menubar-tauri/src/app/vault/otp.facade.spec.ts`
 - Modify: `apps/menubar-tauri/src/app/vault/otp-page.component.ts`
 - Modify: `apps/menubar-tauri/src/app/vault/otp-page.component.spec.ts`
+- Modify: `apps/menubar-tauri/src/app/vault/otp-code-row.component.ts`
+- Modify: `apps/menubar-tauri/src/app/vault/otp-code-row.component.spec.ts`
 - Modify: `apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts`
 - Modify: `apps/menubar-tauri/src/app/platform/popup-router-cache.service.spec.ts`
 - Modify: `apps/menubar-tauri/src/app/popup-header-actions.component.ts`
 - Modify: `apps/menubar-tauri/src/app/popup-header-actions.component.spec.ts`
 - Modify: `apps/menubar-tauri/src/app/popup-shell/floating-tab-switcher.component.spec.ts`
 - Verify unchanged prerequisite: `apps/menubar-tauri/src/app/popup-shell/floating-tab-switcher.component.ts`
-- Verify unchanged prerequisite: `apps/menubar-tauri/src/app/vault/retained-new-item-dropdown.component.spec.ts`
+- Verify prerequisite: `apps/menubar-tauri/src/app/vault/otp-code-row.component.spec.ts`
+- Verify unchanged prerequisite: `apps/menubar-tauri/src/app/vault/vault-list-page.component.spec.ts`
+- Verify unchanged prerequisite: `apps/menubar-tauri/src/app/vault/new-item-page.component.spec.ts`
 - Verify unchanged prerequisite: `apps/menubar-tauri/src/app/vault/vault-item-detail-page.component.spec.ts`
 - Verify unchanged prerequisite: `apps/menubar-tauri/src/app/vault/vault-hierarchy.component.spec.ts`
 - Verify unchanged prerequisite: `apps/menubar-tauri/src/app/upstream-overlays/vault-main/retained-vault-list-item.component.spec.ts`
@@ -291,6 +295,7 @@ The interaction plan consumes, but never rewrites, guarded focus producers insta
 | Key | Existing producer |
 |---|---|
 | `tab:/tabs/<vault|otp|generator|send|settings>` | `apps/menubar-tauri/src/app/popup-shell/floating-tab-switcher.component.ts` |
+| `otp-item:<id>` | `apps/menubar-tauri/src/app/vault/otp-code-row.component.ts`, owned by the Vault workflow plan; the key is on the row article and copy/retry remain descendants |
 | `generator:copy`, `generator:history` | guarded Generator templates installed by `2026-08-17-ios27-generator-send.md` |
 | `send:search`, `send-item:<id>`, `send-item:<id>:copy`, `send-item:<id>:more` | guarded Send templates installed by `2026-08-17-ios27-generator-send.md` |
 | `vault:new-item` | `apps/menubar-tauri/src/app/vault/retained-new-item-dropdown.component.ts` decorating the retained New Item button |
@@ -308,10 +313,10 @@ No focus key contains an email, username, password, TOTP seed/code, Send content
 - [ ] **Step 1: Verify prerequisite focus producers before writing lifetime code**
 
 ```bash
-npx vitest run apps/menubar-tauri/src/app/popup-shell/floating-tab-switcher.component.spec.ts apps/menubar-tauri/src/app/vault/retained-new-item-dropdown.component.spec.ts apps/menubar-tauri/src/app/vault/vault-item-detail-page.component.spec.ts apps/menubar-tauri/src/app/vault/vault-hierarchy.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/vault-main/retained-vault-list-item.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/vault-main/item-more-options.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-history.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.spec.ts apps/menubar-tauri/src/app/settings/vault-settings-page.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/generator/official-credential-generator.component.spec.ts apps/menubar-tauri/src/app/generator/generator-history-page.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.spec.ts
+npx vitest run apps/menubar-tauri/src/app/popup-shell/floating-tab-switcher.component.spec.ts apps/menubar-tauri/src/app/vault/otp-code-row.component.spec.ts apps/menubar-tauri/src/app/vault/vault-list-page.component.spec.ts apps/menubar-tauri/src/app/vault/new-item-page.component.spec.ts apps/menubar-tauri/src/app/vault/vault-item-detail-page.component.spec.ts apps/menubar-tauri/src/app/vault/vault-hierarchy.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/vault-main/retained-vault-list-item.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/vault-main/item-more-options.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-history.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.spec.ts apps/menubar-tauri/src/app/settings/vault-settings-page.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/generator/official-credential-generator.component.spec.ts apps/menubar-tauri/src/app/generator/generator-history-page.component.spec.ts apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.spec.ts
 ```
 
-Expected: PASS and assert the literal keys in the table. Stop and finish the owning prior plan if any producer is missing; do not repair guarded output here.
+Expected: PASS with exactly 16 executed files, each asserting the literal keys in the table. Stop and finish the owning prior plan if any producer is missing; do not repair guarded output here. An explicit missing Vitest path may otherwise be silently skipped, so a zero exit code without the expected file count is not sufficient.
 
 - [ ] **Step 2: Write RED OTP lifetime and owner-boundary tests**
 

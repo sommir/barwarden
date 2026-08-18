@@ -79,6 +79,14 @@ describe("OtpCodeRowComponent", () => {
     fixture.componentRef.setInput("copied", false);
     fixture.detectChanges();
 
+    const owner = host.querySelector<HTMLElement>("article.otp-code-row")!;
+    const ownerKey = owner.getAttribute("data-popup-focus-key") ?? "";
+    const copyButton = host.querySelector<HTMLButtonElement>("[data-testid='otp-code']")!;
+    expect(ownerKey).toBe("otp-item:github");
+    expect(copyButton.closest("[data-popup-focus-key]")).toBe(owner);
+    for (const sensitiveValue of [item.name, seed, totp.code, totp.formattedCode]) {
+      expect(ownerKey).not.toContain(sensitiveValue);
+    }
     expect(host.textContent).toContain("GitHub");
     expect(host.textContent).toContain("ops@example.com");
     expect(host.textContent).toContain("123 456");
@@ -112,9 +120,13 @@ describe("OtpCodeRowComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    const owner = host.querySelector<HTMLElement>("article.otp-code-row")!;
+    const retry = host.querySelector<HTMLButtonElement>("[data-testid=otp-retry]")!;
+    expect(owner.getAttribute("data-popup-focus-key")).toBe("otp-item:github");
+    expect(retry.closest("[data-popup-focus-key]")).toBe(owner);
     expect(host.querySelector("[data-testid=otp-code]")).toBeNull();
     expect(host.textContent).toContain("验证码暂不可用");
-    expect(host.querySelector<HTMLButtonElement>("[data-testid=otp-retry]")).not.toBeNull();
+    expect(retry).not.toBeNull();
   });
 
   it("backs off after a transient failure and recovers without leaving the page", async () => {

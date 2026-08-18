@@ -1,7 +1,15 @@
 import "@angular/compiler";
 import "zone.js";
 
-import { Component, ElementRef, OnDestroy, OnInit, Type, inject } from "@angular/core";
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  Type,
+  inject,
+  type Provider,
+} from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
 import {
@@ -27,14 +35,19 @@ import { ios27RouteData, type Ios27PageFamily } from "./popup-route-metadata";
 import { PopupRouteReuseStrategy } from "./popup-route-reuse.strategy";
 import { retainedPopupRouteGraph } from "../app.routes";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
+import { PopupHeaderActionsComponent } from "../popup-header-actions.component";
 import {
   FloatingTabSwitcherComponent,
   type FloatingTab,
 } from "../popup-shell/floating-tab-switcher.component";
 import { PopupStateStore } from "../popup-state";
 import { SendFacade } from "../send/send.facade";
+import { demoVaultItems } from "../vault-demo";
 import { OtpFacade } from "../vault/otp.facade";
+import { OtpPageComponent } from "../vault/otp-page.component";
+import { VaultActionsService } from "../vault/vault-actions.service";
 import { VaultFacade } from "../vault/vault.facade";
+import { TOTP_CODE_SOURCE } from "../vault/vault-totp-code.component";
 
 @Component({ standalone: true, template: "" })
 class RouteComponent {}
@@ -84,14 +97,14 @@ class ScrollRouteHost implements OnInit, OnDestroy {
 @Component({
   selector: "popup-vault-scroll-route",
   standalone: true,
-  template: '<button data-popup-focus-key="vault:item-1">Vault item</button>',
+  template: '<button data-popup-focus-key="vault-item:item-1">Vault item</button>',
 })
 class VaultScrollRouteComponent extends ScrollRouteHost {}
 
 @Component({
   selector: "popup-otp-scroll-route",
   standalone: true,
-  template: '<button data-popup-focus-key="otp:item-1">OTP item</button>',
+  template: '<button data-popup-focus-key="otp-item:item-1">OTP item</button>',
 })
 class OtpScrollRouteComponent extends ScrollRouteHost {}
 
@@ -143,6 +156,9 @@ class SendScrollRouteComponent extends ScrollRouteHost {}
   template: '<button data-popup-focus-key="settings:folders">Open folders</button>',
 })
 class SettingsScrollRouteComponent extends ScrollRouteHost {}
+
+@Component({ selector: "popup-auth-scroll-route", standalone: true, template: "Auth" })
+class AuthScrollRouteComponent extends ScrollRouteHost {}
 
 const redirectToVaultGuard: CanActivateFn = () => inject(Router).parseUrl("/tabs/vault");
 
@@ -469,8 +485,8 @@ describe("PopupRouterCacheService", () => {
       scrollLayout.scrollableRef()!.nativeElement.scrollTop = scrollTop;
     };
 
-    await visit("/tabs/vault", "vault:item-1", 121);
-    await visit("/tabs/otp", "otp:item-1", 42);
+    await visit("/tabs/vault", "vault-item:item-1", 121);
+    await visit("/tabs/otp", "otp-item:item-1", 42);
     await visit("/tabs/generator", "generator:copy", 33);
     await visit("/tabs/send", "send:search", 73);
     await visit("/tabs/settings", "settings:folders", 19);
@@ -481,12 +497,12 @@ describe("PopupRouterCacheService", () => {
     await Promise.resolve();
 
     expect(scrollLayout.scrollableRef()!.nativeElement.scrollTop).toBe(121);
-    expect(document.activeElement?.getAttribute("data-popup-focus-key")).toBe("vault:item-1");
+    expect(document.activeElement?.getAttribute("data-popup-focus-key")).toBe("vault-item:item-1");
     expect(Object.fromEntries((service as unknown as {
       tabSnapshots: Map<PopupTabRoute, { scrollTop: number; focusKey: string | null }>;
     }).tabSnapshots)).toEqual({
-      "/tabs/vault": { scrollTop: 121, focusKey: "vault:item-1" },
-      "/tabs/otp": { scrollTop: 42, focusKey: "otp:item-1" },
+      "/tabs/vault": { scrollTop: 121, focusKey: "vault-item:item-1" },
+      "/tabs/otp": { scrollTop: 42, focusKey: "otp-item:item-1" },
       "/tabs/generator": { scrollTop: 33, focusKey: "generator:copy" },
       "/tabs/send": { scrollTop: 73, focusKey: "send:search" },
       "/tabs/settings": { scrollTop: 19, focusKey: "settings:folders" },
@@ -618,6 +634,127 @@ describe("PopupRouterCacheService", () => {
     expect(service.hasBackTarget()).toBe(false);
   });
 
+  it("restores a destroyed real OTP row owner to its first visible enabled action", async () => {
+    const { fixture, router, scrollLayout } = await createMountedOtpTabService();
+    const host = fixture!.nativeElement as HTMLElement;
+    const clickTab = async (path: PopupTabRoute) => {
+      const button = host.querySelector<HTMLButtonElement>(
+        `[data-popup-focus-key="tab:${path}"]`,
+      )!;
+      button.focus();
+      button.click();
+      await vi.waitFor(() => expect(router.url).toBe(path));
+      fixture!.detectChanges();
+    };
+
+    await router.navigateByUrl("/tabs/otp");
+    fixture!.detectChanges();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+    fixture!.detectChanges();
+    const firstOwner = host.querySelector<HTMLElement>(
+      '[data-popup-focus-key="otp-item:github"]',
+    )!;
+    const firstCopy = firstOwner.querySelector<HTMLButtonElement>("[data-testid='otp-code']")!;
+    firstCopy.focus();
+    scrollLayout.scrollableRef()!.nativeElement.scrollTop = 42;
+
+    await clickTab("/tabs/send");
+    expect(firstOwner.isConnected).toBe(false);
+    await clickTab("/tabs/otp");
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+    fixture!.detectChanges();
+    await Promise.resolve();
+
+    const restoredOwner = host.querySelector<HTMLElement>(
+      '[data-popup-focus-key="otp-item:github"]',
+    )!;
+    const restoredCopy = restoredOwner.querySelector<HTMLButtonElement>("[data-testid='otp-code']")!;
+    expect(restoredOwner).not.toBe(firstOwner);
+    expect(scrollLayout.scrollableRef()!.nativeElement.scrollTop).toBe(42);
+    expect(document.activeElement).toBe(restoredCopy);
+  });
+
+  it("invalidates an already queued tab restore when clear has no following navigation", async () => {
+    const { fixture, router, service, scrollLayout } = await createService(
+      fiveTabSnapshotRoutes(),
+      true,
+    );
+    const host = fixture!.nativeElement as HTMLElement;
+
+    await router.navigateByUrl("/tabs/otp");
+    fixture!.detectChanges();
+    host.querySelector<HTMLElement>('[data-popup-focus-key="otp-item:item-1"]')!.focus();
+    scrollLayout.scrollableRef()!.nativeElement.scrollTop = 42;
+    await router.navigateByUrl("/tabs/vault");
+    fixture!.detectChanges();
+
+    await router.navigateByUrl("/tabs/otp");
+    service.clear();
+    fixture!.detectChanges();
+    await fixture!.whenStable();
+    await Promise.resolve();
+
+    expect(scrollLayout.scrollableRef()!.nativeElement.scrollTop).toBe(0);
+    expect(tabSnapshotMap(service).size).toBe(0);
+    expect(document.activeElement?.getAttribute("data-popup-focus-key"))
+      .not.toBe("otp-item:item-1");
+  });
+
+  it.each(["/lock", "/login"] as const)(
+    "keeps all five tab snapshots empty through clear and the following navigation to %s",
+    async (authPath) => {
+      const { fixture, router, service, scrollLayout } = await createService(
+        [
+          ...fiveTabSnapshotRoutes(),
+          {
+            path: authPath.slice(1),
+            component: AuthScrollRouteComponent,
+            data: ios27RouteData("auth", "base", false),
+          },
+        ],
+        true,
+      );
+      const host = fixture!.nativeElement as HTMLElement;
+      const visit = async (path: PopupTabRoute, focusKey: string, scrollTop: number) => {
+        await router.navigateByUrl(path);
+        fixture!.detectChanges();
+        host.querySelector<HTMLElement>(`[data-popup-focus-key="${focusKey}"]`)!.focus();
+        scrollLayout.scrollableRef()!.nativeElement.scrollTop = scrollTop;
+      };
+
+      await visit("/tabs/vault", "vault-item:item-1", 121);
+      await visit("/tabs/otp", "otp-item:item-1", 42);
+      await visit("/tabs/generator", "generator:copy", 33);
+      await visit("/tabs/send", "send:search", 73);
+      await visit("/tabs/settings", "settings:folders", 19);
+      await router.navigateByUrl("/tabs/vault");
+      fixture!.detectChanges();
+      await Promise.resolve();
+      expect(tabSnapshotMap(service).size).toBe(5);
+
+      service.clear();
+      host.querySelector<HTMLElement>('[data-popup-focus-key="vault-item:item-1"]')!
+        .dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      await router.navigateByUrl(authPath);
+      fixture!.detectChanges();
+      await Promise.resolve();
+
+      expect(tabSnapshotMap(service).size).toBe(0);
+      expect(scrollLayout.scrollableRef()!.nativeElement.scrollTop).toBe(0);
+      expect(document.activeElement?.getAttribute("data-popup-focus-key"))
+        .not.toBe("vault-item:item-1");
+
+      await visit("/tabs/send", "send:search", 84);
+      await router.navigateByUrl("/tabs/generator");
+      fixture!.detectChanges();
+
+      expect(tabSnapshotMap(service).get("/tabs/send")).toEqual({
+        scrollTop: 84,
+        focusKey: "send:search",
+      });
+    },
+  );
+
   it("clear resets OTP/cache state but leaves page-owner searches and filters alone", async () => {
     const { service, otp, vault, send, store } = await createServiceWithStateOwners();
     otp.setSearch("OpenAI");
@@ -649,11 +786,81 @@ function createClickedTabService() {
   ], true, false, ClickedTabsHostComponent);
 }
 
+function createMountedOtpTabService() {
+  const store = new PopupStateStore();
+  const item = {
+    ...demoVaultItems[0]!,
+    fields: demoVaultItems[0]!.fields.map((field) =>
+      field.id === "otp" ? { ...field, value: "JBSWY3DPEHPK3PXP" } : field
+    ),
+  };
+  store.setUnlocked("user@example.com");
+  store.setItems([item]);
+  TestBed.overrideComponent(PopupHeaderActionsComponent, {
+    set: { imports: [], template: '<div class="header-actions"></div>' },
+  });
+  const leaf = (path: string, component: Type<unknown>, family: Ios27PageFamily) => ({
+    path,
+    component,
+    data: ios27RouteData(family, "base", true),
+  });
+  return createService([
+    leaf("tabs/otp", OtpPageComponent, "otp"),
+    leaf("tabs/send", SendScrollRouteComponent, "send"),
+  ], true, false, ClickedTabsHostComponent, [
+    { provide: PopupStateStore, useValue: store },
+    { provide: VaultActionsService, useValue: { copyFieldWithOutcome: vi.fn() } },
+    {
+      provide: TOTP_CODE_SOURCE,
+      useValue: {
+        generate: async () => ({
+          code: "123456",
+          formattedCode: "123 456",
+          period: 30,
+          secondsRemaining: 18,
+          isExpiring: false,
+        }),
+      },
+    },
+  ]);
+}
+
+function fiveTabSnapshotRoutes(): Routes {
+  return [
+    {
+      path: "tabs/vault",
+      component: VaultScrollRouteComponent,
+      data: ios27RouteData("vault", "base", true),
+    },
+    {
+      path: "tabs/otp",
+      component: OtpScrollRouteComponent,
+      data: ios27RouteData("otp", "base", true),
+    },
+    {
+      path: "tabs/generator",
+      component: GeneratorScrollRouteComponent,
+      data: ios27RouteData("generator", "base", true),
+    },
+    {
+      path: "tabs/send",
+      component: SendScrollRouteComponent,
+      data: ios27RouteData("send", "base", true),
+    },
+    {
+      path: "tabs/settings",
+      component: SettingsScrollRouteComponent,
+      data: ios27RouteData("settings", "base", true),
+    },
+  ];
+}
+
 async function createService(
   routeConfig: Routes = retainedRoutes,
   mountRoutes = false,
   reuseTabsRoute = false,
   host: Type<unknown> = RoutedHostComponent,
+  additionalProviders: readonly Provider[] = [],
 ) {
   await TestBed.configureTestingModule({
     imports: mountRoutes ? [host] : [],
@@ -663,6 +870,7 @@ async function createService(
       { provide: I18nService, useExisting: OfficialI18nService },
       { provide: POPUP_ROUTER_CACHE_ROUTE_GRAPH, useValue: retainedPopupRouteGraph },
       ...(reuseTabsRoute ? [{ provide: RouteReuseStrategy, useExisting: PopupRouteReuseStrategy }] : []),
+      ...additionalProviders,
     ],
   }).compileComponents();
 
@@ -697,4 +905,10 @@ function restoreScrollAndFocus(
   (service as unknown as {
     restoreScrollAndFocus(value: { scrollTop: number; focusKey: string | null }): void;
   }).restoreScrollAndFocus(snapshot);
+}
+
+function tabSnapshotMap(service: PopupRouterCacheService) {
+  return (service as unknown as {
+    tabSnapshots: Map<PopupTabRoute, { scrollTop: number; focusKey: string | null }>;
+  }).tabSnapshots;
 }
