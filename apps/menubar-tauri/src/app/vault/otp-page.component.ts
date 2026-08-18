@@ -7,6 +7,7 @@ import { PopupHeaderActionsComponent } from "../popup-header-actions.component";
 import { PopupStateStore } from "../popup-state";
 import type { VaultField } from "../vault-demo";
 import { OtpCodeRowComponent } from "./otp-code-row.component";
+import { OtpFacade } from "./otp.facade";
 import { buildOtpEntries } from "./otp-items";
 import { VaultActionsService } from "./vault-actions.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
@@ -60,7 +61,6 @@ import { I18nPipe } from "../official-ui/official-ui-common";
   `,
 })
 export class OtpPageComponent implements OnDestroy {
-  protected query = "";
   protected copiedItemId: string | null = null;
   private copiedResetTimer?: ReturnType<typeof setTimeout>;
   private entriesCache?: {
@@ -72,21 +72,27 @@ export class OtpPageComponent implements OnDestroy {
   constructor(
     private readonly store: PopupStateStore,
     private readonly actions: VaultActionsService,
+    private readonly otp: OtpFacade,
   ) {}
+
+  protected get query(): string {
+    return this.otp.query();
+  }
 
   protected get entries() {
     const items = this.store.snapshot().items;
-    if (this.entriesCache?.items === items && this.entriesCache.query === this.query) {
+    const query = this.otp.query();
+    if (this.entriesCache?.items === items && this.entriesCache.query === query) {
       return this.entriesCache.result;
     }
 
-    const result = buildOtpEntries(items, this.query);
-    this.entriesCache = { items, query: this.query, result };
+    const result = buildOtpEntries(items, query);
+    this.entriesCache = { items, query, result };
     return result;
   }
 
   protected setSearch(query: string): void {
-    this.query = query;
+    this.otp.setSearch(query);
   }
 
   ngOnDestroy(): void {

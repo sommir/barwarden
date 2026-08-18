@@ -25,7 +25,7 @@ export { POP_OUT_HOST, type PopOutHost } from "./pop-out-host.port";
         <bw-retained-new-item-dropdown [initialValues]="resolvedNewItemInitialValues" />
       }
       <app-pop-out />
-      <app-current-account />
+      <app-current-account data-popup-focus-key="account-switcher" />
     </div>
   `,
 })

@@ -102,6 +102,8 @@ describe("FloatingTabSwitcherComponent", () => {
     expect(buttons[3]?.getAttribute("aria-current")).toBe("page");
     expect(navigation.style.getPropertyValue("--segment-count")).toBe("5");
     expect(navigation.style.getPropertyValue("--selected-index")).toBe("3");
+    expect(buttons.map((button) => button.getAttribute("data-popup-focus-key")))
+      .toEqual(tabs.map((tab) => `tab:${tab.path}`));
   });
 
   it("retains the current segment when navigation rejects", async () => {

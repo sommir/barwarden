@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PopupStateStore } from "../popup-state";
 import { demoVaultItems } from "../vault-demo";
 import { VaultActionsService } from "./vault-actions.service";
+import { OtpFacade } from "./otp.facade";
 import { OtpPageComponent } from "./otp-page.component";
 import { TOTP_CODE_SOURCE } from "./vault-totp-code.component";
 import { PopupHeaderActionsComponent } from "../popup-header-actions.component";
@@ -49,11 +50,63 @@ function installVaultVisualCss(): () => void {
   return () => style.remove();
 }
 
+async function renderOtp(facade: OtpFacade) {
+  TestBed.resetTestingModule();
+  const validTotp = "JBSWY3DPEHPK3PXP";
+  const github = {
+    ...demoVaultItems[0]!,
+    fields: demoVaultItems[0]!.fields.map((field) =>
+      field.id === "otp" ? { ...field, value: validTotp } : field
+    ),
+  };
+  const calendar = {
+    ...github,
+    id: "calendar",
+    name: "Calendar",
+    subtitle: "calendar@example.com",
+  };
+  const store = new PopupStateStore();
+  store.setUnlocked("user@example.com");
+  store.setItems([github, demoVaultItems[1]!, calendar]);
+
+  TestBed.overrideComponent(PopupHeaderActionsComponent, {
+    set: { imports: [], template: '<div class="header-actions"></div>' },
+  });
+  await TestBed.configureTestingModule({
+    imports: [OtpPageComponent],
+    providers: [
+      provideRouter([]),
+      { provide: PopupStateStore, useValue: store },
+      { provide: OtpFacade, useValue: facade },
+      { provide: VaultActionsService, useValue: { copyFieldWithOutcome: vi.fn() } },
+      {
+        provide: TOTP_CODE_SOURCE,
+        useValue: {
+          generate: async () => ({
+            code: "123456",
+            formattedCode: "123 456",
+            period: 30,
+            secondsRemaining: 18,
+            isExpiring: false,
+          }),
+        },
+      },
+      OfficialI18nService,
+      { provide: I18nService, useExisting: OfficialI18nService },
+    ],
+  }).compileComponents();
+  const fixture = TestBed.createComponent(OtpPageComponent);
+  fixture.detectChanges();
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+  fixture.detectChanges();
+  return fixture;
+}
+
 describe("OtpPageComponent", () => {
   it("keeps the OTP projection stable across unrelated popup state updates", () => {
     const store = new PopupStateStore();
     store.setItems(demoVaultItems);
-    const component = new OtpPageComponent(store, {} as VaultActionsService);
+    const component = new OtpPageComponent(store, {} as VaultActionsService, new OtpFacade());
     const initialEntries = component["entries"];
 
     store.setStatus("Copied");
@@ -190,5 +243,26 @@ describe("OtpPageComponent", () => {
 
     cleanupVisualCss();
     fixture.destroy();
+  });
+
+  it("restores query and filtered count after the real page is destroyed", async () => {
+    const facade = new OtpFacade();
+    const first = await renderOtp(facade);
+    const search = first.nativeElement.querySelector<HTMLInputElement>(
+      '[aria-label="搜索验证码"]',
+    )!;
+    search.value = "Calendar";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    first.detectChanges();
+    expect(first.nativeElement.querySelectorAll("bw-otp-code-row")).toHaveLength(1);
+    first.destroy();
+
+    const second = await renderOtp(facade);
+    second.detectChanges();
+    expect(second.nativeElement.querySelector<HTMLInputElement>(
+      '[aria-label="搜索验证码"]',
+    )!.value).toBe("Calendar");
+    expect(second.nativeElement.querySelectorAll("bw-otp-code-row")).toHaveLength(1);
+    second.destroy();
   });
 });

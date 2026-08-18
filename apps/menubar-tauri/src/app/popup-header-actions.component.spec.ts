@@ -275,6 +275,8 @@ describe("PopupHeaderActionsComponent", () => {
 
     const host = fixture.nativeElement as HTMLElement;
     expect(fixture.debugElement.query(By.directive(AvatarComponent))).not.toBeNull();
+    expect(host.querySelector("app-current-account")?.getAttribute("data-popup-focus-key"))
+      .toBe("account-switcher");
     const accountButton = host.querySelector("app-current-account button") as HTMLButtonElement;
     expect(accountButton).not.toBeNull();
     expect(accountButton.querySelector("svg text")?.textContent?.trim()).toBe("US");

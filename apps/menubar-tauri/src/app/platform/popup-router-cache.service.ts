@@ -14,6 +14,7 @@ import {
   type PopupFocusKey,
 } from "./popup-route-metadata";
 import { PopupRouteReuseStrategy } from "./popup-route-reuse.strategy";
+import { OtpFacade } from "../vault/otp.facade";
 
 export type RetainedPopupRoute = string;
 export type PopupTabRoute =
@@ -61,6 +62,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   private readonly injector = inject(Injector);
   private readonly document = inject(DOCUMENT);
   private readonly routeReuse = inject(PopupRouteReuseStrategy);
+  private readonly otp = inject(OtpFacade);
   private readonly retainedRoutes = new Set(inject(POPUP_ROUTER_CACHE_ROUTE_GRAPH));
   private entries: CacheEntry[] = [];
   private readonly tabSnapshots = new Map<PopupTabRoute, PopupUiSnapshot>();
@@ -108,6 +110,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
     this.entries = [];
     this.tabSnapshots.clear();
     this.routeReuse.clear();
+    this.otp.resetSearch();
   }
 
   hasBackTarget(): boolean {
