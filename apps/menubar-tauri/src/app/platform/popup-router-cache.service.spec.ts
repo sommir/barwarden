@@ -16,14 +16,21 @@ import {
   ActivatedRouteSnapshot,
   CanActivateFn,
   DetachedRouteHandle,
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  NavigationSkipped,
+  NavigationStart,
   Router,
   RouterOutlet,
   RouteReuseStrategy,
   provideRouter,
+  type Event as RouterEvent,
   type Routes,
 } from "@angular/router";
 import { ScrollLayoutService } from "@bitwarden/components";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+import { Subject } from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -47,7 +54,10 @@ import { OtpFacade } from "../vault/otp.facade";
 import { OtpPageComponent } from "../vault/otp-page.component";
 import { VaultActionsService } from "../vault/vault-actions.service";
 import { VaultFacade } from "../vault/vault.facade";
-import { TOTP_CODE_SOURCE } from "../vault/vault-totp-code.component";
+import {
+  TOTP_CODE_SOURCE,
+  type TotpCodeSource,
+} from "../vault/vault-totp-code.component";
 
 @Component({ standalone: true, template: "" })
 class RouteComponent {}
@@ -674,6 +684,70 @@ describe("PopupRouterCacheService", () => {
     expect(document.activeElement).toBe(restoredCopy);
   });
 
+  it("does not steal focus chosen outside a pending real OTP row restore", async () => {
+    const generatedCode = {
+      code: "123456",
+      formattedCode: "123 456",
+      period: 30,
+      secondsRemaining: 18,
+      isExpiring: false,
+    };
+    const firstGeneration = deferred<typeof generatedCode>();
+    const restoredGeneration = deferred<typeof generatedCode>();
+    const codeSource = {
+      generate: vi.fn()
+        .mockReturnValueOnce(firstGeneration.promise)
+        .mockReturnValueOnce(restoredGeneration.promise),
+    };
+    const { fixture, router, scrollLayout, service } = await createMountedOtpTabService(codeSource);
+    const host = fixture!.nativeElement as HTMLElement;
+    const clickTab = async (path: PopupTabRoute) => {
+      const button = host.querySelector<HTMLButtonElement>(
+        `[data-popup-focus-key="tab:${path}"]`,
+      )!;
+      button.focus();
+      button.click();
+      await vi.waitFor(() => expect(router.url).toBe(path));
+      fixture!.detectChanges();
+    };
+
+    await router.navigateByUrl("/tabs/otp");
+    fixture!.detectChanges();
+    await vi.waitFor(() => expect(codeSource.generate).toHaveBeenCalledTimes(1));
+    firstGeneration.resolve(generatedCode);
+    await vi.waitFor(() => {
+      fixture!.detectChanges();
+      expect(host.querySelector("[data-testid='otp-code']")).not.toBeNull();
+    });
+    host.querySelector<HTMLButtonElement>("[data-testid='otp-code']")!.focus();
+    scrollLayout.scrollableRef()!.nativeElement.scrollTop = 42;
+
+    await clickTab("/tabs/send");
+    await clickTab("/tabs/otp");
+    await vi.waitFor(() => expect(codeSource.generate).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(hasPendingFocusRestore(service)).toBe(true));
+    const loadingOwner = host.querySelector<HTMLElement>(
+      '[data-popup-focus-key="otp-item:github"]',
+    )!;
+    loadingOwner.querySelector<HTMLElement>(".otp-code-row__status")!
+      .dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(hasPendingFocusRestore(service)).toBe(true);
+
+    const search = host.querySelector<HTMLInputElement>("bw-root-search input")!;
+    search.focus();
+    expect(document.activeElement).toBe(search);
+    expect(hasPendingFocusRestore(service)).toBe(false);
+
+    restoredGeneration.resolve(generatedCode);
+    await vi.waitFor(() => {
+      fixture!.detectChanges();
+      expect(host.querySelector("[data-testid='otp-code']")).not.toBeNull();
+    });
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(search);
+  });
+
   it("invalidates an already queued tab restore when clear has no following navigation", async () => {
     const { fixture, router, service, scrollLayout } = await createService(
       fiveTabSnapshotRoutes(),
@@ -755,6 +829,65 @@ describe("PopupRouterCacheService", () => {
     },
   );
 
+  it("keeps capture suppressed when a navigation started before clear ends afterward", async () => {
+    const { events, router, service } = await createEventControlledService();
+    const content = document.createElement("button");
+    content.setAttribute("data-popup-focus-key", "send:search");
+    document.body.append(content);
+
+    try {
+      events.next(new NavigationStart(40, "/tabs/send"));
+      service.clear();
+      events.next(new NavigationEnd(40, "/tabs/send", "/tabs/send"));
+      content.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+      expect(tabSnapshotMap(service).size).toBe(0);
+
+      events.next(new NavigationStart(41, "/lock"));
+      events.next(new NavigationEnd(41, "/lock", "/lock"));
+      content.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+      expect(router.url).toBe("/tabs/send");
+      expect(tabSnapshotMap(service).get("/tabs/send")).toEqual({
+        scrollTop: 0,
+        focusKey: "send:search",
+      });
+    } finally {
+      content.remove();
+    }
+  });
+
+  it("keeps capture suppressed through canceled, errored, and skipped navigation ids", async () => {
+    const { events, service } = await createEventControlledService();
+    const content = document.createElement("button");
+    content.setAttribute("data-popup-focus-key", "send:search");
+    document.body.append(content);
+    const terminalEvents: readonly (
+      NavigationCancel | NavigationError | NavigationSkipped
+    )[] = [
+      new NavigationCancel(51, "/cancel", "guard rejected"),
+      new NavigationError(61, "/error", new Error("route failed")),
+      new NavigationSkipped(71, "/skipped", "same URL"),
+    ];
+
+    try {
+      for (const terminalEvent of terminalEvents) {
+        service.clear();
+        events.next(new NavigationStart(terminalEvent.id, terminalEvent.url));
+        events.next(new NavigationStart(terminalEvent.id + 1, "/lock"));
+        events.next(terminalEvent);
+        content.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+        expect(tabSnapshotMap(service).size).toBe(0);
+
+        events.next(new NavigationEnd(terminalEvent.id + 1, "/lock", "/lock"));
+        content.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+        expect(tabSnapshotMap(service).get("/tabs/send")?.focusKey).toBe("send:search");
+      }
+    } finally {
+      content.remove();
+    }
+  });
+
   it("clear resets OTP/cache state but leaves page-owner searches and filters alone", async () => {
     const { service, otp, vault, send, store } = await createServiceWithStateOwners();
     otp.setSearch("OpenAI");
@@ -786,7 +919,17 @@ function createClickedTabService() {
   ], true, false, ClickedTabsHostComponent);
 }
 
-function createMountedOtpTabService() {
+function createMountedOtpTabService(
+  codeSource: TotpCodeSource = {
+    generate: async () => ({
+      code: "123456",
+      formattedCode: "123 456",
+      period: 30,
+      secondsRemaining: 18,
+      isExpiring: false,
+    }),
+  },
+) {
   const store = new PopupStateStore();
   const item = {
     ...demoVaultItems[0]!,
@@ -810,19 +953,31 @@ function createMountedOtpTabService() {
   ], true, false, ClickedTabsHostComponent, [
     { provide: PopupStateStore, useValue: store },
     { provide: VaultActionsService, useValue: { copyFieldWithOutcome: vi.fn() } },
-    {
-      provide: TOTP_CODE_SOURCE,
-      useValue: {
-        generate: async () => ({
-          code: "123456",
-          formattedCode: "123 456",
-          period: 30,
-          secondsRemaining: 18,
-          isExpiring: false,
-        }),
-      },
-    },
+    { provide: TOTP_CODE_SOURCE, useValue: codeSource },
   ]);
+}
+
+async function createEventControlledService() {
+  const events = new Subject<RouterEvent>();
+  const router = {
+    url: "/tabs/send",
+    events: events.asObservable(),
+  } as Pick<Router, "url" | "events">;
+  await TestBed.configureTestingModule({
+    providers: [
+      { provide: Router, useValue: router },
+      OfficialI18nService,
+      { provide: I18nService, useExisting: OfficialI18nService },
+      { provide: POPUP_ROUTER_CACHE_ROUTE_GRAPH, useValue: retainedPopupRouteGraph },
+      { provide: PopupRouteReuseStrategy, useValue: { clear: vi.fn() } },
+    ],
+  }).compileComponents();
+
+  return {
+    events,
+    router,
+    service: TestBed.inject(PopupRouterCacheService),
+  };
 }
 
 function fiveTabSnapshotRoutes(): Routes {
@@ -911,4 +1066,20 @@ function tabSnapshotMap(service: PopupRouterCacheService) {
   return (service as unknown as {
     tabSnapshots: Map<PopupTabRoute, { scrollTop: number; focusKey: string | null }>;
   }).tabSnapshots;
+}
+
+function hasPendingFocusRestore(service: PopupRouterCacheService): boolean {
+  const state = service as unknown as {
+    pendingFocusRestore?: unknown;
+    focusRestoreObserver?: unknown;
+  };
+  return Boolean(state.pendingFocusRestore ?? state.focusRestoreObserver);
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }

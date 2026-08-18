@@ -1,6 +1,13 @@
 import { DOCUMENT } from "@angular/common";
 import { Injectable, Injector, OnDestroy, afterNextRender, inject } from "@angular/core";
-import { NavigationEnd, NavigationStart, Router } from "@angular/router";
+import {
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  NavigationSkipped,
+  NavigationStart,
+  Router,
+} from "@angular/router";
 import { Subscription } from "rxjs";
 
 import { ScrollLayoutService } from "@bitwarden/components";
@@ -30,6 +37,13 @@ export interface PopupUiSnapshot {
 }
 
 type CacheEntry = PopupUiSnapshot & { readonly url: RetainedPopupRoute };
+type PendingFocusRestore = {
+  readonly token: number;
+  readonly owner: HTMLElement;
+  readonly observer: MutationObserver;
+  readonly route: string;
+  readonly epoch: number;
+};
 
 const POPUP_TAB_ROUTES = new Set<PopupTabRoute>([
   "/tabs/vault",
@@ -69,10 +83,19 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   private restoring = false;
   private tabSnapshotEpoch = 0;
   private tabCaptureSuppressed = false;
-  private focusRestoreObserver: MutationObserver | null = null;
+  private readonly suppressionNavigationIds = new Set<number>();
+  private nextFocusRestoreToken = 0;
+  private pendingFocusRestore: PendingFocusRestore | null = null;
   private readonly routerSubscription: Subscription;
 
   private readonly onFocusIn = (event: FocusEvent): void => {
+    const pending = this.pendingFocusRestore;
+    if (
+      pending
+      && (!(event.target instanceof Node) || !pending.owner.contains(event.target))
+    ) {
+      this.cancelPendingFocusRestore();
+    }
     if (this.tabCaptureSuppressed) return;
     const tab = popupTabRoute(this.router.url);
     const key = closestPopupFocusKey(event.target);
@@ -87,19 +110,36 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   constructor() {
     this.document.addEventListener("focusin", this.onFocusIn);
     this.routerSubscription = this.router.events.subscribe((event) => {
-      if (event instanceof NavigationStart && !this.restoring) {
+      if (event instanceof NavigationStart) {
         this.cancelPendingFocusRestore();
-        if (!this.tabCaptureSuppressed) {
-          this.captureTabSnapshot();
+        if (this.tabCaptureSuppressed) {
+          this.suppressionNavigationIds.add(event.id);
         }
-        this.captureScrollAndFocus();
+        if (!this.restoring) {
+          if (!this.tabCaptureSuppressed) {
+            this.captureTabSnapshot();
+          }
+          this.captureScrollAndFocus();
+        }
       } else if (event instanceof NavigationEnd) {
         const captureWasSuppressed = this.tabCaptureSuppressed;
-        this.tabCaptureSuppressed = false;
+        if (
+          captureWasSuppressed
+          && this.suppressionNavigationIds.delete(event.id)
+        ) {
+          this.tabCaptureSuppressed = false;
+          this.suppressionNavigationIds.clear();
+        }
         this.record(event.urlAfterRedirects);
         if (!captureWasSuppressed) {
           this.scheduleTabRestore(event.urlAfterRedirects);
         }
+      } else if (
+        event instanceof NavigationCancel
+        || event instanceof NavigationError
+        || event instanceof NavigationSkipped
+      ) {
+        this.suppressionNavigationIds.delete(event.id);
       }
     });
   }
@@ -121,6 +161,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   clear(): void {
     this.tabSnapshotEpoch += 1;
     this.tabCaptureSuppressed = true;
+    this.suppressionNavigationIds.clear();
     this.cancelPendingFocusRestore();
     this.entries = [];
     this.tabSnapshots.clear();
@@ -275,13 +316,26 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
 
     const MutationObserverConstructor = this.document.defaultView?.MutationObserver;
     if (!MutationObserverConstructor) return;
+    const token = ++this.nextFocusRestoreToken;
+    const route = canonicalUrl(this.router.url);
+    const epoch = this.tabSnapshotEpoch;
     const observer = new MutationObserverConstructor(() => {
+      const pending = this.pendingFocusRestore;
       if (
-        this.focusRestoreObserver !== observer
+        pending?.token !== token
+        || pending.observer !== observer
+        || pending.owner !== owner
+        || pending.route !== route
+        || pending.epoch !== epoch
+        || epoch !== this.tabSnapshotEpoch
+        || canonicalUrl(this.router.url) !== route
         || !owner.isConnected
         || findFocusOwner(this.document, snapshot.focusKey!) !== owner
       ) {
         observer.disconnect();
+        if (this.pendingFocusRestore?.token === token) {
+          this.pendingFocusRestore = null;
+        }
         return;
       }
       const appearedTarget = eligibleFocusTarget(owner);
@@ -289,7 +343,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
       this.cancelPendingFocusRestore();
       focusWithoutScroll(appearedTarget);
     });
-    this.focusRestoreObserver = observer;
+    this.pendingFocusRestore = { token, owner, observer, route, epoch };
     observer.observe(owner, {
       attributes: true,
       childList: true,
@@ -299,8 +353,9 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   }
 
   private cancelPendingFocusRestore(): void {
-    this.focusRestoreObserver?.disconnect();
-    this.focusRestoreObserver = null;
+    const pending = this.pendingFocusRestore;
+    this.pendingFocusRestore = null;
+    pending?.observer.disconnect();
   }
 
   private async navigateFallback(): Promise<void> {
