@@ -1,6 +1,8 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -10,7 +12,7 @@ import { OverlayContainer } from "@angular/cdk/overlay";
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { ActivatedRoute, provideRouter, Router } from "@angular/router";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { BehaviorSubject, firstValueFrom } from "rxjs";
 
 import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
@@ -67,6 +69,44 @@ try {
   }
 }
 
+let accessibilityStyle: HTMLStyleElement;
+
+beforeAll(() => {
+  accessibilityStyle = document.createElement("style");
+  accessibilityStyle.textContent = ["macos-tokens.css", "macos-motion.css", "global.css"]
+    .map((filename) => readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+      "utf8",
+    ))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  document.head.append(accessibilityStyle);
+  const rootStyle = getComputedStyle(document.documentElement);
+  accessibilityStyle.textContent = accessibilityStyle.textContent.replace(
+    /var\((--[\w-]+)\)/g,
+    (value, name) => resolveCustomProperty(
+      rootStyle.getPropertyValue(name).trim(),
+      rootStyle,
+      new Set([name]),
+    ) || value,
+  );
+});
+
+afterAll(() => accessibilityStyle.remove());
+
+function resolveCustomProperty(
+  value: string,
+  rootStyle: CSSStyleDeclaration,
+  seen: Set<string>,
+): string {
+  return value.replace(/var\((--[\w-]+)\)/g, (reference, name) => {
+    if (seen.has(name)) return reference;
+    const next = rootStyle.getPropertyValue(name).trim();
+    if (!next) return reference;
+    return resolveCustomProperty(next, rootStyle, new Set([...seen, name]));
+  });
+}
+
 describe("PopupHeaderActionsComponent", () => {
   it("renders the official New menu with retained personal item types and folder context", async () => {
     const store = new PopupStateStore();
@@ -93,12 +133,26 @@ describe("PopupHeaderActionsComponent", () => {
     expect(newAction.textContent).toContain("新增");
     expect(newAction.tagName).toBe("BUTTON");
     expect(newAction.querySelector(".bwi-plus")).not.toBeNull();
+    const headerTargets = [
+      newAction,
+      host.querySelector<HTMLButtonElement>("app-pop-out button"),
+      host.querySelector<HTMLButtonElement>("app-current-account button"),
+    ];
+    expect(headerTargets.every(Boolean)).toBe(true);
+    const resolvedHeaderTargets = headerTargets as HTMLButtonElement[];
+    expect(resolvedHeaderTargets.map((target) => [
+      getComputedStyle(target).minWidth,
+      getComputedStyle(target).minHeight,
+    ])).toEqual(resolvedHeaderTargets.map(() => ["44px", "44px"]));
 
     newAction.click();
     fixture.detectChanges();
 
     const menu = document.querySelector<HTMLElement>('.bit-menu-panel [role="menu"]')!;
     const menuItems = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+    expect(getComputedStyle(menu).animationDuration).toBe("160ms");
+    expect(Array.from(menuItems, (item) => getComputedStyle(item).minHeight))
+      .toEqual(Array.from(menuItems, () => "44px"));
     expect(menuItems.map((item) => item.textContent?.trim())).toEqual([
       "登录",
       "支付卡",

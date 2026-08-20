@@ -381,15 +381,19 @@ describe("popup visual smoke classes", () => {
     expect(loading).toContain("min-height: var(--bw-popup-height);");
   });
 
-  it("lets the official form-field own the password focus ring", () => {
+  it("lets official field containers own the single 2px focus ring", () => {
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
     );
 
     expect(globalCss).toMatch(
-      /\.macos-auth-card \.macos-field :is\(input, select, textarea\):focus(?:-visible)?\s*{[^}]*outline:\s*none !important;/s,
+      /bit-form-field \[bitfieldcontainer\]:focus-within,[\s\S]*?outline-width:\s*var\(--mac-focus-ring-width\);[\s\S]*?outline-style:\s*solid;/,
     );
+    expect(globalCss).toMatch(
+      /bit-form-field \[bitfieldcontainer\] :is\(input, select, textarea\):focus-visible,[\s\S]*?outline-width:\s*0 !important;[\s\S]*?outline-style:\s*none !important;/,
+    );
+    expect(globalCss).not.toMatch(/box-shadow:\s*0 0 0 3px[^;]*--mac-focus/);
   });
 
   it("applies the official button preflight before Tailwind component utilities", () => {
@@ -768,9 +772,11 @@ describe("popup visual smoke classes", () => {
     expect(menu).toContain("min-width: 156px;");
     expect(menu).toContain("border-radius: 12px;");
     expect(menu).toContain("box-shadow:");
-    expect(menu).toContain("animation: macos-menu-appear 100ms ease-out;");
+    expect(menu).toContain("animation-name: macos-menu-appear;");
+    expect(menu).toContain("animation-duration: var(--mac-motion-fast);");
+    expect(menu).toContain("animation-timing-function: ease-out;");
     expect(globalCss).toMatch(
-      /\.bit-menu-panel--closing \[role="menu"\][\s\S]*?animation:\s*macos-menu-disappear 100ms ease-in forwards/,
+      /\.bit-menu-panel--closing \[role="menu"\][\s\S]*?animation-name:\s*macos-menu-disappear;[\s\S]*?animation-duration:\s*var\(--mac-motion-fast\);[\s\S]*?animation-fill-mode:\s*forwards;/,
     );
     expect(globalCss).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.bit-menu-panel \[role="menu"\][\s\S]*?animation:\s*none/,
@@ -784,6 +790,8 @@ describe("popup visual smoke classes", () => {
     );
     expect(menu).not.toContain("transform-origin: top right;");
     expect(menuTriggerSource).toContain('.withTransformOriginOn(\'[role="menu"]\')');
+    expect(menuTriggerSource).toContain("const MENU_CLOSE_MOTION_MS = 160;");
+    expect(menuTriggerSource).toContain("setTimeout(() => this.finishClose(), MENU_CLOSE_MOTION_MS)");
   });
 
   it("keeps the continuous Vault list's final-row separator removal scoped to item groups", () => {

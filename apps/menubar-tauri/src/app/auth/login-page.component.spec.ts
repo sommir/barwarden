@@ -36,7 +36,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function installLoginVisualCss(): {
+function installLoginVisualCss(media: { readonly forcedColors?: boolean } = {}): {
   readonly exposeFocusVisible: (element: HTMLElement) => void;
   readonly cleanup: () => void;
 } {
@@ -52,45 +52,42 @@ function installLoginVisualCss(): {
       ),
     );
   }
-  style.textContent = productionCascade.toString();
-  document.head.append(style);
-
-  const productionSelector = ".macos-auth-card button:focus-visible";
-  const findRule = (rules: CSSRuleList): CSSStyleRule | null => {
-    for (const rule of Array.from(rules)) {
-      if (
-        "selectorText" in rule
-        && "style" in rule
-        && typeof rule.selectorText === "string"
-        && rule.selectorText.split(",").map((selector) => selector.trim()).includes(productionSelector)
-      ) {
-        return rule as CSSStyleRule;
-      }
-      if ("cssRules" in rule) {
-        const nested = findRule((rule as CSSGroupingRule).cssRules);
-        if (nested) {
-          return nested;
-        }
-      }
+  productionCascade.walkAtRules("media", (rule) => {
+    const active = rule.params === "(forced-colors: active)" && media.forcedColors === true;
+    if (active) {
+      rule.replaceWith(...(rule.nodes ?? []).map((node) => node.clone()));
+    } else {
+      rule.remove();
     }
-    return null;
-  };
-  const focusRule = style.sheet ? findRule(style.sheet.cssRules) : null;
-  if (!focusRule) {
-    style.remove();
-    throw new Error("Production login focus-visible rule was not loaded");
-  }
-  const focusProbe = document.createElement("style");
-  focusProbe.textContent = `.macos-auth-card button[data-production-focus-visible] { ${focusRule.style.cssText} }`;
-  document.head.append(focusProbe);
+  });
+  productionCascade.walkAtRules("starting-style", (rule) => rule.remove());
+  style.textContent = productionCascade.toString()
+    .replace(/:focus-visible/g, '[data-production-focus-visible="true"]')
+    .replace(/:focus-within/g, ':has([data-production-focus-visible="true"])');
+  document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
+    resolveCustomProperty(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
+      || value,
+  );
 
   return {
-    exposeFocusVisible: (element) => element.setAttribute("data-production-focus-visible", ""),
-    cleanup: () => {
-      focusProbe.remove();
-      style.remove();
-    },
+    exposeFocusVisible: (element) => element.dataset["productionFocusVisible"] = "true",
+    cleanup: () => style.remove(),
   };
+}
+
+function resolveCustomProperty(
+  value: string,
+  rootStyle: CSSStyleDeclaration,
+  seen: Set<string>,
+): string {
+  return value.replace(/var\((--[\w-]+)\)/g, (reference, name) => {
+    if (seen.has(name)) return reference;
+    const next = rootStyle.getPropertyValue(name).trim();
+    if (!next) return reference;
+    return resolveCustomProperty(next, rootStyle, new Set([...seen, name]));
+  });
 }
 
 describe("LoginPageComponent", () => {
@@ -203,6 +200,53 @@ describe("LoginPageComponent", () => {
     }
   });
 
+  it("renders one 2px production focus ring on the real auth field container", async () => {
+    const visualCss = installLoginVisualCss();
+    const { fixture } = await createPage();
+    const input = fixture.nativeElement.querySelector<HTMLInputElement>(
+      '[data-testid="login-email-input"]',
+    )!;
+    const field = input.closest<HTMLElement>("[bitfieldcontainer]")!;
+
+    try {
+      input.focus();
+      visualCss.exposeFocusVisible(input);
+      const inputStyle = getComputedStyle(input);
+      const fieldStyle = getComputedStyle(field);
+      expect(fieldStyle.outlineWidth).toBe("2px");
+      expect(fieldStyle.outlineStyle).toBe("solid");
+      expect(fieldStyle.outlineOffset).toBe("2px");
+      expect(fieldStyle.boxShadow).toBe("none");
+      expect(inputStyle.outlineStyle).toBe("none");
+    } finally {
+      fixture.destroy();
+      visualCss.cleanup();
+    }
+  });
+
+  it("keeps the real auth field focus ring visible in forced colors", async () => {
+    const visualCss = installLoginVisualCss({ forcedColors: true });
+    const { fixture } = await createPage();
+    const input = fixture.nativeElement.querySelector<HTMLInputElement>(
+      '[data-testid="login-email-input"]',
+    )!;
+    const field = input.closest<HTMLElement>("[bitfieldcontainer]")!;
+    const probe = document.createElement("span");
+    probe.style.outlineColor = "Highlight";
+    document.body.append(probe);
+
+    try {
+      input.focus();
+      visualCss.exposeFocusVisible(input);
+      expect(getComputedStyle(field).outlineWidth).toBe("2px");
+      expect(getComputedStyle(field).outlineColor).toBe(getComputedStyle(probe).outlineColor);
+    } finally {
+      probe.remove();
+      fixture.destroy();
+      visualCss.cleanup();
+    }
+  });
+
   it("renders one large Barwarden product title without a provider subtitle", async () => {
     const { fixture } = await createPage();
     const host = fixture.nativeElement as HTMLElement;
@@ -231,7 +275,7 @@ describe("LoginPageComponent", () => {
     expect(styles).toContain("background: var(--mac-canvas);");
     expect(styles).toContain(".macos-auth-card {");
     expect(styles).toContain("width: min(100%, 360px);");
-    expect(styles).toContain(".macos-field :is(input, select, textarea):focus-visible");
+    expect(styles).toContain("bit-form-field [bitfieldcontainer]:focus-within");
     expect(styles).toContain(".macos-auth-validation");
     expect(styles).toContain("min-block-size:");
     expect(styles).toContain(".macos-auth-identity");

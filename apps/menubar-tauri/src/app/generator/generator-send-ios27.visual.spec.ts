@@ -78,6 +78,11 @@ beforeAll(() => {
     .replace(/^@import[^;]+;\s*/gm, "");
   style.textContent += officialUtilityHitTargetCss;
   document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
+    resolveCustomProperty(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
+      || value,
+  );
 });
 
 afterAll(() => {
@@ -86,9 +91,25 @@ afterAll(() => {
   document.body.replaceChildren();
 });
 
+function resolveCustomProperty(
+  value: string,
+  rootStyle: CSSStyleDeclaration,
+  seen: Set<string>,
+): string {
+  return value.replace(/var\((--[\w-]+)\)/g, (reference, name) => {
+    if (seen.has(name)) return reference;
+    const next = rootStyle.getPropertyValue(name).trim();
+    if (!next) return reference;
+    return resolveCustomProperty(next, rootStyle, new Set([...seen, name]));
+  });
+}
+
 describe("iOS 27 Generator visual contract", () => {
   it("keeps Send form groups flat with touch-safe controls and an explicit focus ring", () => {
-    const css = style.textContent ?? "";
+    const css = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+      "utf8",
+    );
     expect(css).toMatch(/\.macos-send-form__group\s*\{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
     expect(css).toMatch(/\.macos-send-form__field\s*\{[^}]*padding-block:\s*10px[^}]*border-bottom-width:\s*1px[^}]*border-bottom-style:\s*solid/s);
     expect(css).toMatch(/\.macos-send-form__field\s+:is\(input,\s*textarea,\s*select\)\s*\{[^}]*min-height:\s*44px[^}]*border-radius:\s*10px/s);

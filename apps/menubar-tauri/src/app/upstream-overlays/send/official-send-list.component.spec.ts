@@ -85,7 +85,7 @@ describe("OfficialSendListComponent", () => {
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
     );
     fixture.detectChanges();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
 
     expect(document.querySelector('[role="menu"][aria-label*="Payroll token"]')).toBeNull();
     expect(document.activeElement).toBe(more);

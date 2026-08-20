@@ -806,7 +806,7 @@ describe("VaultListPageComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.openMenuRowId).not.toBe(firstOpenRowId);
-    await new Promise((resolve) => setTimeout(resolve, 110));
+    await new Promise((resolve) => setTimeout(resolve, 170));
     fixture.detectChanges();
     expect(document.querySelectorAll('[role="menu"][aria-label="更多"]')).toHaveLength(1);
     expect(
@@ -841,6 +841,8 @@ describe("VaultListPageComponent", () => {
       .componentInstance as { readonly itemHeight$: Observable<number> };
 
     expect(await firstValueFrom(container.itemHeight$)).toBe(expectedPitch);
+    fixture.destroy();
+    settings.setCompactMode(false);
   });
 
   it("keeps a 229-item hierarchy bounded to the virtual viewport while scrolling", async () => {
@@ -998,6 +1000,7 @@ describe("VaultListPageComponent", () => {
 
   it("renders real search results as one continuous Vault list", async () => {
     const cleanupCss = installVaultVisualCss();
+    new SettingsService().setCompactMode(false);
     const store = new PopupStateStore();
     store.setItems(
       [
@@ -1040,6 +1043,9 @@ describe("VaultListPageComponent", () => {
       expect(getComputedStyle(rows![0]!).borderLeftWidth).toBe("0px");
       expect(getComputedStyle(rows![0]!).borderRadius).toBe("0px");
       expect(getComputedStyle(rows![0]!).boxShadow).toBe("none");
+      document.body.classList.add("tw-bit-compact");
+      expect(getComputedStyle(rows![0]!).minHeight).toBe("44px");
+      document.body.classList.remove("tw-bit-compact");
 
       fixture.destroy();
     } finally {

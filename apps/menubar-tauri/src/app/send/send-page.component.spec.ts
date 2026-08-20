@@ -479,7 +479,7 @@ describe("SendPageComponent", () => {
         .toHaveLength(1);
       expect(confirmation.hasAttribute("open")).toBe(true);
 
-      await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
       expect(staleDeleteItem.isConnected).toBe(false);
       expect(document.querySelector('[role="menuitem"].tw-text-fg-danger')).toBeNull();
 

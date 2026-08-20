@@ -130,7 +130,7 @@ describe("RetainedVaultListItemComponent", () => {
     expect(document.activeElement?.textContent).toContain("查看");
     document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     fixture.detectChanges();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
 
@@ -140,13 +140,13 @@ describe("RetainedVaultListItemComponent", () => {
     const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
     document.activeElement?.dispatchEvent(tab);
     expect(tab.defaultPrevented).toBe(false);
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
     fixture.detectChanges();
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).toBeNull();
     host.remove();
   });
 
-  it("keeps the menu exit visible for 100ms and lets reopening interrupt it", async () => {
+  it("keeps the menu exit visible for the 160ms fast-motion token and lets reopening interrupt it", async () => {
     const fixture = await createLoginRow();
     const host = fixture.nativeElement as HTMLElement;
     document.body.appendChild(host);
@@ -164,10 +164,12 @@ describe("RetainedVaultListItemComponent", () => {
     expect(document.querySelector(".bit-menu-panel--closing")).toBeNull();
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).not.toBeNull();
 
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).not.toBeNull();
     trigger.click();
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    expect(document.querySelector('[role="menu"][aria-label="更多"]')).not.toBeNull();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 60));
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).toBeNull();
     host.remove();
   });

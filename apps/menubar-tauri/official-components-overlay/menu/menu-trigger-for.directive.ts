@@ -20,6 +20,9 @@ import { TooltipDirective } from "../tooltip/tooltip.directive";
 import { MenuPositionIdentifier, defaultPositions } from "./default-positions";
 import { MenuComponent } from "./menu.component";
 
+/** Must stay aligned with the CSS --mac-motion-fast token. */
+const MENU_CLOSE_MOTION_MS = 160;
+
 @Directive({
   selector: "[bitMenuTriggerFor]",
   exportAs: "menuTrigger",
@@ -187,7 +190,7 @@ export class MenuTriggerForDirective implements OnDestroy {
       return;
     }
     this.overlayRef.addPanelClass("bit-menu-panel--closing");
-    this.closingTimer = window.setTimeout(() => this.finishClose(), 100);
+    this.closingTimer = window.setTimeout(() => this.finishClose(), MENU_CLOSE_MOTION_MS);
   }
 
   private setupClosingActions(isContextMenu: boolean) {

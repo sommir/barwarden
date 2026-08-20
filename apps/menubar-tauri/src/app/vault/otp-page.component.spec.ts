@@ -281,9 +281,9 @@ describe("OtpPageComponent", () => {
       .toEqual(["otp-item:github", "otp-item:calendar"]);
     expect(getComputedStyle(otpRows[0]!).borderBottomWidth).toBe("1px");
     expect(getComputedStyle(otpRows[1]!).borderBottomWidth).toBe("0px");
-    expect(getComputedStyle(otpRows[0]!).minHeight).toBe("56px");
-    document.body.classList.add("tw-bit-compact");
     expect(getComputedStyle(otpRows[0]!).minHeight).toBe("52px");
+    document.body.classList.add("tw-bit-compact");
+    expect(getComputedStyle(otpRows[0]!).minHeight).toBe("44px");
     document.body.classList.remove("tw-bit-compact");
     const copyTarget = host.querySelector<HTMLElement>("[data-testid='otp-code']")!;
     expect(copyTarget.closest("[data-popup-focus-key]")).toBe(otpRows[0]);

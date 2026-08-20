@@ -1208,7 +1208,7 @@ bw-vault-detail-field {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
+  min-height: var(--mac-control-min-size);
   border: 0;
   border-bottom: 1px solid var(--bw-border-subtle);
   padding: 0 12px;
@@ -1255,16 +1255,21 @@ bw-vault-detail-field {
     0 14px 34px color-mix(in srgb, #0b1220 18%, transparent),
     0 2px 8px color-mix(in srgb, #0b1220 10%, transparent) !important;
   backdrop-filter: blur(20px) saturate(1.18);
-  animation: macos-menu-appear 100ms ease-out;
+  animation-name: macos-menu-appear;
+  animation-duration: var(--mac-motion-fast);
+  animation-timing-function: ease-out;
 }
 
 .bit-menu-panel--closing [role="menu"] {
   pointer-events: none;
-  animation: macos-menu-disappear 100ms ease-in forwards;
+  animation-name: macos-menu-disappear;
+  animation-duration: var(--mac-motion-fast);
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
 }
 
 .bit-menu-panel [role="menu"] [role="menuitem"] {
-  min-height: 36px;
+  min-height: var(--mac-control-min-size);
   border-radius: 8px;
   padding: 0 10px !important;
   color: var(--mac-text-primary);
@@ -1485,7 +1490,11 @@ bw-vault-detail-field {
 .vault-skeleton-line::after {
   position: absolute;
   inset: 0;
-  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  /* Loading shimmer is continuous progress feedback, not an interaction transition. */
+  animation-name: skeleton-shimmer;
+  animation-duration: 1.4s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.62), transparent);
   content: "";
   transform: translateX(-100%);
@@ -2274,14 +2283,10 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 .macos-auth-card button:focus-visible,
 .macos-auth-card [role="button"]:focus-visible,
 .macos-auth-card a:focus-visible {
-  outline-width: 2px;
+  outline-width: var(--mac-focus-ring-width);
   outline-style: solid;
   outline-color: var(--mac-focus);
   outline-offset: 2px;
-}
-
-.macos-auth-card .macos-field :is(input, select, textarea):focus-visible {
-  outline: none !important;
 }
 
 .macos-auth-card :is(button, [role="button"], a) {
@@ -2406,7 +2411,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   padding: 9px 10px;
   background: color-mix(in srgb, var(--mac-destructive) 8%, var(--mac-surface-solid));
   color: var(--mac-text-primary);
-  animation: macos-alert-materialize 140ms ease-out;
+  animation-name: macos-alert-materialize;
+  animation-duration: var(--mac-motion-standard);
+  animation-timing-function: ease-out;
 }
 
 .macos-alert-strip[data-presentation="toast"] {
@@ -2431,7 +2438,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
     0 2px 6px color-mix(in srgb, #0b1220 8%, transparent);
   backdrop-filter: blur(24px) saturate(1.12);
   transform: translateX(-50%);
-  animation: macos-alert-toast-in 180ms cubic-bezier(.2, .82, .25, 1);
+  animation-name: macos-alert-toast-in;
+  animation-duration: var(--mac-motion-standard);
+  animation-timing-function: cubic-bezier(.2, .82, .25, 1);
 }
 
 /* Startup recovery belongs to the application window, not to a routed page.
@@ -2453,7 +2462,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   width: 100%;
   max-height: inherit;
   transform: none;
-  animation: macos-alert-materialize 140ms ease-out;
+  animation-name: macos-alert-materialize;
+  animation-duration: var(--mac-motion-standard);
+  animation-timing-function: ease-out;
 }
 
 :root[data-bw-window="popout"] .app-startup-alert {
@@ -3201,8 +3212,23 @@ auth-account .macos-account-label {
 .macos-page--settings .settings-row { border: 0; border-radius: 0; }
 .macos-page--settings bit-item + bit-item { margin-top: 0; }
 
-.macos-page :is(bit-search, bit-form-field, bit-form-control) :is(input, select, textarea):focus-visible {
-  outline: none;
+bit-form-field [bitfieldcontainer]:focus-within,
+bit-search [bitfieldcontainer]:focus-within,
+bit-form-control > label:focus-within,
+.vault-root-header__search:focus-within {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+bit-form-field [bitfieldcontainer] :is(input, select, textarea):focus-visible,
+bit-search [bitfieldcontainer] :is(input, select, textarea):focus-visible,
+bit-form-control > label :is(input, select, textarea):focus-visible,
+.vault-root-header__search input:focus-visible {
+  outline-width: 0 !important;
+  outline-style: none !important;
 }
 
 .macos-page--send :is([role="menu"], .send-create-menu),
@@ -3302,6 +3328,16 @@ auth-account .macos-account-label {
     outline-color: Highlight !important;
   }
 
+  bit-form-field [bitfieldcontainer]:focus-within,
+  bit-search [bitfieldcontainer]:focus-within,
+  bit-form-control > label:focus-within,
+  .vault-root-header__search:focus-within,
+  .macos-list app-retained-vault-list-item > bit-item:focus-within,
+  .macos-page--vault-recovery bit-item:focus-within {
+    border-color: Highlight !important;
+    outline-color: Highlight !important;
+  }
+
   .floating-tab-switcher__segment[aria-current="page"] {
     border: 2px solid Highlight;
     background: Highlight;
@@ -3319,6 +3355,7 @@ auth-account .macos-account-label {
   :where(button, a, [role="button"]):is(
     .danger-action,
     .is-danger,
+    .tw-bg-bg-danger,
     .tw-text-fg-danger,
     .account-switcher-destructive-action,
     [buttontype="danger"]
@@ -4960,7 +4997,7 @@ auth-account .macos-account-label {
 .new-item-option {
   display: grid;
   width: 100%;
-  min-height: 52px;
+  min-height: var(--mac-row-height);
   grid-template-columns: 32px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
@@ -4974,7 +5011,7 @@ auth-account .macos-account-label {
 }
 
 body.tw-bit-compact .new-item-option {
-  min-height: 52px;
+  min-height: var(--mac-compact-row-height);
   padding-block: 4px;
 }
 
@@ -5060,11 +5097,11 @@ body.tw-bit-compact .new-item-option {
   gap: var(--mac-space-1);
 }
 
-.vault-root-header__actions .header-actions > :is(app-pop-out, app-current-account) button {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+.header-actions > :is(app-pop-out, app-current-account) button {
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
 }
 
 .vault-root-header__search {
@@ -5083,7 +5120,6 @@ body.tw-bit-compact .new-item-option {
 
 .vault-root-header__search:focus-within {
   border-color: color-mix(in srgb, var(--mac-focus) 54%, var(--mac-border-subtle));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mac-focus) 22%, transparent);
 }
 
 .vault-root-header__search > .bwi {
@@ -5559,7 +5595,7 @@ bw-otp-code-row {
 .otp-code-row {
   display: grid;
   min-width: 0;
-  min-height: 56px;
+  min-height: var(--mac-row-height);
   grid-template-columns: 28px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--mac-space-2);
@@ -5574,7 +5610,7 @@ bw-otp-code-row {
 }
 
 body.tw-bit-compact .otp-code-row {
-  min-height: 52px;
+  min-height: var(--mac-compact-row-height);
   padding-block: 4px;
 }
 
@@ -5695,7 +5731,9 @@ bw-otp-code-row:last-child .otp-code-row {
 }
 
 .otp-code-row__copy.is-copied .otp-code-row__copy-icon {
-  animation: macos-copy-confirm 220ms ease-out;
+  animation-name: macos-copy-confirm;
+  animation-duration: var(--mac-motion-slow);
+  animation-timing-function: ease-out;
 }
 
 .otp-code-row__status {
@@ -5736,7 +5774,9 @@ bw-otp-code-row:last-child .otp-code-row {
 
 .macos-copy-feedback-icon {
   color: var(--mac-accent) !important;
-  animation: macos-copy-confirm 140ms ease-out;
+  animation-name: macos-copy-confirm;
+  animation-duration: var(--mac-motion-standard);
+  animation-timing-function: ease-out;
 }
 
 button.is-copy-confirmed {
@@ -5788,6 +5828,7 @@ button.is-copy-failed {
 
 .macos-list app-retained-vault-list-item > bit-item,
 .macos-page--vault-recovery bit-item {
+  min-width: 0;
   min-height: var(--mac-row-height);
   margin-bottom: var(--mac-space-1);
   overflow: visible;
@@ -5820,7 +5861,11 @@ button.is-copy-failed {
 .macos-list app-retained-vault-list-item > bit-item:focus-within,
 .macos-page--vault-recovery bit-item:focus-within {
   border-color: color-mix(in srgb, var(--mac-focus) 42%, var(--mac-border-subtle));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 30%, transparent);
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .macos-page--vault-recovery bw-official-folders bit-item-group {
@@ -5832,7 +5877,7 @@ button.is-copy-failed {
 }
 
 .macos-page--vault-recovery bw-official-folders bit-item {
-  min-height: 52px;
+  min-height: var(--mac-row-height);
   margin-bottom: 0;
   overflow: hidden;
   border: 0;
@@ -5868,7 +5913,7 @@ body .macos-page--vault-recovery :is(bit-section, bit-item-group) {
 }
 
 body .macos-page--vault-recovery bit-item {
-  min-height: 52px;
+  min-height: var(--mac-row-height);
   margin: 0;
   border: 0;
   border-bottom: 1px solid var(--mac-border-subtle);
@@ -5888,11 +5933,21 @@ body .macos-page--vault-recovery [data-testid^="history-copy-"] {
 }
 
 body.tw-bit-compact .macos-page--vault-recovery bit-item {
-  min-height: 52px;
+  min-height: var(--mac-compact-row-height);
 }
 
 .macos-list app-retained-vault-list-item [data-testid="vault-item-content"] {
+  height: var(--mac-row-height);
   background: transparent !important;
+}
+
+body.tw-bit-compact .macos-list app-retained-vault-list-item > bit-item,
+body.tw-bit-compact .macos-list app-retained-vault-list-item [data-testid="vault-item-content"] {
+  min-height: var(--mac-compact-row-height);
+}
+
+body.tw-bit-compact .macos-list app-retained-vault-list-item [data-testid="vault-item-content"] {
+  height: var(--mac-compact-row-height);
 }
 
 .macos-list app-retained-vault-list-item [data-testid="item-name"],

@@ -55,7 +55,7 @@ describe("VaultFilterChipComponent", () => {
     const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
     menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     fixture.detectChanges();
-    await new Promise((resolve) => setTimeout(resolve, 110));
+    await new Promise((resolve) => setTimeout(resolve, 170));
     fixture.detectChanges();
 
     expect(document.querySelector('[role="menu"]')).toBeNull();
