@@ -78,6 +78,10 @@ describe("OfficialCredentialGeneratorComponent", () => {
     expect(result.getAttribute("aria-labelledby")).toBe("generator-result-title");
     expect(copy.getAttribute("aria-label")).toBeTruthy();
     expect(regenerate.getAttribute("aria-label")).toBeTruthy();
+    expect(copy.classList).toContain("macos-hit-target");
+    expect(regenerate.classList).toContain("macos-hit-target");
+    expect(copy.querySelector(":scope .bwi")?.closest("button")).toBe(copy);
+    expect(regenerate.querySelector(":scope .bwi")?.closest("button")).toBe(regenerate);
     expect(copy.getAttribute("buttontype")).toBe("primary");
     expect(regenerate.getAttribute("buttontype")).toBe("primaryGhost");
     expect(host.querySelectorAll('button[buttontype="primary"]')).toHaveLength(1);

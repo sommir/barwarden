@@ -158,7 +158,6 @@ describe("iOS 27 Generator visual contract", () => {
   it("renders the real Generator page with flat ordinary surfaces and touch-safe controls", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
-    TestBed.overrideComponent(PopupPageComponent, { set: { template: "<ng-content />" } });
     await TestBed.configureTestingModule({
       imports: [GeneratorVisualHostComponent],
       providers: [
@@ -180,12 +179,19 @@ describe("iOS 27 Generator visual contract", () => {
 
     const host = fixture.nativeElement as HTMLElement;
     const official = host.querySelector<HTMLElement>("bw-official-credential-generator")!;
+    const scrollRegion = official.querySelector<HTMLElement>(
+      '[data-testid="popup-layout-scroll-region"]',
+    )!;
     const result = official.querySelector<HTMLElement>(".macos-generator__result")!;
     const mode = official.querySelector<HTMLElement>(".macos-generator__mode")!;
+    const modeGroup = mode.querySelector<HTMLElement>("bit-toggle-group")!;
+    const modeToggles = mode.querySelectorAll<HTMLElement>("bit-toggle");
     const settings = official.querySelector<HTMLElement>(".macos-generator__settings")!;
     const settingSurfaces = settings.querySelectorAll<HTMLElement>("bit-card, bit-section");
     const copy = official.querySelector<HTMLButtonElement>('[data-testid="generator-copy"]')!;
     const regenerate = official.querySelector<HTMLButtonElement>('[data-testid="generator-regenerate"]')!;
+    const copyGlyph = copy.querySelector<HTMLElement>(".bwi")!;
+    const regenerateGlyph = regenerate.querySelector<HTMLElement>(".bwi")!;
     const historyRow = official.querySelector<HTMLElement>(".macos-generator__history-row")!;
     const history = official.querySelector<HTMLAnchorElement>(".macos-generator__history-link")!;
     const interactiveTargets = official.querySelectorAll<HTMLElement>("button, a");
@@ -209,11 +215,19 @@ describe("iOS 27 Generator visual contract", () => {
     )!;
 
     expect(official.querySelector("popup-page.macos-generator")).not.toBeNull();
+    expect(scrollRegion).not.toBeNull();
     expect(result.compareDocumentPosition(mode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(mode.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(settingSurfaces.length).toBeGreaterThan(0);
     expect(getComputedStyle(result).borderRadius).toBe("0px");
     expect(getComputedStyle(result).boxShadow).toBe("none");
+    expect.soft(cssPixels(getComputedStyle(result).minHeight)).toBeGreaterThanOrEqual(68);
+    expect.soft(cssPixels(getComputedStyle(result).minHeight)).toBeLessThanOrEqual(72);
+    expect.soft(getComputedStyle(scrollRegion).paddingInline).toBe("16px");
+    expect.soft(getComputedStyle(result).marginLeft).toBe("0px");
+    expect.soft(getComputedStyle(result).marginRight).toBe("0px");
+    expect.soft(getComputedStyle(mode).marginLeft).toBe("0px");
+    expect.soft(getComputedStyle(mode).marginRight).toBe("0px");
     expect(getComputedStyle(historyRow).borderRadius).toBe("0px");
     expect(getComputedStyle(historyRow).boxShadow).toBe("none");
     expect(Array.from(settingSurfaces, (surface) => getComputedStyle(surface).borderRadius))
@@ -224,8 +238,31 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual(Array.from(interactiveTargets, () => "44px"));
     expect(Array.from(interactiveTargets, (target) => getComputedStyle(target).minHeight))
       .toEqual(Array.from(interactiveTargets, (target) => target === history ? "52px" : "44px"));
-    expect(getComputedStyle(copy).minHeight).toBe("44px");
-    expect(getComputedStyle(regenerate).minHeight).toBe("44px");
+    expect.soft(getComputedStyle(copy).minHeight).toBe("44px");
+    expect.soft(getComputedStyle(regenerate).minHeight).toBe("44px");
+    expect.soft(getComputedStyle(copy).minWidth).toBe("44px");
+    expect.soft(getComputedStyle(regenerate).minWidth).toBe("44px");
+    expect.soft(copy.classList).toContain("macos-hit-target");
+    expect.soft(regenerate.classList).toContain("macos-hit-target");
+    expect.soft(copyGlyph.closest("button")).toBe(copy);
+    expect.soft(regenerateGlyph.closest("button")).toBe(regenerate);
+    expect.soft(getComputedStyle(copyGlyph).width).toBe("32px");
+    expect.soft(getComputedStyle(copyGlyph).height).toBe("32px");
+    expect.soft(getComputedStyle(regenerateGlyph).width).toBe("32px");
+    expect.soft(getComputedStyle(regenerateGlyph).height).toBe("32px");
+    expect.soft(getComputedStyle(copy).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect.soft(getComputedStyle(copyGlyph).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect.soft(getComputedStyle(regenerate).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect.soft(getComputedStyle(regenerateGlyph).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect.soft(style.textContent ?? "").toMatch(
+      /\.macos-generator__result-actions button:is\(:hover, :active, :focus-visible, \[aria-expanded="true"\]\)\s*\{[^}]*border-color:\s*transparent !important;[^}]*background:\s*transparent !important;/s,
+    );
+    expect.soft(copy.getAttribute("buttontype")).toBe("primary");
+    expect.soft(regenerate.getAttribute("buttontype")).toBe("primaryGhost");
+    expect.soft(official.querySelectorAll('button[buttontype="primary"]')).toHaveLength(1);
+    expect.soft(getComputedStyle(modeGroup).minHeight).toBe("44px");
+    expect.soft(Array.from(modeToggles, (toggle) => getComputedStyle(toggle).height))
+      .toEqual(Array.from(modeToggles, () => "40px"));
     expect(modeRadios).toHaveLength(3);
     expect(modeLabels).toHaveLength(3);
     expect(Array.from(modeRadios, (radio, index) => modeLabels[index]?.htmlFor === radio.id))
@@ -239,16 +276,50 @@ describe("iOS 27 Generator visual contract", () => {
       fieldShells: Array.from(fieldShells, computedHitHeight),
       checkboxLabels: Array.from(checkboxLabels, computedHitHeight),
     }).toEqual({
-      modeRadios: Array.from(modeRadios, () => 44),
-      modeLabels: Array.from(modeLabels, () => 44),
+      modeRadios: Array.from(modeRadios, () => 40),
+      modeLabels: Array.from(modeLabels, () => 40),
       fieldShells: Array.from(fieldShells, () => 44),
       checkboxLabels: Array.from(checkboxLabels, () => 44),
     });
     expect(computedHitHeight(outsideField)).toBe(40);
     expect(getComputedStyle(history).minHeight).toBe("52px");
 
+    copy.focus();
+    expect.soft(document.activeElement).toBe(copy);
+    expect.soft(getComputedStyle(copy).outlineWidth).toBe("2px");
+    expect.soft(cssPixels(getComputedStyle(copyGlyph).outlineWidth)).toBe(0);
+
+    modeRadios[0]!.focus();
+    expect.soft(document.activeElement).toBe(modeRadios[0]);
+    expect.soft(modeRadios[0]!.nextElementSibling).toBe(modeLabels[0]);
+    expect.soft(cssPixels(getComputedStyle(modeRadios[0]!).outlineWidth)).toBe(0);
+    expect.soft(style.textContent ?? "").toMatch(
+      /\.macos-generator__mode bit-toggle > input\[type="radio"\]:focus-visible\s*\{[^}]*outline:\s*0 !important;[^}]*box-shadow:\s*none !important;[^}]*\}\s*\.macos-generator__mode bit-toggle > input\[type="radio"\]:focus-visible \+ label\s*\{[^}]*outline:\s*2px solid [^;]+;[^}]*box-shadow:\s*none !important;/s,
+    );
+
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect.soft(getComputedStyle(copy).minWidth).toBe("44px");
+    expect.soft(getComputedStyle(regenerate).minWidth).toBe("44px");
+    expect.soft(getComputedStyle(copyGlyph).width).toBe("28px");
+    expect.soft(getComputedStyle(copyGlyph).height).toBe("28px");
+    expect.soft(getComputedStyle(regenerateGlyph).width).toBe("28px");
+    expect.soft(getComputedStyle(regenerateGlyph).height).toBe("28px");
+    expect.soft(getComputedStyle(modeGroup).minHeight).toBe("44px");
+    expect.soft(Array.from(modeToggles, (toggle) => getComputedStyle(toggle).height))
+      .toEqual(Array.from(modeToggles, () => "36px"));
+    expect.soft(Array.from(modeRadios, computedHitHeight))
+      .toEqual(Array.from(modeRadios, () => 36));
+    expect.soft(Array.from(modeLabels, computedHitHeight))
+      .toEqual(Array.from(modeLabels, () => 36));
     expect(getComputedStyle(history).minHeight).toBe("44px");
+
+    const css = style.textContent ?? "";
+    expect.soft(css).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.macos-generator__result-actions button,[^}]*\.macos-generator__mode bit-toggle\s*\{[^}]*animation:\s*none[^}]*transition:\s*none[^}]*transform:\s*none/s,
+    );
+    expect.soft(css).toMatch(
+      /@media \(forced-colors:\s*active\)\s*\{\s*\.macos-generator__result\s*\{[^}]*border-bottom-color:\s*CanvasText[^}]*\}[^@]*\.macos-generator__result-actions button\[buttontype="primary"\] \.bwi\s*\{[^}]*background:\s*Highlight[^}]*color:\s*HighlightText[^}]*forced-color-adjust:\s*none/s,
+    );
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
