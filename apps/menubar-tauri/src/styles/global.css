@@ -371,7 +371,7 @@ button {
 .macos-icon-plate { display:grid; width:var(--mac-icon-plate); height:var(--mac-icon-plate); place-items:center; border-radius:var(--mac-control-radius); }
 .macos-field-owner { display:flex; min-height:var(--mac-hit-size); align-items:center; }
 .macos-control-visible { width:100%; height:var(--mac-control-visible); min-height:var(--mac-control-visible); }
-.macos-button-owner { position:relative; isolation:isolate; min-height:var(--mac-hit-size); border:0; background:transparent; }
+.macos-button-owner { position:relative; isolation:isolate; min-width:var(--mac-hit-size); min-height:var(--mac-hit-size); border:0; background:transparent; }
 .macos-button-owner::before { content:""; position:absolute; inset-block:2px; inset-inline:0; z-index:-1; border-radius:var(--mac-control-radius); background:var(--mac-accent); }
 .macos-row { min-height:var(--mac-row-single); }
 .macos-row--double { min-height:var(--mac-row-double); }

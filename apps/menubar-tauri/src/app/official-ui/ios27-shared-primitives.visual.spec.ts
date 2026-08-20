@@ -25,6 +25,7 @@ function installVisualCss(targetDocument: Document): HTMLStyleElement {
 }
 
 afterEach(() => {
+  delete document.documentElement.dataset["bwCompactMode"];
   document.body.replaceChildren();
   document.head.querySelectorAll("style[data-ios27-test]").forEach((node) => node.remove());
 });
@@ -52,8 +53,20 @@ describe("iOS 27 shared primitives", () => {
     expect(fieldOwner.minHeight).toBe("44px");
     expect(input.height).toBe("40px");
     expect(row.minHeight).toBe("48px");
+    expect(primary.minWidth).toBe("44px");
     expect(primary.minHeight).toBe("44px");
     expect(primary.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    const compactPlate = getComputedStyle(document.querySelector<HTMLElement>(".macos-icon-plate")!);
+    const compactInput = getComputedStyle(document.querySelector<HTMLInputElement>("input")!);
+    const compactRow = getComputedStyle(document.querySelector<HTMLElement>(".macos-row")!);
+    expect(compactPlate.width).toBe("28px");
+    expect(compactPlate.height).toBe("28px");
+    expect(compactInput.height).toBe("36px");
+    expect(compactInput.minHeight).toBe("36px");
+    expect(compactRow.minHeight).toBe("44px");
+
     expect(style.textContent).toMatch(/\.macos-button-owner::before\s*{[^}]*inset-block:\s*2px/s);
     expect(style.textContent).toMatch(/data-bw-compact-mode="true"[^}]*\.macos-button-owner::before\s*{[^}]*inset-block:\s*4px/s);
   });
