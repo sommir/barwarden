@@ -155,7 +155,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history-rows.component.html",
-      "sha256": "94c4f229aca6c1ff937f11829e2ab012a234ad046a0f0c99ddb98ae5b7f185e5"
+      "sha256": "ff799b771090701c3d03ca15ba7036ad242db9000d0e488521d019db609fd0a2"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-empty-generator-history.component.ts",
@@ -242,7 +242,7 @@
   ],
   "ancestryGuard": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-member-transforms.ts",
-    "sha256": "0b33fa91b4ab3720354bea205c0e78002e720bb87cd180a133f706976fac04c5"
+    "sha256": "f0c571efcc4c8b73b907b17ab34a3c50dd564a06948489fd745f4139bbdc1ef2"
   },
   "internalBarrelBoundary": {
     "path": "apps/menubar-tauri/official-generator-internal-boundary.json",
@@ -4648,7 +4648,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history-rows.component.html",
-        "sha256": "94c4f229aca6c1ff937f11829e2ab012a234ad046a0f0c99ddb98ae5b7f185e5"
+        "sha256": "ff799b771090701c3d03ca15ba7036ad242db9000d0e488521d019db609fd0a2"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history-rows.component.ts",
@@ -5415,7 +5415,7 @@
         "sha256": "162dd777bc2ad6abcd19e7ce8c6c78463ebabf63a73bd22ecf6cf8a9558f5286"
       }
     ],
-    "sha256": "f9695a84c9a8354ff563b8401009eb6a516c521f471aeb428eeb55eec45f689f"
+    "sha256": "5067c284a52ce374838b8c0c5660b09adff43402ff4448e85db1cbb8017aa623"
   },
   "removedDependencies": [
     "forwarded-email provider graph",

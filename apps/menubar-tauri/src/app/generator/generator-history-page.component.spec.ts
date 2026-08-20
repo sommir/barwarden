@@ -125,9 +125,13 @@ describe("GeneratorHistoryPageComponent", () => {
     expect(rows[2]?.getAttribute("aria-label")).toBe("用户名");
     expect([...rows].map((row) => row.getAttribute("aria-label")).join("\n"))
       .not.toMatch(/password-value|passphrase-value|username-value/);
-    for (const value of host.querySelectorAll("bit-color-password")) {
-      expect(value.getAttribute("aria-hidden")).toBe("true");
-    }
+    const readableValues = host.querySelectorAll("bit-color-password");
+    expect(readableValues[0]?.hasAttribute("aria-hidden")).toBe(false);
+    expect(readableValues[0]?.textContent).toContain("password-value");
+    expect(readableValues[1]?.hasAttribute("aria-hidden")).toBe(false);
+    expect(readableValues[1]?.textContent).toContain("passphrase-value");
+    expect(readableValues[2]?.hasAttribute("aria-hidden")).toBe(false);
+    expect(readableValues[2]?.textContent).toContain("username-value");
     expect(rows[0]?.querySelector('[slot="secondary"]')?.textContent?.trim()).not.toBe("");
     expect(button(host, "复制密码").querySelector(".bwi-clone")).not.toBeNull();
     expect(button(host, "复制密码短语")).toBeDefined();

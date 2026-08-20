@@ -749,12 +749,6 @@ export const generatorTemplateContracts = [
       },
       {
         search:
-          '      <bit-color-password class="tw-font-mono" [password]="credential.credential" />',
-        replacement:
-          '      <bit-color-password\n        class="tw-font-mono"\n        aria-hidden="true"\n        [password]="credential.credential"\n      />',
-      },
-      {
-        search:
           '          [appCopyClick]="credential.credential"\n          [valueLabel]="getGeneratedValueText(credential)"\n          [label]="getCopyText(credential)"\n          showToast',
         replacement:
           '          [attr.data-popup-focus-key]="\'generator-history:\' + credential.generationDate.getTime() + \':\' + historyIndex"\n          [label]="getCopyText(credential)"\n          (click)="copy(credential, $event.currentTarget)"',
