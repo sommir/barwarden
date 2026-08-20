@@ -116,9 +116,23 @@ describe("SettingsPageComponent", () => {
     const switchTrackStyle = getComputedStyle(switchOwner.firstElementChild!);
     expect(switchOwnerStyle.outlineWidth).toBe("0px");
     expect(switchOwnerStyle.outlineStyle).toBe("none");
+    expect(resolvedMatchedProperty(switchOwner, "outline-width")).toBe("0px");
     expect(switchTrackStyle.outlineWidth).toBe("2px");
     expect(switchTrackStyle.outlineStyle).toBe("solid");
     expect(switchTrackStyle.outlineColor).not.toBe("transparent");
+    expect(resolvedMatchedProperty(switchOwner.firstElementChild as HTMLElement, "outline-width"))
+      .toBe("2px");
+
+    const scrollRegion = host.querySelector<HTMLElement>(
+      '[data-testid="popup-layout-scroll-region"]',
+    );
+    expect(scrollRegion).not.toBeNull();
+    expect(getComputedStyle(scrollRegion!).paddingInline).toBe("16px");
+    const contentWrapper = scrollRegion!.firstElementChild as HTMLElement | null;
+    expect(contentWrapper).not.toBeNull();
+    expect(contentWrapper!.classList).not.toContain("tw-px-4");
+    expect(Number.parseFloat(getComputedStyle(contentWrapper!).paddingLeft) || 0).toBe(0);
+    expect(Number.parseFloat(getComputedStyle(contentWrapper!).paddingRight) || 0).toBe(0);
 
     const values = host.querySelectorAll<HTMLElement>(".macos-preference-row__value");
     expect(values).toHaveLength(6);
@@ -419,4 +433,50 @@ function lastStyleRule(style: HTMLStyleElement, selector: string): CSSStyleRule 
       (rule.selectorText === selector || rule.selectorText.endsWith(` ${selector}`)),
     )
     .at(-1);
+}
+
+function resolvedMatchedProperty(element: Element, property: string): string {
+  let resolved = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const value = resolvedRuleProperty(rule.style, property);
+      if (!value) continue;
+      const matches = splitSelectorList(rule.selectorText).some((selector) => {
+        try {
+          return element.matches(selector.trim());
+        } catch {
+          return false;
+        }
+      });
+      if (matches) resolved = value;
+    }
+  }
+  return resolved;
+}
+
+function resolvedRuleProperty(style: CSSStyleDeclaration, property: string): string {
+  const direct = style.getPropertyValue(property).trim();
+  if (direct) return direct;
+  if (property === "outline-width") {
+    return style.outline.match(/(?:^|\s)(\d+(?:\.\d+)?px)(?:\s|$)/)?.[1] ?? "";
+  }
+  return "";
+}
+
+function splitSelectorList(selectorList: string): string[] {
+  const selectors: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < selectorList.length; index += 1) {
+    const character = selectorList[index];
+    if (character === "(") depth += 1;
+    else if (character === ")") depth -= 1;
+    else if (character === "," && depth === 0) {
+      selectors.push(selectorList.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  selectors.push(selectorList.slice(start).trim());
+  return selectors;
 }

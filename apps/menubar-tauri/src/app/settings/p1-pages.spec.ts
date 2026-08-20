@@ -163,7 +163,9 @@ describe("P1 settings pages", () => {
     const appearance = readFileSync(resolve(root, "appearance-page.component.ts"), "utf8");
     const about = readFileSync(resolve(root, "about-page.component.ts"), "utf8");
 
-    expect(appearance).toContain('host: { class: "macos-page macos-page--secondary macos-page--appearance" }');
+    expect(appearance).toContain(
+      'class: "macos-page macos-page--secondary macos-page--settings-detail macos-page--appearance"',
+    );
     expect(about).toContain('host: { class: "macos-page macos-page--secondary macos-page--about" }');
     expect(appearance).not.toContain("bw-floating-tab-switcher");
     expect(about).not.toContain("bw-floating-tab-switcher");
@@ -328,8 +330,12 @@ describe("P1 settings pages", () => {
       group!.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
     );
     expect(visibleSelects).toHaveLength(2);
-    expect(visibleSelects.map((select) => getComputedStyle(select).height))
-      .toEqual(["40px", "40px"]);
+    expectRealSelectGeometry(visibleSelects, "40px");
+    expectSharedSettingsPageInset(host);
+    expect(getComputedStyle(group!).marginLeft).toBe("0px");
+    expect(getComputedStyle(group!).marginRight).toBe("0px");
+    expect(resolvedMatchedProperty(group!, "margin-top")).toBe("16px");
+    expect(resolvedMatchedProperty(group!, "margin-bottom")).toBe("16px");
     const checkboxRows = preferenceRows.slice(0, 2);
     const checkboxOwners = checkboxRows.map((row) =>
       row.querySelector<HTMLLabelElement>(":scope > label"),
@@ -363,8 +369,7 @@ describe("P1 settings pages", () => {
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.dataset["bwCompactMode"] = "true";
-    expect(visibleSelects.map((select) => getComputedStyle(select).height))
-      .toEqual(["36px", "36px"]);
+    expectRealSelectGeometry(visibleSelects, "36px");
     for (const row of preferenceRows) {
       expect(Number.parseFloat(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
     }
@@ -863,8 +868,7 @@ describe("P1 settings pages", () => {
       group!.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
     );
     expect(visibleSelects).toHaveLength(2);
-    expect(visibleSelects.map((select) => getComputedStyle(select).height))
-      .toEqual(["40px", "40px"]);
+    expectRealSelectGeometry(visibleSelects, "40px");
     expect(
       fixture.componentInstance.clipboardClearOptions.map(
         (option) => option.value,
@@ -893,11 +897,23 @@ describe("P1 settings pages", () => {
     expect(permissionAction!.classList).not.toContain("primary-action");
     expect(Number.parseFloat(getComputedStyle(permissionAction!).minHeight))
       .toBeGreaterThanOrEqual(44);
+    const permissionOwner = permissionAction!.closest<HTMLElement>(".autofill-permission-action");
+    expect(permissionOwner).not.toBeNull();
+    expect(getComputedStyle(permissionOwner!).marginLeft).toBe("0px");
+    expect(getComputedStyle(permissionOwner!).marginRight).toBe("0px");
+    expect(getComputedStyle(permissionOwner!).marginBottom).toBe("16px");
     expect(host.querySelector(".primary-action, [buttonType='primary']")).toBeNull();
     const switchTrack = fieldIcon!.querySelector<HTMLElement>("span")!;
     fieldIcon!.dataset["testFocusVisible"] = "true";
     expect(getComputedStyle(fieldIcon!).outlineWidth).toBe("0px");
+    expect(resolvedMatchedProperty(fieldIcon!, "outline-width")).toBe("0px");
     expect(getComputedStyle(switchTrack).outlineWidth).toBe("2px");
+    expect(resolvedMatchedProperty(switchTrack, "outline-width")).toBe("2px");
+    expectSharedSettingsPageInset(host);
+    expect(getComputedStyle(group!).marginLeft).toBe("0px");
+    expect(getComputedStyle(group!).marginRight).toBe("0px");
+    expect(resolvedMatchedProperty(group!, "margin-top")).toBe("16px");
+    expect(resolvedMatchedProperty(group!, "margin-bottom")).toBe("16px");
 
     document.documentElement.dataset["testReducedMotion"] = "true";
     installAppearancePreferenceCss({ reducedMotion: true });
@@ -932,8 +948,7 @@ describe("P1 settings pages", () => {
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.dataset["bwCompactMode"] = "true";
-    expect(visibleSelects.map((select) => getComputedStyle(select).height))
-      .toEqual(["36px", "36px"]);
+    expectRealSelectGeometry(visibleSelects, "36px");
     expect(getComputedStyle(fieldIcon!).minHeight).toBe("44px");
     document.documentElement.removeAttribute("data-bw-compact-mode");
     expect(host.querySelectorAll("button[disabled]")).toHaveLength(0);
@@ -1082,12 +1097,9 @@ describe("P1 settings pages", () => {
     expect(selectRowLayouts.every((layout) => layout !== null)).toBe(true);
     expect(selectRowLayouts.map((layout) => getComputedStyle(layout!).display))
       .toEqual(["grid", "grid"]);
-    expect(Array.from(selectHosts, (selectHost) => getComputedStyle(selectHost).height))
-      .toEqual(["40px", "40px"]);
-    expect(ngSelects.map((control) => getComputedStyle(control!).height))
-      .toEqual(["40px", "40px"]);
-    expect(ngSelectContainers.map((control) => getComputedStyle(control!).height))
-      .toEqual(["40px", "40px"]);
+    expectRealSelectGeometry(Array.from(selectHosts), "40px");
+    expect(host.matches(".macos-page--settings-detail")).toBe(true);
+    expectSharedSettingsPageInset(host);
 
     const switches = Array.from(
       host.querySelectorAll<HTMLButtonElement>('[role="switch"]'),
@@ -1110,7 +1122,12 @@ describe("P1 settings pages", () => {
     }
     switches[0]!.dataset["testFocusVisible"] = "true";
     expect(getComputedStyle(switches[0]!).outlineWidth).toBe("0px");
+    expect(resolvedMatchedProperty(switches[0]!, "outline-width")).toBe("0px");
     expect(getComputedStyle(switches[0]!.querySelector("span")!).outlineWidth).toBe("2px");
+    expect(resolvedMatchedProperty(
+      switches[0]!.querySelector<HTMLElement>("span")!,
+      "outline-width",
+    )).toBe("2px");
     for (const row of host.querySelectorAll<HTMLElement>(".macos-preference-row")) {
       const rowStyle = getComputedStyle(row);
       expect(parseFloat(rowStyle.minHeight)).toBeGreaterThanOrEqual(44);
@@ -1144,12 +1161,7 @@ describe("P1 settings pages", () => {
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.dataset["bwCompactMode"] = "true";
-    expect(Array.from(selectHosts, (selectHost) => getComputedStyle(selectHost).height))
-      .toEqual(["36px", "36px"]);
-    expect(ngSelects.map((control) => getComputedStyle(control!).height))
-      .toEqual(["36px", "36px"]);
-    expect(ngSelectContainers.map((control) => getComputedStyle(control!).height))
-      .toEqual(["36px", "36px"]);
+    expectRealSelectGeometry(Array.from(selectHosts), "36px");
     for (const owner of switches) {
       expect(getComputedStyle(owner).minHeight).toBe("44px");
     }
@@ -1404,6 +1416,17 @@ bit-form-control.macos-preference-row > label {
   width: max-content;
   min-height: 20px;
 }
+bit-form-field.macos-preference-row bit-select.macos-control-visible,
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
+  height: 20px;
+  min-height: 20px;
+  background: rgb(222, 0, 0);
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
+  height: 18px;
+  min-height: 18px;
+  background: rgb(0, 120, 0);
+}
 .macos-preference-row__copy {
   height: 18px;
   min-height: 18px;
@@ -1425,6 +1448,96 @@ ${activeMedia}`
     .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
   return style;
+}
+
+function expectSharedSettingsPageInset(host: HTMLElement): void {
+  const scrollRegion = host.querySelector<HTMLElement>(
+    '[data-testid="popup-layout-scroll-region"]',
+  );
+  expect(scrollRegion).not.toBeNull();
+  expect(getComputedStyle(scrollRegion!).paddingInline).toBe("16px");
+}
+
+function expectRealSelectGeometry(
+  selectHosts: readonly HTMLElement[],
+  visibleHeight: "40px" | "36px",
+): void {
+  for (const selectHost of selectHosts) {
+    const ngSelect = selectHost.querySelector<HTMLElement>("ng-select");
+    const paintedContainer = selectHost.querySelector<HTMLElement>(
+      "ng-select > .ng-select-container",
+    );
+    const focusOwner = selectHost.querySelector<HTMLElement>('input[role="combobox"]');
+    expect(ngSelect).not.toBeNull();
+    expect(paintedContainer).not.toBeNull();
+    expect(focusOwner).not.toBeNull();
+
+    for (const owner of [selectHost, ngSelect!]) {
+      const ownerStyle = getComputedStyle(owner);
+      expect(Number.parseFloat(ownerStyle.minHeight)).toBeGreaterThanOrEqual(44);
+      expect(Number.parseFloat(ownerStyle.height)).toBeGreaterThanOrEqual(44);
+      expect(ownerStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    }
+    const paintedStyle = getComputedStyle(paintedContainer!);
+    expect(paintedStyle.height).toBe(visibleHeight);
+    expect(paintedStyle.minHeight).toBe(visibleHeight);
+    expect(paintedStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+
+    focusOwner!.dataset["testFocusVisible"] = "true";
+    const fieldContainer = focusOwner!.closest<HTMLElement>("[bitfieldcontainer]");
+    expect(fieldContainer).not.toBeNull();
+    expect(resolvedMatchedProperty(fieldContainer!, "outline-width")).toBe("0px");
+    expect(resolvedMatchedProperty(selectHost, "outline-width")).toBe("0px");
+    expect(resolvedMatchedProperty(ngSelect!, "outline-width")).toBe("0px");
+    expect(resolvedMatchedProperty(paintedContainer!, "outline-width")).toBe("2px");
+    delete focusOwner!.dataset["testFocusVisible"];
+  }
+}
+
+function resolvedMatchedProperty(element: Element, property: string): string {
+  let resolved = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const value = resolvedRuleProperty(rule.style, property);
+      if (!value) continue;
+      const matches = splitSelectorList(rule.selectorText).some((selector) => {
+        try {
+          return element.matches(selector.trim());
+        } catch {
+          return false;
+        }
+      });
+      if (matches) resolved = value;
+    }
+  }
+  return resolved;
+}
+
+function resolvedRuleProperty(style: CSSStyleDeclaration, property: string): string {
+  const direct = style.getPropertyValue(property).trim();
+  if (direct) return direct;
+  if (property === "outline-width") {
+    return style.outline.match(/(?:^|\s)(\d+(?:\.\d+)?px)(?:\s|$)/)?.[1] ?? "";
+  }
+  return "";
+}
+
+function splitSelectorList(selectorList: string): string[] {
+  const selectors: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < selectorList.length; index += 1) {
+    const character = selectorList[index];
+    if (character === "(") depth += 1;
+    else if (character === ")") depth -= 1;
+    else if (character === "," && depth === 0) {
+      selectors.push(selectorList.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  selectors.push(selectorList.slice(start).trim());
+  return selectors;
 }
 
 function extractMediaBody(source: string, query: string): string {

@@ -8,7 +8,9 @@ import { PopupRouterCacheService } from "../platform/popup-router-cache.service"
 
 @Component({
   selector: "bw-appearance-page",
-  host: { class: "macos-page macos-page--secondary macos-page--appearance" },
+  host: {
+    class: "macos-page macos-page--secondary macos-page--settings-detail macos-page--appearance",
+  },
   standalone: true,
   imports: [OfficialAppearanceComponent],
   template: `

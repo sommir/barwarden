@@ -407,8 +407,22 @@ button {
 bit-form-field.macos-preference-row { margin:0; }
 bit-form-field.macos-preference-row > div { display:grid; grid-template-columns:minmax(0,1fr) 160px; width:100%; min-width:0; align-items:center; gap:12px; }
 bit-form-field.macos-preference-row > div > :is(label, div) { min-width:0; }
-bit-form-field.macos-preference-row bit-select.macos-control-visible { width:160px; }
-bit-form-field.macos-preference-row bit-select.macos-control-visible :is(ng-select, ng-select > .ng-select-container) { height:var(--mac-control-visible); min-height:var(--mac-control-visible); }
+bit-form-field.macos-preference-row bit-select.macos-control-visible,
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
+  display:flex;
+  width:160px;
+  height:var(--mac-hit-size);
+  min-height:var(--mac-hit-size);
+  align-items:center;
+  background:transparent;
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { width:100%; }
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
+  width:100%;
+  height:var(--mac-control-visible);
+  min-height:var(--mac-control-visible);
+  background:var(--mac-surface-solid);
+}
 .macos-preference-row__copy { min-width:0; height:auto; min-height:0; overflow:visible; padding-block:7px; white-space:normal; overflow-wrap:anywhere; }
 .macos-preference-row__copy > :first-child { font-size:14px; line-height:18px; font-weight:600; }
 .macos-preference-row__copy > :not(:first-child) { margin-top:2px; color:var(--mac-text-secondary); font-size:12px; line-height:16px; }
@@ -422,7 +436,9 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible :is(ng-sele
 .macos-switch-owner:focus-visible > span { outline-width:2px; outline-style:solid; outline-color:var(--mac-focus); outline-offset:2px; }
 :root[data-bw-compact-mode="true"] .macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap-compact); }
 :root[data-bw-compact-mode="true"] .macos-preference-group > bit-section + bit-section { margin-top:var(--mac-group-gap-compact); }
-:root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible :is(ng-select, ng-select > .ng-select-container) { height:var(--mac-control-visible-compact); min-height:var(--mac-control-visible-compact); }
+:root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible,
+:root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { height:var(--mac-hit-size); min-height:var(--mac-hit-size); }
+:root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container { height:var(--mac-control-visible-compact); min-height:var(--mac-control-visible-compact); }
 @media (min-resolution:2dppx) {
   .macos-preference-group > .settings-group__items > bit-item:not(:last-child),
   .macos-preference-group:is(bit-item-group) > bit-item:not(:last-child),
@@ -6399,7 +6415,10 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
 }
 
 .macos-page--settings-detail .settings-detail-group {
-  margin: 16px;
+  margin-top: 16px;
+  margin-right: 0;
+  margin-bottom: 16px;
+  margin-left: 0;
   background: transparent;
 }
 
@@ -6455,11 +6474,20 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
 
 .macos-page--settings-detail .autofill-permission-action {
   display: flex;
-  margin: 0 16px 16px;
+  margin: 0 0 16px;
 }
 
 .macos-page--settings-detail .web-vault-action.macos-button-owner {
   min-height: var(--mac-hit-size);
+  background: transparent;
+}
+
+.macos-page--settings-detail .web-vault-action.macos-button-owner::before {
+  background: var(--bw-primary);
+}
+
+.macos-page--settings-detail .web-vault-action.macos-button-owner:hover::before {
+  background: var(--bw-primary-hover);
 }
 
 :root[data-bw-compact-mode="true"]
@@ -6503,8 +6531,33 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   outline: 0;
 }
 
-.macos-page :is(button, a, input, select, textarea, [tabindex]):not(.macos-button-owner):not(.shortcut-recorder-owner):focus-visible {
+.macos-page :is(button, a, input, select, textarea, [tabindex]):not(.macos-button-owner):not(.macos-switch-owner):not(.shortcut-recorder-owner):focus-visible {
   outline: 2px solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--settings-detail
+  bit-form-field
+  [bitfieldcontainer]:has(bit-select.macos-control-visible :focus-visible),
+.macos-page--settings-detail
+  bit-form-field
+  bit-select.macos-control-visible:has(:focus-visible),
+.macos-page--settings-detail
+  bit-form-field
+  bit-select.macos-control-visible ng-select:has(:focus-visible) {
+  outline-width: 0;
+  outline-style: none;
+  box-shadow: none !important;
+}
+
+.macos-page--settings-detail
+  bit-form-field
+  bit-select.macos-control-visible
+  ng-select:has(:focus-visible)
+  > .ng-select-container {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--mac-focus);
   outline-offset: 2px;
 }
 

@@ -114,6 +114,15 @@ describe("VaultSettingsPageComponent", () => {
       '[data-settings-detail="vault-settings"].macos-preference-group',
     );
     expect(group).not.toBeNull();
+    const scrollRegion = host.querySelector<HTMLElement>(
+      '[data-testid="popup-layout-scroll-region"]',
+    );
+    expect(scrollRegion).not.toBeNull();
+    expect(getComputedStyle(scrollRegion!).paddingInline).toBe("16px");
+    expect(getComputedStyle(group!).marginLeft).toBe("0px");
+    expect(getComputedStyle(group!).marginRight).toBe("0px");
+    expect(resolvedMatchedProperty(group!, "margin-top")).toBe("16px");
+    expect(resolvedMatchedProperty(group!, "margin-bottom")).toBe("16px");
     const rows = Array.from(
       group!.querySelectorAll<HTMLButtonElement>("button.macos-preference-row"),
     );
@@ -355,6 +364,26 @@ function resolveCustomProperty(
       ? resolveCustomProperty(next, rootStyle, new Set([...seen, name]))
       : reference;
   });
+}
+
+function resolvedMatchedProperty(element: Element, property: string): string {
+  let resolved = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const value = rule.style.getPropertyValue(property).trim();
+      if (!value) continue;
+      const matches = rule.selectorText.split(",").some((selector) => {
+        try {
+          return element.matches(selector.trim());
+        } catch {
+          return false;
+        }
+      });
+      if (matches) resolved = value;
+    }
+  }
+  return resolved;
 }
 
 function emptySyncResult() {

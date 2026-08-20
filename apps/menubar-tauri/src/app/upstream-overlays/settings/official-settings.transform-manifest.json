@@ -28,11 +28,11 @@
       "upstreamSha256": "a1c5f137034c226b628a6718207a9b16fcd685c67b9d11f973d45a609fc3bd62",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__tools__popup__settings__settings-v2.component.html.patch",
-        "sha256": "78fcbec908f374eed980e380d6ffbada08a5ee03a811d9551f805e405adedd59"
+        "sha256": "36148f761440c587b65a5ff5b847be6645b8155a7ba608cd2d558946999c039d"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/tools/popup/settings/settings-v2.component.html",
-        "sha256": "64e476d7c18b3d4286b038d80903317d292dd9d08f111e291c1270b661aa9328"
+        "sha256": "67fc4fe525e837ba91b1b63312ff9ccf6287698f13d22bf9582e344fd0ec3a32"
       }
     },
     {

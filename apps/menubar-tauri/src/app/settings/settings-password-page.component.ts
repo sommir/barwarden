@@ -52,7 +52,10 @@ import { PopupRouterCacheService } from "../platform/popup-router-cache.service"
     .settings-password-handoff {
       display: grid;
       gap: 12px;
-      padding: 12px;
+      padding-top: 12px;
+      padding-right: 0;
+      padding-bottom: 12px;
+      padding-left: 0;
     }
 
     .settings-password-handoff .empty-inline {
