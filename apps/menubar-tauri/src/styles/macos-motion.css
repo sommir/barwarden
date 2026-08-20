@@ -1,37 +1,48 @@
 :root {
-  --mac-motion-duration: 100ms;
+  --mac-motion-fast: 160ms;
+  --mac-motion-standard: 180ms;
+  --mac-motion-slow: 200ms;
+  --mac-motion-duration: var(--mac-motion-fast);
   --mac-motion-distance: 2px;
-  --mac-sheet-motion: 200ms;
-  --mac-disclosure-motion: 200ms;
+  --mac-sheet-motion: var(--mac-motion-slow);
+  --mac-disclosure-motion: var(--mac-motion-standard);
 }
 
 .macos-pressable {
-  transition:
-    background-color var(--mac-motion-duration) ease-out,
-    color var(--mac-motion-duration) ease-out,
-    transform var(--mac-motion-duration) ease-out;
+  transition-property: background-color, color, opacity;
+  transition-duration: var(--mac-motion-duration), var(--mac-motion-duration), var(--mac-motion-duration);
+  transition-timing-function: ease-out, ease-out, ease-out;
 }
 
 .macos-pressable:active {
-  transform: scale(0.975);
+  opacity: 0.78;
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --mac-motion-duration: 1ms;
     --mac-motion-distance: 0px;
-    --mac-sheet-motion: 1ms;
-    --mac-disclosure-motion: 1ms;
   }
 
-  :root .vault-skeleton-heading::after,
-  :root .vault-skeleton-icon::after,
-  :root .vault-skeleton-line::after {
-    animation: none;
+  :root *,
+  :root *::before,
+  :root *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+    transition-duration: 0s !important;
+    transition-property: none !important;
   }
 
-  :root .app-bottom-sheet,
-  :root .app-bottom-sheet::backdrop {
-    transition-duration: var(--mac-motion-duration);
+  :root .macos-pressable,
+  :root .app-bottom-sheet {
+    transition: none !important;
+    transition-duration: 0s !important;
+    transition-property: none !important;
+  }
+
+  :root .macos-pressable:active,
+  :root .app-bottom-sheet {
+    transform: none !important;
   }
 }

@@ -11,7 +11,7 @@ import { By } from "@angular/platform-browser";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NoItemsComponent } from "./no-items.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
@@ -49,7 +49,12 @@ class HostComponent {
 }
 
 describe("official popup layout primitives", () => {
+  afterEach(() => {
+    document.head.querySelectorAll("style[data-ios27-accessibility]").forEach((node) => node.remove());
+  });
+
   it("renders the official header with one page scroll owner", async () => {
+    installAccessibilityCss();
     await TestBed.configureTestingModule({
       imports: [HostComponent],
       providers: [OfficialI18nService, { provide: I18nService, useExisting: OfficialI18nService }],
@@ -76,7 +81,10 @@ describe("official popup layout primitives", () => {
     expect(back.getAttribute("aria-label")).toBe("返回");
     expect(back.tabIndex).toBe(0);
     back.focus();
+    back.dataset["testFocusVisible"] = "true";
     expect(document.activeElement).toBe(back);
+    expect(getComputedStyle(back).outlineWidth).toBe("2px");
+    expect(getComputedStyle(back).outlineOffset).toBe("2px");
     back.click();
     expect(fixture.componentInstance.onBack).toHaveBeenCalledOnce();
     expect(host.querySelector("button.popup-back-button")).toBeNull();
@@ -158,3 +166,22 @@ describe("official popup layout primitives", () => {
     );
   });
 });
+
+function installAccessibilityCss(): HTMLStyleElement {
+  const source = ["macos-tokens.css", "macos-motion.css", "global.css"]
+    .map((file) => readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", file), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const tokens = new Map(
+    [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]),
+  );
+  const style = document.createElement("style");
+  style.dataset["ios27Accessibility"] = "true";
+  style.textContent = source
+    .replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) => tokens.get(name) ?? value)
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
+  document.head.append(style);
+  return style;
+}

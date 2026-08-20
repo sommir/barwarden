@@ -42,7 +42,9 @@
   --mac-sheet-radius: 16px;
   --mac-window-radius: 14px;
   --mac-control-min-size: 44px;
+  --mac-focus-ring-width: 2px;
   --mac-row-height: 52px;
+  --mac-compact-row-height: 44px;
 
   --bw-popup-width: 480px;
   --bw-popup-height: 600px;

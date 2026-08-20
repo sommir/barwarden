@@ -118,3 +118,16 @@
     --mac-surface-raised: #1d1d1f;
   }
 }
+
+@media (forced-colors: active) {
+  :root .macos-glass-navigation,
+  :root .macos-glass-menu,
+  :root .app-bottom-sheet {
+    border-color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+    color: CanvasText;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

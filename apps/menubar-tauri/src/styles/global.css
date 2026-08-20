@@ -197,12 +197,6 @@ popup-page [data-testid="popup-layout-scroll-region"] {
 }
 
 :is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
-  :is(input, select, textarea):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 1px;
-}
-
-:is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
   :is(input, select, textarea)[aria-invalid="true"] {
   border-color: var(--mac-destructive);
 }
@@ -224,14 +218,14 @@ popup-page [data-testid="popup-layout-scroll-region"] {
 }
 
 :root[data-bw-compact-mode="true"] {
-  --bw-row-content-height: 52px;
+  --bw-row-content-height: var(--mac-compact-row-height);
   --bw-row-gap: 0;
   --bw-section-gap: 8px;
 }
 
 :root[data-bw-compact-mode="false"],
 :root:not([data-bw-compact-mode]) {
-  --bw-row-content-height: 52px;
+  --bw-row-content-height: var(--mac-row-height);
   --bw-row-gap: 6px;
   --bw-section-gap: 16px;
 }
@@ -371,6 +365,13 @@ button {
   background-image: none;
   color: inherit;
   cursor: pointer;
+}
+
+:where(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
 }
 
 .sr-only {
@@ -578,7 +579,7 @@ popup-page {
 }
 
 .floating-tab-switcher__segment:focus-visible {
-  outline: 2px solid var(--mac-focus);
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
   outline-offset: -2px;
 }
 
@@ -680,7 +681,7 @@ barwarden-root:has(popup-footer) .app-feedback {
 }
 
 .app-feedback__dismiss:focus-visible {
-  outline: 2px solid var(--mac-focus);
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
   outline-offset: -2px;
 }
 
@@ -2270,11 +2271,6 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   background: transparent !important;
 }
 
-.macos-field :is(input, select, textarea):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 1px;
-}
-
 .macos-auth-card button:focus-visible,
 .macos-auth-card [role="button"]:focus-visible,
 .macos-auth-card a:focus-visible {
@@ -3205,12 +3201,6 @@ auth-account .macos-account-label {
 .macos-page--settings .settings-row { border: 0; border-radius: 0; }
 .macos-page--settings bit-item + bit-item { margin-top: 0; }
 
-.macos-page :is(input, select, textarea):focus-visible,
-.macos-page :is(button, a):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 1px;
-}
-
 .macos-page :is(bit-search, bit-form-field, bit-form-control) :is(input, select, textarea):focus-visible {
   outline: none;
 }
@@ -3306,6 +3296,37 @@ auth-account .macos-account-label {
     border-color: Highlight !important;
     background: Highlight !important;
     color: HighlightText !important;
+  }
+
+  :where(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline-color: Highlight !important;
+  }
+
+  .floating-tab-switcher__segment[aria-current="page"] {
+    border: 2px solid Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  :where(input, select, textarea)[aria-invalid="true"] {
+    border: 2px solid Mark !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+    forced-color-adjust: none;
+  }
+
+  :where(button, a, [role="button"]):is(
+    .danger-action,
+    .is-danger,
+    .tw-text-fg-danger,
+    .account-switcher-destructive-action,
+    [buttontype="danger"]
+  ) {
+    border: 1px solid Mark !important;
+    background: Mark !important;
+    color: MarkText !important;
+    forced-color-adjust: none;
   }
 }
 
@@ -3468,7 +3489,7 @@ auth-account .macos-account-label {
 }
 
 .app-bottom-sheet[data-testid="accessibility-permission-sheet"] footer button:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
   outline-offset: 2px;
 }
 
@@ -6068,13 +6089,6 @@ body.tw-bit-compact .macos-page--vault-detail .cipher-view :is(
   color: var(--mac-text-primary);
 }
 
-.macos-page--vault-detail :is(button, input, a):focus-visible,
-.macos-page--vault-form :is(button, input, select, textarea):focus-visible,
-.macos-page--vault-recovery :is(button, input):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 1px;
-}
-
 .macos-page--vault-form :is(input, select, textarea),
 .macos-page--vault-detail :is(input, .official-detail-item) {
   max-width: 100%;
@@ -6128,13 +6142,23 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
 .macos-continuous-row {
   display: flex;
   width: 100%;
-  min-height: 52px;
+  min-width: 0;
+  min-height: var(--mac-row-height);
   align-items: center;
   border: 0;
   border-radius: 0;
   background: var(--mac-surface-solid);
   color: var(--mac-text-primary);
   box-shadow: none;
+}
+
+.macos-continuous-row > :where(span, p, div) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:root[data-bw-compact-mode="true"] .macos-continuous-row {
+  min-height: var(--mac-compact-row-height);
 }
 
 .macos-continuous-group > bit-item:not(:last-child),
@@ -6174,7 +6198,9 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
 }
 
 .macos-page :is(input, select, textarea, button, a):focus-visible {
-  outline: 2px solid var(--mac-focus);
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
   outline-offset: 2px;
 }
 

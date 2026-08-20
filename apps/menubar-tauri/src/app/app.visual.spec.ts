@@ -688,9 +688,10 @@ describe("popup visual smoke classes", () => {
     expect(hierarchy).toContain("flex-direction: column;");
     expect(node).toContain("display: block;");
     expect(node).toContain("flex: 0 0 auto;");
-    expect(motionCss).toContain("--mac-disclosure-motion: 200ms;");
+    expect(motionCss).toContain("--mac-motion-standard: 180ms;");
+    expect(motionCss).toContain("--mac-disclosure-motion: var(--mac-motion-standard);");
     expect(motionCss).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*--mac-disclosure-motion:\s*1ms;/,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*transition:\s*none !important;/,
     );
     expect(content).toContain("display: none;");
     expect(content).toContain("transform: translateY(-4px);");

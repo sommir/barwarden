@@ -161,11 +161,27 @@ describe("P1 settings pages", () => {
       resolve(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
     );
+    const tokens = readFileSync(
+      resolve(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"),
+      "utf8",
+    );
+    const motion = readFileSync(
+      resolve(process.cwd(), "apps/menubar-tauri/src/styles/macos-motion.css"),
+      "utf8",
+    );
 
     expect(css).toMatch(/\.macos-page--settings\s+\.settings-row\s*{[^}]*background:\s*var\(--mac-surface-solid\)[^}]*box-shadow:\s*none/s);
+    expect(tokens).toContain("--mac-focus-ring-width: 2px;");
+    expect(tokens).toContain("--mac-compact-row-height: 44px;");
+    expect(motion).toContain("--mac-motion-fast: 160ms;");
+    expect(motion).toContain("--mac-motion-standard: 180ms;");
+    expect(motion).toContain("--mac-motion-slow: 200ms;");
     expect(css).toMatch(/@media\s*\(prefers-contrast:\s*more\)[\s\S]*?\.floating-tab-switcher__segment\[aria-current="page"\][\s\S]*?text-decoration/s);
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.floating-tab-switcher__indicator[\s\S]*?transition:\s*none/s);
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.macos-pressable:active[\s\S]*?opacity/s);
+    expect(css).toMatch(/@media\s*\(forced-colors:\s*active\)[\s\S]*?\.floating-tab-switcher__segment\[aria-current="page"\][\s\S]*?HighlightText/s);
+    expect(css).toMatch(/@media\s*\(forced-colors:\s*active\)[\s\S]*?\[aria-invalid="true"\][\s\S]*?Mark/s);
+    expect(css).not.toMatch(/outline:\s*3px/);
   });
 
   it("keeps localized select options stable until the active locale changes", async () => {
