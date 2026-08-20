@@ -4608,7 +4608,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
-        "sha256": "0ddffe417fcf0503f737a320255c7d0d63206bae1a1bbba96a6d73359bbcf4d9"
+        "sha256": "25a64309f590bdbf6933974d0b16d21b338506093d092ddd14c3d1d2cf21b447"
       },
       {
         "path": "apps/menubar-tauri/src/app/popup-state.ts",
@@ -5415,7 +5415,7 @@
         "sha256": "162dd777bc2ad6abcd19e7ce8c6c78463ebabf63a73bd22ecf6cf8a9558f5286"
       }
     ],
-    "sha256": "5067c284a52ce374838b8c0c5660b09adff43402ff4448e85db1cbb8017aa623"
+    "sha256": "7c582ad903bca18bd5767a25baf1e05cf684df41161315807983b263deb8e0ec"
   },
   "removedDependencies": [
     "forwarded-email provider graph",
