@@ -56,15 +56,15 @@ beforeEach(() => {
 });
 
 describe("SendPageComponent", () => {
-  it("renders one polite atomic region and announces changed search result counts", async () => {
+  it("uses the immediate displayed Send count after silent external churn", async () => {
     await TestBed.configureTestingModule({
       imports: [SendPageComponent],
       providers: [PopupStateStore, provideRouter([])],
     }).compileComponents();
     const store = TestBed.inject(PopupStateStore);
     store.setSends([
-      demoSend({ id: "send-1", name: "Payroll token", type: "text" }),
-      demoSend({ id: "send-2", name: "Travel token", type: "text" }),
+      demoSend({ id: "send-1", name: "Account Alpha", type: "text" }),
+      demoSend({ id: "send-2", name: "Account Beta", type: "text" }),
     ]);
     const fixture = TestBed.createComponent(SendPageComponent);
     fixture.detectChanges();
@@ -74,17 +74,42 @@ describe("SendPageComponent", () => {
     const resultStatus = host.querySelectorAll(
       '[data-testid="result-announcement"][role="status"]',
     );
+    const resultText = () =>
+      host.querySelector<HTMLElement>('[data-testid="result-announcement"]')?.textContent
+        ?.trim() ?? "";
     expect(resultStatus).toHaveLength(1);
     expect(resultStatus[0]!.getAttribute("aria-live")).toBe("polite");
     expect(resultStatus[0]!.getAttribute("aria-atomic")).toBe("true");
-    expect(resultStatus[0]!.textContent?.trim()).toBe("");
+    expect(resultText()).toBe("");
 
     const search = host.querySelector<HTMLInputElement>('bit-search input')!;
-    search.value = "Payroll";
+    search.value = "Account Alpha";
     search.dispatchEvent(new Event("input", { bubbles: true }));
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(resultStatus[0]!.textContent).toContain("1");
+    const announcedOne = translateOfficialMessage("i18nItemsCount", 1);
+    expect(resultText()).toBe(announcedOne);
+
+    store.setSends([
+      demoSend({ id: "send-1", name: "Account Alpha", type: "text" }),
+      demoSend({ id: "send-3", name: "Account Alpha Two", type: "text" }),
+      demoSend({ id: "send-2", name: "Account Beta", type: "text" }),
+    ]);
+    fixture.detectChanges(false);
+    expect(resultText()).toBe(announcedOne);
+
+    search.value = "Alpha";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(resultText()).toBe(announcedOne);
+
+    search.value = "Account";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(resultText()).toBe(translateOfficialMessage("i18nItemsCount", 3));
+    expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
   });
 
   it("marks Send form and confirmation subroutes as in-flow pages without the main switcher", () => {

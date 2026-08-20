@@ -1,4 +1,4 @@
-import { type AfterViewInit, Component, OnDestroy } from "@angular/core";
+import { Component, OnDestroy } from "@angular/core";
 
 import { PopupPageComponent } from "../layout/popup-page.component";
 import { PopupHeaderComponent } from "../layout/popup-header.component";
@@ -68,11 +68,10 @@ import { translateOfficialMessage } from "../official-ui/official-i18n.service";
     </popup-page>
   `,
 })
-export class OtpPageComponent implements AfterViewInit, OnDestroy {
+export class OtpPageComponent implements OnDestroy {
   resultAnnouncement = "";
   protected copiedItemId: string | null = null;
   private copiedResetTimer?: ReturnType<typeof setTimeout>;
-  private resultCount: number | undefined;
   private entriesCache?: {
     readonly items: ReturnType<PopupStateStore["snapshot"]>["items"];
     readonly query: string;
@@ -102,12 +101,9 @@ export class OtpPageComponent implements AfterViewInit, OnDestroy {
   }
 
   protected setSearch(query: string): void {
+    const previousCount = this.entries.length;
     this.otp.setSearch(query);
-    this.updateResultAnnouncement(this.entries.length);
-  }
-
-  ngAfterViewInit(): void {
-    this.resultCount = this.entries.length;
+    this.updateResultAnnouncement(previousCount, this.entries.length);
   }
 
   ngOnDestroy(): void {
@@ -144,10 +140,8 @@ export class OtpPageComponent implements AfterViewInit, OnDestroy {
     }, 1_200);
   }
 
-  private updateResultAnnouncement(count: number): void {
-    const previous = this.resultCount;
-    this.resultCount = count;
-    if (previous !== undefined && previous !== count) {
+  private updateResultAnnouncement(previousCount: number, count: number): void {
+    if (previousCount !== count) {
       this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
     }
   }

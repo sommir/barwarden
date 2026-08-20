@@ -3,6 +3,7 @@ import "zone.js";
 
 import { TestBed } from "@angular/core/testing";
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
+import { LiveAnnouncer } from "@angular/cdk/a11y";
 import { NavigationEnd, NavigationStart, provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
@@ -32,6 +33,7 @@ import type {
 import { ReplaySubject } from "rxjs";
 import * as bitwardenApiModule from "../bitwarden-api/bitwarden-api";
 import { AutoFillSetupService } from "./autofill/autofill-setup.service";
+import { PopupRouteAnnouncerService } from "./platform/popup-route-announcer.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -81,6 +83,41 @@ describe("AppComponent", () => {
       code: "unexpected",
       title: "无法恢复 Barwarden",
     });
+  });
+
+  it("starts and destroys the real route announcer once with the app lifecycle", async () => {
+    const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: LiveAnnouncer, useValue: live },
+      ],
+    });
+    const routeAnnouncer = TestBed.inject(PopupRouteAnnouncerService);
+    const start = vi.spyOn(routeAnnouncer, "start");
+    const destroy = vi.spyOn(routeAnnouncer, "destroy");
+    const store = new PopupStateStore();
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn(async () => "login") },
+      {
+        navigateByUrl: vi.fn(async () => true),
+        url: "/",
+        events: { subscribe: () => ({ unsubscribe() {} }) },
+      },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null,
+      { hidePopup: vi.fn(async () => undefined) },
+      null, null, null, null, null, null, null, null, null,
+      routeAnnouncer,
+    ]) as AppComponent;
+
+    await component.ngOnInit();
+    component.ngOnDestroy();
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(destroy).toHaveBeenCalledOnce();
+    expect(live.clear).toHaveBeenCalledOnce();
   });
 
   it("immediately routes an active popup to unlock when the vault locks", async () => {

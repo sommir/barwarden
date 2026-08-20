@@ -89,10 +89,12 @@ describe("VaultListPageComponent", () => {
     });
   });
 
-  it("renders one polite atomic region and announces changed search result counts", async () => {
+  it("uses the immediate displayed Vault count after silent external churn", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
-    store.setItems(demoVaultItems, demoFolders);
+    const alpha = { ...demoVaultItems[0]!, name: "Account Alpha" };
+    const beta = { ...demoVaultItems[1]!, name: "Account Beta" };
+    store.setItems([alpha, beta], demoFolders);
     await TestBed.configureTestingModule({
       imports: [VaultListPageComponent],
       providers: [
@@ -109,14 +111,35 @@ describe("VaultListPageComponent", () => {
     const resultStatus = host.querySelectorAll(
       '[data-testid="result-announcement"][role="status"]',
     );
+    const resultText = () =>
+      host.querySelector<HTMLElement>('[data-testid="result-announcement"]')?.textContent
+        ?.trim() ?? "";
     expect(resultStatus).toHaveLength(1);
     expect(resultStatus[0]!.getAttribute("aria-live")).toBe("polite");
     expect(resultStatus[0]!.getAttribute("aria-atomic")).toBe("true");
-    expect(resultStatus[0]!.textContent?.trim()).toBe("");
+    expect(resultText()).toBe("");
 
-    fixture.componentInstance.setSearch("GitHub");
+    fixture.componentInstance.setSearch("Account Alpha");
     fixture.detectChanges();
-    expect(resultStatus[0]!.textContent).toContain("1");
+    const announcedOne = translateOfficialMessage("i18nItemsCount", 1);
+    expect(resultText()).toBe(announcedOne);
+
+    store.setItems([
+      alpha,
+      { ...alpha, id: "alpha-two", name: "Account Alpha Two" },
+      beta,
+    ], demoFolders);
+    fixture.detectChanges(false);
+    expect(resultText()).toBe(announcedOne);
+
+    fixture.componentInstance.setSearch("Alpha");
+    fixture.detectChanges(false);
+    expect(resultText()).toBe(announcedOne);
+
+    fixture.componentInstance.setSearch("Account");
+    fixture.detectChanges(false);
+    expect(resultText()).toBe(translateOfficialMessage("i18nItemsCount", 3));
+    expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
   });
 
   it("uses the native root header, peer hierarchy, and title-bar add control", async () => {

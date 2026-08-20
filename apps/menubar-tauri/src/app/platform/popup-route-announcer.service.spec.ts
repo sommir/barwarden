@@ -2,7 +2,7 @@ import "zone.js";
 import "@angular/compiler";
 
 import { LiveAnnouncer } from "@angular/cdk/a11y";
-import { Component } from "@angular/core";
+import { type AfterViewInit, Component, ElementRef } from "@angular/core";
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -22,7 +22,16 @@ try {
   }
 }
 
-@Component({ standalone: true, imports: [RouterOutlet], template: "<router-outlet />" })
+@Component({
+  standalone: true,
+  imports: [PopupHeaderComponent, RouterOutlet],
+  template: `
+    <div data-testid="stale-route-host">
+      <popup-header pageTitle="私密 secret-server-id" />
+    </div>
+    <router-outlet />
+  `,
+})
 class AnnouncerHostComponent {}
 
 @Component({
@@ -39,6 +48,54 @@ class ArchiveHeadingComponent {}
 })
 class LoginHeadingComponent {}
 
+@Component({
+  standalone: true,
+  imports: [PopupHeaderComponent],
+  styles: [
+    ".route-display-none { display: none; }",
+    ".route-visibility-hidden { visibility: hidden; }",
+  ],
+  template: `
+    <div hidden><popup-header pageTitle="hidden attribute secret" /></div>
+    <div aria-hidden="true"><popup-header pageTitle="aria hidden secret" /></div>
+    <div inert><popup-header pageTitle="inert secret" /></div>
+    <div class="route-display-none"><popup-header pageTitle="display secret" /></div>
+    <div class="route-visibility-hidden"><popup-header pageTitle="visibility secret" /></div>
+    <popup-header pageTitle="可见标题" />
+  `,
+})
+class VisibilityHeadingComponent {}
+
+@Component({
+  standalone: true,
+  imports: [PopupHeaderComponent, RouterOutlet],
+  template: `
+    <popup-header pageTitle="父级归档" />
+    <router-outlet />
+  `,
+})
+class NestedArchiveComponent {}
+
+@Component({
+  standalone: true,
+  imports: [PopupHeaderComponent],
+  template: '<popup-header pageTitle="嵌套详情" />',
+})
+class NestedDetailComponent {}
+
+@Component({
+  standalone: true,
+  imports: [PopupHeaderComponent],
+  template: '<popup-header pageTitle="disconnected private heading" />',
+})
+class DisconnectingHeadingComponent implements AfterViewInit {
+  constructor(private readonly host: ElementRef<HTMLElement>) {}
+
+  ngAfterViewInit(): void {
+    this.host.nativeElement.remove();
+  }
+}
+
 async function renderAnnouncer(live: Pick<LiveAnnouncer, "announce" | "clear">) {
   await TestBed.configureTestingModule({
     imports: [AnnouncerHostComponent],
@@ -46,6 +103,13 @@ async function renderAnnouncer(live: Pick<LiveAnnouncer, "announce" | "clear">) 
       provideRouter([
         { path: "login", component: LoginHeadingComponent },
         { path: "archive", component: ArchiveHeadingComponent },
+        { path: "visibility", component: VisibilityHeadingComponent },
+        { path: "disconnect", component: DisconnectingHeadingComponent },
+        {
+          path: "nested",
+          component: NestedArchiveComponent,
+          children: [{ path: "detail", component: NestedDetailComponent }],
+        },
       ]),
       { provide: LiveAnnouncer, useValue: live },
     ],
@@ -82,6 +146,67 @@ describe("PopupRouteAnnouncerService", () => {
     expect(JSON.stringify(live.announce.mock.calls)).not.toContain("secret-server-id");
   });
 
+  it("ignores hidden and inert headings inside the active route owner", async () => {
+    const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+    const { router, fixture, service } = await renderAnnouncer(live);
+    service.start();
+    await router.navigateByUrl("/login");
+    await settleNavigation(fixture);
+
+    await router.navigateByUrl("/visibility");
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(getComputedStyle(host.querySelector<HTMLElement>(".route-display-none")!).display)
+      .toBe("none");
+    expect(getComputedStyle(host.querySelector<HTMLElement>(".route-visibility-hidden")!).visibility)
+      .toBe("hidden");
+    await settleNavigation(fixture);
+
+    expect(live.announce.mock.calls).toEqual([["可见标题", "polite"]]);
+  });
+
+  it("announces the deepest active primary route heading", async () => {
+    const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+    const { router, fixture, service } = await renderAnnouncer(live);
+    service.start();
+    await router.navigateByUrl("/login");
+    await settleNavigation(fixture);
+
+    await router.navigateByUrl("/nested/detail");
+    await settleNavigation(fixture);
+
+    expect(live.announce.mock.calls).toEqual([["嵌套详情", "polite"]]);
+  });
+
+  it("does not fall back to stale private text when the active route disconnects", async () => {
+    const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+    const { router, fixture, service } = await renderAnnouncer(live);
+    service.start();
+    await router.navigateByUrl("/login");
+    await settleNavigation(fixture);
+
+    await router.navigateByUrl("/disconnect?cipherId=route-private-id");
+    await settleNavigation(fixture);
+
+    expect(live.announce).not.toHaveBeenCalled();
+    expect(JSON.stringify(live.announce.mock.calls)).not.toContain("route-private-id");
+    expect(JSON.stringify(live.announce.mock.calls)).not.toContain("secret-server-id");
+  });
+
+  it("subscribes only once when start is called twice", async () => {
+    const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+    const { router, fixture, service } = await renderAnnouncer(live);
+    service.start();
+    service.start();
+    await router.navigateByUrl("/login");
+    await settleNavigation(fixture);
+
+    await router.navigateByUrl("/archive");
+    await settleNavigation(fixture);
+
+    expect(live.announce.mock.calls).toEqual([["归档", "polite"]]);
+  });
+
   it("publishes only the latest rendered heading when navigations race", async () => {
     const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
     const { router, fixture, service } = await renderAnnouncer(live);
@@ -109,5 +234,24 @@ describe("PopupRouteAnnouncerService", () => {
 
     expect(live.clear).toHaveBeenCalledOnce();
     expect(live.announce).not.toHaveBeenCalled();
+  });
+
+  it("suppresses startup again after destroy and restart", async () => {
+    const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+    const { router, fixture, service } = await renderAnnouncer(live);
+    service.start();
+    await router.navigateByUrl("/login");
+    await settleNavigation(fixture);
+    service.destroy();
+
+    service.start();
+    await router.navigateByUrl("/archive");
+    await settleNavigation(fixture);
+    expect(live.announce).not.toHaveBeenCalled();
+
+    await router.navigateByUrl("/login");
+    await settleNavigation(fixture);
+    expect(live.announce.mock.calls).toEqual([["登录", "polite"]]);
+    expect(live.clear).toHaveBeenCalledOnce();
   });
 });

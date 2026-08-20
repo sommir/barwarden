@@ -1,5 +1,4 @@
 import {
-  type AfterViewInit,
   Component,
   HostListener,
   Inject,
@@ -223,13 +222,12 @@ import { VaultContextualSectionOutletComponent } from "./vault-contextual-sectio
     </popup-page>
   `,
 })
-export class VaultListPageComponent implements AfterViewInit, OnDestroy {
+export class VaultListPageComponent implements OnDestroy {
   @ViewChild("vaultListReprompt") private repromptDialog?: VaultRepromptDialogComponent;
   openMenuRowId: string | null = null;
   resultAnnouncement = "";
   readonly noResultsIcon = NoResults;
   readonly vaultIcon = VaultOpen;
-  private resultCount: number | undefined;
 
   constructor(
     private readonly store: PopupStateStore,
@@ -304,15 +302,12 @@ export class VaultListPageComponent implements AfterViewInit, OnDestroy {
     return this.settings.snapshot().showQuickCopyActions;
   }
 
-  ngAfterViewInit(): void {
-    this.resultCount = this.vault.filteredItems().length;
-  }
-
   setSearch(query: string | null | undefined): void {
+    const previousCount = this.vault.filteredItems().length;
     this.openMenuRowId = null;
     this.menuCoordinator.closeAll();
     this.vault.setSearch(query ?? "");
-    this.updateResultAnnouncement(this.vault.filteredItems().length);
+    this.updateResultAnnouncement(previousCount, this.vault.filteredItems().length);
   }
 
   @HostListener("input", ["$event"])
@@ -339,10 +334,8 @@ export class VaultListPageComponent implements AfterViewInit, OnDestroy {
     this.rowActions.ngOnDestroy();
   }
 
-  private updateResultAnnouncement(count: number): void {
-    const previous = this.resultCount;
-    this.resultCount = count;
-    if (previous !== undefined && previous !== count) {
+  private updateResultAnnouncement(previousCount: number, count: number): void {
+    if (previousCount !== count) {
       this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
     }
   }

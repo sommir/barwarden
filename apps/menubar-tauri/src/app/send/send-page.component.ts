@@ -1,5 +1,5 @@
 import { DialogModule as CdkDialogModule } from "@angular/cdk/dialog";
-import { type AfterViewInit, Component, Inject, OnDestroy, Optional, ViewChild } from "@angular/core";
+import { Component, Inject, OnDestroy, Optional, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 
 import type { AuthSession } from "../../auth/auth-session-store";
@@ -101,7 +101,7 @@ export { SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
     </bw-app-bottom-sheet>
   `,
 })
-export class SendPageComponent implements AfterViewInit, OnDestroy {
+export class SendPageComponent implements OnDestroy {
   @ViewChild("deleteDialog") private deleteDialog?: AppBottomSheetComponent;
 
   resultAnnouncement = "";
@@ -113,7 +113,6 @@ export class SendPageComponent implements AfterViewInit, OnDestroy {
     readonly now: number;
     readonly result: readonly OfficialTextSendListItem[];
   };
-  private resultCount: number | undefined;
   deleting = false;
 
   constructor(
@@ -186,13 +185,10 @@ export class SendPageComponent implements AfterViewInit, OnDestroy {
     return this.pendingDelete?.name ?? "";
   }
 
-  ngAfterViewInit(): void {
-    this.resultCount = this.sends.length;
-  }
-
   setSearch(query: string): void {
+    const previousCount = this.sends.length;
     this.sendFacade.setSearch(query);
-    this.updateResultAnnouncement(this.sends.length);
+    this.updateResultAnnouncement(previousCount, this.sends.length);
   }
 
   toggleFilters(): void {
@@ -200,8 +196,9 @@ export class SendPageComponent implements AfterViewInit, OnDestroy {
   }
 
   setType(type: "" | "text"): void {
+    const previousCount = this.sends.length;
     this.sendFacade.setTypeFilter(type);
-    this.updateResultAnnouncement(this.sends.length);
+    this.updateResultAnnouncement(previousCount, this.sends.length);
   }
 
   open(send: OfficialTextSendListItem | undefined): void {
@@ -290,10 +287,8 @@ export class SendPageComponent implements AfterViewInit, OnDestroy {
     return this.store.snapshot().sends.find((candidate) => candidate.id === send.id && isTextSend(candidate));
   }
 
-  private updateResultAnnouncement(count: number): void {
-    const previous = this.resultCount;
-    this.resultCount = count;
-    if (previous !== undefined && previous !== count) {
+  private updateResultAnnouncement(previousCount: number, count: number): void {
+    if (previousCount !== count) {
       this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
     }
   }

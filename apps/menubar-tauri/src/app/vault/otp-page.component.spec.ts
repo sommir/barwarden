@@ -20,7 +20,10 @@ import { OtpFacade } from "./otp.facade";
 import { OtpPageComponent } from "./otp-page.component";
 import { TOTP_CLOCK, TOTP_CODE_SOURCE } from "./vault-totp-code.component";
 import { PopupHeaderActionsComponent } from "../popup-header-actions.component";
-import { OfficialI18nService } from "../official-ui/official-i18n.service";
+import {
+  OfficialI18nService,
+  translateOfficialMessage,
+} from "../official-ui/official-i18n.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -103,12 +106,13 @@ async function renderOtp(facade: OtpFacade) {
 }
 
 describe("OtpPageComponent", () => {
-  it("announces result-count changes without announcing countdown seconds", async () => {
+  it("uses the immediate OTP count after external churn and keeps countdown seconds silent", async () => {
     vi.useFakeTimers();
     try {
       const validTotp = "JBSWY3DPEHPK3PXP";
       const github = {
         ...demoVaultItems[0]!,
+        name: "Account Alpha",
         fields: demoVaultItems[0]!.fields.map((field) =>
           field.id === "otp" ? { ...field, value: validTotp } : field
         ),
@@ -116,7 +120,7 @@ describe("OtpPageComponent", () => {
       const calendar = {
         ...github,
         id: "calendar",
-        name: "Calendar",
+        name: "Account Beta",
         subtitle: "calendar@example.com",
       };
       const store = new PopupStateStore();
@@ -158,20 +162,40 @@ describe("OtpPageComponent", () => {
       const resultStatus = host.querySelectorAll(
         '[data-testid="result-announcement"][role="status"]',
       );
+      const resultText = () =>
+        host.querySelector<HTMLElement>('[data-testid="result-announcement"]')?.textContent
+          ?.trim() ?? "";
       expect(resultStatus).toHaveLength(1);
       expect(resultStatus[0]!.getAttribute("aria-live")).toBe("polite");
       expect(resultStatus[0]!.getAttribute("aria-atomic")).toBe("true");
-      expect(resultStatus[0]!.textContent?.trim()).toBe("");
+      expect(resultText()).toBe("");
 
-      fixture.componentInstance["setSearch"]("Calendar");
+      fixture.componentInstance["setSearch"]("Account Alpha");
       fixture.detectChanges();
-      expect(resultStatus[0]!.textContent).toContain("1");
+      const announcedOne = translateOfficialMessage("i18nItemsCount", 1);
+      expect(resultText()).toBe(announcedOne);
 
-      const before = resultStatus[0]!.textContent;
+      store.setItems([
+        github,
+        { ...github, id: "alpha-two", name: "Account Alpha Two" },
+        calendar,
+      ]);
+      fixture.detectChanges(false);
+      expect(resultText()).toBe(announcedOne);
+
+      fixture.componentInstance["setSearch"]("Alpha");
+      fixture.detectChanges(false);
+      expect(resultText()).toBe(announcedOne);
+
+      fixture.componentInstance["setSearch"]("Account");
+      fixture.detectChanges(false);
+      expect(resultText()).toBe(translateOfficialMessage("i18nItemsCount", 3));
+
+      const before = resultText();
       epochSeconds += 1;
       await vi.advanceTimersByTimeAsync(1_000);
       fixture.detectChanges();
-      expect(resultStatus[0]!.textContent).toBe(before);
+      expect(resultText()).toBe(before);
       expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
       fixture.destroy();
     } finally {
