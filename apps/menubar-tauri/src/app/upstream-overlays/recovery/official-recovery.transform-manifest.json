@@ -254,7 +254,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
-      "sha256": "0ddffe417fcf0503f737a320255c7d0d63206bae1a1bbba96a6d73359bbcf4d9"
+      "sha256": "25a64309f590bdbf6933974d0b16d21b338506093d092ddd14c3d1d2cf21b447"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
