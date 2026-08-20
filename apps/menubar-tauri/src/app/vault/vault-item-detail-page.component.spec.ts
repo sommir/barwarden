@@ -46,6 +46,7 @@ import { VaultFacade } from "./vault.facade";
 import { VaultDetailFieldComponent } from "./vault-detail-field.component";
 import { VaultItemDetailPageComponent } from "./vault-item-detail-page.component";
 import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
+import type { PopupFocusKey } from "../platform/popup-route-metadata";
 import { OFFICIAL_TOTP_CLOCK } from "./official-totp.service.adapter";
 import { VaultRepromptService } from "./vault-reprompt.service";
 
@@ -995,17 +996,41 @@ describe("VaultItemDetailPageComponent", () => {
       ...demoVaultItems[0]!,
       passwordHistory: [{ password: "old-password", lastUsedDate: "2026-07-01T00:00:00.000Z" }],
     };
-    const { fixture } = await createFixture(undefined, undefined, [item]);
+    const { fixture, navigateByUrl } = await createFixture(undefined, undefined, [item]);
     const routeCache = TestBed.inject(PopupRouterCacheService);
     const stage = vi.spyOn(routeCache, "stageTransientBack");
-    vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+    const router = TestBed.inject(Router);
     fixture.componentRef.setInput("id", item.id);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
 
-    host.querySelector<HTMLAnchorElement>(
+    const editLink = host.querySelector<HTMLAnchorElement>(
       `[data-popup-focus-key="detail-edit:${item.id}"]`,
-    )!.click();
+    )!;
+    expect(editLink.getAttribute("href")).toContain(`/edit-cipher?cipherId=${item.id}`);
+    const primaryClick = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+    editLink.dispatchEvent(primaryClick);
+    expect(primaryClick.defaultPrevented).toBe(true);
+    expect(navigateByUrl).toHaveBeenCalledOnce();
+    expect(stage.mock.invocationCallOrder[0])
+      .toBeLessThan(navigateByUrl.mock.invocationCallOrder[0]!);
+
+    const modifiedClick = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      metaKey: true,
+    });
+    fixture.componentInstance.openEdit(modifiedClick, item.id);
+    expect(modifiedClick.defaultPrevented).toBe(false);
+    expect(navigateByUrl).toHaveBeenCalledOnce();
+
+    const editFocusKey: PopupFocusKey = fixture.componentInstance.detailFocusKey("edit", item.id);
+    const historyFocusKey: PopupFocusKey = fixture.componentInstance.detailFocusKey("history", item.id);
+    expect(editFocusKey).toBe(`detail-edit:${item.id}`);
+    expect(historyFocusKey).toBe(`detail-history:${item.id}`);
+
+    vi.spyOn(router, "navigate").mockResolvedValue(true);
     fixture.componentInstance.openPasswordHistory();
     await fixture.whenStable();
 

@@ -6,9 +6,16 @@ import { describe, expect, it } from "vitest";
 import {
   deepestIos27RouteData,
   ios27RouteData,
+  popupFocusKey,
 } from "./popup-route-metadata";
 
 describe("popup route metadata", () => {
+  it("constructs branded focus keys only from stable non-empty DOM values", () => {
+    expect(popupFocusKey("detail-edit:item-1")).toBe("detail-edit:item-1");
+    expect(() => popupFocusKey("")).toThrow(/non-empty/);
+    expect(() => popupFocusKey(" detail-edit:item-1 ")).toThrow(/trimmed/);
+  });
+
   it("creates literal typed metadata with a false bottom-navigation default", () => {
     expect(ios27RouteData("auth", "secondary")).toEqual({
       ios27Family: "auth",

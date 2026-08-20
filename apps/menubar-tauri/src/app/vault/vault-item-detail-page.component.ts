@@ -10,7 +10,7 @@ import {
   SimpleChanges,
   ViewChild,
 } from "@angular/core";
-import { Router, RouterLink } from "@angular/router";
+import { Router } from "@angular/router";
 import type { Subscription } from "rxjs";
 
 import { TauriHostService } from "../../host/tauri-host.service";
@@ -82,6 +82,10 @@ import { VaultDetailFieldComponent } from "./vault-detail-field.component";
 import { VaultDetailSectionComponent } from "./vault-detail-section.component";
 import { VaultFacade, type VaultItemLocation } from "./vault.facade";
 import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
+import {
+  popupFocusKey,
+  type PopupFocusKey,
+} from "../platform/popup-route-metadata";
 import { VaultItemIconComponent } from "./vault-item-icon.component";
 import { vaultItemTypeLabel } from "./vault-item.model";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
@@ -102,7 +106,6 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
     DialogComponent,
     DialogFooterDirective,
     I18nPipe,
-    RouterLink,
     PopupFooterComponent,
     PopupHeaderComponent,
     PopupPageComponent,
@@ -172,10 +175,9 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
             <a
               bitButton
               buttonType="primary"
-              routerLink="/edit-cipher"
-              [queryParams]="cipherQueryParams"
+              [attr.href]="editCipherHref"
               [attr.data-popup-focus-key]="'detail-edit:' + item.id"
-              (click)="rememberDetailBack('/edit-cipher', 'detail-edit:' + item.id)"
+              (click)="openEdit($event, item.id)"
             >{{ "i18nEdit" | i18n }}</a>
           } @else {
             <button bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nRestore' | i18n" (click)="restore()">{{ "i18nRestore" | i18n }}</button>
@@ -597,6 +599,12 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     };
   }
 
+  get editCipherHref(): string {
+    return this.router.serializeUrl(this.router.createUrlTree(["/edit-cipher"], {
+      queryParams: this.cipherQueryParams,
+    }));
+  }
+
   get passwordHistoryHref(): string {
     return `/cipher-password-history?cipherId=${encodeURIComponent(this.item?.id ?? "")}`;
   }
@@ -872,7 +880,7 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       if (this.item?.id === item.id) {
         this.rememberDetailBack(
           "/cipher-password-history",
-          `detail-history:${item.id}`,
+          this.detailFocusKey("history", item.id),
         );
         await this.router.navigate(["/cipher-password-history"], {
           queryParams: { cipherId: item.id },
@@ -884,7 +892,30 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     }
   }
 
-  rememberDetailBack(destinationUrl: string, focusKey: string): void {
+  openEdit(event: MouseEvent, itemId: string): void {
+    if (
+      event.button !== 0
+      || event.metaKey
+      || event.ctrlKey
+      || event.shiftKey
+      || event.altKey
+      || this.item?.id !== itemId
+    ) {
+      return;
+    }
+    event.preventDefault();
+    this.rememberDetailBack("/edit-cipher", this.detailFocusKey("edit", itemId));
+    const target = this.router.createUrlTree(["/edit-cipher"], {
+      queryParams: this.cipherQueryParams,
+    });
+    void this.router.navigateByUrl(target);
+  }
+
+  detailFocusKey(kind: "edit" | "history", itemId: string): PopupFocusKey {
+    return popupFocusKey(`detail-${kind}:${itemId}`);
+  }
+
+  rememberDetailBack(destinationUrl: string, focusKey: PopupFocusKey): void {
     this.routeCache.stageTransientBack(destinationUrl, focusKey);
   }
 

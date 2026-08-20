@@ -16,6 +16,13 @@ export type PopupFocusKey = string & {
   readonly __popupFocusKey: unique symbol;
 };
 
+export function popupFocusKey(value: string): PopupFocusKey {
+  if (!value || value.trim() !== value) {
+    throw new Error("Popup focus keys must be non-empty and already trimmed");
+  }
+  return value as PopupFocusKey;
+}
+
 export interface Ios27RouteData {
   readonly ios27Family: Ios27PageFamily;
   readonly popupLayer: PopupLayer;
