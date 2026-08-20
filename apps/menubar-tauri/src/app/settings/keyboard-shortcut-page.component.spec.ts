@@ -1,13 +1,18 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+import postcss from "postcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -19,6 +24,12 @@ import type {
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { GLOBAL_SHORTCUT_SETTINGS_HOST } from "./global-shortcut-settings.service";
 import { KeyboardShortcutPageComponent } from "./keyboard-shortcut-page.component";
+
+@Component({
+  imports: [KeyboardShortcutPageComponent],
+  template: `<bw-keyboard-shortcut-page />`,
+})
+class KeyboardShortcutPageTestHostComponent {}
 
 const optionB = binding(["option"], "KeyB");
 const optionL = binding(["option"], "KeyL");
@@ -34,6 +45,11 @@ try {
 describe("KeyboardShortcutPageComponent", () => {
   afterEach(() => {
     TestBed.resetTestingModule();
+    document.body.classList.remove("tw-bit-compact");
+    document.body.replaceChildren();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.head.querySelectorAll("style[data-keyboard-shortcut-production-css]")
+      .forEach((node) => node.remove());
   });
 
   it("renders the official page, current shortcut, and stable accessible controls", async () => {
@@ -61,6 +77,42 @@ describe("KeyboardShortcutPageComponent", () => {
 
     fixture.destroy();
   });
+
+  it.each([
+    ["normal", false],
+    ["compact", true],
+  ] as const)(
+    "computes 44px recording and clear targets without collapsing the field in %s mode",
+    async (_mode, compact) => {
+      installProductionCss();
+      document.documentElement.dataset["bwCompactMode"] = String(compact);
+      document.body.classList.toggle("tw-bit-compact", compact);
+      const { host } = await renderPage();
+      const recorder = shortcutRecorder(host);
+      const clear = clearButton(host);
+      const fieldContainer = recorder.closest<HTMLElement>("[bitfieldcontainer]");
+
+      expect(fieldContainer).not.toBeNull();
+      const recorderStyle = getComputedStyle(recorder);
+      const clearStyle = getComputedStyle(clear);
+
+      expect(Number.parseFloat(recorderStyle.minWidth)).toBeGreaterThanOrEqual(44);
+      expect(Number.parseFloat(recorderStyle.minHeight)).toBeGreaterThanOrEqual(44);
+      expect(Number.parseFloat(clearStyle.minWidth)).toBeGreaterThanOrEqual(44);
+      expect(Number.parseFloat(clearStyle.minHeight)).toBeGreaterThanOrEqual(44);
+      expect(recorderStyle.width).toBe("100%");
+      expect(clearStyle.flexBasis).toBe("44px");
+      expect(clearStyle.flexShrink).toBe("0");
+      expect(clear.closest("[bitfieldcontainer]")).toBe(fieldContainer);
+
+      recorder.dataset["testFocusVisible"] = "true";
+      clear.dataset["testFocusVisible"] = "true";
+      expect(getComputedStyle(recorder).outlineWidth).toBe("2px");
+      expect(getComputedStyle(recorder).outlineStyle).toBe("solid");
+      expect(getComputedStyle(clear).outlineWidth).toBe("2px");
+      expect(getComputedStyle(clear).outlineStyle).toBe("solid");
+    },
+  );
 
   it("enters recording mode and waits on modifier-only keydown", async () => {
     const { fixture, host, shortcutHost } = await renderPage();
@@ -247,7 +299,7 @@ describe("KeyboardShortcutPageComponent", () => {
 
 async function renderPage(shortcutHost = new ShortcutHostFake()) {
   await TestBed.configureTestingModule({
-    imports: [KeyboardShortcutPageComponent],
+    imports: [KeyboardShortcutPageTestHostComponent],
     providers: [
       provideRouter([]),
       OfficialI18nService,
@@ -256,7 +308,8 @@ async function renderPage(shortcutHost = new ShortcutHostFake()) {
     ],
   }).compileComponents();
 
-  const fixture = TestBed.createComponent(KeyboardShortcutPageComponent);
+  const fixture = TestBed.createComponent(KeyboardShortcutPageTestHostComponent);
+  document.body.append(fixture.nativeElement as HTMLElement);
   fixture.detectChanges();
   await new Promise((resolve) => setTimeout(resolve));
   await fixture.whenStable();
@@ -358,4 +411,51 @@ function deferred<T>() {
     resolve = resolver;
   });
   return { promise, resolve };
+}
+
+function installProductionCss(): void {
+  const source = [
+    "macos-tokens.css",
+    "macos-motion.css",
+    "macos-materials.css",
+    "global.css",
+  ]
+    .map((filename) =>
+      readFileSync(
+        join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+        "utf8",
+      ),
+    )
+    .join("\n");
+  const root = postcss.parse(source);
+  root.walkAtRules("import", (rule) => rule.remove());
+  root.walkAtRules("media", (rule) => rule.remove());
+  root.walkAtRules("starting-style", (rule) => rule.remove());
+
+  const style = document.createElement("style");
+  style.dataset["keyboardShortcutProductionCss"] = "true";
+  style.textContent = root.toString()
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
+  document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (reference, name) =>
+    resolveCustomProperty(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
+      || reference,
+  );
+}
+
+function resolveCustomProperty(
+  value: string,
+  rootStyle: CSSStyleDeclaration,
+  seen: Set<string>,
+): string {
+  return value.replace(/var\((--[\w-]+)\)/g, (reference, name) => {
+    if (seen.has(name)) {
+      return reference;
+    }
+    const next = rootStyle.getPropertyValue(name).trim();
+    return next
+      ? resolveCustomProperty(next, rootStyle, new Set([...seen, name]))
+      : reference;
+  });
 }

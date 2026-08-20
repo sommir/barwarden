@@ -2283,6 +2283,22 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   background: transparent !important;
 }
 
+/* The shortcut recorder and its clear action are the two direct controls in
+ * this field. Keep their targets touch-safe without changing the shared 40px
+ * form-field geometry used by unrelated routes. */
+bw-keyboard-shortcut-page .macos-form-field__control {
+  min-width: var(--mac-control-min-size) !important;
+  min-height: var(--mac-control-min-size) !important;
+}
+
+bw-keyboard-shortcut-page .macos-form-field__suffix {
+  width: var(--mac-control-min-size) !important;
+  min-width: var(--mac-control-min-size) !important;
+  height: var(--mac-control-min-size) !important;
+  min-height: var(--mac-control-min-size) !important;
+  flex-basis: var(--mac-control-min-size);
+}
+
 .macos-auth-card button:focus-visible,
 .macos-auth-card [role="button"]:focus-visible,
 .macos-auth-card a:focus-visible {
