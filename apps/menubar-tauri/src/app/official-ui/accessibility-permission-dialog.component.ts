@@ -3,6 +3,7 @@ import {
   Component,
   effect,
   ElementRef,
+  OnDestroy,
   ViewChild,
 } from "@angular/core";
 
@@ -24,6 +25,7 @@ import { translateOfficialMessage } from "./official-i18n.service";
       describedBy="accessibility-permission-description"
       [disableClose]="dialog.openingSettings()"
       (dismissed)="dialog.dismiss()"
+      (closed)="dialog.sheetClosed()"
     >
       <h2 id="accessibility-permission-title">{{ t("i18nAllowAutofill") }}</h2>
       <p id="accessibility-permission-description">{{ t("i18nAccessibilityInstructions") }}</p>
@@ -51,7 +53,7 @@ import { translateOfficialMessage } from "./official-i18n.service";
     </bw-app-bottom-sheet>
   `,
 })
-export class AccessibilityPermissionDialogComponent {
+export class AccessibilityPermissionDialogComponent implements OnDestroy {
   @ViewChild("sheet") private sheet?: AppBottomSheetComponent;
   @ViewChild("later", { read: ElementRef }) private later?: ElementRef<HTMLButtonElement>;
   protected readonly t = translateOfficialMessage;
@@ -66,5 +68,9 @@ export class AccessibilityPermissionDialogComponent {
         this.sheet.close();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.dialog.sheetClosed();
   }
 }

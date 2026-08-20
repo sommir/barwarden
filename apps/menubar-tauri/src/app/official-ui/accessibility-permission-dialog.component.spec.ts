@@ -14,6 +14,7 @@ import {
   ACCESSIBILITY_SETTINGS_HOST,
   AccessibilityPermissionDialogService,
 } from "./accessibility-permission-dialog.service";
+import { AppOverlayStackService } from "./app-overlay-stack.service";
 import { translateOfficialMessage } from "./official-i18n.service";
 
 try {
@@ -28,7 +29,8 @@ try {
   standalone: true,
   imports: [AccessibilityPermissionDialogComponent],
   template: `
-    <button class="permission-trigger" type="button">Autofill</button>
+    <button class="permission-trigger permission-trigger-a" type="button">Autofill A</button>
+    <button class="permission-trigger-b" type="button">Autofill B</button>
     <bw-accessibility-permission-dialog />
   `,
 })
@@ -64,13 +66,85 @@ describe("AccessibilityPermissionDialogComponent", () => {
     settings.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     expect(document.activeElement).toBe(later);
 
-    sheet.dispatchEvent(new Event("cancel", { cancelable: true }));
+    const escape = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    expect(TestBed.inject(AppOverlayStackService).consumeEscape(escape)).toBe(true);
+    expect(escape.defaultPrevented).toBe(true);
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(document.activeElement).toBe(trigger);
     expect(fixture.nativeElement.querySelectorAll(".accessibility-permission-backdrop"))
       .toHaveLength(0);
+  });
+
+  it("keeps one trigger through closing, then accepts and restores the next trigger", async () => {
+    const { fixture, service } = renderPermissionDialog(vi.fn(async () => undefined));
+    const firstTrigger = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      ".permission-trigger-a",
+    )!;
+    const secondTrigger = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      ".permission-trigger-b",
+    )!;
+    const sheet = fixture.nativeElement.querySelector<HTMLDialogElement>(
+      '[data-testid="accessibility-permission-sheet"]',
+    )!;
+
+    firstTrigger.focus();
+    service.present(firstTrigger);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    sheet.style.transitionProperty = "transform";
+    sheet.style.transitionDuration = "200ms";
+
+    service.dismiss();
+    fixture.detectChanges();
+    expect(sheet.dataset["state"]).toBe("closing");
+    service.present(secondTrigger);
+    expect(service.isOpen()).toBe(false);
+    expect(service.trigger()).toBe(firstTrigger);
+
+    sheet.dispatchEvent(new TransitionEvent("transitionend", {
+      bubbles: true,
+      propertyName: "transform",
+    }));
+    await fixture.whenStable();
+    expect(service.trigger()).toBeNull();
+
+    secondTrigger.focus();
+    service.present(secondTrigger);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(service.trigger()).toBe(secondTrigger);
+
+    expect(TestBed.inject(AppOverlayStackService).consumeEscape(
+      new KeyboardEvent("keydown", { key: "Escape", cancelable: true }),
+    )).toBe(true);
+    fixture.detectChanges();
+    sheet.dispatchEvent(new TransitionEvent("transitionend", {
+      bubbles: true,
+      propertyName: "transform",
+    }));
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(secondTrigger);
+  });
+
+  it("releases an active presentation when its component is destroyed", async () => {
+    const { fixture, service } = renderPermissionDialog(vi.fn(async () => undefined));
+    const firstTrigger = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      ".permission-trigger-a",
+    )!;
+    const secondTrigger = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      ".permission-trigger-b",
+    )!;
+
+    service.present(firstTrigger);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.destroy();
+
+    service.present(secondTrigger);
+    expect(service.isOpen()).toBe(true);
+    expect(service.trigger()).toBe(secondTrigger);
   });
 
   it("rejects dismissal while Settings opens and exposes busy state", async () => {
