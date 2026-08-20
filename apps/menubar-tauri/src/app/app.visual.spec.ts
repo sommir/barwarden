@@ -464,7 +464,7 @@ describe("popup visual smoke classes", () => {
     expect(indicator).toContain("background: var(--mac-selected);");
     expect(indicator).toContain("box-shadow: none;");
     expect(indicator).toContain("transform: translateX(calc(var(--selected-index) * 100%));");
-    expect(indicator).toContain("transition: transform var(--mac-motion-duration)");
+    expect(indicator).toContain("transition: transform var(--mac-motion-navigation)");
     expect(globalCss).not.toContain("padding-bottom: calc(58px + 13px + var(--mac-space-5));");
     expect(switcher).toContain("isolation: isolate;");
   });

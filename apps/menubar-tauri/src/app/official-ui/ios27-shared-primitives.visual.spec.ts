@@ -17,15 +17,16 @@ function installVisualCss(targetDocument: Document): HTMLStyleElement {
       .map(([, name, value]) => [name, value.trim()]),
   );
   const style = targetDocument.createElement("style");
-  style.textContent = source.replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) =>
-    tokens.get(name) ?? value,
-  );
+  style.textContent = source
+    .replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) => tokens.get(name) ?? value)
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   targetDocument.head.append(style);
   return style;
 }
 
 afterEach(() => {
   delete document.documentElement.dataset["bwCompactMode"];
+  document.body.classList.remove("macos-page");
   document.body.replaceChildren();
   document.head.querySelectorAll("style[data-ios27-test]").forEach((node) => node.remove());
 });
@@ -34,6 +35,7 @@ describe("iOS 27 shared primitives", () => {
   it("separates 44px owners from compact visible geometry", () => {
     const style = installVisualCss(document);
     style.dataset["ios27Test"] = "true";
+    document.body.classList.add("macos-page");
     document.body.innerHTML = `
       <button class="macos-hit-target"><span class="macos-icon-plate">Copy</span></button>
       <button class="macos-button-owner macos-primary-action">Save</button>
@@ -45,7 +47,8 @@ describe("iOS 27 shared primitives", () => {
     const fieldOwner = getComputedStyle(document.querySelector<HTMLElement>(".macos-field-owner")!);
     const input = getComputedStyle(document.querySelector<HTMLInputElement>("input")!);
     const row = getComputedStyle(document.querySelector<HTMLElement>(".macos-row")!);
-    const primary = getComputedStyle(document.querySelector<HTMLElement>(".macos-button-owner")!);
+    const primaryElement = document.querySelector<HTMLButtonElement>(".macos-button-owner")!;
+    const primary = getComputedStyle(primaryElement);
     expect(owner.minWidth).toBe("44px");
     expect(owner.minHeight).toBe("44px");
     expect(plate.width).toBe("32px");
@@ -56,6 +59,10 @@ describe("iOS 27 shared primitives", () => {
     expect(primary.minWidth).toBe("44px");
     expect(primary.minHeight).toBe("44px");
     expect(primary.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    primaryElement.focus();
+    primaryElement.dataset["testFocusVisible"] = "true";
+    expect(document.activeElement).toBe(primaryElement);
+    expect(getComputedStyle(primaryElement).outlineWidth).toBe("0px");
 
     document.documentElement.dataset["bwCompactMode"] = "true";
     const compactPlate = getComputedStyle(document.querySelector<HTMLElement>(".macos-icon-plate")!);
@@ -66,6 +73,7 @@ describe("iOS 27 shared primitives", () => {
     expect(compactInput.height).toBe("36px");
     expect(compactInput.minHeight).toBe("36px");
     expect(compactRow.minHeight).toBe("44px");
+    expect(getComputedStyle(primaryElement).outlineWidth).toBe("0px");
 
     expect(style.textContent).toMatch(/\.macos-button-owner::before\s*{[^}]*inset-block:\s*2px/s);
     expect(style.textContent).toMatch(/data-bw-compact-mode="true"[^}]*\.macos-button-owner::before\s*{[^}]*inset-block:\s*4px/s);

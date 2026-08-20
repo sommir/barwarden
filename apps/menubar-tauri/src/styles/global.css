@@ -66,6 +66,7 @@ popup-page [data-testid="popup-layout-scroll-region"] {
   overscroll-behavior: contain;
   padding-inline: var(--mac-page-inset);
   padding-bottom: var(--mac-page-bottom-safe);
+  scroll-padding-bottom: var(--mac-page-bottom-safe);
 }
 
 /* Native-style overlay scrollbars: a restrained 2px glass thumb that is
@@ -367,6 +368,8 @@ button {
 .macos-control-visible { width:100%; height:var(--mac-control-visible); min-height:var(--mac-control-visible); }
 .macos-button-owner { position:relative; isolation:isolate; min-width:var(--mac-hit-size); min-height:var(--mac-hit-size); border:0; background:transparent; }
 .macos-button-owner::before { content:""; position:absolute; inset-block:2px; inset-inline:0; z-index:-1; border-radius:var(--mac-control-radius); background:var(--mac-accent); }
+.macos-button-owner:focus-visible { outline-width:0; outline-style:none; }
+.macos-button-owner:focus-visible::before { outline-width:2px; outline-style:solid; outline-color:var(--mac-focus); outline-offset:2px; }
 .macos-row { min-height:var(--mac-row-single); }
 .macos-row--double { min-height:var(--mac-row-double); }
 :root[data-bw-compact-mode="true"] .macos-icon-plate { width:var(--mac-icon-plate-compact); height:var(--mac-icon-plate-compact); }
@@ -3309,10 +3312,13 @@ bit-form-control > label :is(input, select, textarea):focus-visible,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .macos-pressable,
-  .floating-tab-switcher__indicator {
+  .macos-pressable {
     transition-duration: 0s !important;
     transform: none !important;
+  }
+
+  .floating-tab-switcher__indicator {
+    transition-duration: 0s !important;
   }
 
   .app-bottom-sheet,
@@ -3383,6 +3389,10 @@ bit-form-control > label :is(input, select, textarea):focus-visible,
   }
 
   :where(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline-color: Highlight !important;
+  }
+
+  .macos-button-owner:focus-visible::before {
     outline-color: Highlight !important;
   }
 
@@ -6358,7 +6368,7 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   outline: 0;
 }
 
-.macos-page :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+.macos-page :is(button, a, input, select, textarea, [tabindex]):not(.macos-button-owner):focus-visible {
   outline: 2px solid var(--mac-focus);
   outline-offset: 2px;
 }

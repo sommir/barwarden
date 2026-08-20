@@ -149,9 +149,10 @@ describe("official popup layout primitives", () => {
     const header = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header")!);
     const action = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header button")!);
     const title = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header h1")!);
-    const scroller = getComputedStyle(
-      host.querySelector<HTMLElement>('[data-testid="popup-layout-scroll-region"]')!,
-    );
+    const scrollOwner = host.querySelector<HTMLElement>(
+      '[data-testid="popup-layout-scroll-region"]',
+    )!;
+    const scroller = getComputedStyle(scrollOwner);
     expect(header.height).toBe("52px");
     expect(action.minWidth).toBe("44px");
     expect(action.minHeight).toBe("44px");
@@ -161,6 +162,12 @@ describe("official popup layout primitives", () => {
     expect(scroller.paddingInlineStart).toBe("16px");
     expect(scroller.paddingInlineEnd).toBe("16px");
     expect(scroller.paddingBottom).toBe("64px");
+    expect(scroller.scrollPaddingBottom).toBe("64px");
+
+    host.classList.remove("popup-shell");
+    const secondaryScroller = getComputedStyle(scrollOwner);
+    expect(secondaryScroller.paddingBottom).toBe("16px");
+    expect(secondaryScroller.scrollPaddingBottom).toBe("16px");
   });
 
   it("sizes route pages from the shell instead of creating another 600px owner", () => {
@@ -215,7 +222,29 @@ function installAccessibilityCss(): HTMLStyleElement {
     [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
       .map(([, name, value]) => [name, value.trim()]),
   );
-  const tabbedPageBottomSafe = resolveTabbedPageBottomSafe(source, tokens);
+  const secondaryPageBottomSafe = resolvePageBottomSafe(
+    source,
+    tokens,
+    /popup-page\s*{[^}]*--mac-page-bottom-safe:\s*([^;]+);/s,
+    "secondary page",
+  );
+  const tabbedPageBottomSafe = resolvePageBottomSafe(
+    source,
+    tokens,
+    /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*([^;]+);/s,
+    "tabbed page",
+  );
+  const scrollOwnerDeclarations = [...source.matchAll(
+    /popup-page\s+\[data-testid="popup-layout-scroll-region"\]\s*{([^}]*)}/gs,
+  )]
+    .map((match) => match[1])
+    .find((declarations) => declarations?.includes("padding-bottom:"));
+  if (
+    !scrollOwnerDeclarations?.includes("padding-bottom: var(--mac-page-bottom-safe);")
+    || !scrollOwnerDeclarations.includes("scroll-padding-bottom: var(--mac-page-bottom-safe);")
+  ) {
+    throw new Error("Missing the production scroll-owner safe-area declarations");
+  }
   const style = document.createElement("style");
   style.dataset["ios27Accessibility"] = "true";
   style.textContent = source
@@ -229,30 +258,46 @@ function installAccessibilityCss(): HTMLStyleElement {
     )
     .replace(
       "padding-bottom: var(--mac-page-bottom-safe);",
-      `padding-bottom: ${tabbedPageBottomSafe};`,
+      `padding-bottom: ${secondaryPageBottomSafe};`,
     )
-    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
+    .replace(
+      "scroll-padding-bottom: var(--mac-page-bottom-safe);",
+      `scroll-padding-bottom: ${secondaryPageBottomSafe};`,
+    )
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]')
+    .concat(`
+.popup-shell popup-page [data-testid="popup-layout-scroll-region"] {
+  padding-bottom: ${tabbedPageBottomSafe};
+  scroll-padding-bottom: ${tabbedPageBottomSafe};
+}`);
   document.head.append(style);
   return style;
 }
 
-function resolveTabbedPageBottomSafe(source: string, tokens: Map<string, string>): string {
-  const shellDeclaration = source.match(
-    /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*([^;]+);/s,
-  )?.[1];
-  if (!shellDeclaration) {
-    throw new Error("Missing the production tabbed page safe-area declaration");
+function resolvePageBottomSafe(
+  source: string,
+  tokens: Map<string, string>,
+  declarationPattern: RegExp,
+  context: string,
+): string {
+  const declaration = source.match(declarationPattern)?.[1];
+  if (!declaration) {
+    throw new Error(`Missing the production ${context} safe-area declaration`);
   }
 
-  const resolvedDeclaration = shellDeclaration.replace(
+  const resolvedDeclaration = declaration.replace(
     /var\((--(?:mac|bw)-[\w-]+)\)/g,
     (value, name) => tokens.get(name) ?? value,
   );
+  const pixels = resolvedDeclaration.match(/^(\d+(?:\.\d+)?)px$/);
+  if (pixels) {
+    return `${Number(pixels[1])}px`;
+  }
   const pixelTerms = resolvedDeclaration.match(
     /^calc\(\s*(\d+(?:\.\d+)?)px\s*\+\s*(\d+(?:\.\d+)?)px\s*\)$/,
   );
   if (!pixelTerms) {
-    throw new Error(`Unsupported production tabbed page safe-area value: ${shellDeclaration}`);
+    throw new Error(`Unsupported production ${context} safe-area value: ${declaration}`);
   }
 
   return `${Number(pixelTerms[1]) + Number(pixelTerms[2])}px`;

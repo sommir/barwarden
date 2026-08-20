@@ -181,23 +181,26 @@ describe("iOS 27 accessibility visual contract", () => {
   });
 
   it("removes transitions, animations, scrolling motion, and active transforms for reduced motion", async () => {
-    const fixture = await mountHost({ reducedMotion: true });
+    const fixture = await mountHost({ reducedMotion: true }, "/tabs/settings");
     const host = fixture.nativeElement as HTMLElement;
+    const navigation = host.querySelector<HTMLElement>(".floating-tab-switcher")!;
     const currentTab = host.querySelector<HTMLButtonElement>('[aria-current="page"]')!;
     const indicator = host.querySelector<HTMLElement>(".floating-tab-switcher__indicator")!;
     const sheet = host.querySelector<HTMLElement>('[data-testid="accessibility-sheet"]')!;
     currentTab.dataset["testActive"] = "true";
     currentTab.dataset["testReducedMotion"] = "true";
     indicator.dataset["testReducedMotion"] = "true";
-    indicator.style.transform = "translateX(44px)";
     sheet.dataset["testReducedMotion"] = "true";
 
+    expect(navigation.style.getPropertyValue("--selected-index")).toBe("1");
     expect(getComputedStyle(currentTab).transitionDuration).toBe("0s");
     expect(getComputedStyle(currentTab).animationName).toBe("none");
     expect(getComputedStyle(currentTab).scrollBehavior).toBe("auto");
     expect(getComputedStyle(currentTab).transform).toBe("none");
     expect(getComputedStyle(indicator).transitionDuration).toBe("0s");
-    expect(getComputedStyle(indicator).transform).toBe("none");
+    expect(getComputedStyle(indicator).transform).toBe(
+      "translateX(calc(var(--selected-index) * 100%))",
+    );
     expect(getComputedStyle(sheet).transitionDuration).toBe("0s");
     expect(getComputedStyle(sheet).transform).toBe("none");
 
@@ -227,7 +230,10 @@ describe("iOS 27 accessibility visual contract", () => {
   });
 });
 
-async function mountHost(media: MediaPreferences = {}) {
+async function mountHost(
+  media: MediaPreferences = {},
+  route: FloatingTab["path"] = "/tabs/vault",
+) {
   stubMatchMedia(media);
   installVisualCss();
   await TestBed.configureTestingModule({
@@ -238,7 +244,7 @@ async function mountHost(media: MediaPreferences = {}) {
       { provide: I18nService, useExisting: OfficialI18nService },
     ],
   }).compileComponents();
-  await TestBed.inject(Router).navigateByUrl("/tabs/vault");
+  await TestBed.inject(Router).navigateByUrl(route);
   const fixture = TestBed.createComponent(AccessibilityVisualHostComponent);
   fixture.detectChanges();
   return fixture;

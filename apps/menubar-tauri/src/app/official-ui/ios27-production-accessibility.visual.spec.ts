@@ -182,6 +182,39 @@ describe("iOS 27 production accessibility contract", () => {
       .toBe(resolvedSystemColor("color", "MarkText"));
   });
 
+  it("paints the button-owner focus ring on its inset visible layer", () => {
+    const normalStyle = installProductionCss();
+    const ownerRule = findStyleRule(
+      normalStyle.sheet?.cssRules,
+      '.macos-button-owner[data-test-focus-visible="true"]',
+    );
+    const visibleLayerRule = findStyleRule(
+      normalStyle.sheet?.cssRules,
+      '.macos-button-owner[data-test-focus-visible="true"]::before',
+    );
+    const compactVisibleLayerRule = findStyleRule(
+      normalStyle.sheet?.cssRules,
+      ':root[data-bw-compact-mode="true"] .macos-button-owner::before',
+    );
+
+    expect(ownerRule?.style.outlineWidth).toBe("0px");
+    expect(visibleLayerRule?.style.outlineWidth).toBe("2px");
+    expect(visibleLayerRule?.style.outlineStyle).toBe("solid");
+    expect(visibleLayerRule?.style.outlineOffset).toBe("2px");
+    expect(compactVisibleLayerRule?.style.getPropertyValue("inset-block")).toBe("4px");
+
+    normalStyle.remove();
+    const forcedColorsStyle = installProductionCss({ forcedColors: true });
+    const forcedVisibleLayerRules = findStyleRules(
+      forcedColorsStyle.sheet?.cssRules,
+      '.macos-button-owner[data-test-focus-visible="true"]::before',
+    );
+    expect(forcedVisibleLayerRules.map((rule) => ({
+      color: rule.style.outlineColor,
+      priority: rule.style.getPropertyPriority("outline-color"),
+    }))).toContainEqual({ color: "highlight", priority: "important" });
+  });
+
   it("uses the standard motion token for a real alert and preserves continuous skeleton timing", async () => {
     const style = installProductionCss();
     const productionSource = readFileSync(
@@ -364,6 +397,20 @@ function findStyleRule(rules: CSSRuleList | undefined, selector: string): CSSSty
     }
   }
   return null;
+}
+
+function findStyleRules(rules: CSSRuleList | undefined, selector: string): CSSStyleRule[] {
+  if (!rules) return [];
+  return Array.from(rules).flatMap((rule): CSSStyleRule[] => {
+    if (rule instanceof CSSStyleRule && rule.selectorText.split(",").map((value) => value.trim())
+      .includes(selector)) {
+      return [rule];
+    }
+    if ("cssRules" in rule) {
+      return findStyleRules((rule as CSSGroupingRule).cssRules, selector);
+    }
+    return [];
+  });
 }
 
 function resolvedSystemColor(
