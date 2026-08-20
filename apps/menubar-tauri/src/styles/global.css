@@ -7718,6 +7718,8 @@ body .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row
   display: block;
   flex: 1 1 0;
   min-width: 0;
+  padding-top: 0;
+  padding-bottom: 0;
   overflow: visible;
 }
 

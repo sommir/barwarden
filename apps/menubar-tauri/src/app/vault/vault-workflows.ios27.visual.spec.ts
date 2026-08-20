@@ -162,6 +162,8 @@ const officialItemUtilityCss = `
   .tw-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tw-py-2 { padding-top: 8px; padding-bottom: 8px; }
   .tw-py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
+  .tw-text-base { font-size: 1rem; line-height: 1.5rem; }
+  .tw-text-sm { font-size: 0.875rem; line-height: 1.25rem; }
   :root[data-bw-compact-mode="true"] [class~="bit-compact:tw-py-1.5"] {
     padding-top: 6px;
     padding-bottom: 6px;
@@ -343,6 +345,43 @@ function cssTestPixels(value: string | undefined, rootSize: number): number {
   if (value.endsWith("em")) return Number.parseFloat(value) * rootSize;
   if (value.endsWith("px")) return Number.parseFloat(value);
   return 0;
+}
+
+function modeledPasswordHistoryHeight(
+  row: HTMLElement,
+  content: HTMLElement,
+  password: HTMLElement,
+  date: HTMLElement,
+) {
+  const rootSize = effectiveTestRootSize();
+  const rowStyle = getComputedStyle(row);
+  const contentStyle = getComputedStyle(content);
+  const mainStyle = getComputedStyle(row.querySelector<HTMLElement>("[data-item-main-content]")!);
+  const lineHeight = (node: HTMLElement) => {
+    const computed = getComputedStyle(node);
+    return computed.lineHeight === "normal"
+      ? cssTestPixels(computed.fontSize, rootSize) * 1.3
+      : cssTestPixels(computed.lineHeight, rootSize);
+  };
+  const clipped = [
+    rowStyle.overflow,
+    contentStyle.overflow,
+    mainStyle.overflow,
+  ].some((overflow) => overflow === "hidden" || overflow === "clip")
+    || rowStyle.height !== "auto"
+    || contentStyle.height !== "auto";
+  return {
+    clipped,
+    modeledHeight: clipped
+      ? cssTestPixels(rowStyle.minHeight, rootSize)
+      : Math.max(
+        cssTestPixels(rowStyle.minHeight, rootSize),
+        lineHeight(password)
+          + lineHeight(date)
+          + cssTestPixels(contentStyle.paddingTop, rootSize)
+          + cssTestPixels(contentStyle.paddingBottom, rootSize),
+      ),
+  };
 }
 
 function assertRecoveryRow(row: HTMLElement, action: HTMLElement, hasMainContent = true): void {
@@ -666,6 +705,8 @@ describe("iOS 27 Vault workflows", () => {
     const historyMain = historyRow.querySelector<HTMLElement>(":scope > [data-item-main-content]")!;
     const historyEnd = historyRow.querySelector<HTMLElement>(":scope > div")!;
     const historyPassword = historyHost.querySelector<HTMLElement>("bit-color-password")!;
+    const historyContent = historyHost.querySelector<HTMLElement>(".macos-password-history-row__content")!;
+    const historyDate = historyHost.querySelector<HTMLElement>("[data-testid='history-date-0']")!;
     const credentialCharacters = Array.from(historyPassword.querySelectorAll<HTMLElement>("span"));
     assertRecoveryRow(historyRow, historyCopy, false);
     expect(historyRow.classList).toContain("macos-password-history-row");
@@ -682,6 +723,24 @@ describe("iOS 27 Vault workflows", () => {
       expect(ancestor.getAttribute("aria-hidden")).not.toBe("true");
       if (ancestor === historyRow) break;
     }
+    expect(getComputedStyle(historyContent).paddingTop).toBe("0px");
+    expect(getComputedStyle(historyContent).paddingBottom).toBe("0px");
+    expect(modeledPasswordHistoryHeight(historyRow, historyContent, historyPassword, historyDate))
+      .toEqual({ clipped: false, modeledHeight: 48 });
+    document.body.classList.add("tw-bit-compact");
+    expect(modeledPasswordHistoryHeight(historyRow, historyContent, historyPassword, historyDate))
+      .toEqual({ clipped: false, modeledHeight: 44 });
+    document.body.classList.remove("tw-bit-compact");
+    document.documentElement.style.fontSize = "200%";
+    const scaledHistory = modeledPasswordHistoryHeight(
+      historyRow,
+      historyContent,
+      historyPassword,
+      historyDate,
+    );
+    expect(scaledHistory.clipped).toBe(false);
+    expect(scaledHistory.modeledHeight).toBeGreaterThan(48);
+    document.documentElement.style.removeProperty("font-size");
     expect(historyHost.querySelector("[aria-live], [role='status'], [role='alert']")?.textContent ?? "")
       .not.toContain("old-secret-1");
     history.destroy();
