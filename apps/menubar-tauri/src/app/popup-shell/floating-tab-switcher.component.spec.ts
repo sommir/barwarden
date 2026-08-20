@@ -29,6 +29,8 @@ const tabs: readonly FloatingTab[] = [
 class TabRouteComponent {}
 
 const routes = tabs.map((tab) => ({ path: tab.path.slice(1), component: TabRouteComponent }));
+// The deterministic light fixture resolves macos-tokens.css --mac-selected to this color.
+const lightSelectedTint = "rgba(10, 102, 255, 0.1)";
 
 function installTabSwitcherVisualCss(): () => void {
   const style = document.createElement("style");
@@ -107,7 +109,7 @@ describe("FloatingTabSwitcherComponent", () => {
         expect(indicator.getPropertyValue("inset-block")).toBe("4px");
         expect(indicator.borderRadius).toBe("9px");
         expect(indicator.boxShadow).toBe("none");
-        expect(indicator.backgroundColor).not.toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
+        expect(indicator.backgroundColor).toBe(lightSelectedTint);
       }
     } finally {
       if (originalCompactMode === undefined) {
