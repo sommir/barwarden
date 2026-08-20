@@ -21,6 +21,7 @@ import {
   unlockedOnlyGuard,
 } from "./auth/auth-route-access";
 import type { Ios27RouteData } from "./platform/popup-route-metadata";
+import { productionRouteStructuralCases } from "./evidence/ios27-route-structure.harness";
 
 function flattenRoutes(routeConfig: Routes, prefix = ""): string[] {
   return routeConfig.flatMap((route) => {
@@ -88,6 +89,25 @@ const routeAuthority: ReadonlyArray<readonly [string, Ios27RouteData]> = [
 ];
 
 describe("popup routes", () => {
+  it("keeps a mounted structural case for every visible leaf route", () => {
+    const visibleLeafRoutes = routeAuthority.filter(([path]) => path !== "/tabs");
+    const structuralRoute = (route: string) => {
+      const path = route.split("?", 1)[0]!;
+      return path.startsWith("/view-cipher/") ? "/view-cipher/:id" : path;
+    };
+    const casesByPath = new Map(
+      productionRouteStructuralCases.map((testCase) => [structuralRoute(testCase.route), testCase]),
+    );
+
+    expect(productionRouteStructuralCases).toHaveLength(visibleLeafRoutes.length);
+    for (const [path, data] of visibleLeafRoutes) {
+      expect(casesByPath.get(path)).toMatchObject({
+        family: data.ios27Family,
+        layer: data.popupLayer,
+      });
+    }
+  });
+
   it("matches the complete route family, layer, and bottom-navigation authority", () => {
     const actual = flattenComponentRoutes(routes);
 

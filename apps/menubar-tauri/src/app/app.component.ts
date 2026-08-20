@@ -67,6 +67,10 @@ import { VaultFacade } from "./vault/vault.facade";
 import { AutoFillSetupService } from "./autofill/autofill-setup.service";
 import { AutoFillVaultContextService } from "./autofill/autofill-vault-context.service";
 import { PopupRouteAnnouncerService } from "./platform/popup-route-announcer.service";
+import {
+  deepestIos27RouteData,
+  type Ios27PageFamily,
+} from "./platform/popup-route-metadata";
 
 const startupNavigationErrorMessage = () =>
   translateOfficialMessage("i18nStartupNavigationFailed");
@@ -102,6 +106,16 @@ export const POPUP_LIFECYCLE_HOST = new InjectionToken<PopupLifecycleHost>(
 @Component({
   selector: "barwarden-root",
   standalone: true,
+  host: {
+    "[class.ios27-family--auth]": "routeFamily() === 'auth'",
+    "[class.ios27-family--shell]": "routeFamily() === 'shell'",
+    "[class.ios27-family--vault]": "routeFamily() === 'vault'",
+    "[class.ios27-family--otp]": "routeFamily() === 'otp'",
+    "[class.ios27-family--generator]": "routeFamily() === 'generator'",
+    "[class.ios27-family--send]": "routeFamily() === 'send'",
+    "[class.ios27-family--settings]": "routeFamily() === 'settings'",
+    "[class.ios27-family--document]": "routeFamily() === 'document'",
+  },
   imports: [
     AppBottomSheetDialogHostComponent,
     AppFeedbackComponent,
@@ -177,6 +191,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   protected readonly startupPending = signal(true);
   protected readonly startupFailure = signal<StartupFailurePresentation | null>(null);
   protected readonly popupRenderRecoveryActive = signal(false);
+  protected readonly routeFamily = signal<Ios27PageFamily | null>(null);
   hasMainSwitcher = false;
   private popupRenderRecoveryFrame: number | undefined;
 
@@ -231,6 +246,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
     this.routeSubscription = this.router.events?.subscribe((event) => {
       if (!(event instanceof NavigationEnd)) return;
+      const routeRoot = this.router.routerState?.snapshot?.root;
+      this.routeFamily.set(
+        routeRoot ? deepestIos27RouteData(routeRoot)?.ios27Family ?? null : null,
+      );
       this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
       this.autoFillVaultContext?.navigationChanged(this.router.url);
       const activeTab = mainTabFromUrl(this.router.url);

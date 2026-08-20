@@ -5,6 +5,7 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +19,10 @@ import { POPUP_LIFECYCLE_HOST } from "./app.component";
 import { OfficialI18nService } from "./official-ui/official-i18n.service";
 import { PopupRouterCacheService } from "./platform/popup-router-cache.service";
 import { VaultFacade } from "./vault/vault.facade";
+import { ios27RouteData } from "./platform/popup-route-metadata";
+
+@Component({ standalone: true, template: "" })
+class OtpRouteStubComponent {}
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -100,6 +105,43 @@ async function renderRoot({
 }
 
 describe("AppComponent rendering", () => {
+  it("binds the current routed family to the root host", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([{
+          path: "tabs/otp",
+          component: OtpRouteStubComponent,
+          data: ios27RouteData("otp", "base", true),
+        }]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: AuthFacade, useValue: { restoreStartup: vi.fn().mockResolvedValue("unlocked") } },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultTimeoutService, useValue: { recordActivity: vi.fn() } },
+        { provide: POPUP_LIFECYCLE_HOST, useValue: { hidePopup: vi.fn() } },
+      ],
+    }).compileComponents();
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector(
+        ".app-bootstrap-loading--runtime",
+      )).toBeNull();
+    });
+    await router.navigateByUrl("/tabs/otp");
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).classList)
+      .toContain("ios27-family--otp");
+  });
+
   it("renders the router outlet root", async () => {
     const { fixture } = await renderRoot();
 
