@@ -242,7 +242,7 @@ describe("retained official Vault list overlays", () => {
   it("locks the retained official empty and no-results Vault state composition", () => {
     const route = readFileSync(vaultPageSource, "utf8");
 
-    expect(sha256(vaultPageSource)).toBe("92de631cae6721e1b1c7c1357a5d38a09c05bef6f2ce6c9f840e8b27e4a7e360");
+    expect(sha256(vaultPageSource)).toBe("efe903cdb83ccb0e80df1627c50ac518f265727279262b0d58a6ed9668ffce11");
     for (const fragment of [
       "NoResults, VaultOpen",
       "<vault-fade-in-out>",
