@@ -205,11 +205,18 @@ describe("iOS 27 accessibility visual contract", () => {
     expect(getComputedStyle(sheet).transform).toBe("translateX(-50%)");
   });
 
-  it("uses system colors for the real current tab and retains every forced-color semantic", async () => {
+  it("uses system colors for the real navigation and current tab", async () => {
     const fixture = await mountHost({ forcedColors: true });
     const host = fixture.nativeElement as HTMLElement;
+    const navigation = host.querySelector<HTMLElement>(".macos-glass-navigation")!;
     const currentTab = host.querySelector<HTMLButtonElement>('[aria-current="page"]')!;
+    const navigationStyle = getComputedStyle(navigation);
 
+    expect(navigationStyle.backgroundColor).toBe(resolvedSystemColor("background", "Canvas"));
+    expect(navigationStyle.borderColor)
+      .toBe(resolvedSystemColor("border-color", "CanvasText"));
+    expect(navigationStyle.borderStyle).toBe("solid");
+    expect(navigationStyle.borderWidth).toBe("1px");
     expect(getComputedStyle(currentTab).backgroundColor).toBe(resolvedSystemColor("background", "Highlight"));
     expect(getComputedStyle(currentTab).color).toBe(resolvedSystemColor("color", "HighlightText"));
 
