@@ -6,9 +6,10 @@
     </bit-section-header>
     <bit-item-group>
       @for (item of items; track item.id) {
-        <bit-item>
+        <bit-item class="macos-row macos-row--double macos-recovery-row">
           <button
             bit-item-content
+            class="macos-recovery-row__content macos-pressable"
             type="button"
             [attr.aria-label]="'i18nViewItem' | i18n: item.name"
             [attr.data-testid]="'trash-view-' + item.id"
@@ -27,6 +28,7 @@
                 #moreTrigger
                 type="button"
                 bitIconButton="bwi-ellipsis-v"
+                class="macos-hit-target macos-recovery-action"
                 size="small"
                 [label]="'i18nTrashOptions' | i18n: item.name"
                 [bitMenuTriggerFor]="moreOptions"

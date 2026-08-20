@@ -7581,3 +7581,232 @@ body.tw-bit-compact .vault-autofill-suggestions .vault-list-row [data-field] .bw
     outline-color: Highlight;
   }
 }
+/* Vault management pages use one continuous 48/44px row grammar. The row
+ * remains the layout owner while icon actions keep a transparent 44px hit
+ * target around a smaller 32/28px painted plate. */
+.macos-page--vault-form .new-item-grid {
+  gap: 0;
+  row-gap: 0;
+  column-gap: 0;
+  background: transparent;
+}
+
+.macos-page--vault-form .new-item-option.macos-row--double {
+  width: 100%;
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-row-double);
+  height: auto;
+  padding-block: 4px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-form .new-item-option :is(.new-item-label, .new-item-description) {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-form .new-item-option:not(:disabled):not([aria-disabled="true"]):hover {
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, var(--mac-hover));
+}
+
+.macos-page--vault-form .new-item-option:not(:disabled):not([aria-disabled="true"]):active {
+  background: color-mix(in srgb, var(--mac-surface-solid) 88%, var(--mac-pressed));
+}
+
+.macos-page--vault-form .new-item-option:is(:disabled, [aria-disabled="true"]) {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.macos-page--vault-form .new-item-option:focus,
+.macos-page--vault-form .new-item-option:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
+.macos-page--vault-form .new-item-option:focus-visible {
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
+  outline-offset: -2px;
+}
+
+.macos-page--vault-form .new-item-option:focus:not(:focus-visible) {
+  outline: 0;
+}
+
+body .macos-page--vault-recovery :is(bit-section, bit-item-group) {
+  gap: 0;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row {
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row:last-child {
+  border-bottom: 0;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row:focus-within {
+  outline: 0;
+  box-shadow: none;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row__content {
+  min-width: 0;
+  min-height: var(--mac-row-double) !important;
+  height: auto;
+  padding-block: 4px;
+  overflow: visible !important;
+  white-space: normal;
+}
+
+.macos-page--vault-recovery .macos-recovery-row__content :is(
+  [data-testid="item-name"],
+  [slot="secondary"]
+) {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-recovery .password-history-row__content {
+  min-width: 0;
+  overflow: visible;
+}
+
+.macos-page--vault-recovery .password-history-row__content bit-color-password {
+  display: block;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+body .macos-page--vault-recovery button.macos-recovery-action,
+body .macos-page--vault-recovery button.macos-recovery-action:hover,
+body .macos-page--vault-recovery button.macos-recovery-action:active,
+body .macos-page--vault-recovery button.macos-recovery-action:is(:disabled, [aria-disabled="true"]) {
+  width: var(--mac-hit-size);
+  min-width: var(--mac-hit-size);
+  height: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  padding: 6px !important;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-recovery button.macos-recovery-action .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-recovery button.macos-recovery-action:not(:disabled):not([aria-disabled="true"]):hover .bwi {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--vault-recovery button.macos-recovery-action:not(:disabled):not([aria-disabled="true"]):active .bwi {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+}
+
+.macos-page--vault-recovery button.macos-recovery-action:is(:disabled, [aria-disabled="true"]) .bwi {
+  opacity: 0.38;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row button.macos-recovery-action:focus,
+body .macos-page--vault-recovery bit-item.macos-recovery-row button.macos-recovery-action:focus-visible {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row button.macos-recovery-action:focus-visible .bwi {
+  outline-color: var(--mac-focus) !important;
+  outline-style: solid !important;
+  outline-width: var(--mac-focus-ring-width) !important;
+  outline-offset: 2px;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row button.macos-recovery-action:focus:not(:focus-visible) .bwi {
+  outline: 0 !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .new-item-option.macos-row--double,
+body.tw-bit-compact .macos-page--vault-form .new-item-option.macos-row--double,
+:root[data-bw-compact-mode="true"] .macos-page--vault-recovery bit-item.macos-recovery-row,
+body.tw-bit-compact .macos-page--vault-recovery bit-item.macos-recovery-row,
+:root[data-bw-compact-mode="true"] .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row__content,
+body.tw-bit-compact .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row__content {
+  min-height: var(--mac-row-double-compact) !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-recovery button.macos-recovery-action .bwi,
+body.tw-bit-compact .macos-page--vault-recovery button.macos-recovery-action .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--vault-form .new-item-option.macos-row--double,
+  .macos-page--vault-recovery button.macos-recovery-action .bwi {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--vault-form .new-item-option.macos-row--double,
+  .macos-page--vault-recovery button.macos-recovery-action .bwi {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--vault-form .new-item-option.macos-row--double:focus-visible,
+  .macos-page--vault-recovery button.macos-recovery-action:focus-visible .bwi {
+    outline-width: var(--mac-focus-ring-width);
+    outline-style: solid;
+    outline-color: Highlight;
+  }
+
+  .macos-page--vault-recovery bit-item.macos-recovery-row:focus-within {
+    outline: 0 !important;
+  }
+}

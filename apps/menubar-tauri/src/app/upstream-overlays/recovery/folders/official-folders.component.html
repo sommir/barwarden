@@ -27,7 +27,7 @@
   @if (folders.length) {
     <bit-item-group>
       @for (folder of folders; track folder.id) {
-        <bit-item [attr.data-popup-focus-key]="'folder:' + folder.id">
+        <bit-item class="macos-row macos-row--double macos-recovery-row" [attr.data-popup-focus-key]="'folder:' + folder.id">
           <bit-item-content>
             {{ folder.name }}
             <button
@@ -36,7 +36,7 @@
               (click)="editFolder.emit(folder)"
               [label]="'i18nEditFolderLabel' | i18n: folder.name"
               bitIconButton="bwi-pencil-square"
-              class="tw-self-end"
+              class="tw-self-end macos-hit-target macos-recovery-action"
               [attr.data-testid]="'edit-folder-' + folder.id"
               [attr.data-popup-focus-key]="'folder:' + folder.id"
             ></button>

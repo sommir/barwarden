@@ -7,12 +7,12 @@ export const officialRecoveryMemberTransforms = {
   passwordHistory: {
     authority: "libs/vault/src/components/password-history-view/password-history-view.component.ts",
     retainedMembers: ["cipher", "history", "ngOnInit"],
-    changedMembers: ["copyPassword output", "formatDate fallback"],
+    changedMembers: ["copyPassword output", "formatDate fallback", "iOS27 semantic row/action roles"],
   },
   folders: {
     authority: "apps/browser/src/vault/popup/settings/folders.component.ts",
     retainedMembers: ["folders$", "NoFoldersIcon", "openAddEditFolderDialog"],
-    changedMembers: ["folders input", "addFolder/editFolder outputs", "native pop-out output"],
+    changedMembers: ["folders input", "addFolder/editFolder outputs", "native pop-out output", "iOS27 semantic row/action roles"],
   },
   addEditFolderDialog: {
     authority: "libs/vault/src/components/add-edit-folder-dialog/add-edit-folder-dialog.component.ts",
@@ -25,6 +25,7 @@ export const officialRecoveryMemberTransforms = {
     changedMembers: [
       "immutable personal retained inputs",
       "typed recovery command output",
+      "iOS27 semantic row/action roles",
       "premium, organization, collection, attachment, passkey, SSH, and decryption-failure branches removed",
     ],
   },
@@ -48,6 +49,7 @@ export const officialRecoveryMemberTransforms = {
     changedMembers: [
       "local personal restore permission",
       "typed recovery command output",
+      "iOS27 semantic row/action roles",
       "organization, collection, attachment, decryption-failure, passkey, and SSH branches removed",
     ],
   },

@@ -82,7 +82,7 @@ const NEW_ITEM_OPTIONS: readonly NewItemOptionSource[] = [
           @for (item of items; track item.focusKey) {
             <div class="new-item-option-row" role="listitem">
               @if (item.opensFolderDialog) {
-                <button class="new-item-option" type="button"
+                <button class="new-item-option macos-row macos-row--double macos-pressable macos-hit-target" type="button"
                   [attr.aria-label]="'i18nNewFolder' | i18n"
                   [attr.data-popup-focus-key]="item.focusKey"
                   [attr.aria-describedby]="item.focusKey + '-description'"
@@ -93,7 +93,7 @@ const NEW_ITEM_OPTIONS: readonly NewItemOptionSource[] = [
                   </span>
                 </button>
               } @else {
-                <a class="new-item-option" [routerLink]="item.link" [queryParams]="item.queryParams ?? null"
+                <a class="new-item-option macos-row macos-row--double macos-pressable macos-hit-target" [routerLink]="item.link" [queryParams]="item.queryParams ?? null"
                   [attr.data-popup-focus-key]="item.focusKey"
                   [attr.aria-describedby]="item.focusKey + '-description'">
                   <span class="new-item-icon" aria-hidden="true"><i class="bwi {{ item.icon }}" aria-hidden="true"></i></span>

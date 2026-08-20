@@ -274,7 +274,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.html",
-      "sha256": "f5399c585c63c85b4147bb01faeca7dd6dea1a358fb51fa692b9aa57be202aad"
+      "sha256": "53703a269efedece69a08c2ad0828745483845cb1c2a9ed94b6f08ed9c2362f2"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/archive/official-archive.component.ts",
@@ -290,7 +290,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.html",
-      "sha256": "c778b1bf1e4773a33bc07eef4940e254ae3286ba0a556f847b3c8481d124235f"
+      "sha256": "b08b87e190e7449f5ad76945ff33ad94ca52f82b7af138cde6c9b973327a8275"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
@@ -298,11 +298,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/official-recovery-member-transforms.ts",
-      "sha256": "4c4989c239d15efa359bd288101bdb1055889880566be7256663c1dc0cc2c396"
+      "sha256": "20485024de7af8d6976604de2bd6ef024d6abe8add984811280fd7f3f31fd014"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.html",
-      "sha256": "4f86ba75d27d001d503b0d6c70e606fcb81b7f54fd6e99c0b4af69e66fe7cac8"
+      "sha256": "e0589701b6e3e1febb3727af2543502e6e4fa5828d704211a6b9764b101a361a"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
@@ -318,7 +318,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.html",
-      "sha256": "a4d5d3bb050dc63e9c88572f410a14e84645658060a016f03735ea7a22ea0c77"
+      "sha256": "5d60a8abfc8f6068202ada95f2d86461649fc2045df0a5a8113191acdf345b35"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/trash/official-trash-list-items-container.component.ts",

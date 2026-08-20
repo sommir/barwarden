@@ -23,11 +23,14 @@ import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { PopupStateStore } from "../popup-state";
 import { SettingsService } from "../settings/settings.service";
 import { OfficialPersonalCipherFormComponent } from "../upstream-overlays/cipher-form/official-personal-cipher-form.component";
+import { OfficialPasswordHistoryViewComponent } from "../upstream-overlays/recovery/password-history/official-password-history-view.component";
 import { RetainedVaultListItemComponent } from "../upstream-overlays/vault-main/retained-vault-list-item.component";
 import { demoVaultItems } from "../vault-demo";
+import { ArchivePageComponent } from "./archive-page.component";
 import { RETAINED_LOGIN_FORM_STATUS_STORE } from "./retained-login-form.adapter";
 import { NewItemPageComponent } from "./new-item-page.component";
 import { FoldersPageComponent } from "./folders-page.component";
+import { projectLoginDetail } from "./login-cipher-view.adapter";
 import { OtpCodeRowComponent } from "./otp-code-row.component";
 import { toRetainedPopupCipherView } from "./popup-cipher-view.adapter";
 import {
@@ -35,6 +38,8 @@ import {
   type RetainedOfficialPersonalCipherFormConfig,
 } from "./retained-personal-cipher-form.adapter";
 import { TOTP_CLOCK, TOTP_CODE_SOURCE } from "./vault-totp-code.component";
+import type { VaultItem } from "./vault-item.model";
+import { TrashPageComponent } from "./trash-page.component";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -123,6 +128,18 @@ class OtpRowVisualHostComponent {
   protected copied = false;
 }
 
+@Component({
+  imports: [OfficialPasswordHistoryViewComponent],
+  template: `
+    <main class="macos-page macos-page--vault-recovery">
+      <bw-official-password-history-view [cipher]="cipher" />
+    </main>
+  `,
+})
+class PasswordHistoryVisualHostComponent {
+  readonly cipher = projectLoginDetail(passwordHistoryItem()).cipher;
+}
+
 let style: HTMLStyleElement;
 beforeAll(() => {
   style = document.createElement("style");
@@ -171,12 +188,18 @@ function resolveCustomProperty(
 }
 
 function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
+  const routeSelectors = [
+    ".vault-list-row",
+    ".otp-code-row",
+    ".new-item-option",
+    ".macos-page--vault-recovery",
+  ];
   const projected: string[] = [];
   for (const rule of Array.from(sheet.cssRules)) {
     if (rule.type === CSSRule.STYLE_RULE) {
       const styleRule = rule as CSSStyleRule;
       if (
-        [".vault-list-row", ".otp-code-row"].some((selector) =>
+        routeSelectors.some((selector) =>
           styleRule.selectorText.includes(selector)
         )
         && /:(?:hover|active|focus)/.test(styleRule.selectorText)
@@ -196,7 +219,7 @@ function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
     for (const nestedRule of Array.from(mediaRule.cssRules)) {
       if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
       const styleRule = nestedRule as CSSStyleRule;
-      if (![".vault-list-row", ".otp-code-row"].some((selector) =>
+      if (!routeSelectors.some((selector) =>
         styleRule.selectorText.includes(selector)
       )) continue;
       projected.push(
@@ -295,6 +318,98 @@ function cssTestPixels(value: string | undefined, rootSize: number): number {
   return 0;
 }
 
+function assertRecoveryRow(row: HTMLElement, action: HTMLElement, hasMainContent = true): void {
+  const group = row.parentElement as HTMLElement;
+  const rowStyle = getComputedStyle(row);
+  const actionStyle = getComputedStyle(action);
+  const plate = action.querySelector<HTMLElement>(".bwi")!;
+  expect.soft(row.classList).toContain("macos-row--double");
+  expect.soft(rowStyle.minHeight).toBe("48px");
+  expect.soft(rowStyle.height).toBe("auto");
+  expect.soft(rowStyle.overflow).toBe("visible");
+  expect.soft(rowStyle.marginBottom).toBe("0px");
+  expect.soft(rowStyle.borderRadius).toBe("0px");
+  expect.soft(rowStyle.boxShadow).toBe("none");
+  expect.soft(getComputedStyle(group).boxShadow).toBe("none");
+  expect.soft(action.classList).toContain("macos-hit-target");
+  expect.soft(actionStyle.minWidth).toBe("44px");
+  expect.soft(actionStyle.minHeight).toBe("44px");
+  expect.soft(getComputedStyle(plate).width).toBe("32px");
+  expect.soft(getComputedStyle(plate).height).toBe("32px");
+  if (hasMainContent) {
+    const content = row.querySelector<HTMLElement>("[bit-item-content]")!;
+    expect.soft(getComputedStyle(content).minHeight).toBe("48px");
+    expect.soft(getComputedStyle(content).height).toBe("auto");
+    expect.soft(getComputedStyle(content).overflow).toBe("visible");
+  }
+
+  const initial = getComputedStyle(plate).backgroundColor;
+  action.dataset["vaultTestInteraction"] = "hover";
+  const hover = getComputedStyle(plate).backgroundColor;
+  action.dataset["vaultTestInteraction"] = "active";
+  const pressed = getComputedStyle(plate).backgroundColor;
+  expect.soft(new Set([initial, hover, pressed]).size).toBe(3);
+  expect.soft(getComputedStyle(action).backgroundColor).toMatch(/rgba?\(0, 0, 0(?:, 0)?\)/);
+  action.dataset["vaultTestInteraction"] = "focus";
+  expect.soft(getComputedStyle(action).outlineStyle).not.toBe("solid");
+  action.removeAttribute("data-vault-test-interaction");
+  action.dataset["testFocusVisible"] = "true";
+  expect.soft(getComputedStyle(action).outlineStyle).not.toBe("solid");
+  expect.soft(getComputedStyle(plate).outlineWidth).toBe("2px");
+  action.removeAttribute("data-test-focus-visible");
+  action.setAttribute("aria-disabled", "true");
+  expect.soft(Number.parseFloat(getComputedStyle(plate).opacity)).toBeLessThan(1);
+  expect.soft(getComputedStyle(action).backgroundColor).toMatch(/rgba?\(0, 0, 0(?:, 0)?\)/);
+  action.removeAttribute("aria-disabled");
+
+  document.body.classList.add("tw-bit-compact");
+  expect.soft(getComputedStyle(row).minHeight).toBe("44px");
+  expect.soft(getComputedStyle(plate).width).toBe("28px");
+  expect.soft(getComputedStyle(plate).height).toBe("28px");
+  document.body.classList.remove("tw-bit-compact");
+
+  document.documentElement.style.fontSize = "200%";
+  expect.soft(getComputedStyle(row).height).toBe("auto");
+  expect.soft(getComputedStyle(row).overflow).toBe("visible");
+  document.documentElement.style.removeProperty("font-size");
+
+  document.documentElement.dataset["vaultTestMedia"] = "reduced-motion";
+  expect.soft(getComputedStyle(plate).transitionDuration).toBe("0s");
+  expect.soft(getComputedStyle(plate).transform).toBe("none");
+  document.documentElement.dataset["vaultTestMedia"] = "forced-colors";
+  action.dataset["testFocusVisible"] = "true";
+  expect.soft(getComputedStyle(plate).forcedColorAdjust).toBe("none");
+  expect.soft(getComputedStyle(plate).outlineWidth).toBe("2px");
+  document.documentElement.removeAttribute("data-vault-test-media");
+  action.removeAttribute("data-test-focus-visible");
+}
+
+function passwordHistoryItem(): VaultItem {
+  return {
+    id: "history-visual",
+    type: "login",
+    name: "Credential With A Deliberately Hostile Long Name",
+    subtitle: "",
+    favorite: false,
+    folderId: "",
+    folderName: "",
+    organizationName: "",
+    attachmentCount: 0,
+    uris: [],
+    fields: [],
+    createdDate: "2026-07-01T00:00:00.000Z",
+    revisionDate: "2026-07-01T00:00:00.000Z",
+    passwordHistory: [{
+      password: "old-secret-1",
+      lastUsedDate: "2026-07-11T08:09:10.000Z",
+    }],
+    notes: "",
+    canLaunch: false,
+    canFill: false,
+    uri: "",
+  };
+}
+
 function modeledOtpRowLayout(row: HTMLElement, containerWidth: number) {
   const rootSize = effectiveTestRootSize();
   const rowStyle = getComputedStyle(row);
@@ -362,7 +477,7 @@ function modeledOtpRowLayout(row: HTMLElement, containerWidth: number) {
 }
 
 describe("iOS 27 Vault workflows", () => {
-  it("computes real New Item rows at 52 pixels normally and 44 pixels in compact mode", async () => {
+  it("keeps all five real New Item choices in order as continuous 48/44px growable actions", async () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [NewItemPageComponent],
@@ -376,19 +491,42 @@ describe("iOS 27 Vault workflows", () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const group = getComputedStyle(host.querySelector<HTMLElement>(".new-item-grid")!);
-    const row = getComputedStyle(host.querySelector<HTMLElement>(".new-item-option")!);
+    const options = Array.from(host.querySelectorAll<HTMLElement>(".new-item-option"));
+    const row = getComputedStyle(options[0]!);
+    expect(options.map((option) => option.dataset["popupFocusKey"])).toEqual([
+      "new-item:type:1",
+      "new-item:type:3",
+      "new-item:type:4",
+      "new-item:type:2",
+      "new-item:folder",
+    ]);
+    expect(options.every((option) => option.classList.contains("macos-row--double"))).toBe(true);
+    expect(options.every((option) => option.classList.contains("macos-pressable"))).toBe(true);
     expect(group.borderRadius).toBe("0px");
     expect(group.boxShadow).toBe("none");
+    expect(group.rowGap).toBe("0px");
     expect(row.borderRadius).toBe("0px");
-    expect(row.minHeight).toBe("52px");
+    expect(row.boxShadow).toBe("none");
+    expect(row.minHeight).toBe("48px");
+    expect(row.height).toBe("auto");
+    expect(row.overflow).toBe("visible");
+    expect(Number.parseFloat(row.minWidth)).toBeGreaterThanOrEqual(44);
     document.body.classList.add("tw-bit-compact");
     expect(getComputedStyle(host.querySelector<HTMLElement>(".new-item-option")!).minHeight)
       .toBe("44px");
+    document.documentElement.style.fontSize = "200%";
+    const scaled = getComputedStyle(options[0]!);
+    expect(scaled.height).toBe("auto");
+    expect(scaled.overflow).toBe("visible");
+    expect(getComputedStyle(options[0]!.querySelector<HTMLElement>(".new-item-label")!).overflowWrap)
+      .toBe("anywhere");
+    expect(getComputedStyle(options[0]!.querySelector<HTMLElement>(".new-item-description")!).whiteSpace)
+      .toBe("normal");
     fixture.destroy();
     document.body.className = "";
   });
 
-  it("computes real Vault Recovery folder rows at 52 pixels normally and 44 pixels in compact mode", async () => {
+  it("keeps real Folder rows and action owners continuous at 48/44px and growable at 200%", async () => {
     TestBed.resetTestingModule();
     const store = new PopupStateStore();
     store.setItems([], [{ id: "work", name: "Work" }]);
@@ -410,15 +548,121 @@ describe("iOS 27 Vault workflows", () => {
     expect(group.boxShadow).toBe("none");
     expect(row.borderRadius).toBe("0px");
     expect(row.marginBottom).toBe("0px");
-    expect(row.minHeight).toBe("52px");
+    const item = host.querySelector<HTMLElement>("bit-item")!;
+    const edit = host.querySelector<HTMLElement>("[data-testid='edit-folder-work']")!;
+    expect(item.classList).toContain("macos-row--double");
+    expect(row.minHeight).toBe("48px");
+    expect(row.height).toBe("auto");
+    expect(row.overflow).toBe("visible");
+    expect(getComputedStyle(edit).minWidth).toBe("44px");
+    expect(getComputedStyle(edit).minHeight).toBe("44px");
     document.body.classList.add("tw-bit-compact");
     expect(getComputedStyle(host.querySelector<HTMLElement>("bit-item")!).minHeight).toBe("44px");
+    document.documentElement.style.fontSize = "200%";
+    expect(getComputedStyle(item).height).toBe("auto");
+    expect(getComputedStyle(item).overflow).toBe("visible");
     host.querySelector<HTMLButtonElement>("[data-testid='new-folder-button']")!.click();
     fixture.detectChanges();
     const sheet = getComputedStyle(host.querySelector<HTMLElement>(".app-bottom-sheet[open]")!);
     expect(sheet.borderRadius).toBe("16px 16px 0 0");
     fixture.destroy();
     document.body.className = "";
+  });
+
+  it("keeps real Archive, Trash, and Password History rows/actions on one recovery contract", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setArchivedItems([{ ...demoVaultItems[0]!, id: "archive-visual", name: "Archived Credential With A Deliberately Hostile Long Name" }]);
+    store.setDeletedItems([{ ...demoVaultItems[0]!, id: "trash-visual", name: "Deleted Credential With A Deliberately Hostile Long Name" }]);
+    await TestBed.configureTestingModule({
+      imports: [ArchivePageComponent, TrashPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+
+    const archive = TestBed.createComponent(ArchivePageComponent);
+    archive.detectChanges();
+    assertRecoveryRow(
+      (archive.nativeElement as HTMLElement).querySelector<HTMLElement>("bit-item")!,
+      (archive.nativeElement as HTMLElement).querySelector<HTMLElement>("[aria-label^='归档选项']")!,
+    );
+    archive.destroy();
+
+    const trash = TestBed.createComponent(TrashPageComponent);
+    trash.detectChanges();
+    assertRecoveryRow(
+      (trash.nativeElement as HTMLElement).querySelector<HTMLElement>("bit-item")!,
+      (trash.nativeElement as HTMLElement).querySelector<HTMLElement>("[aria-label^='回收站选项']")!,
+    );
+    trash.destroy();
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [PasswordHistoryVisualHostComponent],
+      providers: [
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const history = TestBed.createComponent(PasswordHistoryVisualHostComponent);
+    history.detectChanges();
+    const historyHost = history.nativeElement as HTMLElement;
+    const historyRow = historyHost.querySelector<HTMLElement>("bit-item")!;
+    const historyCopy = historyHost.querySelector<HTMLElement>("[data-testid='history-copy-0']")!;
+    assertRecoveryRow(historyRow, historyCopy, false);
+    expect(historyRow.classList).toContain("password-history-row");
+    expect(historyHost.querySelector("bit-color-password")).not.toBeNull();
+    expect(historyHost.querySelector("[aria-live], [role='status'], [role='alert']")?.textContent ?? "")
+      .not.toContain("old-secret-1");
+    history.destroy();
+  });
+
+  it("gives New Item and recovery actions distinct pointer states, one keyboard ring, and media fallbacks", async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [NewItemPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(NewItemPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const action = host.querySelector<HTMLElement>(".new-item-option")!;
+    const plate = action.querySelector<HTMLElement>(".new-item-icon")!;
+    const initial = getComputedStyle(action).backgroundColor;
+    action.dataset["vaultTestInteraction"] = "hover";
+    const hover = getComputedStyle(action).backgroundColor;
+    action.dataset["vaultTestInteraction"] = "active";
+    const pressed = getComputedStyle(action).backgroundColor;
+    expect(new Set([initial, hover, pressed]).size).toBe(3);
+
+    action.dataset["vaultTestInteraction"] = "focus";
+    expect(getComputedStyle(action).outlineStyle).not.toBe("solid");
+    action.removeAttribute("data-vault-test-interaction");
+    action.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(action).outlineWidth).toBe("2px");
+    expect(getComputedStyle(plate).outlineStyle).not.toBe("solid");
+
+    action.removeAttribute("data-test-focus-visible");
+    action.setAttribute("aria-disabled", "true");
+    expect(Number.parseFloat(getComputedStyle(action).opacity)).toBeLessThan(1);
+    action.removeAttribute("aria-disabled");
+
+    document.documentElement.dataset["vaultTestMedia"] = "reduced-motion";
+    expect(getComputedStyle(action).transitionDuration).toBe("0s");
+    expect(getComputedStyle(action).transform).toBe("none");
+    document.documentElement.dataset["vaultTestMedia"] = "forced-colors";
+    action.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(action).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(action).outlineWidth).toBe("2px");
+    fixture.destroy();
   });
 
   it("keeps the real OTP row compact, growable, and separates 44px owners from 32/28px plates", async () => {
