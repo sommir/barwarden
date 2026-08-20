@@ -30,8 +30,12 @@ describe("RetainedVaultListItemComponent", () => {
     const row = fixture.nativeElement.querySelector("bit-item") as HTMLElement;
 
     expect(row.classList).toContain("vault-list-row");
+    expect(row.classList).toContain("macos-row");
+    expect(row.classList).toContain("macos-row--double");
     expect(row.querySelector("[data-testid='vault-item-content']")?.classList)
-      .toContain("tw-h-[52px]");
+      .not.toContain("tw-h-[52px]");
+    expect(Array.from(row.querySelectorAll<HTMLElement>("[data-field]"), (action) =>
+      action.classList.contains("macos-hit-target"))).toEqual([true, true, true]);
   });
 
   beforeEach(() => {
@@ -214,6 +218,22 @@ describe("RetainedVaultListItemComponent", () => {
 
     host.querySelector<HTMLButtonElement>('[aria-label="打开"]')!.click();
     expect(launched).toHaveBeenCalledOnce();
+  });
+
+  it("keeps each credential action isolated from row navigation", async () => {
+    const fixture = await createLoginRow();
+    const host = fixture.nativeElement as HTMLElement;
+    const viewed = vi.fn();
+    const filled = vi.fn();
+    fixture.componentInstance.view.subscribe(viewed);
+    fixture.componentInstance.fill.subscribe(filled);
+
+    for (const action of host.querySelectorAll<HTMLButtonElement>("[data-field]")) {
+      action.click();
+    }
+
+    expect(filled).toHaveBeenCalledTimes(3);
+    expect(viewed).not.toHaveBeenCalled();
   });
 });
 

@@ -96,7 +96,7 @@ const retainedOverlayLocks = [
   },
   {
     path: "apps/menubar-tauri/src/app/upstream-overlays/vault-main/retained-vault-list-item.component.html",
-    sha256: "985f78a1d1ed609e2c2e8391affc88c73643d1c14a19c208e0f82e44acb36a33",
+    sha256: "af17a5f13912647918023795a0315d1f030cc974d6671dae7978f21c83d9c6ff",
     authority: "vault-list-items-container.component.html",
     retainedTransform: "compose official item, launch, item-named retained copy-and-fill, and overflow primitives",
   },

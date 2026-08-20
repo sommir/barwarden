@@ -122,11 +122,13 @@ beforeAll(() => {
     resolveCustomProperty(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
       || value,
   );
+  style.textContent += `\n${projectVaultInteractionAndMediaRules(style.sheet!)}`;
 });
 afterAll(() => { style.remove(); document.body.className = ""; document.body.replaceChildren(); });
 afterEach(() => {
   document.body.classList.remove("tw-bit-compact");
   document.documentElement.removeAttribute("data-bw-compact-mode");
+  document.documentElement.removeAttribute("data-vault-test-media");
   document.documentElement.style.removeProperty("font-size");
   document.body.replaceChildren();
   vi.restoreAllMocks();
@@ -143,6 +145,47 @@ function resolveCustomProperty(
     if (!next) return reference;
     return resolveCustomProperty(next, rootStyle, new Set([...seen, name]));
   });
+}
+
+function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
+  const projected: string[] = [];
+  for (const rule of Array.from(sheet.cssRules)) {
+    if (rule.type === CSSRule.STYLE_RULE) {
+      const styleRule = rule as CSSStyleRule;
+      if (
+        styleRule.selectorText.includes(".macos-page--vault-list")
+        && /:(?:hover|active|focus)/.test(styleRule.selectorText)
+      ) {
+        projected.push(`${projectVaultSelector(styleRule.selectorText)} { ${styleRule.style.cssText} }`);
+      }
+      continue;
+    }
+    if (rule.type !== CSSRule.MEDIA_RULE) continue;
+    const mediaRule = rule as CSSMediaRule;
+    const media = mediaRule.conditionText.includes("prefers-reduced-motion")
+      ? "reduced-motion"
+      : mediaRule.conditionText.includes("forced-colors")
+        ? "forced-colors"
+        : null;
+    if (!media) continue;
+    for (const nestedRule of Array.from(mediaRule.cssRules)) {
+      if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
+      const styleRule = nestedRule as CSSStyleRule;
+      if (!styleRule.selectorText.includes(".macos-page--vault-list")) continue;
+      projected.push(
+        `:root[data-vault-test-media="${media}"] :is(${projectVaultSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
+      );
+    }
+  }
+  return projected.join("\n");
+}
+
+function projectVaultSelector(selector: string): string {
+  return selector
+    .replaceAll(":focus-visible", '[data-vault-test-interaction~="focus-visible"]')
+    .replaceAll(":focus", '[data-vault-test-interaction~="focus"]')
+    .replaceAll(":hover", '[data-vault-test-interaction~="hover"]')
+    .replaceAll(":active", '[data-vault-test-interaction~="active"]');
 }
 
 describe("iOS 27 Vault workflows", () => {
@@ -251,7 +294,7 @@ describe("iOS 27 Vault workflows", () => {
     fixture.destroy();
   });
 
-  it("computes a real retained Vault row and its actions at 52/44 pixels", async () => {
+  it("computes a real retained Vault row at 48/44 pixels with separate 44px owners and 32/28px plates", async () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [VaultRowVisualHostComponent],
@@ -269,19 +312,34 @@ describe("iOS 27 Vault workflows", () => {
     const content = host.querySelector<HTMLElement>('[data-testid="vault-item-content"]')!;
     const name = host.querySelector<HTMLElement>('[data-testid="item-name"]')!;
     const actions = host.querySelectorAll<HTMLElement>('button[aria-label]');
-    expect(getComputedStyle(row).minHeight).toBe("52px");
-    expect(getComputedStyle(content).minHeight).toBe("52px");
-    expect(getComputedStyle(content).height).toBe("52px");
+    const fieldActions = host.querySelectorAll<HTMLElement>("[data-field]");
+    const plates = host.querySelectorAll<HTMLElement>("[data-field] .bwi");
+    expect(row.classList).toContain("macos-row--double");
+    expect(getComputedStyle(row).minHeight).toBe("48px");
+    expect(getComputedStyle(row).borderRadius).toBe("0px");
+    expect(getComputedStyle(row).boxShadow).toBe("none");
+    expect(getComputedStyle(content).minHeight).toBe("48px");
+    expect(getComputedStyle(content).height).toBe("auto");
     expect(actions.length).toBeGreaterThan(0);
     expect(Array.from(actions, (action) => [
       getComputedStyle(action).minWidth,
       getComputedStyle(action).minHeight,
     ])).toEqual(Array.from(actions, () => ["44px", "44px"]));
+    expect(Array.from(fieldActions, (action) => action.classList.contains("macos-hit-target")))
+      .toEqual(Array.from(fieldActions, () => true));
+    expect(Array.from(plates, (plate) => [
+      getComputedStyle(plate).width,
+      getComputedStyle(plate).height,
+    ])).toEqual(Array.from(plates, () => ["32px", "32px"]));
 
-    document.body.classList.add("tw-bit-compact");
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row).minHeight).toBe("44px");
     expect(getComputedStyle(content).minHeight).toBe("44px");
-    expect(getComputedStyle(content).height).toBe("44px");
+    expect(getComputedStyle(content).height).toBe("auto");
+    expect(Array.from(plates, (plate) => [
+      getComputedStyle(plate).width,
+      getComputedStyle(plate).height,
+    ])).toEqual(Array.from(plates, () => ["28px", "28px"]));
 
     document.documentElement.style.fontSize = "200%";
     expect(getComputedStyle(document.documentElement).fontSize).toBe("200%");
@@ -292,7 +350,7 @@ describe("iOS 27 Vault workflows", () => {
     fixture.destroy();
   });
 
-  it("keeps one direct 2px ring on each real retained Vault row control", async () => {
+  it("keeps one keyboard-only 2px ring on each retained credential plate", async () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [VaultRowVisualHostComponent],
@@ -306,31 +364,86 @@ describe("iOS 27 Vault workflows", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    const row = host.querySelector<HTMLElement>("bit-item.vault-list-row")!;
     const controls = [
-      host.querySelector<HTMLButtonElement>('[data-testid="vault-item-content"]')!,
       host.querySelector<HTMLButtonElement>('[data-field="username"]')!,
       host.querySelector<HTMLButtonElement>('[data-field="password"]')!,
       host.querySelector<HTMLButtonElement>('[data-field="totp"]')!,
-      host.querySelector<HTMLButtonElement>('[aria-label="更多"]')!,
     ];
 
     expect(controls.every(Boolean)).toBe(true);
     for (const control of controls) {
-      control.focus();
+      const plate = control.querySelector<HTMLElement>(".bwi")!;
+      control.dataset["vaultTestInteraction"] = "focus";
+      expect(getComputedStyle(control).outlineStyle).not.toBe("solid");
+      expect(getComputedStyle(plate).outlineStyle).not.toBe("solid");
+
       control.dataset["testFocusVisible"] = "true";
       const controlStyle = getComputedStyle(control);
-      const rowStyle = getComputedStyle(row);
-      expect([
-        controlStyle.outlineWidth === "2px" && controlStyle.outlineStyle === "solid",
-        rowStyle.outlineWidth === "2px" && rowStyle.outlineStyle === "solid",
-      ].filter(Boolean)).toHaveLength(1);
-      expect(controlStyle.outlineWidth).toBe("2px");
-      expect(controlStyle.outlineStyle).toBe("solid");
-      expect(rowStyle.outlineStyle).not.toBe("solid");
+      const plateStyle = getComputedStyle(plate);
+      expect(controlStyle.outlineStyle).not.toBe("solid");
+      expect(plateStyle.outlineWidth).toBe("2px");
+      expect(plateStyle.outlineStyle).toBe("solid");
       control.removeAttribute("data-test-focus-visible");
-      control.blur();
+      control.removeAttribute("data-vault-test-interaction");
     }
+    fixture.destroy();
+  });
+
+  it("gives retained credential plates distinct immediate feedback and accessible media fallbacks", async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [VaultRowVisualHostComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(VaultRowVisualHostComponent);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const actions = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-field]"));
+    const plates = actions.map((action) => action.querySelector<HTMLElement>(".bwi")!);
+    const transparent = "rgba(0, 0, 0, 0)";
+
+    expect(new Set(plates.map((plate) => getComputedStyle(plate).color)).size).toBe(3);
+    for (const [index, action] of actions.entries()) {
+      const plate = plates[index]!;
+      expect(getComputedStyle(action).backgroundColor).toBe(transparent);
+      expect(getComputedStyle(plate).backgroundColor).toBe(transparent);
+
+      action.dataset["vaultTestInteraction"] = "hover";
+      const hover = getComputedStyle(plate).backgroundColor;
+      expect(hover).not.toBe(transparent);
+      expect(getComputedStyle(action).backgroundColor).toBe(transparent);
+
+      action.dataset["vaultTestInteraction"] = "active";
+      const pressed = getComputedStyle(plate).backgroundColor;
+      expect(pressed).not.toBe(transparent);
+      expect(pressed).not.toBe(hover);
+
+      action.disabled = true;
+      action.dataset["vaultTestInteraction"] = "hover active";
+      expect(Number.parseFloat(getComputedStyle(plate).opacity)).toBeLessThan(1);
+      expect(getComputedStyle(action).backgroundColor).toBe(transparent);
+      action.disabled = false;
+      action.removeAttribute("data-vault-test-interaction");
+    }
+
+    const username = actions[0]!;
+    const usernamePlate = plates[0]!;
+    document.documentElement.setAttribute("data-vault-test-media", "reduced-motion");
+    expect(getComputedStyle(usernamePlate).transitionDuration).toBe("0s");
+    expect(getComputedStyle(usernamePlate).transform).toBe("none");
+    document.documentElement.setAttribute("data-vault-test-media", "forced-colors");
+    username.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(usernamePlate).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(usernamePlate).outlineWidth).toBe("2px");
+
+    document.documentElement.removeAttribute("data-vault-test-media");
+    username.removeAttribute("data-test-focus-visible");
+    username.removeAttribute("data-vault-test-interaction");
     fixture.destroy();
   });
 

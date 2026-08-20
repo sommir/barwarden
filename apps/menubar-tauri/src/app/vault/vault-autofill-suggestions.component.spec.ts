@@ -167,7 +167,37 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     expect(row?.querySelector(".vault-autofill-suggestions__capabilities")).toBeNull();
   });
 
-  it("computes real suggestion rows at 52/44px and keeps every action at least 44px", async () => {
+  it("renders only username and TOTP capability actions before the generic Fill action", async () => {
+    const selected = candidate(
+      "github",
+      "exact",
+      "service_identifier",
+      ["username", "totp"],
+    );
+    const item = {
+      ...demoVaultItems[0],
+      fields: demoVaultItems[0].fields.filter((field) =>
+        field.id === "username" || field.id === "otp"),
+    };
+    const harness = await render(ready([selected]), [item]);
+    const row = harness.host.querySelector<HTMLElement>(
+      "[data-testid='vault-autofill-candidate']",
+    )!;
+    const actions = Array.from(row.querySelectorAll<HTMLButtonElement>(
+      "[data-testid='vault-autofill-field-action'], [data-testid='vault-autofill-fill']",
+    ));
+
+    expect(actions.map((action) => action.dataset["field"] ?? "fill"))
+      .toEqual(["username", "totp", "fill"]);
+    expect(row.querySelector('[data-field="password"]')).toBeNull();
+    expect(actions.slice(0, 2).map((action) => action.getAttribute("aria-label")))
+      .toEqual([
+        "使用GitHub填入用户名",
+        "使用GitHub填入验证码",
+      ]);
+  });
+
+  it("computes real suggestion rows at 48/44px with 44px owners and 32/28px glyph plates", async () => {
     const harness = await render(ready([
       candidate("github", "exact", "service_identifier", ["username", "password", "totp"]),
     ]));
@@ -184,20 +214,38 @@ describe("VaultAutoFillSuggestionsComponent", () => {
       const controls = row.querySelectorAll<HTMLElement>(
         "[data-testid='vault-autofill-field-action'], [data-testid='vault-autofill-fill']",
       );
+      const fieldActions = row.querySelectorAll<HTMLElement>(
+        "[data-testid='vault-autofill-field-action']",
+      );
+      const glyphs = row.querySelectorAll<HTMLElement>(
+        "[data-testid='vault-autofill-field-action'] .bwi",
+      );
 
-      expect(getComputedStyle(row).minHeight).toBe("52px");
-      expect(getComputedStyle(details).height).toBe("52px");
+      expect(row.classList).toContain("macos-row--double");
+      expect(getComputedStyle(row).minHeight).toBe("48px");
+      expect(getComputedStyle(details).height).toBe("auto");
       expect(Array.from(controls, (control) => [
         getComputedStyle(control).minWidth,
         getComputedStyle(control).minHeight,
       ])).toEqual(Array.from(controls, () => ["44px", "44px"]));
+      expect(Array.from(fieldActions, (action) => action.classList.contains("macos-hit-target")))
+        .toEqual(Array.from(fieldActions, () => true));
+      expect(Array.from(glyphs, (glyph) => [
+        getComputedStyle(glyph).width,
+        getComputedStyle(glyph).height,
+      ])).toEqual(Array.from(glyphs, () => ["32px", "32px"]));
       expect(getComputedStyle(fill).minWidth).toBe("44px");
+      expect(getComputedStyle(row).borderRadius).toBe("0px");
+      expect(getComputedStyle(row).boxShadow).toBe("none");
 
-      document.body.classList.add("tw-bit-compact");
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
       expect(getComputedStyle(row).minHeight).toBe("44px");
-      expect(getComputedStyle(details).height).toBe("44px");
+      expect(Array.from(glyphs, (glyph) => [
+        getComputedStyle(glyph).width,
+        getComputedStyle(glyph).height,
+      ])).toEqual(Array.from(glyphs, () => ["28px", "28px"]));
     } finally {
-      document.body.classList.remove("tw-bit-compact");
+      document.documentElement.removeAttribute("data-bw-compact-mode");
       harness.fixture.destroy();
       cleanupCss();
     }

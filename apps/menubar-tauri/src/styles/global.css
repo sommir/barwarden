@@ -7210,3 +7210,170 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
     animation: none;
   }
 }
+
+/* iOS 27 Vault rows: the row owns compact information geometry while each
+ * credential action keeps a transparent 44px target around its real glyph. */
+.macos-page--vault-list .vault-list-row.macos-row--double,
+.vault-autofill-suggestions .vault-list-row.macos-row--double {
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--vault-list .vault-list-row [data-testid="vault-item-content"],
+.vault-autofill-suggestions .vault-list-row .vault-autofill-suggestions__details {
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto !important;
+  padding-block: 4px;
+  overflow: visible;
+  background: transparent !important;
+}
+
+.macos-page--vault-list .vault-list-row :is([data-testid="item-name"], [slot="secondary"]),
+.vault-autofill-suggestions .vault-list-row :is(
+  [data-testid="vault-autofill-candidate-name"],
+  [data-testid="vault-autofill-candidate-subtitle"]
+) {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-list .vault-list-row [data-field],
+.vault-autofill-suggestions .vault-list-row [data-field] {
+  width: var(--mac-hit-size);
+  min-width: var(--mac-hit-size);
+  height: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  padding: 6px !important;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-list .vault-list-row [data-field] .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field] .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-list .vault-list-row [data-field="username"] .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field="username"] .bwi {
+  color: var(--mac-action-username);
+}
+
+.macos-page--vault-list .vault-list-row [data-field="password"] .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field="password"] .bwi {
+  color: var(--mac-action-password);
+}
+
+.macos-page--vault-list .vault-list-row [data-field="totp"] .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field="totp"] .bwi {
+  color: var(--mac-action-totp);
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:not(:disabled):not([aria-disabled="true"]):hover .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:not(:disabled):not([aria-disabled="true"]):hover .bwi {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:not(:disabled):not([aria-disabled="true"]):active .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:not(:disabled):not([aria-disabled="true"]):active .bwi {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:is(:disabled, [aria-disabled="true"]) .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:is(:disabled, [aria-disabled="true"]) .bwi {
+  opacity: 0.38;
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:focus,
+.macos-page--vault-list .vault-list-row [data-field]:focus-visible,
+.vault-autofill-suggestions .vault-list-row [data-field]:focus,
+.vault-autofill-suggestions .vault-list-row [data-field]:focus-visible {
+  outline-width: 0;
+  outline-style: none;
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:focus-visible .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:focus-visible .bwi {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:focus:not(:focus-visible) .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:focus:not(:focus-visible) .bwi {
+  outline-width: 0;
+  outline-style: none;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-list .vault-list-row.macos-row--double,
+:root[data-bw-compact-mode="true"] .vault-autofill-suggestions .vault-list-row.macos-row--double,
+body.tw-bit-compact .macos-page--vault-list .vault-list-row.macos-row--double,
+body.tw-bit-compact .vault-autofill-suggestions .vault-list-row.macos-row--double {
+  min-height: var(--mac-row-double-compact);
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-list .vault-list-row [data-testid="vault-item-content"],
+:root[data-bw-compact-mode="true"] .vault-autofill-suggestions .vault-list-row .vault-autofill-suggestions__details,
+body.tw-bit-compact .macos-page--vault-list .vault-list-row [data-testid="vault-item-content"],
+body.tw-bit-compact .vault-autofill-suggestions .vault-list-row .vault-autofill-suggestions__details {
+  min-height: var(--mac-row-double-compact);
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-list .vault-list-row [data-field] .bwi,
+:root[data-bw-compact-mode="true"] .vault-autofill-suggestions .vault-list-row [data-field] .bwi,
+body.tw-bit-compact .macos-page--vault-list .vault-list-row [data-field] .bwi,
+body.tw-bit-compact .vault-autofill-suggestions .vault-list-row [data-field] .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--vault-list .vault-list-row [data-field] .bwi,
+  .vault-autofill-suggestions .vault-list-row [data-field] .bwi {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--vault-list .vault-list-row [data-field] .bwi,
+  .vault-autofill-suggestions .vault-list-row [data-field] .bwi {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--vault-list .vault-list-row [data-field]:focus-visible .bwi,
+  .vault-autofill-suggestions .vault-list-row [data-field]:focus-visible .bwi {
+    outline-color: Highlight;
+  }
+}

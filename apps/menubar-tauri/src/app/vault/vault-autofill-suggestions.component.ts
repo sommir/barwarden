@@ -91,13 +91,13 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
           @for (candidate of visibleCandidates; track candidate.cipherId) {
             @if (itemForCandidate(candidate); as item) {
               <bit-item
-                class="vault-list-row tw-group/vault-autofill-item"
+                class="vault-list-row macos-row macos-row--double tw-group/vault-autofill-item"
                 data-testid="vault-autofill-candidate"
                 [attr.data-cipher-id]="candidate.cipherId"
               >
                 <button
                   bit-item-content
-                  class="vault-autofill-suggestions__details tw-min-w-0"
+                  class="vault-autofill-suggestions__details macos-hit-target tw-min-w-0"
                   data-testid="vault-autofill-open-details"
                   type="button"
                   [attr.aria-label]="viewDetailsLabel(candidate)"
@@ -128,6 +128,7 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
                     <bit-item-action>
                       @if (field === 'username') {
                         <button
+                          class="macos-hit-target"
                           bitIconButton="bwi-user"
                           size="small"
                           data-testid="vault-autofill-field-action"
@@ -139,6 +140,7 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
                         ></button>
                       } @else if (field === 'password') {
                         <button
+                          class="macos-hit-target"
                           bitIconButton="bwi-key"
                           size="small"
                           data-testid="vault-autofill-field-action"
@@ -150,6 +152,7 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
                         ></button>
                       } @else {
                         <button
+                          class="macos-hit-target"
                           bitIconButton="bwi-clock"
                           size="small"
                           data-testid="vault-autofill-field-action"
@@ -168,7 +171,7 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
                         bitButton
                         buttonType="primaryOutline"
                         size="small"
-                        class="vault-autofill-suggestions__fill"
+                        class="vault-autofill-suggestions__fill macos-hit-target"
                         data-testid="vault-autofill-fill"
                         type="button"
                         [disabled]="busyCipherId === candidate.cipherId"

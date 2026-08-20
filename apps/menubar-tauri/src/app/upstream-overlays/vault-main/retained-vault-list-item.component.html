@@ -1,10 +1,10 @@
-<bit-item class="vault-list-row tw-group/vault-item" [class.is-menu-open]="menuOpen">
+<bit-item class="vault-list-row macos-row macos-row--double tw-group/vault-item" [class.is-menu-open]="menuOpen">
   <button
     bit-item-content
     data-testid="vault-item-content"
     [attr.data-popup-focus-key]="'vault-item:' + cipher.id"
     type="button"
-    class="tw-h-[52px]"
+    class="macos-hit-target"
     (click)="selectCipher()"
   >
     <span slot="start" class="tw-justify-start tw-w-7 tw-flex item-icon">
@@ -31,19 +31,19 @@
     @if (showQuickCopyActions) {
       @if (usernameField; as field) {
         <bit-item-action>
-          <button bitIconButton="bwi-user" data-field="username" size="small" type="button" [label]="('i18nCopyAndFillField' | i18n: ('username' | i18n)) + ' — ' + cipher.name" (click)="fillField(field, $event)"></button>
+          <button class="macos-hit-target" bitIconButton="bwi-user" data-field="username" size="small" type="button" [label]="('i18nCopyAndFillField' | i18n: ('username' | i18n)) + ' — ' + cipher.name" (click)="fillField(field, $event)"></button>
         </bit-item-action>
       }
       @if (cipher.viewPassword) {
         @if (passwordField; as field) {
           <bit-item-action>
-            <button bitIconButton="bwi-key" data-field="password" size="small" type="button" [label]="('i18nCopyAndFillField' | i18n: ('password' | i18n)) + ' — ' + cipher.name" (click)="fillField(field, $event)"></button>
+            <button class="macos-hit-target" bitIconButton="bwi-key" data-field="password" size="small" type="button" [label]="('i18nCopyAndFillField' | i18n: ('password' | i18n)) + ' — ' + cipher.name" (click)="fillField(field, $event)"></button>
           </bit-item-action>
         }
       }
       @if (otpField; as field) {
         <bit-item-action>
-          <button bitIconButton="bwi-clock" data-field="totp" size="small" type="button" [label]="('i18nCopyAndFillField' | i18n: ('verificationCode' | i18n)) + ' — ' + cipher.name" (click)="fillField(field, $event)"></button>
+          <button class="macos-hit-target" bitIconButton="bwi-clock" data-field="totp" size="small" type="button" [label]="('i18nCopyAndFillField' | i18n: ('verificationCode' | i18n)) + ' — ' + cipher.name" (click)="fillField(field, $event)"></button>
         </bit-item-action>
       }
     }
