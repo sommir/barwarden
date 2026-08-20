@@ -3712,6 +3712,190 @@ auth-account .macos-account-label {
   }
 }
 
+/* iOS 27 OTP rows share Vault information geometry, while Copy keeps a
+ * transparent 44px owner and paints feedback only on its real glyph plate. */
+.macos-page--otp .otp-code-row.macos-row--double {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto;
+  padding: 2px 0 2px 12px;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--otp .otp-code-row:hover {
+  background: transparent;
+}
+
+.macos-page--otp bw-otp-code-row:last-child .otp-code-row {
+  border-bottom-width: 0;
+}
+
+.macos-page--otp .otp-code-row__identity,
+.macos-page--otp .otp-code-row__name,
+.macos-page--otp .otp-code-row__subtitle {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--otp .otp-code-row__name {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.macos-page--otp .otp-code-row__subtitle {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.macos-page--otp .otp-code-row__copy {
+  width: auto;
+  min-width: var(--mac-hit-size);
+  height: auto;
+  min-height: var(--mac-hit-size);
+  padding: 6px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: 0 !important;
+  transform: none;
+}
+
+.macos-page--otp .otp-code-row__copy:is(
+  :hover,
+  :active,
+  :focus,
+  :focus-visible,
+  :disabled,
+  [aria-disabled="true"]
+) {
+  background: transparent;
+  box-shadow: none !important;
+  outline: 0 !important;
+  transform: none;
+}
+
+.macos-page--otp .otp-code-row__copy:focus,
+.macos-page--otp .otp-code-row__copy:focus-visible {
+  outline-width: 0 !important;
+  outline-style: none !important;
+  box-shadow: none !important;
+}
+
+.macos-page--otp .otp-code-row__code {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.macos-page--otp .otp-code-row__copy-icon {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--otp .otp-code-row__copy:not(:disabled):not([aria-disabled="true"]):hover
+  .otp-code-row__copy-icon {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--otp .otp-code-row__copy:not(:disabled):not([aria-disabled="true"]):active
+  .otp-code-row__copy-icon {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+}
+
+.macos-page--otp .otp-code-row__copy:is(:disabled, [aria-disabled="true"])
+  .otp-code-row__copy-icon {
+  opacity: 0.38;
+}
+
+.macos-page--otp .otp-code-row__copy:focus-visible .otp-code-row__copy-icon {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--otp .otp-code-row__copy:focus:not(:focus-visible)
+  .otp-code-row__copy-icon {
+  outline-width: 0;
+  outline-style: none;
+  box-shadow: none;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--otp
+  .otp-code-row.macos-row--double,
+body.tw-bit-compact .macos-page--otp .otp-code-row.macos-row--double {
+  min-height: var(--mac-row-double-compact);
+  padding-block: 0;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--otp
+  .otp-code-row__countdown,
+:root[data-bw-compact-mode="true"]
+  .macos-page--otp
+  .otp-code-row__copy-icon,
+body.tw-bit-compact .macos-page--otp .otp-code-row__countdown,
+body.tw-bit-compact .macos-page--otp .otp-code-row__copy-icon {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--otp .otp-code-row__copy,
+  .macos-page--otp .otp-code-row__copy-icon,
+  .macos-page--otp .otp-code-row__copy.is-copied .otp-code-row__copy-icon {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--otp .otp-code-row {
+    border-bottom-color: CanvasText;
+  }
+
+  .macos-page--otp .otp-code-row__copy-icon,
+  .macos-page--otp .otp-code-row__countdown {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--otp .otp-code-row__copy:focus-visible .otp-code-row__copy-icon {
+    outline-color: Highlight;
+  }
+}
+
 .macos-page--generator .macos-generator__settings :is(bit-card, bit-section) {
   border: 0;
   border-radius: 0;

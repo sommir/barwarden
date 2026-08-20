@@ -33,7 +33,7 @@ type OtpRowState =
   imports: [AsyncPipe, I18nPipe, VaultItemIconComponent],
   template: `
     <article
-      class="otp-code-row"
+      class="otp-code-row macos-row macos-row--double"
       [attr.data-popup-focus-key]="'otp-item:' + item.id"
     >
       @if (copied) {
@@ -43,7 +43,7 @@ type OtpRowState =
           role="status"
           aria-live="polite"
           aria-atomic="true"
-        >{{ "i18nCopiedOtpForItem" | i18n: item.name }}</span>
+        >{{ "i18nCopied" | i18n }}</span>
       }
       <bw-vault-item-icon class="otp-code-row__icon" [item]="item" />
       <div class="otp-code-row__identity">
@@ -54,7 +54,7 @@ type OtpRowState =
         @switch (state.kind) {
           @case ("ready") {
             <span
-              class="otp-code-row__countdown"
+              class="otp-code-row__countdown macos-icon-plate"
               [class.is-expiring]="state.totp.isExpiring"
               [attr.aria-label]="'i18nVerificationCodeExpires' | i18n: state.totp.secondsRemaining"
             >
@@ -81,7 +81,7 @@ type OtpRowState =
             </span>
             <button
               type="button"
-              class="otp-code-row__copy macos-pressable"
+              class="otp-code-row__copy macos-hit-target"
               [class.is-copied]="copied"
               data-testid="otp-code"
               [attr.aria-label]="copied ? ('i18nCopiedOtpForItem' | i18n: item.name) : ('i18nCopyOtpForItem' | i18n: item.name)"
@@ -89,7 +89,7 @@ type OtpRowState =
             >
               <span class="otp-code-row__code">{{ state.totp.formattedCode }}</span>
               <i
-                class="bwi otp-code-row__copy-icon"
+                class="bwi otp-code-row__copy-icon macos-icon-plate"
                 [class.bwi-clone]="!copied"
                 [class.bwi-check]="copied"
                 aria-hidden="true"

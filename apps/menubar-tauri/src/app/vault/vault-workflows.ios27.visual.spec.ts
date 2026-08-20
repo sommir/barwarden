@@ -104,6 +104,25 @@ class VaultRowVisualHostComponent {
   });
 }
 
+@Component({
+  imports: [OtpCodeRowComponent],
+  template: `
+    <main class="macos-page macos-page--otp">
+      <bw-otp-code-row [item]="item" [field]="field" [copied]="copied" />
+    </main>
+  `,
+})
+class OtpRowVisualHostComponent {
+  protected readonly item = {
+    ...demoVaultItems[0]!,
+    id: "private-row-id-that-must-not-be-announced",
+    name: "Enterprise Production Verification Account With A Deliberately Hostile Long Name",
+    subtitle: "operations-team-with-a-deliberately-long-address@example.enterprise.test",
+  };
+  protected readonly field = this.item.fields.find((candidate) => candidate.id === "otp")!;
+  protected copied = false;
+}
+
 let style: HTMLStyleElement;
 beforeAll(() => {
   style = document.createElement("style");
@@ -157,7 +176,9 @@ function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
     if (rule.type === CSSRule.STYLE_RULE) {
       const styleRule = rule as CSSStyleRule;
       if (
-        styleRule.selectorText.includes(".vault-list-row")
+        [".vault-list-row", ".otp-code-row"].some((selector) =>
+          styleRule.selectorText.includes(selector)
+        )
         && /:(?:hover|active|focus)/.test(styleRule.selectorText)
       ) {
         projected.push(`${projectVaultSelector(styleRule.selectorText)} { ${styleRule.style.cssText} }`);
@@ -175,7 +196,9 @@ function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
     for (const nestedRule of Array.from(mediaRule.cssRules)) {
       if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
       const styleRule = nestedRule as CSSStyleRule;
-      if (!styleRule.selectorText.includes(".vault-list-row")) continue;
+      if (![".vault-list-row", ".otp-code-row"].some((selector) =>
+        styleRule.selectorText.includes(selector)
+      )) continue;
       projected.push(
         `:root[data-vault-test-media="${media}"] :is(${projectVaultSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
       );
@@ -332,12 +355,10 @@ describe("iOS 27 Vault workflows", () => {
     document.body.className = "";
   });
 
-  it("computes the real OTP row at 52/44 pixels with a slow-token copy confirmation", async () => {
+  it("keeps the real OTP row compact, growable, and separates 44px owners from 32/28px plates", async () => {
     TestBed.resetTestingModule();
-    const item = demoVaultItems[0]!;
-    const field = item.fields.find((candidate) => candidate.id === "otp")!;
     await TestBed.configureTestingModule({
-      imports: [OtpCodeRowComponent],
+      imports: [OtpRowVisualHostComponent],
       providers: [
         OfficialI18nService,
         { provide: I18nService, useExisting: OfficialI18nService },
@@ -358,23 +379,122 @@ describe("iOS 27 Vault workflows", () => {
         { provide: TOTP_CLOCK, useValue: () => 1_700_000_012 },
       ],
     }).compileComponents();
-    const fixture = TestBed.createComponent(OtpCodeRowComponent);
-    fixture.componentRef.setInput("item", item);
-    fixture.componentRef.setInput("field", field);
+    const fixture = TestBed.createComponent(OtpRowVisualHostComponent);
     fixture.detectChanges();
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
-    fixture.componentRef.setInput("copied", true);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
     const row = host.querySelector<HTMLElement>(".otp-code-row")!;
     const copy = host.querySelector<HTMLElement>(".otp-code-row__copy")!;
     const copyIcon = host.querySelector<HTMLElement>(".otp-code-row__copy-icon")!;
-    expect(getComputedStyle(row).minHeight).toBe("52px");
+    const countdown = host.querySelector<HTMLElement>(".otp-code-row__countdown")!;
+    const identity = host.querySelector<HTMLElement>(".otp-code-row__identity")!;
+    const name = host.querySelector<HTMLElement>(".otp-code-row__name")!;
+    const subtitle = host.querySelector<HTMLElement>(".otp-code-row__subtitle")!;
+    const code = host.querySelector<HTMLElement>(".otp-code-row__code")!;
+    expect(row.classList).toContain("macos-row--double");
+    expect(copy.classList).toContain("macos-hit-target");
+    expect(copyIcon.classList).toContain("macos-icon-plate");
+    expect(countdown.classList).toContain("macos-icon-plate");
+    expect(getComputedStyle(row).minHeight).toBe("48px");
+    expect(getComputedStyle(row).height).toBe("auto");
+    expect(getComputedStyle(row).overflow).toBe("visible");
     expect(getComputedStyle(copy).minHeight).toBe("44px");
-    expect(getComputedStyle(copyIcon).animationDuration).toBe("200ms");
-    document.body.classList.add("tw-bit-compact");
+    expect(getComputedStyle(copyIcon).width).toBe("32px");
+    expect(getComputedStyle(copyIcon).height).toBe("32px");
+    expect(parseFloat(getComputedStyle(countdown).width)).toBeLessThanOrEqual(32);
+    expect(parseFloat(getComputedStyle(countdown).height)).toBeLessThanOrEqual(32);
+    expect(getComputedStyle(identity).minWidth).toBe("0px");
+    expect(getComputedStyle(name).whiteSpace).toBe("normal");
+    expect(getComputedStyle(name).overflowWrap).toBe("anywhere");
+    expect(getComputedStyle(subtitle).whiteSpace).toBe("normal");
+    expect(getComputedStyle(subtitle).overflowWrap).toBe("anywhere");
+    expect(getComputedStyle(code).overflow).toBe("visible");
+
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row).minHeight).toBe("44px");
+    expect(getComputedStyle(copyIcon).width).toBe("28px");
+    expect(getComputedStyle(copyIcon).height).toBe("28px");
+    expect(parseFloat(getComputedStyle(countdown).width)).toBeLessThanOrEqual(28);
+    expect(parseFloat(getComputedStyle(countdown).height)).toBeLessThanOrEqual(28);
+
+    document.documentElement.style.fontSize = "200%";
+    expect(getComputedStyle(document.documentElement).fontSize).toBe("200%");
+    expect(getComputedStyle(row).height).toBe("auto");
+    expect(getComputedStyle(identity).overflow).toBe("visible");
+    expect(getComputedStyle(name).overflow).toBe("visible");
+    expect(getComputedStyle(subtitle).overflow).toBe("visible");
+    expect(getComputedStyle(code).overflow).toBe("visible");
+    fixture.destroy();
+  });
+
+  it("keeps OTP feedback on the nested plate with keyboard-only focus and media fallbacks", async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [OtpRowVisualHostComponent],
+      providers: [
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        PopupStateStore,
+        SettingsService,
+        {
+          provide: TOTP_CODE_SOURCE,
+          useValue: {
+            generate: vi.fn(async () => ({
+              code: "123456",
+              formattedCode: "123 456",
+              period: 30,
+              secondsRemaining: 18,
+              isExpiring: false,
+            })),
+          },
+        },
+        { provide: TOTP_CLOCK, useValue: () => 1_700_000_012 },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(OtpRowVisualHostComponent);
+    fixture.detectChanges();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const copy = host.querySelector<HTMLButtonElement>(".otp-code-row__copy")!;
+    const plate = host.querySelector<HTMLElement>(".otp-code-row__copy-icon")!;
+    const transparent = "rgba(0, 0, 0, 0)";
+    expect(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    expect(getComputedStyle(plate).backgroundColor).toBe(transparent);
+
+    copy.dataset["vaultTestInteraction"] = "focus";
+    expect(getComputedStyle(copy).outlineStyle).not.toBe("solid");
+    expect(getComputedStyle(plate).outlineStyle).not.toBe("solid");
+    copy.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(copy).outlineStyle).not.toBe("solid");
+    expect(getComputedStyle(plate).outlineWidth).toBe("2px");
+    expect(getComputedStyle(plate).outlineStyle).toBe("solid");
+
+    copy.removeAttribute("data-test-focus-visible");
+    copy.dataset["vaultTestInteraction"] = "hover";
+    const hover = getComputedStyle(plate).backgroundColor;
+    expect(hover).not.toBe(transparent);
+    expect(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    copy.dataset["vaultTestInteraction"] = "active";
+    const pressed = getComputedStyle(plate).backgroundColor;
+    expect(pressed).not.toBe(transparent);
+    expect(pressed).not.toBe(hover);
+    copy.disabled = true;
+    copy.dataset["vaultTestInteraction"] = "hover active";
+    expect(Number.parseFloat(getComputedStyle(plate).opacity)).toBeLessThan(1);
+    expect(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    copy.disabled = false;
+
+    document.documentElement.setAttribute("data-vault-test-media", "reduced-motion");
+    expect(getComputedStyle(plate).transitionDuration).toBe("0s");
+    expect(getComputedStyle(plate).transform).toBe("none");
+    document.documentElement.setAttribute("data-vault-test-media", "forced-colors");
+    copy.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(plate).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(plate).outlineWidth).toBe("2px");
     fixture.destroy();
   });
 

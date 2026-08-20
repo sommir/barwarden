@@ -372,14 +372,26 @@ describe("OtpPageComponent", () => {
       .toEqual(["otp-item:github", "otp-item:calendar"]);
     expect(getComputedStyle(otpRows[0]!).borderBottomWidth).toBe("1px");
     expect(getComputedStyle(otpRows[1]!).borderBottomWidth).toBe("0px");
-    expect(getComputedStyle(otpRows[0]!).minHeight).toBe("52px");
-    document.body.classList.add("tw-bit-compact");
+    expect(getComputedStyle(otpRows[0]!).minHeight).toBe("48px");
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(otpRows[0]!).minHeight).toBe("44px");
-    document.body.classList.remove("tw-bit-compact");
+    document.documentElement.removeAttribute("data-bw-compact-mode");
     const copyTarget = host.querySelector<HTMLElement>("[data-testid='otp-code']")!;
+    const copyPlate = copyTarget.querySelector<HTMLElement>(".otp-code-row__copy-icon")!;
+    const countdownPlate = host.querySelector<HTMLElement>(".otp-code-row__countdown")!;
     expect(copyTarget.closest("[data-popup-focus-key]")).toBe(otpRows[0]);
-    expect(getComputedStyle(copyTarget).minWidth).toBe("116px");
+    expect(parseFloat(getComputedStyle(copyTarget).minWidth)).toBeGreaterThanOrEqual(44);
     expect(getComputedStyle(copyTarget).minHeight).toBe("44px");
+    expect(getComputedStyle(copyPlate).width).toBe("32px");
+    expect(getComputedStyle(copyPlate).height).toBe("32px");
+    expect(parseFloat(getComputedStyle(countdownPlate).width)).toBeLessThanOrEqual(32);
+    expect(parseFloat(getComputedStyle(countdownPlate).height)).toBeLessThanOrEqual(32);
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(getComputedStyle(copyPlate).width).toBe("28px");
+    expect(getComputedStyle(copyPlate).height).toBe("28px");
+    expect(parseFloat(getComputedStyle(countdownPlate).width)).toBeLessThanOrEqual(28);
+    expect(parseFloat(getComputedStyle(countdownPlate).height)).toBeLessThanOrEqual(28);
+    document.documentElement.removeAttribute("data-bw-compact-mode");
     expect(host.textContent).toContain("项目 (2)");
     const search = host.querySelector<HTMLInputElement>('[aria-label="搜索验证码"]')!;
     search.value = "calendar";
@@ -403,6 +415,7 @@ describe("OtpPageComponent", () => {
     expect(copiedButton).not.toBeNull();
     expect(copiedButton?.querySelector(".bwi-check")).not.toBeNull();
     cleanupVisualCss();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
     fixture.destroy();
   });
 

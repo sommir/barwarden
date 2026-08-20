@@ -801,7 +801,7 @@ describe("PopupRouterCacheService", () => {
     expect(service.hasBackTarget()).toBe(false);
   });
 
-  it("restores a destroyed real OTP row owner to its first visible enabled action", async () => {
+  it("restores the same real OTP copy descendant after OTP to Generator to OTP", async () => {
     const { fixture, router, scrollLayout } = await createMountedOtpTabService();
     const host = fixture!.nativeElement as HTMLElement;
     const clickTab = async (path: PopupTabRoute) => {
@@ -825,7 +825,7 @@ describe("PopupRouterCacheService", () => {
     firstCopy.focus();
     scrollLayout.scrollableRef()!.nativeElement.scrollTop = 42;
 
-    await clickTab("/tabs/send");
+    await clickTab("/tabs/generator");
     expect(firstOwner.isConnected).toBe(false);
     await clickTab("/tabs/otp");
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
@@ -1106,6 +1106,7 @@ function createMountedOtpTabService(
   });
   return createService([
     leaf("tabs/otp", OtpPageComponent, "otp"),
+    leaf("tabs/generator", GeneratorScrollRouteComponent, "generator"),
     leaf("tabs/send", SendScrollRouteComponent, "send"),
   ], true, false, ClickedTabsHostComponent, [
     { provide: PopupStateStore, useValue: store },
