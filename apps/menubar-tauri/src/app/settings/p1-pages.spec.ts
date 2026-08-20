@@ -44,8 +44,12 @@ try {
 
 describe("P1 settings pages", () => {
   afterEach(async () => {
-    document.querySelectorAll('style[data-test-owner="account-security-shadow"]')
+    document.querySelectorAll(
+      'style[data-test-owner="account-security-shadow"], style[data-test-owner="appearance-preferences"]',
+    )
       .forEach((node) => node.remove());
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.style.removeProperty("font-size");
     vi.useRealTimers();
     await new OfficialI18nService().setLocale("zh-CN");
   });
@@ -53,7 +57,6 @@ describe("P1 settings pages", () => {
   it.each([
     ["official-account-security.component.html", "account-security"],
     ["official-vault-settings.component.html", "vault-settings"],
-    ["official-appearance.component.html", "appearance"],
   ] as const)("marks %s as one continuous Settings detail surface", (file, id) => {
     const html = readFileSync(resolve(
       process.cwd(),
@@ -794,7 +797,7 @@ describe("P1 settings pages", () => {
   });
 
 
-  it("renders appearance inventory as a continuous Settings detail surface", async () => {
+  it("renders appearance as native preference rows with real Select and Switch controls", async () => {
     const service = new SettingsStateService();
     await TestBed.configureTestingModule({
       imports: [AppearancePageComponent],
@@ -810,6 +813,8 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    installAppearancePreferenceCss();
+
     expect(host.textContent).toContain("主题");
     expect(host.textContent).toContain("紧凑模式");
     expect(host.textContent).toContain("显示动画");
@@ -819,37 +824,90 @@ describe("P1 settings pages", () => {
     );
     expect(host.textContent).toContain("显示网站图标");
     expect(host.textContent).toContain("在密码库上显示快速复制操作");
-    expect(host.querySelector('[data-settings-detail="appearance"].settings-detail-group'))
-      .not.toBeNull();
-    expect(host.querySelectorAll(".settings-detail-row.macos-continuous-row").length)
-      .toBeGreaterThan(0);
+    expect(host.querySelectorAll(".macos-preference-group")).toHaveLength(3);
+    expect(host.querySelectorAll(".macos-preference-row")).toHaveLength(6);
     expect(host.querySelector("bit-card")).toBeNull();
     expect(host.textContent).not.toContain("点击自动填充建议中的项目以填充");
-    const quickCopyCheckbox = host.querySelector<HTMLInputElement>(
-      'input[aria-label="在密码库上显示快速复制操作"]',
+
+    const selectHosts = host.querySelectorAll<HTMLElement>(
+      "bit-select.macos-control-visible",
     );
-    expect(quickCopyCheckbox).not.toBeNull();
-    expect(quickCopyCheckbox?.disabled).toBe(false);
-    expect(quickCopyCheckbox?.checked).toBe(true);
-    const faviconCheckbox = host.querySelector<HTMLInputElement>(
-      'input[aria-label="显示网站图标"]',
+    expect(selectHosts).toHaveLength(2);
+    const nativeSelectControls = Array.from(selectHosts, (selectHost) =>
+      selectHost.querySelector<HTMLInputElement>('input[role="combobox"]'),
     );
-    expect(faviconCheckbox).not.toBeNull();
-    expect(faviconCheckbox?.disabled).toBe(false);
-    expect(faviconCheckbox?.checked).toBe(true);
+    expect(nativeSelectControls.every((control) => control !== null)).toBe(true);
+    const selectRowLayouts = Array.from(
+      host.querySelectorAll<HTMLElement>("bit-form-field.macos-preference-row"),
+      (row) => row.querySelector<HTMLElement>(":scope > div"),
+    );
+    expect(selectRowLayouts.every((layout) => layout !== null)).toBe(true);
+    expect(selectRowLayouts.map((layout) => getComputedStyle(layout!).display))
+      .toEqual(["grid", "grid"]);
+    expect(Array.from(selectHosts, (selectHost) => getComputedStyle(selectHost).height))
+      .toEqual(["40px", "40px"]);
+
+    const switches = Array.from(
+      host.querySelectorAll<HTMLButtonElement>('[role="switch"]'),
+    );
+    expect(switches.map((control) => control.dataset["setting"])).toEqual([
+      "compactMode",
+      "animations",
+      "showFavicons",
+      "showQuickCopyActions",
+    ]);
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    for (const owner of switches) {
+      expect(getComputedStyle(owner).minWidth).toBe("44px");
+      expect(getComputedStyle(owner).minHeight).toBe("44px");
+      const track = owner.querySelector<HTMLElement>("span");
+      expect(track).not.toBeNull();
+      expect(getComputedStyle(track!).width).toBe("34px");
+      expect(getComputedStyle(track!).height).toBe("20px");
+      expect(getComputedStyle(owner).outlineStyle).toBe("none");
+    }
+    switches[0]!.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(switches[0]!).outlineWidth).toBe("0px");
+    expect(getComputedStyle(switches[0]!.querySelector("span")!).outlineWidth).toBe("2px");
+    for (const row of host.querySelectorAll<HTMLElement>(".macos-preference-row")) {
+      const rowStyle = getComputedStyle(row);
+      expect(parseFloat(rowStyle.minHeight)).toBeGreaterThanOrEqual(44);
+      expect(rowStyle.borderRadius).toBe("0px");
+      expect(rowStyle.boxShadow).toBe("none");
+    }
+    document.documentElement.style.fontSize = "200%";
+    for (const copy of host.querySelectorAll<HTMLElement>(".macos-preference-row__copy")) {
+      expect(getComputedStyle(copy).whiteSpace).toBe("normal");
+      expect(getComputedStyle(copy).overflowWrap).toBe("anywhere");
+    }
+    document.documentElement.style.removeProperty("font-size");
+
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    expect(Array.from(selectHosts, (selectHost) => getComputedStyle(selectHost).height))
+      .toEqual(["36px", "36px"]);
+    for (const owner of switches) {
+      expect(getComputedStyle(owner).minHeight).toBe("44px");
+    }
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.dataset["testReducedMotion"] = "true";
+    installAppearancePreferenceCss({ reducedMotion: true });
+    expect(getComputedStyle(switches[0]!.querySelector("span")!).transitionDuration).toBe("0s");
+    document.documentElement.removeAttribute("data-test-reduced-motion");
 
     const overlay = fixture.debugElement.query(By.directive(OfficialAppearanceComponent))
       .componentInstance as OfficialAppearanceComponent;
     expect(overlay.themeOptions.map(({ value }) => value)).toEqual(["system", "light", "dark"]);
     overlay.setThemeValue("dark");
-    host
-      .querySelector<HTMLInputElement>('input[aria-label="紧凑模式"]')!
-      .click();
-    host
-      .querySelector<HTMLInputElement>('input[aria-label="显示动画"]')!
-      .click();
-    faviconCheckbox!.click();
-    quickCopyCheckbox!.click();
+    expect(switches.map((control) => control.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+      "true",
+      "true",
+    ]);
+    for (const control of switches) {
+      expect(control.disabled).toBe(false);
+      control.click();
+    }
     fixture.detectChanges();
 
     expect(service.snapshot()).toMatchObject({
@@ -988,3 +1046,37 @@ describe("P1 settings pages", () => {
   });
 
 });
+
+function installAppearancePreferenceCss(
+  media: { reducedMotion?: boolean } = {},
+): HTMLStyleElement {
+  const source = ["macos-tokens.css", "macos-motion.css", "global.css"]
+    .map((file) => readFileSync(resolve(
+      process.cwd(),
+      "apps/menubar-tauri/src/styles",
+      file,
+    ), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = Array.from(
+    source.matchAll(/^:root\s*{([\s\S]*?)^}/gm),
+    (match) => match[1] ?? "",
+  ).join("\n");
+  const tokens = new Map(
+    [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]),
+  );
+  const style = document.createElement("style");
+  style.dataset["testOwner"] = "appearance-preferences";
+  style.textContent = source
+    .replace(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*([^{}]+\{[^{}]*\})\s*\}/g,
+      (_match, rule: string) => media.reducedMotion
+        ? rule.replace(/^\s*/, ':root[data-test-reduced-motion="true"] ')
+        : "",
+    )
+    .replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) => tokens.get(name) ?? value)
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
+  document.head.append(style);
+  return style;
+}

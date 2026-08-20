@@ -452,7 +452,11 @@ function routeLinks(template: string): string[] {
 }
 
 function formControls(template: string): string[] {
-  return [...template.matchAll(/formControlName="([^"]+)"/g)].map(([, control]) => control);
+  return [...new Set(
+    [...template.matchAll(
+      /formControlName="([^"]+)"|appearanceForm\.controls\.([A-Za-z][A-Za-z0-9]*)/g,
+    )].map(([, namedControl, referencedControl]) => namedControl ?? referencedControl),
+  )];
 }
 
 function classMethods(source: string): string[] {

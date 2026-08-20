@@ -21,21 +21,16 @@
 +
 +import { PopupHeaderComponent } from "../../layout/popup-header.component";
 +import { PopupPageComponent } from "../../layout/popup-page.component";
-@@ -16,0 +8,2 @@
-+  BitFormFieldComponent,
-+  BitLabelComponent,
-@@ -18,5 +11,15 @@
+@@ -17,6 +8,12 @@
+-  CardComponent,
 -  CheckboxModule,
 -  FormFieldModule,
 -  SelectModule,
 -} from "@bitwarden/components";
 -import { PermitCipherDetailsPopoverComponent } from "@bitwarden/vault";
-+  CheckboxComponent,
-+  FormControlComponent,
-+  SectionComponent,
-+  SectionHeaderComponent,
++  BitFormFieldComponent,
++  BitLabelComponent,
 +  SelectComponent,
-+  TypographyDirective,
 +} from "../../official-ui/official-components";
 +import {
 +  isThemeMode,
@@ -45,7 +40,7 @@
 +import type { SettingsSnapshot } from "../../settings/settings.service";
 +import type { OfficialLocale } from "../../official-ui/official-i18n.service";
 +import { I18nPipe } from "../../official-ui/official-ui-common";
-@@ -24,8 +26,0 @@
+@@ -24,8 +20,0 @@
 -import { PopOutComponent } from "../../../platform/popup/components/pop-out.component";
 -import { PopupCompactModeService } from "../../../platform/popup/layout/popup-compact-mode.service";
 -import { PopupHeaderComponent } from "../../../platform/popup/layout/popup-header.component";
@@ -54,37 +49,31 @@
 -
 -// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
 -// eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
-@@ -33 +28,2 @@
+@@ -33 +22,2 @@
 -  templateUrl: "./appearance.component.html",
 +  selector: "bw-official-appearance",
 +  standalone: true,
-@@ -35,5 +31,2 @@
+@@ -35,3 +25,4 @@
 -    CommonModule,
 -    JslibModule,
 -    PopupPageComponent,
--    PopupHeaderComponent,
--    PopOutComponent,
 +    BitFormFieldComponent,
 +    BitLabelComponent,
-@@ -41,5 +34,10 @@
++    FormsModule,
++    I18nPipe,
+@@ -39,7 +30,2 @@
+-    PopOutComponent,
+-    CardComponent,
 -    FormFieldModule,
 -    SelectModule,
 -    ReactiveFormsModule,
 -    CheckboxModule,
 -    PermitCipherDetailsPopoverComponent,
-+    CheckboxComponent,
-+    FormControlComponent,
-+    FormsModule,
-+    I18nPipe,
-+    PopupHeaderComponent,
 +    PopupPageComponent,
-+    SectionComponent,
-+    SectionHeaderComponent,
 +    SelectComponent,
-+    TypographyDirective,
-@@ -46,0 +45 @@
+@@ -46,0 +33 @@
 +  templateUrl: "./official-appearance.component.html",
-@@ -48,3 +47,10 @@
+@@ -48,3 +35,10 @@
 -export class AppearanceComponent implements OnInit {
 -  private compactModeService = inject(PopupCompactModeService);
 -  private copyButtonsService = inject(VaultPopupCopyButtonsService);
@@ -98,7 +87,7 @@
 +  @Output() readonly animationsChange = new EventEmitter<boolean>();
 +  @Output() readonly showFaviconsChange = new EventEmitter<boolean>();
 +  @Output() readonly showQuickCopyActionsChange = new EventEmitter<boolean>();
-@@ -52,7 +58,5 @@
+@@ -52,7 +46,5 @@
 -  appearanceForm = this.formBuilder.nonNullable.group({
 -    enableFavicon: false,
 -    theme: ThemeTypes.System as Theme,
@@ -111,11 +100,11 @@
 +  private optionsLocale: string | null = null;
 +  private cachedThemeOptions: ReturnType<OfficialAppearanceComponent["buildThemeOptions"]> = [];
 +  private cachedLanguageOptions: ReturnType<OfficialAppearanceComponent["buildLanguageOptions"]> = [];
-@@ -60,2 +64 @@
+@@ -60,2 +52 @@
 -  formLoading = true;
 -  themeOptions: { name: string; value: Theme }[];
 +  constructor(private readonly i18n: I18nService) {}
-@@ -63,13 +66,3 @@
+@@ -63,13 +54,3 @@
 -  constructor(
 -    private domainSettingsService: DomainSettingsService,
 -    private themeStateService: ThemeStateService,
@@ -132,7 +121,7 @@
 +  get themeOptions() {
 +    this.refreshLocalizedOptions();
 +    return this.cachedThemeOptions;
-@@ -78,10 +71,4 @@
+@@ -78,10 +59,4 @@
 -  async ngOnInit() {
 -    const enableFavicon = await firstValueFrom(this.domainSettingsService.showFavicons$);
 -    const theme = await firstValueFrom(this.themeStateService.selectedTheme$);
@@ -147,7 +136,7 @@
 +    this.refreshLocalizedOptions();
 +    return this.cachedLanguageOptions;
 +  }
-@@ -89,8 +76,4 @@
+@@ -89,8 +64,4 @@
 -    this.appearanceForm.setValue({
 -      enableFavicon,
 -      theme,
@@ -160,7 +149,7 @@
 +    if (this.optionsLocale === this.i18n.translationLocale) {
 +      return;
 +    }
-@@ -98,15 +81,3 @@
+@@ -98,15 +69,3 @@
 -    this.appearanceForm.controls.theme.valueChanges
 -      .pipe(takeUntilDestroyed(this.destroyRef))
 -      .subscribe((newTheme) => void this.saveTheme(newTheme));
@@ -179,7 +168,7 @@
 +    this.optionsLocale = this.i18n.translationLocale;
 +    this.cachedThemeOptions = this.buildThemeOptions();
 +    this.cachedLanguageOptions = this.buildLanguageOptions();
-@@ -115,2 +86,7 @@
+@@ -115,2 +74,7 @@
 -  async updateFavicon(enableFavicon: boolean) {
 -    await this.domainSettingsService.setShowFavicons(enableFavicon);
 +  private buildThemeOptions() {
@@ -189,7 +178,7 @@
 +        value === "system" ? "i18nFollowSystem" : value === "light" ? "i18nThemeLight" : "i18nThemeDark",
 +      ),
 +    }));
-@@ -119,2 +95,6 @@
+@@ -119,2 +83,6 @@
 -  async saveTheme(newTheme: Theme) {
 -    await this.themeStateService.setSelectedTheme(newTheme);
 +  private buildLanguageOptions(): { value: "" | OfficialLocale; label: string }[] {
@@ -198,26 +187,24 @@
 +      { value: "zh-CN", label: this.i18n.t("i18nSimplifiedChinese") },
 +      { value: "en-US", label: this.i18n.t("i18nEnglish") },
 +    ];
-@@ -123,2 +103,4 @@
+@@ -123,2 +91,4 @@
 -  async updateAnimations(enableAnimations: boolean) {
 -    await this.animationControlService.setEnableRoutingAnimation(enableAnimations);
 +  setThemeValue(value: unknown): void {
 +    if (isThemeMode(value)) {
 +      this.themeChange.emit(value);
 +    }
-@@ -127,2 +109,4 @@
+@@ -127,2 +97,4 @@
 -  async updateCompactMode(enableCompactMode: boolean) {
 -    await this.compactModeService.setEnabled(enableCompactMode);
 +  setLanguageValue(value: unknown): void {
 +    if (value === "" || value === "zh-CN" || value === "en-US") {
 +      this.languageChange.emit(value || null);
 +    }
-@@ -131,2 +115,4 @@
+@@ -131,2 +103,2 @@
 -  async updateQuickCopyActions(showQuickCopyActions: boolean) {
 -    await this.copyButtonsService.setShowQuickCopyActions(showQuickCopyActions);
-+  emitChecked(event: Event, output: EventEmitter<boolean>): void {
-+    if (event.target instanceof HTMLInputElement) {
-+      output.emit(event.target.checked);
-+    }
-@@ -134 +119,0 @@
++  toggle(output: EventEmitter<boolean>, current: boolean): void {
++    output.emit(!current);
+@@ -134 +105,0 @@
 -

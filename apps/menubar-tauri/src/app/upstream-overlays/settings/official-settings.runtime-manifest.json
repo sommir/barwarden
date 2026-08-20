@@ -4,7 +4,7 @@
   "license": "GPL-3.0-only",
   "task1TransformManifest": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-settings.transform-manifest.json",
-    "sha256": "d8e32f0d704a6e28c3c28c274c0198c82ca561bf402e519a253bc5cea64c35fc"
+    "sha256": "cc75fd7380f69bf61a7dd184a23ba48b9dec0c3a5dc92f767235aeea34063403"
   },
   "runtimeTransformContract": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-settings-runtime-transforms.ts",
@@ -109,26 +109,26 @@
       },
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/runtime-patches/apps__browser__src__vault__popup__settings__appearance.component.ts.patch",
-        "sha256": "413a370893b715ba685fb5428e98ff407d72dba2dc35e9ac3d603b986a3c2e10"
+        "sha256": "335a90df7ddb384fa7107f18a5fc41078012f5c4394f1b993fa51c77cfd0a135"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-appearance.component.ts",
-        "sha256": "16f902179349e61d17df46f4e51da0c89cbf661a4c3871b260761db083ee1f9d"
+        "sha256": "2e7f0a3387ec256d9fc9b7cff7a563973f23e34206a4a282887b22ed7f7995ec"
       }
     },
     {
       "authority": {
         "path": "apps/browser/src/vault/popup/settings/appearance.component.html",
         "generatedPath": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/vault/popup/settings/appearance.component.html",
-        "sha256": "960a8d5c45f1ab67b406fd1ee399afe2c67597ec6fcc68665510d19408081964"
+        "sha256": "51410ee76d6cbb1cd0290472bd8cea1b9d734e37b4d398e8253beb895cbbf7de"
       },
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/runtime-patches/apps__browser__src__vault__popup__settings__appearance.component.html.patch",
-        "sha256": "46ef57e22a8354ef8828e474c91746f7b10667191cf1a6b87663696722d9b34e"
+        "sha256": "ebb2853058b97b51499b93bdd8df02b42030e2ca32000def4defe0fad2a5e847"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-appearance.component.html",
-        "sha256": "78bca4406ea109fd9c42f3446c52bd6cdcf099d1ac6cb571f5c8fd532aded364"
+        "sha256": "a25bb97801ff902cf6ee8ad0939b729815dec6992b665a13b003146af0b41f04"
       }
     },
     {

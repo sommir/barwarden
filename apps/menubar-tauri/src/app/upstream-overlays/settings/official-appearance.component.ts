@@ -7,13 +7,7 @@ import { PopupPageComponent } from "../../layout/popup-page.component";
 import {
   BitFormFieldComponent,
   BitLabelComponent,
-  CardComponent,
-  CheckboxComponent,
-  FormControlComponent,
-  SectionComponent,
-  SectionHeaderComponent,
   SelectComponent,
-  TypographyDirective,
 } from "../../official-ui/official-components";
 import {
   isThemeMode,
@@ -30,17 +24,11 @@ import { I18nPipe } from "../../official-ui/official-ui-common";
   imports: [
     BitFormFieldComponent,
     BitLabelComponent,
-    CardComponent,
-    CheckboxComponent,
-    FormControlComponent,
     FormsModule,
     I18nPipe,
     PopupHeaderComponent,
     PopupPageComponent,
-    SectionComponent,
-    SectionHeaderComponent,
     SelectComponent,
-    TypographyDirective,
   ],
   templateUrl: "./official-appearance.component.html",
 })
@@ -112,9 +100,7 @@ export class OfficialAppearanceComponent {
     }
   }
 
-  emitChecked(event: Event, output: EventEmitter<boolean>): void {
-    if (event.target instanceof HTMLInputElement) {
-      output.emit(event.target.checked);
-    }
+  toggle(output: EventEmitter<boolean>, current: boolean): void {
+    output.emit(!current);
   }
 }

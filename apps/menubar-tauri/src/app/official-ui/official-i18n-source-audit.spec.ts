@@ -54,7 +54,11 @@ describe("official UI internationalization source audit", () => {
 
     try {
       await i18n.setLocale("zh-CN");
-      for (const key of ["general", "security"] as const) {
+      const generalMessage = pinnedMessages["general"]?.message;
+      expect(typeof generalMessage).toBe("string");
+      expect(i18n.t("general")).toBe(generalMessage);
+
+      for (const key of ["security"] as const) {
         const pinnedMessage = pinnedMessages[key]?.message;
         expect(typeof pinnedMessage).toBe("string");
         expect(i18n.t(key)).toBe(pinnedMessage);

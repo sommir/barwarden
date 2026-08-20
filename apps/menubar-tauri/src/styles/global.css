@@ -391,6 +391,13 @@ button {
 .macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap); }
 .macos-preference-group > .settings-group__items > bit-item:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
 .macos-preference-row { display:grid; grid-template-columns:minmax(0,1fr) auto; min-height:var(--mac-row-single); align-items:center; gap:12px; padding-inline:12px; border:0; border-radius:0; background:var(--mac-surface-solid); box-shadow:none; }
+.macos-preference-group > .macos-preference-row:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
+bit-form-field.macos-preference-row { margin:0; }
+bit-form-field.macos-preference-row > div { display:grid; grid-template-columns:minmax(0,1fr) 160px; width:100%; min-width:0; align-items:center; gap:12px; }
+bit-form-field.macos-preference-row > div > :is(label, div) { min-width:0; }
+.macos-preference-row > bit-select.macos-control-visible { width:160px; }
+.macos-preference-row > bit-select.macos-control-visible > ng-select,
+.macos-preference-row > bit-select.macos-control-visible > ng-select > .ng-select-container { height:100%; min-height:100%; }
 .macos-preference-row__copy { min-width:0; padding-block:7px; white-space:normal; overflow-wrap:anywhere; }
 .macos-preference-row__copy > :first-child { font-size:14px; line-height:18px; font-weight:600; }
 .macos-preference-row__copy > :not(:first-child) { margin-top:2px; color:var(--mac-text-secondary); font-size:12px; line-height:16px; }
@@ -403,7 +410,10 @@ button {
 .macos-switch-owner:focus-visible { outline-width:0; outline-style:none; }
 .macos-switch-owner:focus-visible > span { outline-width:2px; outline-style:solid; outline-color:var(--mac-focus); outline-offset:2px; }
 :root[data-bw-compact-mode="true"] .macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap-compact); }
-@media (min-resolution:2dppx) { .macos-preference-group > .settings-group__items > bit-item:not(:last-child) { border-bottom-width:.5px; } }
+@media (min-resolution:2dppx) {
+  .macos-preference-group > .settings-group__items > bit-item:not(:last-child),
+  .macos-preference-group > .macos-preference-row:not(:last-child) { border-bottom-width:.5px; }
+}
 @media (prefers-reduced-motion:reduce) { .macos-switch-owner > span, .macos-switch-owner > span::after { transition-duration:0s; } }
 
 .sr-only {
