@@ -30,6 +30,34 @@ afterEach(() => {
 });
 
 describe("iOS 27 shared primitives", () => {
+  it("separates 44px owners from compact visible geometry", () => {
+    const style = installVisualCss(document);
+    style.dataset["ios27Test"] = "true";
+    document.body.innerHTML = `
+      <button class="macos-hit-target"><span class="macos-icon-plate">Copy</span></button>
+      <button class="macos-button-owner macos-primary-action">Save</button>
+      <label class="macos-field-owner"><input class="macos-control-visible" /></label>
+      <div class="macos-row macos-row--double">Row</div>
+    `;
+    const owner = getComputedStyle(document.querySelector<HTMLElement>(".macos-hit-target")!);
+    const plate = getComputedStyle(document.querySelector<HTMLElement>(".macos-icon-plate")!);
+    const fieldOwner = getComputedStyle(document.querySelector<HTMLElement>(".macos-field-owner")!);
+    const input = getComputedStyle(document.querySelector<HTMLInputElement>("input")!);
+    const row = getComputedStyle(document.querySelector<HTMLElement>(".macos-row")!);
+    const primary = getComputedStyle(document.querySelector<HTMLElement>(".macos-button-owner")!);
+    expect(owner.minWidth).toBe("44px");
+    expect(owner.minHeight).toBe("44px");
+    expect(plate.width).toBe("32px");
+    expect(plate.height).toBe("32px");
+    expect(fieldOwner.minHeight).toBe("44px");
+    expect(input.height).toBe("40px");
+    expect(row.minHeight).toBe("48px");
+    expect(primary.minHeight).toBe("44px");
+    expect(primary.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(style.textContent).toMatch(/\.macos-button-owner::before\s*{[^}]*inset-block:\s*2px/s);
+    expect(style.textContent).toMatch(/data-bw-compact-mode="true"[^}]*\.macos-button-owner::before\s*{[^}]*inset-block:\s*4px/s);
+  });
+
   it("keeps ordinary surfaces flat while menus and Sheet remain shaped overlays", () => {
     const frame = document.createElement("iframe");
     document.body.append(frame);

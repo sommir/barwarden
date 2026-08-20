@@ -367,6 +367,19 @@ button {
   cursor: pointer;
 }
 
+.macos-hit-target { min-width:var(--mac-hit-size); min-height:var(--mac-hit-size); }
+.macos-icon-plate { display:grid; width:var(--mac-icon-plate); height:var(--mac-icon-plate); place-items:center; border-radius:var(--mac-control-radius); }
+.macos-field-owner { display:flex; min-height:var(--mac-hit-size); align-items:center; }
+.macos-control-visible { width:100%; height:var(--mac-control-visible); min-height:var(--mac-control-visible); }
+.macos-button-owner { position:relative; isolation:isolate; min-height:var(--mac-hit-size); border:0; background:transparent; }
+.macos-button-owner::before { content:""; position:absolute; inset-block:2px; inset-inline:0; z-index:-1; border-radius:var(--mac-control-radius); background:var(--mac-accent); }
+.macos-row { min-height:var(--mac-row-single); }
+.macos-row--double { min-height:var(--mac-row-double); }
+:root[data-bw-compact-mode="true"] .macos-icon-plate { width:var(--mac-icon-plate-compact); height:var(--mac-icon-plate-compact); }
+:root[data-bw-compact-mode="true"] .macos-control-visible { height:var(--mac-control-visible-compact); min-height:var(--mac-control-visible-compact); }
+:root[data-bw-compact-mode="true"] .macos-button-owner::before { inset-block:4px; }
+:root[data-bw-compact-mode="true"] .macos-row--double { min-height:var(--mac-row-double-compact); }
+
 :where(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
   outline-width: var(--mac-focus-ring-width);
   outline-style: solid;
@@ -2322,6 +2335,11 @@ bw-keyboard-shortcut-page .macos-form-field__suffix {
 
 .macos-primary-action:hover:not(:disabled) {
   background: var(--bw-primary-hover) !important;
+}
+
+.macos-button-owner.macos-primary-action,
+.macos-button-owner.macos-primary-action:hover:not(:disabled) {
+  background: transparent !important;
 }
 
 .macos-auth-card .macos-primary-action {
