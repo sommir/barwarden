@@ -90,6 +90,15 @@ const hostileGeneratorDefaultsCss = `
     transition: background-color 1s linear;
     transform: scale(1.1);
   }
+  .macos-generator__mode bit-toggle,
+  .macos-generator__mode bit-toggle > :is(input[type="radio"], label),
+  .macos-generator__mode bit-toggle > label > span:first-child {
+    max-height: 40px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: 1;
+  }
   .macos-generator__result-actions button:focus:not(:focus-visible),
   .macos-generator__result-actions button:focus:not(:focus-visible) .bwi,
   .macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible) + label,
@@ -348,8 +357,8 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(regenerate.getAttribute("buttontype")).toBe("primaryGhost");
     expect.soft(official.querySelectorAll('button[buttontype="primary"]')).toHaveLength(1);
     expect.soft(getComputedStyle(modeGroup).minHeight).toBe("44px");
-    expect.soft(Array.from(modeToggles, (toggle) => getComputedStyle(toggle).height))
-      .toEqual(Array.from(modeToggles, () => "44px"));
+    expect.soft(Array.from(modeToggles, computedHitHeight))
+      .toEqual(Array.from(modeToggles, () => 44));
     expect(modeRadios).toHaveLength(3);
     expect(modeLabels).toHaveLength(3);
     expect(Array.from(modeRadios, (radio, index) => modeLabels[index]?.htmlFor === radio.id))
@@ -430,6 +439,23 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(getComputedStyle(regenerate).backgroundColor).toBe(transparent);
     setGeneratorInteraction(regenerate, null);
 
+    regenerate.setAttribute("aria-disabled", "true");
+    const regenerateAriaDisabled = forcedColorSignature(regenerateGlyph);
+    setGeneratorInteraction(regenerate, "hover");
+    expect.soft(forcedColorSignature(regenerateGlyph)).toEqual(regenerateAriaDisabled);
+    setGeneratorInteraction(regenerate, "active");
+    expect.soft(forcedColorSignature(regenerateGlyph)).toEqual(regenerateAriaDisabled);
+    expect.soft(getComputedStyle(regenerate).backgroundColor).toBe(transparent);
+    setGeneratorInteraction(regenerate, null);
+    regenerate.removeAttribute("aria-disabled");
+    regenerate.disabled = true;
+    expect.soft(forcedColorSignature(regenerateGlyph)).toEqual(regenerateAriaDisabled);
+    setGeneratorInteraction(regenerate, "hover active");
+    expect.soft(forcedColorSignature(regenerateGlyph)).toEqual(regenerateAriaDisabled);
+    expect.soft(getComputedStyle(regenerate).backgroundColor).toBe(transparent);
+    setGeneratorInteraction(regenerate, null);
+    regenerate.disabled = false;
+
     copy.focus();
     expect.soft(document.activeElement).toBe(copy);
     copy.blur();
@@ -462,6 +488,63 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(Array.from(modeRadios, (radio) => radio.checked)).toEqual([false, true, false]);
     expect.soft(modeRadios[1]!.type).toBe("radio");
 
+    const modeDefault = getComputedStyle(modePaintLayers[2]!).backgroundColor;
+    setGeneratorInteraction(modeLabels[2]!, "active");
+    expect.soft(getComputedStyle(modePaintLayers[2]!).backgroundColor).not.toBe(modeDefault);
+    setGeneratorInteraction(modeLabels[2]!, null);
+
+    const longModeLabels = [
+      "Extremely long localized password mode label",
+      "Extremely long localized passphrase mode label",
+      "Extremely long localized username mode label",
+    ];
+    modePaintLayers.forEach((layer, index) => {
+      layer.textContent = longModeLabels[index]!;
+    });
+    document.documentElement.style.fontSize = "200%";
+    expect.soft(Array.from(modeToggles, (toggle) => ({
+      height: getComputedStyle(toggle).height,
+      minHeight: getComputedStyle(toggle).minHeight,
+      maxHeight: getComputedStyle(toggle).maxHeight,
+      overflow: getComputedStyle(toggle).overflow,
+    }))).toEqual(Array.from(modeToggles, () => ({
+      height: "auto",
+      minHeight: "44px",
+      maxHeight: "none",
+      overflow: "visible",
+    })));
+    expect.soft(Array.from(modeLabels, (label) => ({
+      height: getComputedStyle(label).height,
+      minHeight: getComputedStyle(label).minHeight,
+      maxHeight: getComputedStyle(label).maxHeight,
+      overflow: getComputedStyle(label).overflow,
+      whiteSpace: getComputedStyle(label).whiteSpace,
+    }))).toEqual(Array.from(modeLabels, () => ({
+      height: "auto",
+      minHeight: "44px",
+      maxHeight: "none",
+      overflow: "visible",
+      whiteSpace: "normal",
+    })));
+    expect.soft(Array.from(modePaintLayers, (layer) => ({
+      height: getComputedStyle(layer).height,
+      minHeight: getComputedStyle(layer).minHeight,
+      maxHeight: getComputedStyle(layer).maxHeight,
+      overflow: getComputedStyle(layer).overflow,
+      whiteSpace: getComputedStyle(layer).whiteSpace,
+      textOverflow: getComputedStyle(layer).textOverflow,
+      lineClamp: getComputedStyle(layer).getPropertyValue("-webkit-line-clamp"),
+    }))).toEqual(Array.from(modePaintLayers, () => ({
+      height: "auto",
+      minHeight: "40px",
+      maxHeight: "none",
+      overflow: "visible",
+      whiteSpace: "normal",
+      textOverflow: "clip",
+      lineClamp: "none",
+    })));
+    document.documentElement.style.removeProperty("font-size");
+
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect.soft(getComputedStyle(copy).minWidth).toBe("44px");
     expect.soft(getComputedStyle(regenerate).minWidth).toBe("44px");
@@ -470,8 +553,8 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(getComputedStyle(regenerateGlyph).width).toBe("28px");
     expect.soft(getComputedStyle(regenerateGlyph).height).toBe("28px");
     expect.soft(getComputedStyle(modeGroup).minHeight).toBe("44px");
-    expect.soft(Array.from(modeToggles, (toggle) => getComputedStyle(toggle).height))
-      .toEqual(Array.from(modeToggles, () => "44px"));
+    expect.soft(Array.from(modeToggles, computedHitHeight))
+      .toEqual(Array.from(modeToggles, () => 44));
     expect.soft(Array.from(modeRadios, computedHitHeight))
       .toEqual(Array.from(modeRadios, () => 44));
     expect.soft(Array.from(modeLabels, computedHitHeight))
@@ -498,6 +581,16 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(forcedCopy.borderWidth).toBe("1px");
     expect.soft(forcedRegenerate.borderWidth).toBe("1px");
     expect.soft(forcedCopy).not.toEqual(forcedRegenerate);
+    regenerate.setAttribute("aria-disabled", "true");
+    const forcedRegenerateDisabled = forcedColorSignature(regenerateGlyph);
+    expect.soft(forcedRegenerateDisabled).not.toEqual(forcedRegenerate);
+    setGeneratorInteraction(regenerate, "hover active");
+    expect.soft(forcedColorSignature(regenerateGlyph)).toEqual(forcedRegenerateDisabled);
+    setGeneratorInteraction(regenerate, null);
+    regenerate.removeAttribute("aria-disabled");
+    regenerate.disabled = true;
+    expect.soft(forcedColorSignature(regenerateGlyph)).toEqual(forcedRegenerateDisabled);
+    regenerate.disabled = false;
     copy.setAttribute("aria-disabled", "true");
     const forcedAriaDisabled = forcedColorSignature(copyGlyph);
     expect.soft(copy.disabled).toBe(false);
@@ -941,7 +1034,6 @@ describe("iOS 27 Generator visual contract", () => {
     TestBed.resetTestingModule();
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
-    TestBed.overrideComponent(PopupPageComponent, { set: { template: "<ng-content />" } });
     await TestBed.configureTestingModule({
       imports: [GeneratorHistoryPageComponent],
       providers: [
@@ -967,12 +1059,20 @@ describe("iOS 27 Generator visual contract", () => {
     const content = host.querySelector<HTMLElement>(
       '[data-testid="generator-history-content"]',
     );
+    const scrollRegion = host.querySelector<HTMLElement>(
+      '[data-testid="popup-layout-scroll-region"]',
+    );
     const row = host.querySelector<HTMLElement>("[role=listitem].macos-generator-history__row");
     const clear = host.querySelector<HTMLButtonElement>(
       '[data-testid="generator-history-clear"]',
     );
 
     expect(content).not.toBeNull();
+    expect(scrollRegion).not.toBeNull();
+    expect(content!.parentElement).toBe(scrollRegion);
+    expect(getComputedStyle(scrollRegion!).paddingInline).toBe("16px");
+    expect.soft(getComputedStyle(content!).marginLeft).toBe("0px");
+    expect.soft(getComputedStyle(content!).marginRight).toBe("0px");
     expect(row).not.toBeNull();
     expect(clear).not.toBeNull();
     expect(content!.hasAttribute("aria-live")).toBe(false);
@@ -988,9 +1088,9 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(row!).height).toBe("auto");
     expect(getComputedStyle(row!).minHeight).toBe("48px");
     expect(getComputedStyle(row!).overflow).toBe("visible");
-    expect(getComputedStyle(row!).paddingTop).toBe("4px");
+    expect.soft(getComputedStyle(row!).paddingTop).toBe("2px");
     expect(getComputedStyle(row!).paddingRight).toBe("0px");
-    expect(getComputedStyle(row!).paddingBottom).toBe("4px");
+    expect.soft(getComputedStyle(row!).paddingBottom).toBe("2px");
     expect(getComputedStyle(row!).paddingLeft).toBe("12px");
     expect(getComputedStyle(row!).borderBottomWidth).toBe("1px");
     expect(getComputedStyle(row!).borderRadius).toBe("0px");
@@ -1003,6 +1103,7 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(copy).minHeight).toBe("44px");
     expect(getComputedStyle(copyGlyph).width).toBe("32px");
     expect(getComputedStyle(copyGlyph).height).toBe("32px");
+    expect.soft(modeledGridRowHeight(row!)).toBe(48);
     expect(computedHitWidth(clear!)).toBeGreaterThanOrEqual(44);
     expect(computedHitHeight(clear!)).toBeGreaterThanOrEqual(44);
 
@@ -1061,6 +1162,9 @@ describe("iOS 27 Generator visual contract", () => {
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row!).minHeight).toBe("44px");
+    expect.soft(getComputedStyle(row!).paddingTop).toBe("0px");
+    expect.soft(getComputedStyle(row!).paddingBottom).toBe("0px");
+    expect.soft(modeledGridRowHeight(row!)).toBe(44);
     expect(getComputedStyle(copyGlyph).width).toBe("28px");
     expect(getComputedStyle(copyGlyph).height).toBe("28px");
     expect([clear, cancel, danger].map((action) => computedHitWidth(action!)))
@@ -1277,6 +1381,15 @@ function computedHitWidth(target: Element): number {
     ...Array.from(target.children, computedHitWidth),
   );
   return Math.max(explicit, contentBox, descendantWidth);
+}
+
+function modeledGridRowHeight(row: HTMLElement): number {
+  const rowStyle = getComputedStyle(row);
+  const contentHeight = Math.max(0, ...Array.from(row.children, computedHitHeight));
+  return Math.max(
+    cssPixels(rowStyle.minHeight),
+    cssPixels(rowStyle.paddingTop) + contentHeight + cssPixels(rowStyle.paddingBottom),
+  );
 }
 
 function cssPixels(value: string): number {
