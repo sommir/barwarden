@@ -139,7 +139,6 @@ afterAll(() => {
   style.remove();
   document.documentElement.removeAttribute("data-bw-compact-mode");
   document.documentElement.removeAttribute("data-generator-test-media");
-  document.documentElement.removeAttribute("data-generator-test-layout");
   document.documentElement.style.removeProperty("font-size");
   document.body.replaceChildren();
 });
@@ -591,6 +590,11 @@ describe("iOS 27 Generator visual contract", () => {
     const dualFields = Array.from(
       dualFieldRow.querySelectorAll<HTMLElement>(":scope > bit-form-field"),
     );
+    document.documentElement.style.fontSize = "100%";
+    const rootFontSizeAt100 = effectiveRootFontSize(16);
+    expect.soft(document.documentElement.style.fontSize).toBe("100%");
+    expect.soft(rootFontSizeAt100).toBe(16);
+    dualFieldRow.style.width = "480px";
     expect.soft(dualFields.map((field) =>
       field.querySelector<HTMLInputElement>('input[type="number"]')?.getAttribute("formcontrolname")
     )).toEqual(["minNumber", "minSpecial"]);
@@ -608,13 +612,15 @@ describe("iOS 27 Generator visual contract", () => {
       width: getComputedStyle(field).width,
       marginRight: getComputedStyle(field).marginRight,
     }))).toEqual(Array.from({ length: 2 }, () => ({
-      flexBasis: "0px",
+      flexBasis: "13rem",
       flexGrow: "1",
       flexShrink: "1",
       minWidth: "0px",
       width: "auto",
       marginRight: "0px",
     })));
+    expect.soft(modeledWrappedFlexLayout(dualFieldRow, dualFields, rootFontSizeAt100))
+      .toEqual({ rowCount: 1, itemWidths: [234, 234] });
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect.soft(dualFields.map((field) => ({
@@ -623,11 +629,13 @@ describe("iOS 27 Generator visual contract", () => {
       width: getComputedStyle(field).width,
       marginRight: getComputedStyle(field).marginRight,
     }))).toEqual(Array.from({ length: 2 }, () => ({
-      flexBasis: "0px",
+      flexBasis: "13rem",
       flexGrow: "1",
       width: "auto",
       marginRight: "0px",
     })));
+    expect.soft(modeledWrappedFlexLayout(dualFieldRow, dualFields, rootFontSizeAt100))
+      .toEqual({ rowCount: 1, itemWidths: [234, 234] });
     document.documentElement.removeAttribute("data-bw-compact-mode");
     characterLabels[3]!.click();
     fixture.changeDetectorRef.detectChanges();
@@ -662,7 +670,16 @@ describe("iOS 27 Generator visual contract", () => {
     characterRow.setAttribute("data-generator-test-text-scale", "row");
     dualFieldRow.setAttribute("data-generator-test-text-scale", "row");
     document.documentElement.style.fontSize = "200%";
-    document.documentElement.setAttribute("data-generator-test-layout", "narrow");
+    expect.soft(modeledWrappedFlexLayout(dualFieldRow, dualFields, rootFontSizeAt100))
+      .toEqual({ rowCount: 2, itemWidths: [480, 480] });
+    document.documentElement.style.removeProperty("font-size");
+    expect.soft(modeledWrappedFlexLayout(dualFieldRow, dualFields, rootFontSizeAt100))
+      .toEqual({ rowCount: 1, itemWidths: [234, 234] });
+    dualFieldRow.style.width = "360px";
+    expect.soft(modeledWrappedFlexLayout(dualFieldRow, dualFields, rootFontSizeAt100))
+      .toEqual({ rowCount: 2, itemWidths: [360, 360] });
+    dualFieldRow.style.width = "480px";
+    document.documentElement.style.fontSize = "200%";
     expect.soft(getComputedStyle(settings).overflow).toBe("visible");
     expect.soft(Array.from(passwordPaintedControls, (control) => ({
       height: getComputedStyle(control).height,
@@ -718,11 +735,11 @@ describe("iOS 27 Generator visual contract", () => {
       width: getComputedStyle(field).width,
       marginRight: getComputedStyle(field).marginRight,
     }))).toEqual(Array.from({ length: 2 }, () => ({
-      flexBasis: "100%",
+      flexBasis: "13rem",
       flexGrow: "1",
       flexShrink: "1",
       minWidth: "0px",
-      width: "100%",
+      width: "auto",
       marginRight: "0px",
     })));
     expect.soft(characterLabels.map((label) => getComputedStyle(label).whiteSpace))
@@ -894,7 +911,6 @@ describe("iOS 27 Generator visual contract", () => {
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
     document.documentElement.removeAttribute("data-generator-test-media");
-    document.documentElement.removeAttribute("data-generator-test-layout");
     document.documentElement.style.removeProperty("font-size");
   });
 
@@ -1169,6 +1185,42 @@ function cssPixels(value: string): number {
   return value.endsWith("px") ? Number.parseFloat(value) : 0;
 }
 
+function modeledWrappedFlexLayout(
+  row: HTMLElement,
+  fields: HTMLElement[],
+  rootFontSizeAt100: number,
+) {
+  const rowStyle = getComputedStyle(row);
+  const rootFontSize = effectiveRootFontSize(rootFontSizeAt100);
+  const containerWidth = cssLengthPixels(rowStyle.width, rootFontSize);
+  const gap = cssLengthPixels(rowStyle.columnGap, rootFontSize);
+  const bases = fields.map((field) =>
+    cssLengthPixels(getComputedStyle(field).flexBasis, rootFontSize)
+  );
+  const fitsOneRow = bases.reduce((sum, basis) => sum + basis, 0)
+    + gap * (fields.length - 1) <= containerWidth;
+  return fitsOneRow
+    ? {
+        rowCount: 1,
+        itemWidths: fields.map(() => (containerWidth - gap * (fields.length - 1)) / fields.length),
+      }
+    : { rowCount: fields.length, itemWidths: fields.map(() => containerWidth) };
+}
+
+function effectiveRootFontSize(rootFontSizeAt100: number): number {
+  const value = getComputedStyle(document.documentElement).fontSize;
+  if (value.endsWith("%")) {
+    return rootFontSizeAt100 * Number.parseFloat(value) / 100;
+  }
+  return cssLengthPixels(value, rootFontSizeAt100) || rootFontSizeAt100;
+}
+
+function cssLengthPixels(value: string, rootFontSize: number): number {
+  if (value.endsWith("rem")) return Number.parseFloat(value) * rootFontSize;
+  if (value.endsWith("px")) return Number.parseFloat(value);
+  return 0;
+}
+
 function forcedColorSignature(target: HTMLElement) {
   const computed = getComputedStyle(target);
   return {
@@ -1207,19 +1259,14 @@ function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string 
       ? "reduced-motion"
       : mediaRule.conditionText.includes("forced-colors")
         ? "forced-colors"
-        : mediaRule.conditionText.includes("max-width")
-          ? "narrow"
         : null;
     if (!media) continue;
     for (const nestedRule of Array.from(mediaRule.cssRules)) {
       if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
       const styleRule = nestedRule as CSSStyleRule;
       if (!styleRule.selectorText.includes(".macos-generator")) continue;
-      const stateAttribute = media === "narrow"
-        ? "data-generator-test-layout"
-        : "data-generator-test-media";
       projected.push(
-        `:root[${stateAttribute}="${media}"] :is(${projectGeneratorInteractionSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
+        `:root[data-generator-test-media="${media}"] :is(${projectGeneratorInteractionSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
       );
     }
   }
