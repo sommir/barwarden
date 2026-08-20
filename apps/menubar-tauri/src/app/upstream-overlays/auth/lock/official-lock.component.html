@@ -1,4 +1,6 @@
 <popup-page>
+  <popup-header slot="header" [pageTitle]="''" />
+
   <section class="tw-flex tw-flex-col tw-gap-4 macos-auth-page">
     <h1 class="macos-auth-heading">Barwarden</h1>
     @if (account$ | async; as account) {

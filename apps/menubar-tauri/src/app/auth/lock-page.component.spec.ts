@@ -164,6 +164,17 @@ describe("LockPageComponent", () => {
     expect(host.querySelector('input[type="email"]')).toBeNull();
   });
 
+  it("renders the base lock route inside the production popup header shell", async () => {
+    const { fixture } = await create();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelectorAll("popup-page")).toHaveLength(1);
+    expect(host.querySelectorAll("popup-header > header")).toHaveLength(1);
+    expect(host.querySelector(
+      'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
+    )).toBeNull();
+  });
+
   it("uses the macOS auth canvas, card, and wrapping account identity hooks", async () => {
     const { fixture } = await create();
     const host = fixture.nativeElement as HTMLElement;

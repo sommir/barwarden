@@ -197,6 +197,9 @@ describe("auth challenge pages", () => {
       .querySelector<HTMLButtonElement>("[data-testid='two-factor-other-method']");
     expect(otherMethod?.textContent).toContain("选择其他方式");
     expect((fixture.nativeElement as HTMLElement).querySelector("popup-page > popup-header")).not.toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector(
+      'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
+    )).not.toBeNull();
     expect((fixture.nativeElement as HTMLElement).querySelector(".auth-provider-list span")).toBeNull();
     expect((fixture.nativeElement as HTMLElement).querySelector("popup-page > main")).not.toBeNull();
     otherMethod!.click();
@@ -1282,8 +1285,11 @@ describe("auth challenge pages", () => {
     const navigateByUrl = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('[data-testid="two-factor-back"]')?.tagName).toBe("BUTTON");
-    host.querySelector<HTMLButtonElement>('[data-testid="two-factor-back"]')!.click();
+    const headerBack = host.querySelector<HTMLButtonElement>(
+      'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
+    );
+    expect(headerBack).not.toBeNull();
+    headerBack!.click();
     await fixture.whenStable();
 
     expect(cancelAuthChallenge).toHaveBeenCalledTimes(1);
@@ -1548,7 +1554,11 @@ describe("auth challenge pages", () => {
     expect(text).toContain("继续登录");
     expect(text).toContain("重新发送代码");
     expect((fixture.nativeElement as HTMLElement).querySelector("input")?.hasAttribute("disabled")).toBe(false);
-    expect((fixture.nativeElement as HTMLElement).querySelector("bw-official-new-device-verification form")).not.toBeNull();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector("bw-official-new-device-verification form")).not.toBeNull();
+    expect(host.querySelector(
+      'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
+    )).not.toBeNull();
   });
 
   it("submits a new-device OTP through AuthFacade", async () => {
@@ -1978,8 +1988,11 @@ describe("auth challenge pages", () => {
     const navigateByUrl = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('[data-testid="new-device-back"]')?.tagName).toBe("BUTTON");
-    host.querySelector<HTMLButtonElement>('[data-testid="new-device-back"]')!.click();
+    const headerBack = host.querySelector<HTMLButtonElement>(
+      'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
+    );
+    expect(headerBack).not.toBeNull();
+    headerBack!.click();
     await fixture.whenStable();
 
     expect(cancelAuthChallenge).toHaveBeenCalledTimes(1);

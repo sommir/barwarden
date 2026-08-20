@@ -6285,6 +6285,10 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
 
 .macos-page--settings-detail [aria-busy="true"] { cursor: progress; }
 
+.macos-page--settings-detail [data-settings-detail="account-security"] bit-item-group {
+  box-shadow: none;
+}
+
 .icon-action {
   width: 44px;
   min-width: 44px;

@@ -11,7 +11,7 @@ const root = process.cwd();
 const vendorRoot = join(root, "vendor/bitwarden-clients");
 const overlayRoot = join(root, "apps/menubar-tauri/src/app/upstream-overlays/auth/lock");
 const manifestPath = join(overlayRoot, "official-master-password-lock.transform-manifest.json");
-const manifestDigest = "237aafaa0947e0f843535f176ffd89934b3a937b4f2e6dbe0ba6c1f610b65c82";
+const manifestDigest = "e3e46ff2084ff53be653731afe522510c530df22b0493a4952f1b25bc98f45a5";
 const expectedRevision = [
   "https://github.com/bitwarden/clients.git",
   "f47b6946e01aed474875789081966d311d5b8289",
@@ -417,6 +417,8 @@ function transformPinTemplate(authority: string): string {
 function transformLockTemplate(authority: string): string {
   const biometricBranch = indent(transformBiometricBranch(authority), 10);
   return localizeLockTemplate(`<popup-page>
+  <popup-header slot="header" [pageTitle]="''" />
+
   <section class="tw-flex tw-flex-col tw-gap-4 macos-auth-page">
     <h1 class="macos-auth-heading">Barwarden</h1>
     @if (account$ | async; as account) {
@@ -535,7 +537,7 @@ describe("official master-password lock overlay", () => {
     expect(manifest.templateTransforms).toHaveLength(3);
     expect(manifest.templateTransforms.flatMap((transform) => transform.removed)).toEqual([
       "spinner-only loading shell",
-      "PRF/WebAuthn command", "shared/device-trust continuation branches", "browser pop-out and desktop actions", "popup-header toolbar band",
+      "PRF/WebAuthn command", "shared/device-trust continuation branches", "browser pop-out and desktop actions",
       "PRF/WebAuthn child", "native window-hidden listener",
       "PRF/WebAuthn child",
     ]);

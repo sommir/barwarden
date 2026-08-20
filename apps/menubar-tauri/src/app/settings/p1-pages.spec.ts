@@ -44,6 +44,8 @@ try {
 
 describe("P1 settings pages", () => {
   afterEach(async () => {
+    document.querySelectorAll('style[data-test-owner="account-security-shadow"]')
+      .forEach((node) => node.remove());
     vi.useRealTimers();
     await new OfficialI18nService().setLocale("zh-CN");
   });
@@ -276,6 +278,22 @@ describe("P1 settings pages", () => {
     expect(host.querySelectorAll(".settings-detail-row.macos-continuous-row").length)
       .toBeGreaterThan(0);
     expect(host.querySelector("bit-card")).toBeNull();
+    const style = document.createElement("style");
+    style.dataset["testOwner"] = "account-security-shadow";
+    style.textContent = ["macos-tokens.css", "global.css"]
+      .map((file) => readFileSync(resolve(
+        process.cwd(),
+        "apps/menubar-tauri/src/styles",
+        file,
+      ), "utf8"))
+      .join("\n")
+      .replace(/^@import[^;]+;\s*/gm, "");
+    document.head.append(style);
+    const actionGroup = host.querySelector<HTMLElement>(
+      '[data-settings-detail="account-security"] bit-item-group',
+    );
+    expect(actionGroup).not.toBeNull();
+    expect(getComputedStyle(actionGroup!).boxShadow).toBe("none");
     expect(
       host.querySelector('bit-select[aria-label="密码库超时"]'),
     ).not.toBeNull();

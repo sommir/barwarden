@@ -78,6 +78,23 @@ describe("PasswordHintPageComponent", () => {
     expect(official.formGroup.controls.email.value).toBe("route-only@example.com");
   });
 
+  it("renders the secondary hint route with the shared popup back control", async () => {
+    const { fixture, auth, router } = await createPage();
+    const host = fixture.nativeElement as HTMLElement;
+    const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+
+    expect(host.querySelectorAll("popup-page")).toHaveLength(1);
+    const headerBack = host.querySelector<HTMLButtonElement>(
+      'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
+    );
+    expect(headerBack).not.toBeNull();
+    headerBack!.click();
+    await fixture.whenStable();
+
+    expect(auth.cancel).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/login");
+  });
+
   it.each([
     ["https://vault.bitwarden.com", "https://vault.bitwarden.com"],
     ["https://vault.bitwarden.eu", "https://vault.bitwarden.eu"],

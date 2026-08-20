@@ -56,6 +56,10 @@ describe("official authentication environment overlays", () => {
     const anonymousExpected = anonymousAuthority
       .replace('      <app-current-account *ngIf="showAcctSwitcher && hasLoggedInAccount"></app-current-account>\n', "")
       .replace(
+        '    [showBackButton]="showBackButton"\n',
+        '    [showBackButton]="showBackButton"\n    [backAction]="backAction"\n',
+      )
+      .replace(
         '    <div class="tw-w-32">\n      <bit-svg *ngIf="showLogo" [content]="logo" [ariaLabel]="\'appLogoLabel\' | i18n"></bit-svg>\n    </div>',
         '    <div class="macos-auth-product">\n      <strong>Barwarden</strong>\n    </div>',
       )
