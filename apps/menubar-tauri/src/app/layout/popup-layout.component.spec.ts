@@ -31,6 +31,7 @@ try {
 @Component({
   standalone: true,
   imports: [PopupPageComponent, PopupHeaderComponent, PopupFooterComponent, NoItemsComponent],
+  host: { class: "popup-shell" },
   template: `
     <popup-page>
       <popup-header slot="header" pageTitle="密码库" showBackButton [backAction]="backAction" />
@@ -129,6 +130,28 @@ describe("official popup layout primitives", () => {
     expect(defaultContent?.parentElement).not.toBe(endContent?.parentElement);
   });
 
+  it("gives header one 52px slot and keeps the scroll owner above navigation", async () => {
+    installAccessibilityCss();
+    await TestBed.configureTestingModule({
+      imports: [HostComponent],
+      providers: [
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const header = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header")!);
+    const scroller = getComputedStyle(
+      host.querySelector<HTMLElement>('[data-testid="popup-layout-scroll-region"]')!,
+    );
+    expect(header.height).toBe("52px");
+    expect(scroller.paddingInlineStart).toBe("16px");
+    expect(scroller.paddingInlineEnd).toBe("16px");
+    expect(scroller.paddingBottom).toBe("64px");
+  });
+
   it("sizes route pages from the shell instead of creating another 600px owner", () => {
     const css = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
 
@@ -155,8 +178,12 @@ describe("official popup layout primitives", () => {
     expect(css).toMatch(
       /popup-page\s*\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*flex:\s*1 1 auto;[^}]*overflow-x:\s*hidden;[^}]*overscroll-behavior:\s*contain;/s,
     );
+    expect(css).toMatch(/popup-page\s*{[^}]*--mac-page-bottom-safe:\s*16px;/s);
     expect(css).toMatch(
-      /\.popup-shell\s+popup-page\s+\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-bottom:\s*calc\(\s*var\(--mac-floating-navigation-height\)\s*\+\s*var\(--mac-floating-navigation-bottom-offset\)\s*\+\s*var\(--mac-floating-navigation-safe-gap\)\s*\)\s*!important;/s,
+      /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*calc\(var\(--mac-tabbar-height\)\s*\+\s*12px\);/s,
+    );
+    expect(css).toMatch(
+      /popup-page\s+\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-inline:\s*var\(--mac-page-inset\);[^}]*padding-bottom:\s*var\(--mac-page-bottom-safe\);/s,
     );
     expect(css).toMatch(
       /\[data-testid="popup-layout-scroll-region"\][\s\S]*?::-webkit-scrollbar\s*{[^}]*width:\s*2px;[^}]*height:\s*2px;/s,
@@ -181,6 +208,14 @@ function installAccessibilityCss(): HTMLStyleElement {
   style.dataset["ios27Accessibility"] = "true";
   style.textContent = source
     .replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) => tokens.get(name) ?? value)
+    // JSDOM does not resolve logical padding shorthands or inherited custom
+    // properties in computed styles. Keep the mounted shell assertion tied to
+    // the production values while normalizing those two engine gaps.
+    .replace(
+      "padding-inline: 16px;",
+      "padding-inline-start: 16px; padding-inline-end: 16px;",
+    )
+    .replace("padding-bottom: var(--mac-page-bottom-safe);", "padding-bottom: 64px;")
     .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
   return style;

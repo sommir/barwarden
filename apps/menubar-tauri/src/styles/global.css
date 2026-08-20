@@ -8,9 +8,6 @@
   --bw-sheet-motion: var(--mac-sheet-motion);
   --mac-form-control-height: 40px;
   --mac-form-control-radius: 10px;
-  --mac-floating-navigation-height: 58px;
-  --mac-floating-navigation-bottom-offset: 13px;
-  --mac-floating-navigation-safe-gap: var(--mac-space-3);
   color: var(--bw-text-main);
   background: transparent;
   font-synthesis: none;
@@ -52,26 +49,20 @@ popup-page > main {
   flex: 1 1 auto;
 }
 
+popup-page {
+  --mac-page-bottom-safe: 16px;
+}
+
+.popup-shell popup-page {
+  --mac-page-bottom-safe: calc(var(--mac-tabbar-height) + 12px);
+}
+
 popup-page [data-testid="popup-layout-scroll-region"] {
   flex: 1 1 auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-}
-
-/* Navigation intentionally floats over the continuous canvas.  The scroll
- * owner still needs a transparent terminal inset, otherwise its final vault
- * disclosure is physically reachable only behind the navigation. */
-.popup-shell popup-page [data-testid="popup-layout-scroll-region"] {
-  padding-bottom: calc(
-    var(--mac-floating-navigation-height) +
-    var(--mac-floating-navigation-bottom-offset) +
-    var(--mac-floating-navigation-safe-gap)
-  ) !important;
-  scroll-padding-bottom: calc(
-    var(--mac-floating-navigation-height) +
-    var(--mac-floating-navigation-bottom-offset) +
-    var(--mac-floating-navigation-safe-gap)
-  );
+  padding-inline: var(--mac-page-inset);
+  padding-bottom: var(--mac-page-bottom-safe);
 }
 
 /* Native-style overlay scrollbars: a restrained 2px glass thumb that is
@@ -762,23 +753,30 @@ popup-footer {
 
 popup-header > header {
   display: grid;
-  min-height: 60px;
+  height: var(--mac-header-height);
+  min-height: var(--mac-header-height);
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   align-items: center;
   border-color: transparent !important;
-  padding: var(--mac-space-3) var(--mac-space-4) var(--mac-space-2) !important;
+  padding-inline: 4px !important;
   background: transparent !important;
+}
+
+popup-header > header :is(button, a) {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
 }
 
 .macos-page-heading {
   display: grid;
   box-sizing: border-box;
-  min-height: 60px;
+  height: var(--mac-header-height);
+  min-height: var(--mac-header-height);
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   align-items: center;
   gap: var(--mac-space-3);
   width: 100%;
-  padding: var(--mac-space-3) var(--mac-space-4) var(--mac-space-2);
+  padding-inline: 4px;
 }
 
 @media (min-width: 640px) {
@@ -805,17 +803,17 @@ popup-header > header {
   text-align: center;
 }
 
-.macos-page-heading h1 {
+popup-header > header h1 {
   margin: 0;
   overflow: hidden;
   color: var(--mac-text-primary);
-  font-size: 18px;
-  font-weight: 680;
-  line-height: 1.2;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 22px;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
 }
 
 .macos-page-heading__actions {
