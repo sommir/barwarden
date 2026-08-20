@@ -70,11 +70,7 @@ export { SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
       role="status"
       aria-live="polite"
       aria-atomic="true"
-    >
-      @for (publication of resultAnnouncementPublications; track publication.revision) {
-        <span [attr.data-result-announcement-revision]="publication.revision">{{ resultAnnouncement }}</span>
-      }
-    </span>
+    >{{ resultAnnouncement }}</span>
     <bw-app-bottom-sheet
       #deleteDialog
       testId="send-permanent-delete-confirmation"
@@ -109,11 +105,9 @@ export class SendPageComponent implements OnDestroy {
   @ViewChild("deleteDialog") private deleteDialog?: AppBottomSheetComponent;
 
   resultAnnouncement = "";
-  resultAnnouncementPublications: readonly { readonly revision: number }[] = [];
   private readonly host: HostApi;
   private readonly operation: TextSendOperation;
   private pendingDelete: SendItem | null = null;
-  private resultAnnouncementRevision = 0;
   private sendsCache?: {
     readonly source: readonly SendItem[];
     readonly now: number;
@@ -192,9 +186,9 @@ export class SendPageComponent implements OnDestroy {
   }
 
   setSearch(query: string): void {
-    const previousIdentity = visibleSendResultIdentity(this.sends);
+    const previousCount = this.sends.length;
     this.sendFacade.setSearch(query);
-    this.updateResultAnnouncement(previousIdentity, visibleSendResultIdentity(this.sends));
+    this.updateResultAnnouncement(previousCount, this.sends.length);
   }
 
   toggleFilters(): void {
@@ -202,9 +196,9 @@ export class SendPageComponent implements OnDestroy {
   }
 
   setType(type: "" | "text"): void {
-    const previousIdentity = visibleSendResultIdentity(this.sends);
+    const previousCount = this.sends.length;
     this.sendFacade.setTypeFilter(type);
-    this.updateResultAnnouncement(previousIdentity, visibleSendResultIdentity(this.sends));
+    this.updateResultAnnouncement(previousCount, this.sends.length);
   }
 
   open(send: OfficialTextSendListItem | undefined): void {
@@ -293,27 +287,11 @@ export class SendPageComponent implements OnDestroy {
     return this.store.snapshot().sends.find((candidate) => candidate.id === send.id && isTextSend(candidate));
   }
 
-  private updateResultAnnouncement(
-    previousIdentity: readonly string[],
-    identity: readonly string[],
-  ): void {
-    if (sameResultIdentity(previousIdentity, identity)) {
-      return;
+  private updateResultAnnouncement(previousCount: number, count: number): void {
+    if (previousCount !== count) {
+      this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
     }
-    this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", identity.length);
-    this.resultAnnouncementRevision += 1;
-    this.resultAnnouncementPublications = [{ revision: this.resultAnnouncementRevision }];
   }
-}
-
-function visibleSendResultIdentity(
-  sends: readonly OfficialTextSendListItem[],
-): readonly string[] {
-  return sends.map((send) => send.id);
-}
-
-function sameResultIdentity(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
 function isTextSend(send: SendItem): boolean {
