@@ -84,6 +84,14 @@ const hostileGeneratorDefaultsCss = `
     transition: background-color 1s linear;
     transform: scale(1.1);
   }
+  .macos-generator__result-actions button:focus:not(:focus-visible),
+  .macos-generator__result-actions button:focus:not(:focus-visible) .bwi,
+  .macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible) + label,
+  .macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible) + label > span:first-child {
+    outline-color: red !important;
+    outline-style: solid !important;
+    outline-width: 3px !important;
+  }
   @keyframes generator-hostile-motion {
     from { opacity: 0.99; }
     to { opacity: 1; }
@@ -352,11 +360,16 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(copyPressed).not.toBe(copyDefault);
     expect.soft(getComputedStyle(copy).backgroundColor).toBe(transparent);
     setGeneratorInteraction(copy, null);
+    expect.soft(copy.disabled).toBe(false);
+    copy.setAttribute("aria-disabled", "true");
+    const copyAriaDisabled = getComputedStyle(copyGlyph).backgroundColor;
+    expect.soft(copyAriaDisabled).not.toBe(copyDefault);
+    expect.soft(copyAriaDisabled).not.toBe(copyHover);
+    expect.soft(copyAriaDisabled).not.toBe(copyPressed);
+    expect.soft(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    copy.removeAttribute("aria-disabled");
     copy.disabled = true;
-    const copyDisabled = getComputedStyle(copyGlyph).backgroundColor;
-    expect.soft(copyDisabled).not.toBe(copyDefault);
-    expect.soft(copyDisabled).not.toBe(copyHover);
-    expect.soft(copyDisabled).not.toBe(copyPressed);
+    expect.soft(getComputedStyle(copyGlyph).backgroundColor).toBe(copyAriaDisabled);
     expect.soft(getComputedStyle(copy).backgroundColor).toBe(transparent);
     copy.disabled = false;
 
@@ -377,7 +390,7 @@ describe("iOS 27 Generator visual contract", () => {
     setGeneratorInteraction(copy, "focus");
     expect.soft(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
     expect.soft(cssPixels(getComputedStyle(copyGlyph).outlineWidth)).toBe(0);
-    setGeneratorInteraction(copy, "focus-visible");
+    setGeneratorInteraction(copy, "focus focus-visible");
     expect.soft(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
     expect.soft(getComputedStyle(copyGlyph).outlineStyle).toBe("solid");
     expect.soft(getComputedStyle(copyGlyph).outlineWidth).toBe("2px");
@@ -392,7 +405,7 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(cssPixels(getComputedStyle(modeRadios[0]!).outlineWidth)).toBe(0);
     expect.soft(cssPixels(getComputedStyle(modeLabels[0]!).outlineWidth)).toBe(0);
     expect.soft(cssPixels(getComputedStyle(modePaintLayers[0]!).outlineWidth)).toBe(0);
-    setGeneratorInteraction(modeRadios[0]!, "focus-visible");
+    setGeneratorInteraction(modeRadios[0]!, "focus focus-visible");
     expect.soft(cssPixels(getComputedStyle(modeRadios[0]!).outlineWidth)).toBe(0);
     expect.soft(cssPixels(getComputedStyle(modeLabels[0]!).outlineWidth)).toBe(0);
     expect.soft(getComputedStyle(modePaintLayers[0]!).outlineWidth).toBe("2px");
@@ -431,15 +444,23 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(getComputedStyle(modePaintLayers[0]!).transform).toBe("none");
 
     document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
-    const forcedCopy = getComputedStyle(copyGlyph);
-    const forcedRegenerate = getComputedStyle(regenerateGlyph);
+    const forcedCopy = forcedColorSignature(copyGlyph);
+    const forcedRegenerate = forcedColorSignature(regenerateGlyph);
     expect.soft(getComputedStyle(result).borderBottomColor).not.toBe(normalResultBorderColor);
     expect.soft(forcedCopy.forcedColorAdjust).toBe("none");
     expect.soft(forcedRegenerate.forcedColorAdjust).toBe("none");
     expect.soft(forcedCopy.borderWidth).toBe("1px");
     expect.soft(forcedRegenerate.borderWidth).toBe("1px");
-    expect.soft(forcedCopy.backgroundColor).not.toBe(forcedRegenerate.backgroundColor);
-    setGeneratorInteraction(copy, "focus-visible");
+    expect.soft(forcedCopy).not.toEqual(forcedRegenerate);
+    copy.setAttribute("aria-disabled", "true");
+    const forcedAriaDisabled = forcedColorSignature(copyGlyph);
+    expect.soft(copy.disabled).toBe(false);
+    expect.soft(forcedAriaDisabled.forcedColorAdjust).toBe("none");
+    expect.soft(forcedAriaDisabled).not.toEqual(forcedCopy);
+    expect.soft(forcedAriaDisabled).not.toEqual(forcedRegenerate);
+    expect.soft(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    copy.removeAttribute("aria-disabled");
+    setGeneratorInteraction(copy, "focus focus-visible");
     expect.soft(getComputedStyle(copy).outlineWidth).not.toBe("2px");
     expect.soft(getComputedStyle(copyGlyph).outlineWidth).toBe("2px");
     expect.soft(getComputedStyle(copyGlyph).outlineColor).not.toBe(normalCopyFocusColor);
@@ -722,6 +743,17 @@ function cssPixels(value: string): number {
   return value.endsWith("px") ? Number.parseFloat(value) : 0;
 }
 
+function forcedColorSignature(target: HTMLElement) {
+  const computed = getComputedStyle(target);
+  return {
+    backgroundColor: computed.backgroundColor,
+    borderColor: computed.borderColor,
+    borderWidth: computed.borderWidth,
+    color: computed.color,
+    forcedColorAdjust: computed.forcedColorAdjust,
+  };
+}
+
 function setGeneratorInteraction(target: HTMLElement, interaction: string | null) {
   if (interaction) {
     target.setAttribute("data-generator-test-interaction", interaction);
@@ -737,7 +769,7 @@ function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string 
       const styleRule = rule as CSSStyleRule;
       if (
         styleRule.selectorText.includes(".macos-generator")
-        && /:(?:hover|active|focus-visible)/.test(styleRule.selectorText)
+        && /:(?:hover|active|focus)/.test(styleRule.selectorText)
       ) {
         projected.push(`${projectGeneratorInteractionSelector(styleRule.selectorText)} { ${styleRule.style.cssText} }`);
       }
@@ -765,9 +797,10 @@ function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string 
 
 function projectGeneratorInteractionSelector(selector: string): string {
   return selector
-    .replaceAll(":hover", '[data-generator-test-interaction="hover"]')
-    .replaceAll(":active", '[data-generator-test-interaction="active"]')
-    .replaceAll(":focus-visible", '[data-generator-test-interaction="focus-visible"]');
+    .replaceAll(":focus-visible", '[data-generator-test-interaction~="focus-visible"]')
+    .replaceAll(":focus", '[data-generator-test-interaction~="focus"]')
+    .replaceAll(":hover", '[data-generator-test-interaction~="hover"]')
+    .replaceAll(":active", '[data-generator-test-interaction~="active"]');
 }
 
 function generatorService() {

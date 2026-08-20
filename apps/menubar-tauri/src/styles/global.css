@@ -3197,6 +3197,7 @@ auth-account .macos-account-label {
   :focus,
   :focus-visible,
   :disabled,
+  [aria-disabled="true"],
   [aria-expanded="true"]
 ) {
   border-color: transparent !important;
@@ -3234,8 +3235,14 @@ auth-account .macos-account-label {
   background: color-mix(in srgb, var(--mac-accent) 74%, black);
 }
 
-.macos-generator__result-actions button[buttontype="primary"]:disabled > .bwi,
-.macos-generator__result-actions button[buttontype="primary"]:disabled > span > .bwi {
+.macos-generator__result-actions button[buttontype="primary"]:is(
+  :disabled,
+  [aria-disabled="true"]
+) > .bwi,
+.macos-generator__result-actions button[buttontype="primary"]:is(
+  :disabled,
+  [aria-disabled="true"]
+) > span > .bwi {
   background: var(--mac-disabled);
   color: Canvas;
 }
@@ -3262,6 +3269,14 @@ auth-account .macos-account-label {
   outline-style: solid;
   outline-width: var(--mac-focus-ring-width);
   outline-offset: 2px;
+}
+
+.macos-generator__result-actions button:focus:not(:focus-visible),
+.macos-generator__result-actions button:focus:not(:focus-visible) > .bwi,
+.macos-generator__result-actions button:focus:not(:focus-visible) > span > .bwi {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
 }
 
 .macos-generator__mode {
@@ -3354,6 +3369,15 @@ auth-account .macos-account-label {
   outline-offset: 2px;
 }
 
+.macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible),
+.macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible) + label,
+.macos-generator__mode bit-toggle
+  > input[type="radio"]:focus:not(:focus-visible) + label > span:first-child {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+}
+
 :root[data-bw-compact-mode="true"] .macos-generator__result-actions button > .bwi,
 :root[data-bw-compact-mode="true"] .macos-generator__result-actions button > span > .bwi {
   width: var(--mac-icon-plate-compact);
@@ -3395,6 +3419,16 @@ auth-account .macos-account-label {
     border: 1px solid ButtonText;
     background: Canvas;
     color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__result-actions button[buttontype="primary"]:is(
+    :disabled,
+    [aria-disabled="true"]
+  ) .bwi {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
     forced-color-adjust: none;
   }
 
