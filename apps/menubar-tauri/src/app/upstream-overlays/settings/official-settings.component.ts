@@ -4,7 +4,6 @@ import { I18nPipe } from "@bitwarden/ui-common";
 import { PopupHeaderComponent } from "../../layout/popup-header.component";
 import { PopupPageComponent } from "../../layout/popup-page.component";
 import {
-  CheckboxComponent,
   ItemComponent,
   ItemContentComponent,
   ItemGroupComponent,
@@ -30,7 +29,6 @@ export interface SettingsGroup {
   selector: "bw-official-settings",
   standalone: true,
   imports: [
-    CheckboxComponent,
     ItemComponent,
     ItemContentComponent,
     ItemGroupComponent,
@@ -83,12 +81,7 @@ export class OfficialSettingsComponent {
     },
   ];
 
-  requestLaunchAtLoginChange(event: Event): void {
-    if (!(event.target instanceof HTMLInputElement)) {
-      return;
-    }
-    const requested = event.target.checked;
-    event.target.checked = this.launchAtLoginEnabled;
+  requestLaunchAtLoginChange(requested: boolean): void {
     this.launchAtLoginEnabledChange.emit(requested);
   }
 }

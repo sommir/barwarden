@@ -172,7 +172,9 @@ describe("P1 settings pages", () => {
       "utf8",
     );
 
-    expect(css).toMatch(/\.macos-page--settings\s+\.settings-row\s*{[^}]*background:\s*var\(--mac-surface-solid\)[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-preference-group\s*{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-preference-row\s*{[^}]*min-height:\s*var\(--mac-row-single\)[^}]*background:\s*var\(--mac-surface-solid\)[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-switch-owner\s*{[^}]*min-width:\s*var\(--mac-hit-size\)[^}]*min-height:\s*var\(--mac-hit-size\)/s);
     expect(tokens).toContain("--mac-focus-ring-width: 2px;");
     expect(tokens).toContain("--mac-compact-row-height: 44px;");
     expect(motion).toContain("--mac-motion-fast: 160ms;");

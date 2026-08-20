@@ -1,7 +1,7 @@
 diff --git a/apps/browser/src/tools/popup/settings/settings-v2.component.ts b/apps/browser/src/tools/popup/settings/settings-v2.component.ts
 --- a/apps/browser/src/tools/popup/settings/settings-v2.component.ts
 +++ b/apps/browser/src/tools/popup/settings/settings-v2.component.ts
-@@ -1,124 +1,29 @@
+@@ -1,124 +1,28 @@
 +// Official Settings overlay source; generated.
  import { CommonModule } from "@angular/common";
 -import { ChangeDetectionStrategy, Component } from "@angular/core";
@@ -131,7 +131,7 @@ diff --git a/apps/browser/src/tools/popup/settings/settings-v2.component.ts b/ap
 +import { RouterModule } from "@angular/router";
 +
 +import { JslibModule } from "@bitwarden/angular/jslib.module";
-+import { ItemModule, TypographyModule } from "@bitwarden/components";
++import { ItemModule } from "@bitwarden/components";
 +
 +import { CurrentAccountComponent } from "../../../auth/popup/account-switching/current-account.component";
 +import { PopOutComponent } from "../../../platform/popup/components/pop-out.component";
@@ -149,7 +149,6 @@ diff --git a/apps/browser/src/tools/popup/settings/settings-v2.component.ts b/ap
 +    PopOutComponent,
 +    ItemModule,
 +    CurrentAccountComponent,
-+    TypographyModule,
 +  ],
 +  changeDetection: ChangeDetectionStrategy.OnPush,
 +})

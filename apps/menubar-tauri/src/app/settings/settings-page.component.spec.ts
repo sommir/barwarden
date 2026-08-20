@@ -11,7 +11,7 @@ import {
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuthFacade } from "../auth/auth.facade";
 import { PopupStateStore } from "../popup-state";
@@ -31,7 +31,13 @@ try {
 }
 
 describe("SettingsPageComponent", () => {
-  it("renders the approved four continuous Settings groups without changing navigation", async () => {
+  afterEach(() => {
+    document.head.querySelectorAll('style[data-test-owner="settings-preference-css"]')
+      .forEach((node) => node.remove());
+  });
+
+  it("renders the approved preference groups with 44px rows and hit owners", async () => {
+    installSettingsPreferenceCss();
     await TestBed.configureTestingModule({
       imports: [SettingsPageComponent],
       providers: [
@@ -50,28 +56,34 @@ describe("SettingsPageComponent", () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    const groups = Array.from(fixture.nativeElement.querySelectorAll<HTMLElement>("[data-settings-group]"));
+    const host = fixture.nativeElement as HTMLElement;
+    const groups = Array.from(host.querySelectorAll<HTMLElement>(".macos-preference-group"));
+    expect(groups.length).toBeGreaterThan(0);
     expect(groups.map((group) => group.dataset["settingsGroup"]))
       .toEqual(["general", "security", "application", "information"]);
+    expect(Array.from(
+      host.querySelectorAll<HTMLElement>(".settings-group__title"),
+      (title) => title.dataset["settingsGroupTitle"],
+    )).toEqual(["general", "security", "application", "information"]);
     expect(groups.map((group) => group.querySelectorAll("bit-item").length)).toEqual([2, 1, 3, 1]);
-    for (const group of groups) {
-      const continuousGroup = group.querySelector<HTMLElement>(
-        ":scope > .macos-continuous-group",
-      );
-      const itemHosts = Array.from(
-        continuousGroup?.querySelectorAll<HTMLElement>(":scope > bit-item") ?? [],
-      );
-      expect(continuousGroup).not.toBeNull();
-      expect(itemHosts).not.toHaveLength(0);
-      for (const itemHost of itemHosts) {
-        expect(
-          itemHost.querySelector(":scope > bit-item-action > .macos-continuous-row"),
-        ).not.toBeNull();
-      }
-    }
-    expect(fixture.nativeElement.querySelectorAll("bit-card")).toHaveLength(0);
-    Array.from(fixture.nativeElement.querySelectorAll<HTMLButtonElement>("button.settings-row"))
-      .forEach((row) => row.click());
+    const routeRows = Array.from(host.querySelectorAll<HTMLButtonElement>(
+      "button.macos-preference-row",
+    ));
+    expect(routeRows.map((button) => button.dataset["settingsRoute"])).toEqual([
+      "/appearance", "/account-security", "/autofill",
+      "/keyboard-shortcut", "/vault-settings", "/about",
+    ]);
+    const row = groups[0]!.querySelector<HTMLElement>(".macos-preference-row")!;
+    const style = getComputedStyle(row);
+    expect(style.minHeight).toBe("44px");
+    expect(style.borderRadius).toBe("0px");
+    expect(style.boxShadow).toBe("none");
+    const switchOwner = row.querySelector<HTMLButtonElement>(".macos-hit-target")!;
+    expect(getComputedStyle(switchOwner).minWidth).toBe("44px");
+    switchOwner.focus();
+    expect(document.activeElement).toBe(switchOwner);
+    expect(host.querySelectorAll("bit-card")).toHaveLength(0);
+    routeRows.forEach((routeRow) => routeRow.click());
     expect(navigateByUrl.mock.calls.map(([route]) => route)).toEqual([
       "/appearance", "/account-security", "/autofill",
       "/keyboard-shortcut", "/vault-settings", "/about",
@@ -106,32 +118,27 @@ describe("SettingsPageComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>("#launch-at-login");
-    expect(checkbox?.checked).toBe(true);
-    expect(checkbox?.disabled).toBe(false);
+    const launchAtLoginSwitch = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      '[role="switch"][aria-labelledby="launch-at-login-label"]',
+    );
+    expect(launchAtLoginSwitch?.getAttribute("aria-checked")).toBe("true");
+    expect(launchAtLoginSwitch?.disabled).toBe(false);
     const launchAtLoginRow = fixture.nativeElement.querySelector<HTMLElement>(
       '[data-testid="launch-at-login-row"]',
     );
-    expect(launchAtLoginRow?.tagName).toBe("LABEL");
+    expect(launchAtLoginRow?.tagName).toBe("DIV");
     expect(launchAtLoginRow?.closest("bit-item")).not.toBeNull();
-    expect(launchAtLoginRow?.querySelector(".launch-at-login-row__title")?.textContent).toContain(
-      "登录时启动",
-    );
-    expect(launchAtLoginRow?.querySelector(".launch-at-login-row__hint")?.textContent).toContain(
-      "在菜单栏中保持可用",
-    );
-    expect(
-      launchAtLoginRow?.querySelector(".launch-at-login-row__copy")?.classList,
-    ).toContain("tw-whitespace-nowrap");
+    expect(launchAtLoginRow?.querySelector(".macos-preference-row__copy")?.textContent)
+      .toContain("登录时启动");
+    expect(launchAtLoginRow?.querySelector('input[type="checkbox"]')).toBeNull();
     expect(fixture.nativeElement.querySelector("bit-card")).toBeNull();
 
-    checkbox!.checked = false;
-    checkbox!.dispatchEvent(new Event("change"));
+    launchAtLoginSwitch!.click();
     fixture.detectChanges();
 
     expect(host.setLaunchAtLogin).toHaveBeenCalledWith(false);
-    expect(checkbox?.checked).toBe(true);
-    expect(checkbox?.disabled).toBe(true);
+    expect(launchAtLoginSwitch?.getAttribute("aria-checked")).toBe("true");
+    expect(launchAtLoginSwitch?.disabled).toBe(true);
 
     resolveMutation(false);
     await vi.waitFor(() => {
@@ -139,8 +146,8 @@ describe("SettingsPageComponent", () => {
     });
     fixture.detectChanges();
 
-    expect(checkbox?.checked).toBe(false);
-    expect(checkbox?.disabled).toBe(false);
+    expect(launchAtLoginSwitch?.getAttribute("aria-checked")).toBe("false");
+    expect(launchAtLoginSwitch?.disabled).toBe(false);
   });
 
   it("preserves the confirmed state and shows a dismissible localized error on failure", async () => {
@@ -168,16 +175,17 @@ describe("SettingsPageComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>("#launch-at-login");
-    checkbox!.checked = true;
-    checkbox!.dispatchEvent(new Event("change"));
+    const launchAtLoginSwitch = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      '[role="switch"][aria-labelledby="launch-at-login-label"]',
+    );
+    launchAtLoginSwitch!.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
     const alert = fixture.nativeElement.querySelector<HTMLElement>(
       '[data-testid="launch-at-login-error"]',
     );
-    expect(checkbox?.checked).toBe(false);
+    expect(launchAtLoginSwitch?.getAttribute("aria-checked")).toBe("false");
     expect(alert?.textContent).toContain("无法更新开机启动设置");
     expect(alert?.textContent).toContain("无法更改登录项，请稍后重试。");
     expect(alert?.textContent).not.toContain("private native failure");
@@ -187,29 +195,6 @@ describe("SettingsPageComponent", () => {
     expect(
       fixture.nativeElement.querySelector('[data-testid="launch-at-login-error"]'),
     ).toBeNull();
-  });
-
-  it("marks Settings rows as 52px semantic navigation rows", async () => {
-    await TestBed.configureTestingModule({
-      imports: [SettingsPageComponent],
-      providers: [
-        provideRouter([]),
-        OfficialI18nService,
-        { provide: I18nService, useExisting: OfficialI18nService },
-        ...officialCurrentAccountTestProviders(),
-        PopupStateStore,
-        SettingsService,
-        { provide: AuthFacade, useValue: { lock: () => undefined, logout: async () => undefined } },
-      ],
-    }).compileComponents();
-    const fixture = TestBed.createComponent(SettingsPageComponent);
-    fixture.detectChanges();
-
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.classList).toContain("macos-page--settings");
-    expect(host.querySelectorAll("button.settings-row")).not.toHaveLength(0);
-    const css = readFileSync(resolve(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
-    expect(css).toMatch(/\.macos-page--settings\s+\.settings-row\s*{[^}]*min-height:\s*var\(--mac-row-height\)/s);
   });
 
   it("renders official-style settings rows", async () => {
@@ -260,7 +245,7 @@ describe("SettingsPageComponent", () => {
     expect(host.textContent).not.toContain("Logout");
     expect(host.textContent).not.toContain("账户操作");
     expect(host.textContent).not.toContain("浏览器专属能力");
-    const rows = Array.from(host.querySelectorAll<HTMLButtonElement>("button.settings-row"));
+    const rows = Array.from(host.querySelectorAll<HTMLButtonElement>("button.macos-preference-row"));
     expect(rows).toHaveLength(6);
     for (const row of rows) {
       row.click();
@@ -300,3 +285,24 @@ describe("SettingsPageComponent", () => {
     expect(host.textContent).toContain("账户安全");
   });
 });
+
+function installSettingsPreferenceCss(): void {
+  const source = [
+    "apps/menubar-tauri/src/styles/macos-tokens.css",
+    "apps/menubar-tauri/src/styles/global.css",
+  ]
+    .map((path) => readFileSync(resolve(process.cwd(), path), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const tokens = new Map(
+    [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]),
+  );
+  const style = document.createElement("style");
+  style.dataset["testOwner"] = "settings-preference-css";
+  style.textContent = source
+    .replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) => tokens.get(name) ?? value)
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
+  document.head.append(style);
+}

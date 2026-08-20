@@ -150,52 +150,52 @@ diff --git a/apps/browser/src/tools/popup/settings/settings-v2.component.html b/
 +  </popup-header>
 +
 +  <div class="tw-px-4 tw-pt-4">
-+    <section class="settings-group" data-settings-group="general">
-+      <h2 bitTypography="h6" class="settings-group__title">{{ "general" | i18n }}</h2>
-+      <bit-item-group class="macos-continuous-group settings-group__items">
++    <section class="macos-preference-group" aria-labelledby="general-title" data-settings-group="general">
++      <h2 id="general-title" class="settings-group__title" data-settings-group-title="general">{{ "general" | i18n }}</h2>
++      <bit-item-group class="settings-group__items">
 +        <bit-item>
-+          <a bit-item-content class="settings-row macos-continuous-row" routerLink="/appearance" [truncate]="false">
++          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/appearance" routerLink="/appearance" [truncate]="false">
 +            <i slot="start" class="bwi bwi-brush" aria-hidden="true"></i>
-+            {{ "appearance" | i18n }}
++            <span class="macos-preference-row__copy">{{ "appearance" | i18n }}</span>
 +            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
 +          </a>
 +        </bit-item>
 +      </bit-item-group>
 +    </section>
 +
-+    <section class="settings-group" data-settings-group="security">
-+      <h2 bitTypography="h6" class="settings-group__title">{{ "security" | i18n }}</h2>
-+      <bit-item-group class="macos-continuous-group settings-group__items">
++    <section class="macos-preference-group" aria-labelledby="security-title" data-settings-group="security">
++      <h2 id="security-title" class="settings-group__title" data-settings-group-title="security">{{ "security" | i18n }}</h2>
++      <bit-item-group class="settings-group__items">
 +        <bit-item>
-+          <a bit-item-content class="settings-row macos-continuous-row" routerLink="/account-security" [truncate]="false">
++          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/account-security" routerLink="/account-security" [truncate]="false">
 +            <i slot="start" class="bwi bwi-lock" aria-hidden="true"></i>
-+            {{ "accountSecurity" | i18n }}
++            <span class="macos-preference-row__copy">{{ "accountSecurity" | i18n }}</span>
 +            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
 +          </a>
 +        </bit-item>
 +      </bit-item-group>
 +    </section>
 +
-+    <section class="settings-group" data-settings-group="application">
-+      <h2 bitTypography="h6" class="settings-group__title">{{ "app" | i18n }}</h2>
-+      <bit-item-group class="macos-continuous-group settings-group__items">
++    <section class="macos-preference-group" aria-labelledby="application-title" data-settings-group="application">
++      <h2 id="application-title" class="settings-group__title" data-settings-group-title="application">{{ "app" | i18n }}</h2>
++      <bit-item-group class="settings-group__items">
 +        <bit-item>
-+          <a bit-item-content class="settings-row macos-continuous-row" routerLink="/vault-settings" [truncate]="false">
++          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/vault-settings" routerLink="/vault-settings" [truncate]="false">
 +            <i slot="start" class="bwi bwi-vault" aria-hidden="true"></i>
-+            {{ "settingsVaultOptions" | i18n }}
++            <span class="macos-preference-row__copy">{{ "settingsVaultOptions" | i18n }}</span>
 +            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
 +          </a>
 +        </bit-item>
 +      </bit-item-group>
 +    </section>
 +
-+    <section class="settings-group" data-settings-group="information">
-+      <h2 bitTypography="h6" class="settings-group__title">{{ "about" | i18n }}</h2>
-+      <bit-item-group class="macos-continuous-group settings-group__items">
++    <section class="macos-preference-group" aria-labelledby="information-title" data-settings-group="information">
++      <h2 id="information-title" class="settings-group__title" data-settings-group-title="information">{{ "about" | i18n }}</h2>
++      <bit-item-group class="settings-group__items">
 +        <bit-item>
-+          <a bit-item-content class="settings-row macos-continuous-row" routerLink="/about" [truncate]="false">
++          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/about" routerLink="/about" [truncate]="false">
 +            <i slot="start" class="bwi bwi-info-circle" aria-hidden="true"></i>
-+            {{ "about" | i18n }}
++            <span class="macos-preference-row__copy">{{ "about" | i18n }}</span>
 +            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
 +          </a>
 +        </bit-item>
