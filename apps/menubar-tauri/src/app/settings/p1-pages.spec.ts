@@ -907,6 +907,8 @@ describe("P1 settings pages", () => {
     }
     for (const copy of host.querySelectorAll<HTMLElement>(".macos-preference-row__copy")) {
       const copyStyle = getComputedStyle(copy);
+      expect(copyStyle.height).toBe("auto");
+      expect(copyStyle.minHeight).toBe("0px");
       expect(copyStyle.whiteSpace).toBe("normal");
       expect(copyStyle.overflowWrap).toBe("anywhere");
       expect(copyStyle.overflow).toBe("visible");
@@ -1165,7 +1167,22 @@ function installAppearancePreferenceCss(
         )
       : "",
   ].join("\n");
-  style.textContent = `${source}
+  const hostileVendorDefaults = `
+.macos-preference-row {
+  height: 36px;
+  min-height: 36px;
+  overflow: hidden;
+}
+.macos-preference-row__copy {
+  height: 18px;
+  min-height: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+`;
+  style.textContent = `${hostileVendorDefaults}
+${source}
 ${activeMedia}`
     .replace(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*([^{}]+\{[^{}]*\})\s*\}/g,

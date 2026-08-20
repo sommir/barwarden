@@ -397,7 +397,7 @@ bit-form-field.macos-preference-row > div { display:grid; grid-template-columns:
 bit-form-field.macos-preference-row > div > :is(label, div) { min-width:0; }
 bit-form-field.macos-preference-row bit-select.macos-control-visible { width:160px; }
 bit-form-field.macos-preference-row bit-select.macos-control-visible :is(ng-select, ng-select > .ng-select-container) { height:var(--mac-control-visible); min-height:var(--mac-control-visible); }
-.macos-preference-row__copy { min-width:0; overflow:visible; padding-block:7px; white-space:normal; overflow-wrap:anywhere; }
+.macos-preference-row__copy { min-width:0; height:auto; min-height:0; overflow:visible; padding-block:7px; white-space:normal; overflow-wrap:anywhere; }
 .macos-preference-row__copy > :first-child { font-size:14px; line-height:18px; font-weight:600; }
 .macos-preference-row__copy > :not(:first-child) { margin-top:2px; color:var(--mac-text-secondary); font-size:12px; line-height:16px; }
 .macos-preference-row__value { min-width:0; margin-inline-start:auto; justify-self:end; color:var(--mac-text-secondary); text-align:end; overflow-wrap:anywhere; }
