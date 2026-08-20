@@ -64,8 +64,8 @@ describe("P1 settings pages", () => {
       file,
     ), "utf8");
     expect(html).toContain(`data-settings-detail="${id}"`);
-    expect(html).toContain("macos-continuous-group");
-    expect(html).toContain("macos-continuous-row");
+    expect(html).toContain("macos-preference-group");
+    expect(html).toContain("macos-preference-row");
     expect(html).not.toContain("<bit-card");
   });
 
@@ -176,7 +176,7 @@ describe("P1 settings pages", () => {
     );
 
     expect(css).toMatch(/\.macos-preference-group,[\s\S]*?bit-item-action\s*{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
-    expect(css).toMatch(/\.settings-group__items\s*>\s*bit-item:not\(:last-child\)\s*{[^}]*border-bottom:\s*1px/s);
+    expect(css).toMatch(/\.macos-preference-group bit-item-group\s*>\s*bit-item:not\(:last-child\)\s*{[^}]*border-bottom:\s*1px/s);
     expect(css).toMatch(/\.macos-preference-row\s*{[^}]*min-height:\s*var\(--mac-row-single\)[^}]*background:\s*var\(--mac-surface-solid\)[^}]*box-shadow:\s*none/s);
     expect(css).toMatch(/\.macos-preference-row__value\s*{[^}]*justify-self:\s*end/s);
     expect(css).toMatch(/\.macos-switch-owner\s*{[^}]*min-width:\s*var\(--mac-hit-size\)[^}]*min-height:\s*var\(--mac-hit-size\)/s);
@@ -236,7 +236,7 @@ describe("P1 settings pages", () => {
     }
   });
 
-  it("renders the official account security inventory as a continuous Settings detail surface", async () => {
+  it("renders the official account security subtree as native preference groups", async () => {
     const service = new SettingsStateService();
     const opened: string[] = [];
     await TestBed.configureTestingModule({
@@ -263,6 +263,7 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    expect(host.matches(".macos-page--settings-detail")).toBe(true);
     expect(host.textContent).toContain("账户安全");
     expect(host.textContent).not.toContain("使用生物识别解锁");
     expect(host.textContent).toContain("解锁选项");
@@ -281,22 +282,57 @@ describe("P1 settings pages", () => {
     expect(host.querySelector('a[href="/fingerprint-phrase"]')).toBeNull();
     expect(host.querySelector('a[href="/settings-password"]')).toBeNull();
     expect(host.querySelectorAll(".bwi-external-link")).toHaveLength(2);
-    expect(host.querySelector('[data-settings-detail="account-security"].settings-detail-group'))
-      .not.toBeNull();
-    expect(host.querySelectorAll(".settings-detail-row.macos-continuous-row").length)
-      .toBeGreaterThan(0);
+    const group = host.querySelector<HTMLElement>(
+      '[data-settings-detail="account-security"].macos-preference-group',
+    );
+    expect(group).not.toBeNull();
+    const preferenceRows = Array.from(
+      group!.querySelectorAll<HTMLElement>(".settings-detail-row.macos-preference-row"),
+    );
+    expect(preferenceRows).toHaveLength(6);
     expect(host.querySelector("bit-card")).toBeNull();
-    const style = document.createElement("style");
-    style.dataset["testOwner"] = "account-security-shadow";
-    style.textContent = ["macos-tokens.css", "global.css"]
-      .map((file) => readFileSync(resolve(
-        process.cwd(),
-        "apps/menubar-tauri/src/styles",
-        file,
-      ), "utf8"))
-      .join("\n")
-      .replace(/^@import[^;]+;\s*/gm, "");
-    document.head.append(style);
+    installAppearancePreferenceCss();
+    for (const row of preferenceRows) {
+      expect(Number.parseFloat(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(row).boxShadow).toBe("none");
+    }
+    const sectionRows = Array.from(group!.querySelectorAll<HTMLElement>("bit-section"), (section) =>
+      Array.from(section.querySelectorAll<HTMLElement>(".macos-preference-row"))
+    );
+    expect(sectionRows.map((rows) => rows.length)).toEqual([2, 2, 2]);
+    expect(sectionRows.slice(0, 2).map((rows) => getComputedStyle(rows[0]!).borderBottomWidth))
+      .toEqual(["1px", "1px"]);
+    const actionItems = group!.querySelectorAll<HTMLElement>("bit-item-group > bit-item");
+    expect(actionItems).toHaveLength(2);
+    expect(getComputedStyle(actionItems[0]!).borderBottomWidth).toBe("1px");
+    expect(getComputedStyle(actionItems[1]!).borderBottomWidth).toBe("0px");
+    const visibleSelects = Array.from(
+      group!.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
+    );
+    expect(visibleSelects).toHaveLength(2);
+    expect(visibleSelects.map((select) => getComputedStyle(select).height))
+      .toEqual(["40px", "40px"]);
+    document.documentElement.style.fontSize = "200%";
+    const unlockLabel = group!.querySelector<HTMLElement>('bit-label[for="pinUnlock"]')!;
+    const originalUnlockLabel = unlockLabel.textContent;
+    unlockLabel.textContent = `${originalUnlockLabel} ${originalUnlockLabel} ${originalUnlockLabel}`;
+    expect(unlockLabel.classList).toContain("tw-whitespace-normal");
+    for (const row of preferenceRows) {
+      expect(getComputedStyle(row).height).toBe("auto");
+      expect(getComputedStyle(row).overflow).toBe("visible");
+    }
+    unlockLabel.textContent = originalUnlockLabel;
+    document.documentElement.style.removeProperty("font-size");
+
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    expect(visibleSelects.map((select) => getComputedStyle(select).height))
+      .toEqual(["36px", "36px"]);
+    for (const row of preferenceRows) {
+      expect(Number.parseFloat(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
+    }
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    expect(host.querySelectorAll('[aria-busy="true"] [role="progressbar"]').length)
+      .toBeLessThanOrEqual(1);
     const actionGroup = host.querySelector<HTMLElement>(
       '[data-settings-detail="account-security"] bit-item-group',
     );
@@ -736,8 +772,11 @@ describe("P1 settings pages", () => {
     expect(host.textContent).not.toContain("private native opener details");
   });
 
-  it("renders actionable native single-field modes as a continuous Settings detail surface", async () => {
+  it("renders the real AutoFill subtree with preference rows, visible selects, and a Switch", async () => {
     const service = new SettingsStateService();
+    const setFloatingIconPreference = vi.fn(async (_enabled: boolean) => {
+      throw new Error("native setup detail");
+    });
     await TestBed.configureTestingModule({
       imports: [AutofillSettingsPageComponent],
       providers: [
@@ -745,6 +784,10 @@ describe("P1 settings pages", () => {
         OfficialI18nService,
         { provide: I18nService, useExisting: OfficialI18nService },
         { provide: SettingsStateService, useValue: service },
+        {
+          provide: (await import("../autofill/autofill-setup.service")).AutoFillSetupService,
+          useValue: { setFloatingIconPreference },
+        },
       ],
     }).compileComponents();
 
@@ -752,6 +795,8 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    installAppearancePreferenceCss();
+    expect(host.matches(".macos-page--settings-detail")).toBe(true);
     expect(host.textContent).toContain("填充");
     expect(host.textContent).not.toContain("单字段填充");
     expect(host.textContent).toContain("在输入框附近显示图标");
@@ -761,16 +806,27 @@ describe("P1 settings pages", () => {
     expect(host.textContent).toContain("填充");
     expect(host.textContent).not.toContain("内容脚本");
     expect(host.querySelector('a[href="/blocked-domains"]')).toBeNull();
-    expect(host.querySelector("section.settings-detail-group.macos-continuous-group"))
-      .not.toBeNull();
+    const group = host.querySelector<HTMLElement>(
+      "section.settings-detail-group.macos-preference-group",
+    );
+    expect(group).not.toBeNull();
     expect(host.querySelector("bit-card")).toBeNull();
+    const rows = Array.from(group!.querySelectorAll<HTMLElement>(".macos-preference-row"));
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(Number.parseFloat(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(row).boxShadow).toBe("none");
+    }
+    expect(rows.slice(0, -1).map((row) => getComputedStyle(row).borderBottomWidth))
+      .toEqual(["1px", "1px"]);
 
     expect(host.querySelector("input[type='number']")).toBeNull();
-    expect(
-      host.querySelector('bit-select[aria-label="清空剪贴板"]'),
-    ).not.toBeNull();
-    expect(host.querySelector('bit-select[aria-label="清空剪贴板"]')?.classList)
-      .toContain("macos-form-control");
+    const visibleSelects = Array.from(
+      group!.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
+    );
+    expect(visibleSelects).toHaveLength(2);
+    expect(visibleSelects.map((select) => getComputedStyle(select).height))
+      .toEqual(["40px", "40px"]);
     expect(
       fixture.componentInstance.clipboardClearOptions.map(
         (option) => option.value,
@@ -783,16 +839,57 @@ describe("P1 settings pages", () => {
     fixture.componentInstance.setClipboardClearSecondsValue(0);
     fixture.componentInstance.setFillModeValue("clipboard-copy");
     fixture.componentInstance.setFillModeValue("clipboard-paste");
-    const fieldIcon = host.querySelector<HTMLInputElement>("#show-input-field-icon");
-    expect(fieldIcon?.checked).toBe(true);
-    fieldIcon!.checked = false;
-    fieldIcon!.dispatchEvent(new Event("change"));
+    const fieldIcon = host.querySelector<HTMLButtonElement>(
+      'button.macos-switch-owner[role="switch"]',
+    );
+    expect(fieldIcon).not.toBeNull();
+    expect(fieldIcon?.getAttribute("aria-checked")).toBe("true");
+    expect(getComputedStyle(fieldIcon!).minWidth).toBe("44px");
+    expect(getComputedStyle(fieldIcon!).minHeight).toBe("44px");
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    expect(host.querySelector(".primary-action, [buttonType='primary']")).toBeNull();
+    const switchTrack = fieldIcon!.querySelector<HTMLElement>("span")!;
+    fieldIcon!.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(fieldIcon!).outlineWidth).toBe("0px");
+    expect(getComputedStyle(switchTrack).outlineWidth).toBe("2px");
+
+    document.documentElement.dataset["testReducedMotion"] = "true";
+    installAppearancePreferenceCss({ reducedMotion: true });
+    expect(getComputedStyle(switchTrack).transitionDuration).toBe("0s");
+    document.documentElement.removeAttribute("data-test-reduced-motion");
+
+    document.documentElement.dataset["testForcedColors"] = "true";
+    installAppearancePreferenceCss({ forcedColors: true });
+    expect(getComputedStyle(switchTrack).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(switchTrack).outlineWidth).toBe("2px");
+    document.documentElement.removeAttribute("data-test-forced-colors");
+    fieldIcon!.click();
+    await fixture.whenStable();
 
     expect(service.snapshot()).toMatchObject({
       clipboardClearSeconds: 0,
       fillMode: "clipboard-paste",
       showInputFieldIcon: false,
     });
+    expect(setFloatingIconPreference).toHaveBeenCalledWith(false);
+    expect(host.querySelectorAll('[aria-busy="true"] [role="progressbar"]').length)
+      .toBeLessThanOrEqual(1);
+
+    document.documentElement.style.fontSize = "200%";
+    const copy = host.querySelector<HTMLElement>("#autofill-field-icon-label")!;
+    const originalCopy = copy.textContent;
+    copy.textContent = `${originalCopy} ${originalCopy} ${originalCopy}`;
+    expect(getComputedStyle(rows.at(-1)!).height).toBe("auto");
+    expect(getComputedStyle(copy).whiteSpace).toBe("normal");
+    expect(getComputedStyle(copy).overflowWrap).toBe("anywhere");
+    copy.textContent = originalCopy;
+    document.documentElement.style.removeProperty("font-size");
+
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    expect(visibleSelects.map((select) => getComputedStyle(select).height))
+      .toEqual(["36px", "36px"]);
+    expect(getComputedStyle(fieldIcon!).minHeight).toBe("44px");
+    document.documentElement.removeAttribute("data-bw-compact-mode");
     expect(host.querySelectorAll("button[disabled]")).toHaveLength(0);
   });
 

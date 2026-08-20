@@ -6,20 +6,21 @@ diff --git a/apps/browser/src/vault/popup/settings/vault-settings.component.html
  <popup-page>
    <popup-header slot="header" [pageTitle]="'settingsVaultOptions' | i18n" showBackButton>
      <ng-container slot="end">
-@@ -5,65 +6,54 @@
+@@ -5,65 +6,58 @@
      </ng-container>
    </popup-header>
 
 -  <bit-item-group>
 +  <bit-item-group
-+    class="settings-detail-group macos-continuous-group"
++    class="settings-detail-group macos-preference-group"
 +    data-settings-detail="vault-settings"
 +  >
      <bit-item>
 -      <a bit-item-content routerLink="/folders">
 +      <a
 +        bit-item-content
-+        class="settings-detail-row macos-continuous-row"
++        [truncate]="false"
++        class="settings-detail-row macos-preference-row"
 +        data-popup-focus-key="settings:folders"
 +        routerLink="/folders"
 +      >
@@ -47,7 +48,8 @@ diff --git a/apps/browser/src/vault/popup/settings/vault-settings.component.html
 -        {{ "exportNoun" | i18n }}
 +      <a
 +        bit-item-content
-+        class="settings-detail-row macos-continuous-row"
++        [truncate]="false"
++        class="settings-detail-row macos-preference-row"
 +        data-test-id="archive-link"
 +        data-popup-focus-key="settings:archive"
 +        routerLink="/archive"
@@ -83,7 +85,8 @@ diff --git a/apps/browser/src/vault/popup/settings/vault-settings.component.html
 -      <a bit-item-content routerLink="/trash">
 +      <a
 +        bit-item-content
-+        class="settings-detail-row macos-continuous-row"
++        [truncate]="false"
++        class="settings-detail-row macos-preference-row"
 +        data-popup-focus-key="settings:trash"
 +        routerLink="/trash"
 +      >
@@ -96,7 +99,8 @@ diff --git a/apps/browser/src/vault/popup/settings/vault-settings.component.html
 +      <button
 +        type="button"
 +        bit-item-content
-+        class="settings-detail-row macos-continuous-row"
++        [truncate]="false"
++        class="settings-detail-row macos-preference-row"
 +        data-testid="vault-sync-row"
 +        [disabled]="syncLoading"
 +        [attr.aria-busy]="syncLoading"

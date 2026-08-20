@@ -66,8 +66,8 @@ class ShortcutRecorderControlDirective {}
         [backAction]="backAction"
       />
 
-      <section class="settings-detail-group macos-continuous-group">
-        <bit-form-field class="settings-detail-row macos-continuous-row" disableMargin>
+      <section class="settings-detail-group macos-preference-group">
+        <bit-form-field class="settings-detail-row macos-preference-row" disableMargin>
           <bit-label>{{ "i18nShowBarwarden" | i18n }}</bit-label>
           <button
             #shortcutRecorder
@@ -75,7 +75,7 @@ class ShortcutRecorderControlDirective {}
             bitButton
             buttonType="secondary"
             type="button"
-            class="macos-form-field__control macos-form-control"
+            class="macos-form-field__control macos-control-visible"
             data-testid="shortcut-recorder"
             [attr.aria-label]="recorderAccessibleLabel"
             [disabled]="view.pending"
@@ -89,7 +89,7 @@ class ShortcutRecorderControlDirective {}
             bitSuffix
             type="button"
             bitIconButton="bwi-close"
-            class="macos-form-field__suffix"
+            class="macos-form-field__suffix macos-hit-target"
             [label]="'i18nShortcutClear' | i18n"
             [attr.aria-label]="'i18nShortcutClear' | i18n"
             data-testid="shortcut-clear"

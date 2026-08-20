@@ -2,14 +2,15 @@
   <popup-header slot="header" [pageTitle]="'i18nVaultOptions' | i18n" showBackButton [backAction]="backAction" />
 
   <bit-item-group
-    class="settings-detail-group macos-continuous-group"
+    class="settings-detail-group macos-preference-group"
     data-settings-detail="vault-settings"
   >
     <bit-item>
       <button
         type="button"
         bit-item-content
-        class="settings-detail-row macos-continuous-row"
+        [truncate]="false"
+        class="settings-detail-row macos-preference-row"
         data-popup-focus-key="settings:folders"
         (click)="navigate.emit('/folders')"
       >
@@ -21,7 +22,8 @@
       <button
         type="button"
         bit-item-content
-        class="settings-detail-row macos-continuous-row"
+        [truncate]="false"
+        class="settings-detail-row macos-preference-row"
         data-test-id="archive-link"
         data-popup-focus-key="settings:archive"
         (click)="navigate.emit('/archive')"
@@ -34,7 +36,8 @@
       <button
         type="button"
         bit-item-content
-        class="settings-detail-row macos-continuous-row"
+        [truncate]="false"
+        class="settings-detail-row macos-preference-row"
         data-popup-focus-key="settings:trash"
         (click)="navigate.emit('/trash')"
       >
@@ -46,7 +49,8 @@
       <button
         type="button"
         bit-item-content
-        class="settings-detail-row macos-continuous-row"
+        [truncate]="false"
+        class="settings-detail-row macos-preference-row"
         data-testid="vault-sync-row"
         [disabled]="isSyncing"
         [attr.aria-busy]="isSyncing"

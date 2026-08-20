@@ -7,8 +7,6 @@ import {
   BitFormFieldComponent,
   BitHintDirective,
   BitLabelComponent,
-  CheckboxComponent,
-  FormControlComponent,
   SectionComponent,
   SectionHeaderComponent,
   SelectComponent,
@@ -39,8 +37,6 @@ import { PopupRouterCacheService } from "../platform/popup-router-cache.service"
     BitFormFieldComponent,
     BitHintDirective,
     BitLabelComponent,
-    CheckboxComponent,
-    FormControlComponent,
     FormsModule,
     I18nPipe,
     PopupHeaderComponent,
@@ -55,29 +51,33 @@ import { PopupRouterCacheService } from "../platform/popup-router-cache.service"
       <popup-header slot="header" [pageTitle]="'i18nAutofill' | i18n" [showBackButton]="true" [backAction]="backAction" />
       <bit-section>
         <bit-section-header><h2 bitTypography="h6">{{ "i18nAutofillBehavior" | i18n }}</h2></bit-section-header>
-        <section class="settings-detail-group macos-continuous-group">
-          <bit-form-field class="settings-detail-row macos-continuous-row">
-            <bit-label>{{ "i18nClearClipboard" | i18n }}</bit-label>
-            <bit-select class="macos-form-control" [attr.aria-label]="'i18nClearClipboard' | i18n" [items]="clipboardClearOptions" [ngModel]="settings.clipboardClearSeconds" (ngModelChange)="setClipboardClearSecondsValue($event)" />
+        <section class="settings-detail-group macos-preference-group">
+          <bit-form-field class="settings-detail-row macos-preference-row">
+            <bit-label class="macos-preference-row__copy">{{ "i18nClearClipboard" | i18n }}</bit-label>
+            <bit-select class="macos-control-visible" [attr.aria-label]="'i18nClearClipboard' | i18n" [items]="clipboardClearOptions" [ngModel]="settings.clipboardClearSeconds" (ngModelChange)="setClipboardClearSecondsValue($event)" />
             <bit-hint>{{ "i18nClearClipboardHint" | i18n }}</bit-hint>
           </bit-form-field>
-          <bit-form-field class="settings-detail-row macos-continuous-row" disableMargin>
-            <bit-label>{{ "i18nAutofill" | i18n }}</bit-label>
-            <bit-select class="macos-form-control" [attr.aria-label]="'i18nAutofill' | i18n" [items]="fillModeOptions" [ngModel]="settings.fillMode" (ngModelChange)="setFillModeValue($event)" />
+          <bit-form-field class="settings-detail-row macos-preference-row" disableMargin>
+            <bit-label class="macos-preference-row__copy">{{ "i18nAutofill" | i18n }}</bit-label>
+            <bit-select class="macos-control-visible" [attr.aria-label]="'i18nAutofill' | i18n" [items]="fillModeOptions" [ngModel]="settings.fillMode" (ngModelChange)="setFillModeValue($event)" />
             <bit-hint>{{ "i18nAutofillModeHint" | i18n }}</bit-hint>
           </bit-form-field>
-          <bit-form-control class="settings-detail-row macos-continuous-row" disableMargin>
-            <input
-              id="show-input-field-icon"
-              bitCheckbox
-              type="checkbox"
-              [attr.aria-label]="'i18nShowInputFieldIcon' | i18n"
-              [checked]="settings.showInputFieldIcon"
-              (change)="setShowInputFieldIcon($event)"
-            />
-            <bit-label>{{ "i18nShowInputFieldIcon" | i18n }}</bit-label>
-            <bit-hint>{{ "i18nShowInputFieldIconHint" | i18n }}</bit-hint>
-          </bit-form-control>
+          <div class="settings-detail-row macos-preference-row">
+            <span id="autofill-field-icon-label" class="macos-preference-row__copy">
+              <span>{{ "i18nShowInputFieldIcon" | i18n }}</span>
+              <small>{{ "i18nShowInputFieldIconHint" | i18n }}</small>
+            </span>
+            <button
+              type="button"
+              class="macos-switch-owner macos-hit-target"
+              role="switch"
+              aria-labelledby="autofill-field-icon-label"
+              [attr.aria-checked]="settings.showInputFieldIcon"
+              (click)="setShowInputFieldIconValue(!settings.showInputFieldIcon)"
+            >
+              <span aria-hidden="true"></span>
+            </button>
+          </div>
         </section>
       </bit-section>
     </popup-page>
@@ -126,9 +126,7 @@ export class AutofillSettingsPageComponent {
     }
   }
 
-  setShowInputFieldIcon(event: Event): void {
-    if (!(event.target instanceof HTMLInputElement)) return;
-    const enabled = event.target.checked;
+  setShowInputFieldIconValue(enabled: boolean): void {
     this.settingsService.setShowInputFieldIcon(enabled);
     const update = this.setup?.setFloatingIconPreference(enabled)
       ?? this.accessibility?.setFloatingIconEnabled(enabled);

@@ -48,28 +48,34 @@ describe("KeyboardShortcutPageComponent", () => {
     document.body.classList.remove("tw-bit-compact");
     document.body.replaceChildren();
     document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.style.removeProperty("font-size");
     document.head.querySelectorAll("style[data-keyboard-shortcut-production-css]")
       .forEach((node) => node.remove());
   });
 
   it("renders the official page, current shortcut, and stable accessible controls", async () => {
     const { fixture, host } = await renderPage();
+    const page = host.querySelector<HTMLElement>("bw-keyboard-shortcut-page");
     const recorder = shortcutRecorder(host);
     const clear = clearButton(host);
 
+    expect(page).not.toBeNull();
+    expect(page!.matches(".macos-page--settings-detail")).toBe(true);
     expect(host.querySelector("popup-page")).not.toBeNull();
     expect(host.querySelector("popup-header")?.textContent).toContain("快捷键");
     expect(host.querySelector("bit-card")).toBeNull();
-    expect(host.querySelector("section.settings-detail-group.macos-continuous-group"))
+    expect(host.querySelector("section.settings-detail-group.macos-preference-group"))
       .not.toBeNull();
-    expect(host.querySelector("bit-form-field")).not.toBeNull();
+    const row = host.querySelector<HTMLElement>("bit-form-field.macos-preference-row");
+    expect(row).not.toBeNull();
     expect(host.textContent).toContain("唤出 Barwarden");
     expect(recorder.textContent).toContain("⌥ B");
     expect(recorder.getAttribute("aria-label")).toBe("录制唤出 Barwarden 快捷键");
     expect(clear.getAttribute("aria-label")).toBe("清除快捷键");
     expect(recorder.classList).toContain("macos-form-field__control");
-    expect(recorder.classList).toContain("macos-form-control");
+    expect(recorder.classList).toContain("macos-control-visible");
     expect(clear.classList).toContain("macos-form-field__suffix");
+    expect(clear.classList).toContain("macos-hit-target");
     expect(clear.hasAttribute("bitSuffix")).toBe(true);
     expect(clear.getAttribute("slot")).toBeNull();
     expect(recorder.getAttribute("style")).toBeNull();
@@ -95,15 +101,31 @@ describe("KeyboardShortcutPageComponent", () => {
       expect(fieldContainer).not.toBeNull();
       const recorderStyle = getComputedStyle(recorder);
       const clearStyle = getComputedStyle(clear);
+      const row = host.querySelector<HTMLElement>("bit-form-field.macos-preference-row");
 
+      expect(row).not.toBeNull();
+      expect(Number.parseFloat(getComputedStyle(row!).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(row!).boxShadow).toBe("none");
       expect(Number.parseFloat(recorderStyle.minWidth)).toBeGreaterThanOrEqual(44);
       expect(Number.parseFloat(recorderStyle.minHeight)).toBeGreaterThanOrEqual(44);
+      expect(recorderStyle.height).toBe(compact ? "36px" : "40px");
       expect(Number.parseFloat(clearStyle.minWidth)).toBeGreaterThanOrEqual(44);
       expect(Number.parseFloat(clearStyle.minHeight)).toBeGreaterThanOrEqual(44);
       expect(recorderStyle.width).toBe("100%");
       expect(clearStyle.flexBasis).toBe("44px");
       expect(clearStyle.flexShrink).toBe("0");
       expect(clear.closest("[bitfieldcontainer]")).toBe(fieldContainer);
+      expect(host.querySelectorAll('[aria-busy="true"] [role="progressbar"]').length)
+        .toBeLessThanOrEqual(1);
+
+      document.documentElement.style.fontSize = "200%";
+      const label = host.querySelector<HTMLElement>("bit-label")!;
+      const originalLabel = label.textContent;
+      label.textContent = `${originalLabel} ${originalLabel} ${originalLabel}`;
+      expect(getComputedStyle(row!).height).toBe("auto");
+      expect(getComputedStyle(row!).overflow).toBe("visible");
+      label.textContent = originalLabel;
+      document.documentElement.style.removeProperty("font-size");
 
       recorder.dataset["testFocusVisible"] = "true";
       clear.dataset["testFocusVisible"] = "true";

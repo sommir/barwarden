@@ -28,13 +28,15 @@ import { PopupRouterCacheService } from "../platform/popup-router-cache.service"
         <app-pop-out slot="end" />
       </popup-header>
 
-      <section class="settings-password-handoff settings-detail-group macos-continuous-group">
-        <p class="empty-inline">
-          {{ "i18nPasswordHandoffDescription" | i18n }}
-        </p>
-        <button class="primary-action web-vault-action" type="button" (click)="openWebVaultChangePassword()">
-          {{ "i18nOpenWebVaultChangePassword" | i18n }}
-        </button>
+      <section class="settings-password-handoff settings-detail-group macos-preference-group">
+        <div class="macos-preference-row">
+          <p class="empty-inline macos-preference-row__copy">
+            {{ "i18nPasswordHandoffDescription" | i18n }}
+          </p>
+          <button class="primary-action web-vault-action macos-button-owner" type="button" (click)="openWebVaultChangePassword()">
+            {{ "i18nOpenWebVaultChangePassword" | i18n }}
+          </button>
+        </div>
       </section>
 
       @if (handoffError) {
@@ -48,14 +50,25 @@ import { PopupRouterCacheService } from "../platform/popup-router-cache.service"
   `,
   styles: `
     .settings-password-handoff {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .settings-password-handoff .empty-inline {
+      margin: 0;
+      font-size: 14px;
+      line-height: 20px;
     }
 
     .web-vault-action {
-      width: calc(100% - 32px);
-      margin: 0 16px;
+      min-height: var(--mac-hit-size);
+      margin: 0;
+      justify-self: start;
+    }
+
+    .web-vault-action::before {
+      inset-block: 2px;
     }
   `,
 })

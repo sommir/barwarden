@@ -2,14 +2,15 @@
   <popup-header slot="header" [pageTitle]="'i18nAccountSecurity' | i18n" showBackButton [backAction]="backAction" />
 
   <div
-    class="settings-detail-group macos-continuous-group"
+    class="settings-detail-group macos-preference-group"
     data-settings-detail="account-security"
   >
     <bit-section>
       <bit-section-header>
         <h2 bitTypography="h6">{{ "i18nUnlockOptions" | i18n }}</h2>
       </bit-section-header>
-      <bit-form-control class="settings-detail-row macos-continuous-row">
+      <div class="macos-preference-stack">
+      <bit-form-control class="settings-detail-row macos-preference-row">
         <input
           bitCheckbox
           id="biometricUnlock"
@@ -25,7 +26,7 @@
           <bit-hint>{{ biometricUnavailableReason }}</bit-hint>
         }
       </bit-form-control>
-      <bit-form-control class="settings-detail-row macos-continuous-row" disableMargin>
+      <bit-form-control class="settings-detail-row macos-preference-row" disableMargin>
         <input
           bitCheckbox
           id="pinUnlock"
@@ -39,30 +40,35 @@
         </bit-label>
         <bit-hint>{{ "i18nPinDeviceHint" | i18n }}</bit-hint>
       </bit-form-control>
+      </div>
     </bit-section>
 
     <bit-section>
       <bit-section-header>
         <h2 bitTypography="h6">{{ "i18nSessionTimeout" | i18n }}</h2>
       </bit-section-header>
-      <bit-form-field class="settings-detail-row macos-continuous-row">
+      <div class="macos-preference-stack">
+      <bit-form-field class="settings-detail-row macos-preference-row">
         <bit-label>{{ "i18nVaultTimeout" | i18n }}</bit-label>
         <bit-select
+          class="macos-control-visible"
           [attr.aria-label]="'i18nVaultTimeout' | i18n"
           [items]="timeoutOptions"
           [ngModel]="settings.vaultTimeoutMinutes"
           (ngModelChange)="setVaultTimeoutMinutesValue($event)"
         />
       </bit-form-field>
-      <bit-form-field class="settings-detail-row macos-continuous-row" disableMargin>
+      <bit-form-field class="settings-detail-row macos-preference-row" disableMargin>
         <bit-label>{{ "i18nVaultTimeoutAction" | i18n }}</bit-label>
         <bit-select
+          class="macos-control-visible"
           [attr.aria-label]="'i18nVaultTimeoutAction' | i18n"
           [items]="timeoutActionOptions"
           [ngModel]="settings.vaultTimeoutAction"
           (ngModelChange)="setVaultTimeoutActionValue($event)"
         />
       </bit-form-field>
+      </div>
     </bit-section>
 
     <bit-section disableMargin>
@@ -74,7 +80,7 @@
           <button
             type="button"
             bit-item-content
-            class="settings-detail-row macos-continuous-row"
+            class="settings-detail-row macos-preference-row"
             (click)="openTwoStepLogin.emit()"
           >
             {{ "twoStepLogin" | i18n }}
@@ -85,7 +91,7 @@
           <button
             type="button"
             bit-item-content
-            class="settings-detail-row macos-continuous-row"
+            class="settings-detail-row macos-preference-row"
             (click)="openChangePassword.emit()"
           >
             {{ "i18nChangeMasterPassword" | i18n }}

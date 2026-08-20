@@ -7,13 +7,14 @@
   </popup-header>
 
   <bit-item-group
-    class="settings-detail-group macos-continuous-group"
+    class="settings-detail-group macos-preference-group"
     data-settings-detail="vault-settings"
   >
     <bit-item>
       <a
         bit-item-content
-        class="settings-detail-row macos-continuous-row"
+        [truncate]="false"
+        class="settings-detail-row macos-preference-row"
         data-popup-focus-key="settings:folders"
         routerLink="/folders"
       >
@@ -24,7 +25,8 @@
     <bit-item>
       <a
         bit-item-content
-        class="settings-detail-row macos-continuous-row"
+        [truncate]="false"
+        class="settings-detail-row macos-preference-row"
         data-test-id="archive-link"
         data-popup-focus-key="settings:archive"
         routerLink="/archive"
@@ -36,7 +38,8 @@
     <bit-item>
       <a
         bit-item-content
-        class="settings-detail-row macos-continuous-row"
+        [truncate]="false"
+        class="settings-detail-row macos-preference-row"
         data-popup-focus-key="settings:trash"
         routerLink="/trash"
       >
@@ -48,7 +51,8 @@
       <button
         type="button"
         bit-item-content
-        class="settings-detail-row macos-continuous-row"
+        [truncate]="false"
+        class="settings-detail-row macos-preference-row"
         data-testid="vault-sync-row"
         [disabled]="syncLoading"
         [attr.aria-busy]="syncLoading"

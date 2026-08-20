@@ -387,11 +387,23 @@ button {
 .macos-preference-group,
 .macos-preference-group > .settings-group__items,
 .macos-preference-group > .settings-group__items > bit-item,
-.macos-preference-group > .settings-group__items > bit-item > bit-item-action { margin:0; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.macos-preference-group > .settings-group__items > bit-item > bit-item-action,
+.macos-preference-group:is(bit-item-group),
+.macos-preference-group:is(bit-item-group) > bit-item,
+.macos-preference-group:is(bit-item-group) > bit-item > bit-item-action,
+.macos-preference-group bit-item-group,
+.macos-preference-group bit-item-group > bit-item,
+.macos-preference-group bit-item-group > bit-item > bit-item-action { margin:0; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
 .macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap); }
-.macos-preference-group > .settings-group__items > bit-item:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
+.macos-preference-group > .settings-group__items > bit-item:not(:last-child),
+.macos-preference-group:is(bit-item-group) > bit-item:not(:last-child),
+.macos-preference-group bit-item-group > bit-item:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
+.macos-preference-group > bit-section { margin:0; }
+.macos-preference-group > bit-section + bit-section { margin-top:var(--mac-group-gap); }
+.macos-preference-stack { display:grid; }
 .macos-preference-row { display:grid; grid-template-columns:minmax(0,1fr) auto; height:auto; min-height:var(--mac-row-single); overflow:visible; align-items:center; gap:12px; padding-inline:12px; border:0; border-radius:0; background:var(--mac-surface-solid); box-shadow:none; }
-.macos-preference-group > .macos-preference-row:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
+.macos-preference-group > .macos-preference-row:not(:last-child),
+.macos-preference-stack > .macos-preference-row:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
 bit-form-field.macos-preference-row { margin:0; }
 bit-form-field.macos-preference-row > div { display:grid; grid-template-columns:minmax(0,1fr) 160px; width:100%; min-width:0; align-items:center; gap:12px; }
 bit-form-field.macos-preference-row > div > :is(label, div) { min-width:0; }
@@ -409,9 +421,13 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible :is(ng-sele
 .macos-switch-owner:focus-visible { outline-width:0; outline-style:none; }
 .macos-switch-owner:focus-visible > span { outline-width:2px; outline-style:solid; outline-color:var(--mac-focus); outline-offset:2px; }
 :root[data-bw-compact-mode="true"] .macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap-compact); }
+:root[data-bw-compact-mode="true"] .macos-preference-group > bit-section + bit-section { margin-top:var(--mac-group-gap-compact); }
 :root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible :is(ng-select, ng-select > .ng-select-container) { height:var(--mac-control-visible-compact); min-height:var(--mac-control-visible-compact); }
 @media (min-resolution:2dppx) {
   .macos-preference-group > .settings-group__items > bit-item:not(:last-child),
+  .macos-preference-group:is(bit-item-group) > bit-item:not(:last-child),
+  .macos-preference-group bit-item-group > bit-item:not(:last-child),
+  .macos-preference-stack > .macos-preference-row:not(:last-child),
   .macos-preference-group > .macos-preference-row:not(:last-child) { border-bottom-width:.5px; }
 }
 @media (prefers-reduced-motion:reduce) { .macos-switch-owner > span, .macos-switch-owner > span::after { transition-duration:0s; } }
@@ -6387,7 +6403,21 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   background: transparent;
 }
 
-.macos-page--settings-detail .settings-detail-row { padding-inline: 16px; }
+.macos-page--settings-detail .settings-detail-row { padding-inline: 12px; }
+
+.macos-page--settings-detail [data-testid="shortcut-recorder"].macos-control-visible {
+  height: var(--mac-control-visible);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--settings-detail .web-vault-action.macos-button-owner {
+  min-height: var(--mac-hit-size);
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--settings-detail [data-testid="shortcut-recorder"].macos-control-visible {
+  height: var(--mac-control-visible-compact);
+}
 
 .macos-page--settings-detail :is(bit-card, .settings-password-handoff) {
   border: 0;
