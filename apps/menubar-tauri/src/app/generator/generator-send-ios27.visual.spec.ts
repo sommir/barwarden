@@ -57,6 +57,10 @@ try {
 let style: HTMLStyleElement;
 
 const officialUtilityHitTargetCss = `
+  .tw-flex { display: flex; }
+  .tw-w-full { width: 100%; }
+  .tw-basis-1\\/2 { flex-basis: 50%; }
+  .tw-mr-4 { margin-right: 16px; }
   .tw-min-h-10 { min-height: 40px; }
   .tw-mb-4 { margin-bottom: 16px; }
   :root[data-bw-compact-mode="true"] .bit-compact\\:tw-mb-3 { margin-bottom: 12px; }
@@ -135,6 +139,7 @@ afterAll(() => {
   style.remove();
   document.documentElement.removeAttribute("data-bw-compact-mode");
   document.documentElement.removeAttribute("data-generator-test-media");
+  document.documentElement.removeAttribute("data-generator-test-layout");
   document.documentElement.style.removeProperty("font-size");
   document.body.replaceChildren();
 });
@@ -583,6 +588,47 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(characterLabels.map(computedHitHeight)).toEqual([44, 44, 44, 44]);
     expect.soft(characterRow.querySelectorAll(":scope > bit-form-control")).toHaveLength(4);
     expect.soft(dualFieldRow.querySelectorAll(":scope > bit-form-field")).toHaveLength(2);
+    const dualFields = Array.from(
+      dualFieldRow.querySelectorAll<HTMLElement>(":scope > bit-form-field"),
+    );
+    expect.soft(dualFields.map((field) =>
+      field.querySelector<HTMLInputElement>('input[type="number"]')?.getAttribute("formcontrolname")
+    )).toEqual(["minNumber", "minSpecial"]);
+    expect.soft({
+      display: getComputedStyle(dualFieldRow).display,
+      flexWrap: getComputedStyle(dualFieldRow).flexWrap,
+      columnGap: getComputedStyle(dualFieldRow).columnGap,
+      rowGap: getComputedStyle(dualFieldRow).rowGap,
+    }).toEqual({ display: "flex", flexWrap: "wrap", columnGap: "12px", rowGap: "12px" });
+    expect.soft(dualFields.map((field) => ({
+      flexBasis: getComputedStyle(field).flexBasis,
+      flexGrow: getComputedStyle(field).flexGrow,
+      flexShrink: getComputedStyle(field).flexShrink,
+      minWidth: getComputedStyle(field).minWidth,
+      width: getComputedStyle(field).width,
+      marginRight: getComputedStyle(field).marginRight,
+    }))).toEqual(Array.from({ length: 2 }, () => ({
+      flexBasis: "0px",
+      flexGrow: "1",
+      flexShrink: "1",
+      minWidth: "0px",
+      width: "auto",
+      marginRight: "0px",
+    })));
+
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect.soft(dualFields.map((field) => ({
+      flexBasis: getComputedStyle(field).flexBasis,
+      flexGrow: getComputedStyle(field).flexGrow,
+      width: getComputedStyle(field).width,
+      marginRight: getComputedStyle(field).marginRight,
+    }))).toEqual(Array.from({ length: 2 }, () => ({
+      flexBasis: "0px",
+      flexGrow: "1",
+      width: "auto",
+      marginRight: "0px",
+    })));
+    document.documentElement.removeAttribute("data-bw-compact-mode");
     characterLabels[3]!.click();
     fixture.changeDetectorRef.detectChanges();
     expect.soft(characterChoices.map((choice) => choice.checked)).toEqual([true, true, true, true]);
@@ -616,6 +662,7 @@ describe("iOS 27 Generator visual contract", () => {
     characterRow.setAttribute("data-generator-test-text-scale", "row");
     dualFieldRow.setAttribute("data-generator-test-text-scale", "row");
     document.documentElement.style.fontSize = "200%";
+    document.documentElement.setAttribute("data-generator-test-layout", "narrow");
     expect.soft(getComputedStyle(settings).overflow).toBe("visible");
     expect.soft(Array.from(passwordPaintedControls, (control) => ({
       height: getComputedStyle(control).height,
@@ -659,6 +706,25 @@ describe("iOS 27 Generator visual contract", () => {
       { flexWrap: "wrap", overflow: "visible" },
       { flexWrap: "wrap", overflow: "visible" },
     ]);
+    expect.soft({
+      columnGap: getComputedStyle(dualFieldRow).columnGap,
+      rowGap: getComputedStyle(dualFieldRow).rowGap,
+    }).toEqual({ columnGap: "12px", rowGap: "12px" });
+    expect.soft(dualFields.map((field) => ({
+      flexBasis: getComputedStyle(field).flexBasis,
+      flexGrow: getComputedStyle(field).flexGrow,
+      flexShrink: getComputedStyle(field).flexShrink,
+      minWidth: getComputedStyle(field).minWidth,
+      width: getComputedStyle(field).width,
+      marginRight: getComputedStyle(field).marginRight,
+    }))).toEqual(Array.from({ length: 2 }, () => ({
+      flexBasis: "100%",
+      flexGrow: "1",
+      flexShrink: "1",
+      minWidth: "0px",
+      width: "100%",
+      marginRight: "0px",
+    })));
     expect.soft(characterLabels.map((label) => getComputedStyle(label).whiteSpace))
       .toEqual(characterLabels.map(() => "normal"));
     expect.soft(characterLabels.map((label) => getComputedStyle(label).overflow))
@@ -828,6 +894,7 @@ describe("iOS 27 Generator visual contract", () => {
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
     document.documentElement.removeAttribute("data-generator-test-media");
+    document.documentElement.removeAttribute("data-generator-test-layout");
     document.documentElement.style.removeProperty("font-size");
   });
 
@@ -1140,14 +1207,19 @@ function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string 
       ? "reduced-motion"
       : mediaRule.conditionText.includes("forced-colors")
         ? "forced-colors"
+        : mediaRule.conditionText.includes("max-width")
+          ? "narrow"
         : null;
     if (!media) continue;
     for (const nestedRule of Array.from(mediaRule.cssRules)) {
       if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
       const styleRule = nestedRule as CSSStyleRule;
       if (!styleRule.selectorText.includes(".macos-generator")) continue;
+      const stateAttribute = media === "narrow"
+        ? "data-generator-test-layout"
+        : "data-generator-test-media";
       projected.push(
-        `:root[data-generator-test-media="${media}"] :is(${projectGeneratorInteractionSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
+        `:root[${stateAttribute}="${media}"] :is(${projectGeneratorInteractionSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
       );
     }
   }
