@@ -461,6 +461,7 @@ describe("popup visual smoke classes", () => {
     expect(segment).toContain("min-height: var(--mac-hit-size);");
     expect(icon).toContain("font-size: 18px;");
     expect(label).toContain("font-size: 10.5px;");
+    expect(indicator).toContain("background: var(--mac-selected);");
     expect(indicator).toContain("box-shadow: none;");
     expect(indicator).toContain("transform: translateX(calc(var(--selected-index) * 100%));");
     expect(indicator).toContain("transition: transform var(--mac-motion-duration)");

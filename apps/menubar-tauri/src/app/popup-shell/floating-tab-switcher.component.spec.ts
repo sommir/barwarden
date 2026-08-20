@@ -66,6 +66,8 @@ try {
 describe("FloatingTabSwitcherComponent", () => {
   it("paints a 52px tab bar with 44px segments and a quiet indicator", async () => {
     const cleanupCss = installTabSwitcherVisualCss();
+    const root = document.documentElement;
+    const originalCompactMode = root.dataset["bwCompactMode"];
 
     try {
       await TestBed.configureTestingModule({
@@ -82,15 +84,37 @@ describe("FloatingTabSwitcherComponent", () => {
       await router.navigateByUrl("/tabs/vault");
       fixture.detectChanges();
       const host = fixture.nativeElement as HTMLElement;
-      const nav = getComputedStyle(host.querySelector<HTMLElement>("nav")!);
-      const segment = getComputedStyle(host.querySelector<HTMLButtonElement>("button")!);
-      const icon = getComputedStyle(host.querySelector<HTMLElement>(".floating-tab-switcher__icon")!);
-
-      expect(nav.height).toBe("52px");
-      expect(segment.minHeight).toBe("44px");
-      expect(icon.fontSize).toBe("18px");
       expect(host.querySelectorAll(".floating-tab-switcher__indicator")).toHaveLength(1);
+
+      for (const compactMode of [false, true]) {
+        if (compactMode) {
+          root.dataset["bwCompactMode"] = "true";
+        } else {
+          delete root.dataset["bwCompactMode"];
+        }
+
+        const nav = getComputedStyle(host.querySelector<HTMLElement>("nav")!);
+        const segment = getComputedStyle(host.querySelector<HTMLButtonElement>("button")!);
+        const icon = getComputedStyle(host.querySelector<HTMLElement>(".floating-tab-switcher__icon")!);
+        const indicator = getComputedStyle(
+          host.querySelector<HTMLElement>(".floating-tab-switcher__indicator")!,
+        );
+
+        expect(nav.height).toBe("52px");
+        expect(segment.minWidth).toBe("44px");
+        expect(segment.minHeight).toBe("44px");
+        expect(icon.fontSize).toBe("18px");
+        expect(indicator.getPropertyValue("inset-block")).toBe("4px");
+        expect(indicator.borderRadius).toBe("9px");
+        expect(indicator.boxShadow).toBe("none");
+        expect(indicator.backgroundColor).not.toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
+      }
     } finally {
+      if (originalCompactMode === undefined) {
+        delete root.dataset["bwCompactMode"];
+      } else {
+        root.dataset["bwCompactMode"] = originalCompactMode;
+      }
       cleanupCss();
     }
   });
