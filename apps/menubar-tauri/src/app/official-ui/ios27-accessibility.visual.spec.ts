@@ -92,9 +92,12 @@ describe("iOS 27 accessibility visual contract", () => {
     const host = fixture.nativeElement as HTMLElement;
     const root = getComputedStyle(document.documentElement);
     const currentTab = host.querySelector<HTMLButtonElement>('[aria-current="page"]')!;
+    const indicator = host.querySelector<HTMLElement>(".floating-tab-switcher__indicator")!;
     const sheet = host.querySelector<HTMLElement>('[data-testid="accessibility-sheet"]')!;
 
     expect(root.getPropertyValue("--mac-motion-fast").trim()).toBe("160ms");
+    expect(root.getPropertyValue("--mac-motion-navigation").trim()).toBe("180ms");
+    expect(root.getPropertyValue("--mac-motion-sheet").trim()).toBe("200ms");
     expect(root.getPropertyValue("--mac-motion-standard").trim()).toBe("180ms");
     expect(root.getPropertyValue("--mac-motion-slow").trim()).toBe("200ms");
     expect(root.getPropertyValue("--mac-motion-duration").trim()).toBe("160ms");
@@ -108,7 +111,10 @@ describe("iOS 27 accessibility visual contract", () => {
     const pressed = getComputedStyle(currentTab);
     expect(pressed.transform).toBe("none");
     expect(pressed.opacity).toBe("0.78");
+    expect(pressed.backgroundColor).toBe("rgba(10, 102, 255, 0.11)");
     expect(pressed.transitionDuration.split(", ")).toEqual(["160ms", "160ms", "160ms"]);
+    expect(getComputedStyle(indicator).transition).toContain("180ms");
+    expect(getComputedStyle(sheet).transition.match(/200ms/g)).toHaveLength(4);
     expect(getComputedStyle(sheet).borderRadius).toBe("16px 16px 0 0");
   });
 
@@ -139,10 +145,15 @@ describe("iOS 27 accessibility visual contract", () => {
 
   it("computes opaque, filter-free surfaces for reduced transparency", async () => {
     const fixture = await mountHost({ reducedTransparency: true });
-    const sheet = (fixture.nativeElement as HTMLElement)
-      .querySelector<HTMLElement>('[data-testid="accessibility-sheet"]')!;
+    const host = fixture.nativeElement as HTMLElement;
+    const navigation = host.querySelector<HTMLElement>(".macos-glass-navigation")!;
+    const sheet = host.querySelector<HTMLElement>('[data-testid="accessibility-sheet"]')!;
+    const navigationStyle = getComputedStyle(navigation);
     const sheetStyle = getComputedStyle(sheet);
 
+    expect(navigationStyle.backgroundColor).toBe("rgb(251, 253, 255)");
+    expect(navigationStyle.borderColor).toBe("rgb(185, 203, 227)");
+    expect(navigationStyle.getPropertyValue("backdrop-filter")).toBe("none");
     expect(sheetStyle.backgroundColor).toBe("rgb(251, 253, 255)");
     expect(sheetStyle.getPropertyValue("backdrop-filter")).toBe("none");
     expect(readFileSync(
@@ -158,8 +169,13 @@ describe("iOS 27 accessibility visual contract", () => {
     const host = fixture.nativeElement as HTMLElement;
     const root = getComputedStyle(document.documentElement);
     const currentTab = host.querySelector<HTMLElement>('[aria-current="page"]')!;
+    const navigation = host.querySelector<HTMLElement>(".macos-glass-navigation")!;
+    const navigationStyle = getComputedStyle(navigation);
 
     expect(root.getPropertyValue("--mac-border").trim()).toBe("#4c4c4f");
+    expect(navigationStyle.backgroundColor).toBe("rgb(251, 253, 255)");
+    expect(navigationStyle.borderColor).toBe("rgb(76, 76, 79)");
+    expect(navigationStyle.getPropertyValue("backdrop-filter")).toBe("none");
     expect(getComputedStyle(currentTab).borderBottomWidth).toBe("2px");
     expect(getComputedStyle(currentTab).textDecoration).toContain("underline");
   });
@@ -168,17 +184,25 @@ describe("iOS 27 accessibility visual contract", () => {
     const fixture = await mountHost({ reducedMotion: true });
     const host = fixture.nativeElement as HTMLElement;
     const currentTab = host.querySelector<HTMLButtonElement>('[aria-current="page"]')!;
+    const indicator = host.querySelector<HTMLElement>(".floating-tab-switcher__indicator")!;
     const sheet = host.querySelector<HTMLElement>('[data-testid="accessibility-sheet"]')!;
     currentTab.dataset["testActive"] = "true";
     currentTab.dataset["testReducedMotion"] = "true";
+    indicator.dataset["testReducedMotion"] = "true";
+    indicator.style.transform = "translateX(44px)";
     sheet.dataset["testReducedMotion"] = "true";
 
     expect(getComputedStyle(currentTab).transitionDuration).toBe("0s");
     expect(getComputedStyle(currentTab).animationName).toBe("none");
     expect(getComputedStyle(currentTab).scrollBehavior).toBe("auto");
     expect(getComputedStyle(currentTab).transform).toBe("none");
+    expect(getComputedStyle(indicator).transitionDuration).toBe("0s");
+    expect(getComputedStyle(indicator).transform).toBe("none");
     expect(getComputedStyle(sheet).transitionDuration).toBe("0s");
     expect(getComputedStyle(sheet).transform).toBe("none");
+
+    document.documentElement.dataset["bwWindow"] = "popout";
+    expect(getComputedStyle(sheet).transform).toBe("translateX(-50%)");
   });
 
   it("uses system colors for the real current tab and retains every forced-color semantic", async () => {

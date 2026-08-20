@@ -5,7 +5,10 @@
 
 :root {
   --bw-sheet-max-height: 80vh;
-  --bw-sheet-motion: var(--mac-sheet-motion);
+  --mac-motion-fast: 160ms;
+  --mac-motion-navigation: 180ms;
+  --mac-motion-sheet: 200ms;
+  --bw-sheet-motion: var(--mac-motion-sheet);
   --mac-form-control-height: 40px;
   --mac-form-control-radius: 10px;
   color: var(--bw-text-main);
@@ -543,7 +546,7 @@ popup-page {
   background: var(--mac-selected);
   box-shadow: none;
   transform: translateX(calc(var(--selected-index) * 100%));
-  transition: transform var(--mac-motion-duration) cubic-bezier(.2, .8, .2, 1);
+  transition: transform var(--mac-motion-navigation) cubic-bezier(.2, .8, .2, 1);
 }
 
 .floating-tab-switcher__segment {
@@ -3306,14 +3309,17 @@ bit-form-control > label :is(input, select, textarea):focus-visible,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .macos-pressable,
   .floating-tab-switcher__indicator {
-    transition: none;
+    transition-duration: 0s !important;
+    transform: none !important;
   }
 
   .app-bottom-sheet,
   .app-bottom-sheet[data-state="opening"],
   .app-bottom-sheet[data-state="closing"] {
-    transform: none;
+    transition-duration: 0s !important;
+    transform: none !important;
   }
 
   .macos-pressable:active {
@@ -3332,6 +3338,15 @@ bit-form-control > label :is(input, select, textarea):focus-visible,
   .bit-menu-panel [role="menu"] {
     animation: none;
     transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .macos-glass-navigation {
+    border-color: var(--mac-border);
+    background: var(--mac-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -3663,12 +3678,12 @@ bit-form-control > label :is(input, select, textarea):focus-visible,
   :root[data-bw-window="popout"] .app-bottom-sheet[open]:not([data-state]),
   :root[data-bw-window="popout"] .app-bottom-sheet[data-state="opening"],
   :root[data-bw-window="popout"] .app-bottom-sheet[data-state="closing"] {
-    transform: translateX(-50%);
+    transform: translateX(-50%) !important;
   }
 
   @starting-style {
     :root[data-bw-window="popout"] .app-bottom-sheet[data-state="open"] {
-      transform: translateX(-50%);
+      transform: translateX(-50%) !important;
     }
   }
 }
@@ -6328,10 +6343,23 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   min-height: 44px;
 }
 
-.macos-page :is(input, select, textarea, button, a):focus-visible {
-  outline-width: var(--mac-focus-ring-width);
-  outline-style: solid;
-  outline-color: var(--mac-focus);
+.macos-pressable {
+  transition:
+    background-color var(--mac-motion-fast) ease,
+    color var(--mac-motion-fast) ease,
+    opacity var(--mac-motion-fast) ease;
+}
+
+.macos-pressable:active {
+  background: var(--mac-pressed);
+}
+
+.macos-page :is(button, a, input, select, textarea, [tabindex]):focus:not(:focus-visible) {
+  outline: 0;
+}
+
+.macos-page :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--mac-focus);
   outline-offset: 2px;
 }
 

@@ -143,20 +143,18 @@ describe("iOS 27 production accessibility contract", () => {
       ["INPUT", "LABEL"],
     ]);
 
-    for (const { input, owner } of controls) {
+    for (const { input, owner } of productionFocusPairs(host)) {
       input.focus();
       expect(visibleOutlineCount(getComputedStyle(input), getComputedStyle(owner))).toBe(0);
       input.blur();
 
       exposeFocusVisible(input);
-      const inputStyle = getComputedStyle(input);
-      const ownerStyle = getComputedStyle(owner);
-      expect(visibleOutlineCount(inputStyle, ownerStyle)).toBe(1);
-      expect(ownerStyle.outlineWidth).toBe("2px");
-      expect(ownerStyle.outlineStyle).toBe("solid");
-      expect(ownerStyle.outlineOffset).toBe("2px");
-      expect(ownerStyle.boxShadow).toBe("none");
-      expect(inputStyle.outlineStyle).toBe("none");
+      expect(visibleOutlineCount(getComputedStyle(input), getComputedStyle(owner))).toBe(1);
+      expect(getComputedStyle(owner).outlineWidth).toBe("2px");
+      expect(getComputedStyle(owner).outlineStyle).toBe("solid");
+      expect(getComputedStyle(owner).outlineOffset).toBe("2px");
+      expect(getComputedStyle(owner).boxShadow).toBe("none");
+      expect(getComputedStyle(input).outlineStyle).toBe("none");
       clearFocusVisible(input);
     }
   });
