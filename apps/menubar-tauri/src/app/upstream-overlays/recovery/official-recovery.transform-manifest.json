@@ -254,7 +254,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
-      "sha256": "e244d74e8aae062c39fbce00a1c08bd774aa8e34ee8c31a397a3515f52b489e0"
+      "sha256": "0ddffe417fcf0503f737a320255c7d0d63206bae1a1bbba96a6d73359bbcf4d9"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
@@ -338,11 +338,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/archive-page.component.ts",
-      "sha256": "75d5ae814c102505b97de2c7aebb019c88b2d58d9555aa031a104e1f9a0ac3dc"
+      "sha256": "74dc3d6a83c667b5aefb6ecb5a44f24ac645e449f98a31c90d298ba657e81006"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/folders-page.component.ts",
-      "sha256": "4e877ac8bec2595ef3c8bf4ff481566ef8e26639ec4c0099ef5dd2b3515bc2ea"
+      "sha256": "fbe017ed83a3abdded3111f57afd40d6ecb2d5b2881a4307d8a08319215245a5"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/opaque-cipher-payload.ts",
@@ -362,7 +362,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/trash-page.component.ts",
-      "sha256": "167b9e4da376b9c7ac9878c5bd927ecbfedc4c43610add37a9218cafeeba1658"
+      "sha256": "65fd3e39ca6745f8e864d01de2c49116054239147aabb234a078ece631fe9501"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/vault-actions.service.ts",
@@ -382,7 +382,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/vault-password-history-page.component.ts",
-      "sha256": "3658fb0d49341982a489d350554d19d876a15bd1192f628c81399fe082585ffd"
+      "sha256": "e5020563b979fa33e95628fd66c0382ab545cd0944d792c503eac9c928da8656"
     },
     {
       "path": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
