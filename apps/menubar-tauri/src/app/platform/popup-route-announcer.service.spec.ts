@@ -96,6 +96,12 @@ class DisconnectingHeadingComponent implements AfterViewInit {
   }
 }
 
+@Component({
+  standalone: true,
+  template: '<popup-page><h1>重复一</h1><h1>重复二</h1></popup-page>',
+})
+class DuplicateFallbackHeadingComponent {}
+
 async function renderAnnouncer(live: Pick<LiveAnnouncer, "announce" | "clear">) {
   await TestBed.configureTestingModule({
     imports: [AnnouncerHostComponent],
@@ -105,6 +111,7 @@ async function renderAnnouncer(live: Pick<LiveAnnouncer, "announce" | "clear">) 
         { path: "archive", component: ArchiveHeadingComponent },
         { path: "visibility", component: VisibilityHeadingComponent },
         { path: "disconnect", component: DisconnectingHeadingComponent },
+        { path: "duplicate-fallback", component: DuplicateFallbackHeadingComponent },
         {
           path: "nested",
           component: NestedArchiveComponent,
@@ -191,6 +198,19 @@ describe("PopupRouteAnnouncerService", () => {
     expect(live.announce).not.toHaveBeenCalled();
     expect(JSON.stringify(live.announce.mock.calls)).not.toContain("route-private-id");
     expect(JSON.stringify(live.announce.mock.calls)).not.toContain("secret-server-id");
+  });
+
+  it("refuses an ambiguous page-heading fallback inside the active route owner", async () => {
+    const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+    const { router, fixture, service } = await renderAnnouncer(live);
+    service.start();
+    await router.navigateByUrl("/login");
+    await settleNavigation(fixture);
+
+    await router.navigateByUrl("/duplicate-fallback");
+    await settleNavigation(fixture);
+
+    expect(live.announce).not.toHaveBeenCalled();
   });
 
   it("subscribes only once when start is called twice", async () => {

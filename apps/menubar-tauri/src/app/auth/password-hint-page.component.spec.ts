@@ -84,6 +84,7 @@ describe("PasswordHintPageComponent", () => {
     const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
 
     expect(host.querySelectorAll("popup-page")).toHaveLength(1);
+    expect(host.querySelector("popup-page h1")?.textContent?.trim()).toBe("请求密码提示");
     const headerBack = host.querySelector<HTMLButtonElement>(
       'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
     );

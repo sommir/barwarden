@@ -29,10 +29,7 @@ export class PopupRouteAnnouncerService {
           read: () => {
             if (this.latestNavigationId !== event.id) return;
             const owner = deepestActivePrimaryRouteHost(this.document);
-            const heading = owner
-              ? Array.from(owner.querySelectorAll<HTMLElement>("popup-header h1"))
-                .find((node) => isRenderedHeading(node, owner))
-              : undefined;
+            const heading = owner ? activeRouteHeading(owner) : undefined;
             const text = heading?.textContent?.replace(/\s+/g, " ").trim() ?? "";
             if (text) void this.live.announce(text, "polite");
           },
@@ -49,6 +46,25 @@ export class PopupRouteAnnouncerService {
     this.suppressNextNavigation = true;
     this.live.clear();
   }
+}
+
+function activeRouteHeading(owner: HTMLElement): HTMLElement | undefined {
+  const headerHeadings = Array.from(
+    owner.querySelectorAll<HTMLElement>("popup-header h1"),
+  ).filter((node) => isRenderedHeading(node, owner));
+  if (headerHeadings.length > 0) return uniqueHeadingText(headerHeadings);
+
+  const pageHeadings = Array.from(
+    owner.querySelectorAll<HTMLElement>("popup-page h1"),
+  ).filter((node) => isRenderedHeading(node, owner));
+  return uniqueHeadingText(pageHeadings);
+}
+
+function uniqueHeadingText(headings: readonly HTMLElement[]): HTMLElement | undefined {
+  const titles = new Set(
+    headings.map((heading) => heading.textContent?.replace(/\s+/g, " ").trim() ?? ""),
+  );
+  return titles.size === 1 && !titles.has("") ? headings[0] : undefined;
 }
 
 function deepestActivePrimaryRouteHost(document: Document): HTMLElement | null {

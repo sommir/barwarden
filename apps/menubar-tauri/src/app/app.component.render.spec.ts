@@ -24,6 +24,9 @@ import { ios27RouteData } from "./platform/popup-route-metadata";
 @Component({ standalone: true, template: "" })
 class OtpRouteStubComponent {}
 
+@Component({ standalone: true, template: "" })
+class LoginRouteStubComponent {}
+
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 } catch (error) {
@@ -105,6 +108,50 @@ async function renderRoot({
 }
 
 describe("AppComponent rendering", () => {
+  it("applies the authentication layout only while an authentication route is active", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([
+          {
+            path: "login",
+            component: LoginRouteStubComponent,
+            data: ios27RouteData("auth", "base", false),
+          },
+          {
+            path: "tabs/otp",
+            component: OtpRouteStubComponent,
+            data: ios27RouteData("otp", "base", true),
+          },
+        ]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: AuthFacade, useValue: { restoreStartup: vi.fn().mockResolvedValue("login") } },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultTimeoutService, useValue: { recordActivity: vi.fn() } },
+        { provide: POPUP_LIFECYCLE_HOST, useValue: { hidePopup: vi.fn() } },
+      ],
+    }).compileComponents();
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(router.url).toBe("/login");
+      expect((fixture.nativeElement as HTMLElement).classList)
+        .toContain("barwarden-root--authentication");
+    });
+
+    await router.navigateByUrl("/tabs/otp");
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).classList)
+      .not.toContain("barwarden-root--authentication");
+  });
+
   it("binds the current routed family to the root host", async () => {
     TestBed.resetTestingModule();
     const store = new PopupStateStore();

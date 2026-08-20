@@ -107,6 +107,7 @@ export const POPUP_LIFECYCLE_HOST = new InjectionToken<PopupLifecycleHost>(
   selector: "barwarden-root",
   standalone: true,
   host: {
+    "[class.barwarden-root--authentication]": "authenticationLayoutActive()",
     "[class.ios27-family--auth]": "routeFamily() === 'auth'",
     "[class.ios27-family--shell]": "routeFamily() === 'shell'",
     "[class.ios27-family--vault]": "routeFamily() === 'vault'",
@@ -191,6 +192,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   protected readonly startupPending = signal(true);
   protected readonly startupFailure = signal<StartupFailurePresentation | null>(null);
   protected readonly popupRenderRecoveryActive = signal(false);
+  protected readonly authenticationLayoutActive = signal(false);
   protected readonly routeFamily = signal<Ios27PageFamily | null>(null);
   hasMainSwitcher = false;
   private popupRenderRecoveryFrame: number | undefined;
@@ -243,9 +245,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.vaultMainEvidenceState = vaultMainEvidenceState;
     this.sendEvidenceState = sendEvidenceState;
     this.settingsPreviewState = settingsPreviewState;
+    this.authenticationLayoutActive.set(routeUsesAuthenticationLayout(this.router.url));
     this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
     this.routeSubscription = this.router.events?.subscribe((event) => {
       if (!(event instanceof NavigationEnd)) return;
+      this.authenticationLayoutActive.set(routeUsesAuthenticationLayout(this.router.url));
       const routeRoot = this.router.routerState?.snapshot?.root;
       this.routeFamily.set(
         routeRoot ? deepestIos27RouteData(routeRoot)?.ios27Family ?? null : null,
@@ -332,10 +336,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
-      if (
-        import.meta.env.VITE_BW_VAULT_EVIDENCE === "true" &&
-        this.vaultMainEvidenceState
-      ) {
+      if (this.vaultMainEvidenceState) {
         this.evidenceMode = true;
         const { applyVaultMainEvidenceState, vaultMainEvidenceRoute } = await import(
           "./vault/vault-main-evidence-preview"
@@ -771,6 +772,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
 export function routeHasMainSwitcher(url: string): boolean {
   return /^\/tabs\/(vault|otp|generator|send|settings)(?:[?#]|$)/.test(url);
+}
+
+export function routeUsesAuthenticationLayout(url: string): boolean {
+  return /^\/(login|lock|2fa|new-device-verification|hint)(?:[?#]|$)/.test(url);
 }
 
 export function startupFailurePresentation(

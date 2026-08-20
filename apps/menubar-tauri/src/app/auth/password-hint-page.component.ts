@@ -1,5 +1,6 @@
 import { Component, ViewChild } from "@angular/core";
 
+import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { OfficialAnonymousShellComponent } from "../upstream-overlays/auth/anonymous/official-anonymous-shell.component";
 import { OfficialPasswordHintComponent } from "../upstream-overlays/auth/login/official-password-hint.component";
 
@@ -8,7 +9,11 @@ import { OfficialPasswordHintComponent } from "../upstream-overlays/auth/login/o
   standalone: true,
   imports: [OfficialAnonymousShellComponent, OfficialPasswordHintComponent],
   template: `
-    <bw-official-anonymous-shell [showBackButton]="true" [backAction]="backAction">
+    <bw-official-anonymous-shell
+      [pageTitle]="i18n.t('requestHint')"
+      [showBackButton]="true"
+      [backAction]="backAction"
+    >
       <bw-official-password-hint />
     </bw-official-anonymous-shell>
   `,
@@ -16,6 +21,8 @@ import { OfficialPasswordHintComponent } from "../upstream-overlays/auth/login/o
 export class PasswordHintPageComponent {
   @ViewChild(OfficialPasswordHintComponent)
   private hint?: OfficialPasswordHintComponent;
+
+  constructor(readonly i18n: OfficialI18nService) {}
 
   readonly backAction = (): Promise<void> => this.hint?.cancel() ?? Promise.resolve();
 }

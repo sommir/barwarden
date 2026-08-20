@@ -1,3 +1,4 @@
+import type { Provider } from "@angular/core";
 import type { ComponentFixture } from "@angular/core/testing";
 import { TestBed } from "@angular/core/testing";
 import { Router } from "@angular/router";
@@ -6,36 +7,16 @@ import { join } from "node:path";
 
 import { AppComponent } from "../app.component";
 import { appConfig } from "../app.config";
-import { AuthFacade, type AuthStartupResult } from "../auth/auth.facade";
-import { applyAuthEvidenceState } from "../auth/auth-evidence-preview";
-import {
-  AUTH_EVIDENCE_STATE,
-  AUTH_EVIDENCE_STATES,
-  type AuthEvidenceState,
-} from "../auth/auth-evidence-state";
+import { AUTH_EVIDENCE_STATES } from "../auth/auth-evidence-state";
 import type { Ios27PageFamily, PopupLayer } from "../platform/popup-route-metadata";
-import { PopupStateStore } from "../popup-state";
-import { applySendEvidenceState } from "../send/send-evidence-preview";
 import {
-  SEND_EVIDENCE_STATE,
   sendEvidenceStates,
-  type SendEvidenceState,
 } from "../send/send-evidence-state";
+import { createSettingsEvidencePreview } from "../settings/settings-evidence-preview";
 import {
-  applySettingsEvidenceState,
-  createSettingsEvidencePreview,
-} from "../settings/settings-evidence-preview";
-import {
-  SETTINGS_EVIDENCE_STATE,
   settingsEvidenceStates,
-  type SettingsEvidenceState,
 } from "../settings/settings-evidence-state";
-import { SettingsService } from "../settings/settings.service";
-import { applyVaultMainEvidenceState } from "../vault/vault-main-evidence-preview";
-import {
-  vaultMainEvidenceStates,
-  type VaultMainEvidenceState,
-} from "../vault/vault-main-evidence-state";
+import { vaultMainEvidenceStates } from "../vault/vault-main-evidence-state";
 import { createEvidenceProviders } from "./evidence-providers";
 
 export interface ProductionRouteStructuralCase {
@@ -110,10 +91,12 @@ for (const testCase of productionRouteStructuralCases) {
 
 export async function mountProductionRoute(
   testCase: ProductionRouteStructuralCase,
+  additionalProviders: readonly Provider[] = [],
 ): Promise<{
   fixture: ComponentFixture<AppComponent>;
   host: HTMLElement;
   router: Router;
+  evidenceStartupUrl: string;
 }> {
   const settingsPreview = createSettingsEvidencePreview(testCase.evidenceSearch, true);
   const evidenceProviders = settingsPreview
@@ -139,58 +122,23 @@ export async function mountProductionRoute(
     providers: [
       ...appConfig.providers,
       ...evidenceProviders,
-      // The normal Vitest build intentionally aliases interactive evidence
-      // preview imports to production-safe stubs. The harness applies the
-      // typed fixture itself, then keeps AppComponent on its ordinary startup
-      // path so those stubs cannot redirect the mounted route.
-      { provide: AUTH_EVIDENCE_STATE, useValue: null },
-      { provide: SEND_EVIDENCE_STATE, useValue: null },
-      { provide: SETTINGS_EVIDENCE_STATE, useValue: null },
+      ...additionalProviders,
     ],
   }).compileComponents();
-  const store = TestBed.inject(PopupStateStore);
-  applyEvidenceState(testCase, store, TestBed.inject(SettingsService));
-  const auth = TestBed.inject(AuthFacade);
-  auth.restoreStartup = async () => startupResult(store);
   const router = TestBed.inject(Router);
   const fixture = TestBed.createComponent(AppComponent);
   fixture.detectChanges();
   await waitForAppStartup(fixture);
+  const evidenceStartupUrl = router.url;
   await router.navigateByUrl(testCase.route);
   fixture.detectChanges();
   await fixture.whenStable();
-  return { fixture, host: fixture.nativeElement as HTMLElement, router };
-}
-
-function applyEvidenceState(
-  testCase: ProductionRouteStructuralCase,
-  store: PopupStateStore,
-  settings: SettingsService,
-): void {
-  const [key, value] = [...new URLSearchParams(testCase.evidenceSearch).entries()][0]!;
-  switch (key) {
-    case "authEvidence":
-      applyAuthEvidenceState(store, value as AuthEvidenceState);
-      if (testCase.route === "/lock" && !store.snapshot().email) {
-        store.setLockedAccount("auth-evidence@example.test", "https://vault.example.test");
-      }
-      return;
-    case "vaultEvidence":
-      applyVaultMainEvidenceState(store, value as VaultMainEvidenceState);
-      return;
-    case "sendEvidence":
-      applySendEvidenceState(store, value as SendEvidenceState);
-      return;
-    case "settingsEvidence":
-      applySettingsEvidenceState(store, settings, value as SettingsEvidenceState);
-      return;
-  }
-}
-
-function startupResult(store: PopupStateStore): AuthStartupResult {
-  const state = store.snapshot();
-  if (state.isUnlocked) return "unlocked";
-  return state.email ? "locked" : "login";
+  return {
+    fixture,
+    host: fixture.nativeElement as HTMLElement,
+    router,
+    evidenceStartupUrl,
+  };
 }
 
 async function waitForAppStartup(fixture: ComponentFixture<AppComponent>): Promise<void> {

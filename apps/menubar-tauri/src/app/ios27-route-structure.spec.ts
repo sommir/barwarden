@@ -6,6 +6,7 @@ import {
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
+import { LiveAnnouncer } from "@angular/cdk/a11y";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -36,6 +37,53 @@ describe("mounted iOS 27 production route structure", () => {
   it("registers all 33 visible production route cases", () => {
     expect(productionRouteStructuralCases).toHaveLength(33);
   });
+
+  it.each([
+    ["/2fa", "/2fa"],
+    ["/archive", "/archive"],
+    ["/send-created?sendId=m12-text-send&type=text", "/send-created?sendId=m12-text-send&type=text"],
+    ["/appearance", "/appearance"],
+  ] as const)(
+    "lets AppComponent consume the real evidence token for %s",
+    async (route, expectedStartupUrl) => {
+      const testCase = productionRouteStructuralCases.find((entry) => entry.route === route)!;
+      const { evidenceStartupUrl, fixture } = await mountProductionRoute(testCase);
+
+      expect(evidenceStartupUrl).toBe(expectedStartupUrl);
+      fixture.destroy();
+    },
+  );
+
+  it.each([
+    ["/lock", "Barwarden"],
+    ["/2fa", "两步登录"],
+    ["/new-device-verification", "验证您的身份"],
+    ["/hint", "请求密码提示"],
+  ] as const)(
+    "announces the unique active heading for the real %s route",
+    async (route, expectedHeading) => {
+      const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+      const testCase = productionRouteStructuralCases.find((entry) => entry.route === route)!;
+      const { fixture, host, router } = await mountProductionRoute(testCase, [
+        { provide: LiveAnnouncer, useValue: live },
+      ]);
+      live.announce.mockClear();
+      const staleHeading = document.createElement("h1");
+      staleHeading.textContent = "stale private heading";
+      host.prepend(staleHeading);
+
+      await router.navigateByUrl(`${route}?private=secret-route-value`);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(live.announce.mock.calls).toEqual([[expectedHeading, "polite"]]);
+      expect(JSON.stringify(live.announce.mock.calls)).not.toContain("secret-route-value");
+      expect(JSON.stringify(live.announce.mock.calls)).not.toContain("stale private heading");
+      fixture.destroy();
+    },
+  );
 
   it.each(productionRouteStructuralCases)(
     "mounts $route with one iOS 27 shell",
