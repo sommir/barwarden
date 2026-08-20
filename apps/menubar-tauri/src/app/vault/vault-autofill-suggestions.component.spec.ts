@@ -1,6 +1,9 @@
 import "@angular/compiler";
 import "zone.js";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { TestBed } from "@angular/core/testing";
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
 import { Router } from "@angular/router";
@@ -154,8 +157,6 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     expect(row?.querySelector("app-item-more-options")).toBeNull();
     expect(row?.querySelector("[data-testid='vault-autofill-quick-copy']")).toBeNull();
     expect(row?.classList).toContain("vault-list-row");
-    expect(row?.querySelector("[data-testid='vault-autofill-open-details']")?.classList)
-      .toContain("tw-h-[52px]");
     expect(row?.querySelector("[data-testid='vault-autofill-candidate-name']")?.className)
       .toContain("tw-truncate");
     expect(row?.querySelector("[data-testid='vault-autofill-candidate-name']")?.className)
@@ -164,6 +165,42 @@ describe("VaultAutoFillSuggestionsComponent", () => {
       .toContain("tw-truncate");
     expect(row?.querySelector(".vault-autofill-suggestions__row")).toBeNull();
     expect(row?.querySelector(".vault-autofill-suggestions__capabilities")).toBeNull();
+  });
+
+  it("computes real suggestion rows at 52/44px and keeps every action at least 44px", async () => {
+    const harness = await render(ready([
+      candidate("github", "exact", "service_identifier", ["username", "password", "totp"]),
+    ]));
+    const cleanupCss = installInteractionCss();
+
+    try {
+      const row = harness.host.querySelector<HTMLElement>(
+        "[data-testid='vault-autofill-candidate']",
+      )!;
+      const details = row.querySelector<HTMLElement>(
+        "[data-testid='vault-autofill-open-details']",
+      )!;
+      const fill = row.querySelector<HTMLElement>("[data-testid='vault-autofill-fill']")!;
+      const controls = row.querySelectorAll<HTMLElement>(
+        "[data-testid='vault-autofill-field-action'], [data-testid='vault-autofill-fill']",
+      );
+
+      expect(getComputedStyle(row).minHeight).toBe("52px");
+      expect(getComputedStyle(details).height).toBe("52px");
+      expect(Array.from(controls, (control) => [
+        getComputedStyle(control).minWidth,
+        getComputedStyle(control).minHeight,
+      ])).toEqual(Array.from(controls, () => ["44px", "44px"]));
+      expect(getComputedStyle(fill).minWidth).toBe("44px");
+
+      document.body.classList.add("tw-bit-compact");
+      expect(getComputedStyle(row).minHeight).toBe("44px");
+      expect(getComputedStyle(details).height).toBe("44px");
+    } finally {
+      document.body.classList.remove("tw-bit-compact");
+      harness.fixture.destroy();
+      cleanupCss();
+    }
   });
 
   it("opens the exact Login detail from the row body without filling", async () => {
@@ -411,3 +448,35 @@ const SESSION: AutoFillAgentSession = Object.freeze({
   generation: "00000000-0000-4000-8000-000000000004",
   vaultRevision: 7,
 });
+
+function installInteractionCss(): () => void {
+  const style = document.createElement("style");
+  style.textContent = [
+    "apps/menubar-tauri/src/styles/macos-tokens.css",
+    "apps/menubar-tauri/src/styles/global.css",
+    "apps/menubar-tauri/src/app/vault/vault-autofill-suggestions.component.css",
+  ]
+    .map((filename) => readFileSync(join(process.cwd(), filename), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
+    resolveCssVariable(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
+      || value,
+  );
+  return () => style.remove();
+}
+
+function resolveCssVariable(
+  value: string,
+  rootStyle: CSSStyleDeclaration,
+  seen: Set<string>,
+): string {
+  return value.replace(/var\((--[\w-]+)\)/g, (reference, name) => {
+    if (seen.has(name)) return reference;
+    const next = rootStyle.getPropertyValue(name).trim();
+    if (!next) return reference;
+    return resolveCssVariable(next, rootStyle, new Set([...seen, name]));
+  });
+}

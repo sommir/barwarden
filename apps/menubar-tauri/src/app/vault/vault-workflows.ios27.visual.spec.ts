@@ -115,8 +115,7 @@ beforeAll(() => {
     .map((file) => readFileSync(file, "utf8"))
     .join("\n")
     .replace(/^@import[^;]+;\s*/gm, "")
-    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]')
-    .replace(/:focus-within/g, ':has([data-test-focus-visible="true"])');
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
   const rootStyle = getComputedStyle(document.documentElement);
   style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
@@ -290,6 +289,48 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(content).minWidth).toBe("0px");
     expect(getComputedStyle(name).minWidth).toBe("0px");
     expect(getComputedStyle(name).overflowWrap).toBe("anywhere");
+    fixture.destroy();
+  });
+
+  it("keeps one direct 2px ring on each real retained Vault row control", async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [VaultRowVisualHostComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(VaultRowVisualHostComponent);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const row = host.querySelector<HTMLElement>("bit-item.vault-list-row")!;
+    const controls = [
+      host.querySelector<HTMLButtonElement>('[data-testid="vault-item-content"]')!,
+      host.querySelector<HTMLButtonElement>('[data-field="username"]')!,
+      host.querySelector<HTMLButtonElement>('[data-field="password"]')!,
+      host.querySelector<HTMLButtonElement>('[data-field="totp"]')!,
+      host.querySelector<HTMLButtonElement>('[aria-label="更多"]')!,
+    ];
+
+    expect(controls.every(Boolean)).toBe(true);
+    for (const control of controls) {
+      control.focus();
+      control.dataset["testFocusVisible"] = "true";
+      const controlStyle = getComputedStyle(control);
+      const rowStyle = getComputedStyle(row);
+      expect([
+        controlStyle.outlineWidth === "2px" && controlStyle.outlineStyle === "solid",
+        rowStyle.outlineWidth === "2px" && rowStyle.outlineStyle === "solid",
+      ].filter(Boolean)).toHaveLength(1);
+      expect(controlStyle.outlineWidth).toBe("2px");
+      expect(controlStyle.outlineStyle).toBe("solid");
+      expect(rowStyle.outlineStyle).not.toBe("solid");
+      control.removeAttribute("data-test-focus-visible");
+      control.blur();
+    }
     fixture.destroy();
   });
 

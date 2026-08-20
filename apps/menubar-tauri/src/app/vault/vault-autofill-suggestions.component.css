@@ -13,6 +13,7 @@
 }
 
 .vault-autofill-suggestions__fill {
-  min-width: max-content;
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   margin-inline-end: 0.25rem;
 }

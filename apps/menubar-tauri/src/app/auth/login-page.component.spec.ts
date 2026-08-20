@@ -62,8 +62,7 @@ function installLoginVisualCss(media: { readonly forcedColors?: boolean } = {}):
   });
   productionCascade.walkAtRules("starting-style", (rule) => rule.remove());
   style.textContent = productionCascade.toString()
-    .replace(/:focus-visible/g, '[data-production-focus-visible="true"]')
-    .replace(/:focus-within/g, ':has([data-production-focus-visible="true"])');
+    .replace(/:focus-visible/g, '[data-production-focus-visible="true"]');
   document.head.append(style);
   const rootStyle = getComputedStyle(document.documentElement);
   style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
@@ -210,6 +209,10 @@ describe("LoginPageComponent", () => {
 
     try {
       input.focus();
+      expect([
+        getComputedStyle(input).outlineWidth,
+        getComputedStyle(field).outlineWidth,
+      ]).not.toContain("2px");
       visualCss.exposeFocusVisible(input);
       const inputStyle = getComputedStyle(input);
       const fieldStyle = getComputedStyle(field);
@@ -275,7 +278,7 @@ describe("LoginPageComponent", () => {
     expect(styles).toContain("background: var(--mac-canvas);");
     expect(styles).toContain(".macos-auth-card {");
     expect(styles).toContain("width: min(100%, 360px);");
-    expect(styles).toContain("bit-form-field [bitfieldcontainer]:focus-within");
+    expect(styles).toContain("bit-form-field [bitfieldcontainer]:has(:focus-visible)");
     expect(styles).toContain(".macos-auth-validation");
     expect(styles).toContain("min-block-size:");
     expect(styles).toContain(".macos-auth-identity");

@@ -66,6 +66,39 @@ describe("MacosAlertStripComponent", () => {
     expect(strip.getAttribute("aria-live")).toBe("polite");
   });
 
+  it("keeps real inline and toast action and dismiss targets at least 44px", async () => {
+    const cleanupCss = installInteractionCss();
+    await TestBed.configureTestingModule({
+      imports: [MacosAlertStripComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(MacosAlertStripComponent);
+    fixture.componentRef.setInput("kind", "info");
+    fixture.componentRef.setInput("actionLabel", "Retry");
+    fixture.componentRef.setInput("dismissible", true);
+
+    try {
+      for (const presentation of ["inline", "toast"] as const) {
+        fixture.componentRef.setInput("presentation", presentation);
+        fixture.detectChanges();
+        const action = fixture.nativeElement.querySelector<HTMLElement>(
+          ".macos-alert-strip__action",
+        )!;
+        const dismiss = fixture.nativeElement.querySelector<HTMLElement>(
+          ".macos-alert-strip__dismiss",
+        )!;
+        expect([
+          getComputedStyle(action).minWidth,
+          getComputedStyle(action).minHeight,
+          getComputedStyle(dismiss).minWidth,
+          getComputedStyle(dismiss).minHeight,
+        ], presentation).toEqual(["44px", "44px", "44px", "44px"]);
+      }
+    } finally {
+      fixture.destroy();
+      cleanupCss();
+    }
+  });
+
   it("uses polite status semantics for informational strips", async () => {
     await TestBed.configureTestingModule({
       imports: [MacosAlertStripComponent],
@@ -312,3 +345,20 @@ describe("MacosAlertStripComponent", () => {
     );
   });
 });
+
+function installInteractionCss(): () => void {
+  const style = document.createElement("style");
+  style.textContent = ["macos-tokens.css", "global.css"]
+    .map((filename) => readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+      "utf8",
+    ))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
+    rootStyle.getPropertyValue(name).trim() || value,
+  );
+  return () => style.remove();
+}

@@ -97,7 +97,7 @@ const CONTEXTUAL_OTHER_REASONS = new Set([
               >
                 <button
                   bit-item-content
-                  class="tw-h-[52px] tw-min-w-0"
+                  class="vault-autofill-suggestions__details tw-min-w-0"
                   data-testid="vault-autofill-open-details"
                   type="button"
                   [attr.aria-label]="viewDetailsLabel(candidate)"

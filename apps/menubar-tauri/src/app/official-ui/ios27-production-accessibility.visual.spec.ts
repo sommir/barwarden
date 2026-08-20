@@ -87,7 +87,7 @@ afterEach(() => {
 });
 
 describe("iOS 27 production accessibility contract", () => {
-  it("renders exactly one 2px focus ring on real form-field, form-control, and search controls", async () => {
+  it("renders one 2px owner ring only for focus-visible on real form and search controls", async () => {
     installProductionCss();
     const fixture = await mountHost();
     const host = fixture.nativeElement as HTMLElement;
@@ -101,6 +101,10 @@ describe("iOS 27 production accessibility contract", () => {
     ]);
 
     for (const { input, owner } of controls) {
+      input.focus();
+      expect(visibleOutlineCount(getComputedStyle(input), getComputedStyle(owner))).toBe(0);
+      input.blur();
+
       exposeFocusVisible(input);
       const inputStyle = getComputedStyle(input);
       const ownerStyle = getComputedStyle(owner);
@@ -228,8 +232,7 @@ function installProductionCss(media: { readonly forcedColors?: boolean } = {}): 
   const style = document.createElement("style");
   style.dataset["ios27ProductionAccessibility"] = "true";
   style.textContent = root.toString()
-    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]')
-    .replace(/:focus-within/g, ':has([data-test-focus-visible="true"])');
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
   const rootStyle = getComputedStyle(document.documentElement);
   style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>

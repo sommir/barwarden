@@ -663,8 +663,10 @@ barwarden-root:has(popup-footer) .app-feedback {
 
 .app-feedback__dismiss {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   flex: 0 0 auto;
   place-items: center;
   border: 0;
@@ -1024,7 +1026,8 @@ bw-vault-detail-field {
 }
 
 .official-read-only-control > .field-action {
-  min-height: 30px;
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   flex: 0 0 auto;
   margin-right: 4px;
 }
@@ -2358,7 +2361,7 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
  * and directly dismissible instead of inserting a second warning card between
  * the password field and its primary action. */
 .macos-auth-validation--field bit-callout .macos-alert-strip {
-  grid-template-columns: 16px minmax(0, 1fr) 24px;
+  grid-template-columns: 16px minmax(0, 1fr) var(--mac-control-min-size);
   align-items: center;
   gap: 6px;
   margin-top: 6px !important;
@@ -2384,10 +2387,10 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 
 .macos-auth-validation--field .macos-alert-strip__dismiss {
   display: grid;
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  min-height: 24px;
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   place-items: center;
   border-radius: 6px;
   color: var(--mac-destructive);
@@ -2573,7 +2576,8 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 }
 
 .macos-alert-strip__action {
-  min-height: 28px;
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   align-self: center;
   border-radius: 7px;
   padding-inline: var(--mac-space-2);
@@ -2629,12 +2633,19 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   line-height: 1.2;
 }
 
+.macos-alert-strip__dismiss {
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
+}
+
 .macos-alert-strip[data-presentation="toast"] .macos-alert-strip__dismiss {
   display: grid;
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  min-height: 28px;
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   place-items: center;
   border-radius: 7px;
   font-size: 14px;
@@ -3212,10 +3223,10 @@ auth-account .macos-account-label {
 .macos-page--settings .settings-row { border: 0; border-radius: 0; }
 .macos-page--settings bit-item + bit-item { margin-top: 0; }
 
-bit-form-field [bitfieldcontainer]:focus-within,
-bit-search [bitfieldcontainer]:focus-within,
-bit-form-control > label:focus-within,
-.vault-root-header__search:focus-within {
+bit-form-field [bitfieldcontainer]:has(:focus-visible),
+bit-search [bitfieldcontainer]:has(:focus-visible),
+bit-form-control > label:has(:focus-visible),
+.vault-root-header__search:has(:focus-visible) {
   outline-width: var(--mac-focus-ring-width);
   outline-style: solid;
   outline-color: var(--mac-focus);
@@ -3328,14 +3339,17 @@ bit-form-control > label :is(input, select, textarea):focus-visible,
     outline-color: Highlight !important;
   }
 
-  bit-form-field [bitfieldcontainer]:focus-within,
-  bit-search [bitfieldcontainer]:focus-within,
-  bit-form-control > label:focus-within,
-  .vault-root-header__search:focus-within,
-  .macos-list app-retained-vault-list-item > bit-item:focus-within,
+  bit-form-field [bitfieldcontainer]:has(:focus-visible),
+  bit-search [bitfieldcontainer]:has(:focus-visible),
+  bit-form-control > label:has(:focus-visible),
+  .vault-root-header__search:has(:focus-visible),
   .macos-page--vault-recovery bit-item:focus-within {
     border-color: Highlight !important;
     outline-color: Highlight !important;
+  }
+
+  .macos-list app-retained-vault-list-item > bit-item:focus-within {
+    border-color: Highlight !important;
   }
 
   .floating-tab-switcher__segment[aria-current="page"] {
@@ -4311,7 +4325,8 @@ bit-form-control > label :is(input, select, textarea):focus-visible,
 }
 
 .field-action {
-  min-height: 30px;
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   border: 1px solid var(--bw-border);
   border-radius: 7px;
   padding: 0 9px;
@@ -5118,7 +5133,7 @@ body.tw-bit-compact .new-item-option {
   box-shadow: none;
 }
 
-.vault-root-header__search:focus-within {
+.vault-root-header__search:has(:focus-visible) {
   border-color: color-mix(in srgb, var(--mac-focus) 54%, var(--mac-border-subtle));
 }
 
@@ -5472,6 +5487,25 @@ bw-retained-new-item-dropdown {
   box-shadow: none;
   color: var(--mac-text-primary);
   contain: layout paint style;
+}
+
+.vault-hierarchy__items .vault-list-row .vault-autofill-suggestions__details {
+  height: var(--mac-row-height);
+  min-height: var(--mac-row-height);
+}
+
+.vault-hierarchy__items .vault-list-row .vault-autofill-suggestions__fill {
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
+}
+
+body.tw-bit-compact .vault-hierarchy__items .vault-list-row {
+  min-height: var(--mac-compact-row-height);
+}
+
+body.tw-bit-compact .vault-hierarchy__items .vault-list-row .vault-autofill-suggestions__details {
+  height: var(--mac-compact-row-height);
+  min-height: var(--mac-compact-row-height);
 }
 
 .vault-hierarchy__items .vault-list-row:focus-within {
@@ -5858,7 +5892,13 @@ button.is-copy-failed {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--mac-accent) 12%, transparent);
 }
 
-.macos-list app-retained-vault-list-item > bit-item:focus-within,
+.macos-list app-retained-vault-list-item > bit-item:focus-within {
+  border-color: color-mix(in srgb, var(--mac-focus) 42%, var(--mac-border-subtle));
+  background: var(--mac-selected);
+  outline: none;
+  box-shadow: none;
+}
+
 .macos-page--vault-recovery bit-item:focus-within {
   border-color: color-mix(in srgb, var(--mac-focus) 42%, var(--mac-border-subtle));
   outline-width: var(--mac-focus-ring-width);

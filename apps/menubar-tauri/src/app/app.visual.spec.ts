@@ -388,7 +388,7 @@ describe("popup visual smoke classes", () => {
     );
 
     expect(globalCss).toMatch(
-      /bit-form-field \[bitfieldcontainer\]:focus-within,[\s\S]*?outline-width:\s*var\(--mac-focus-ring-width\);[\s\S]*?outline-style:\s*solid;/,
+      /bit-form-field \[bitfieldcontainer\]:has\(:focus-visible\),[\s\S]*?outline-width:\s*var\(--mac-focus-ring-width\);[\s\S]*?outline-style:\s*solid;/,
     );
     expect(globalCss).toMatch(
       /bit-form-field \[bitfieldcontainer\] :is\(input, select, textarea\):focus-visible,[\s\S]*?outline-width:\s*0 !important;[\s\S]*?outline-style:\s*none !important;/,
