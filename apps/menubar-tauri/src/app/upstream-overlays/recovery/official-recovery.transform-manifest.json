@@ -358,7 +358,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/recovery-page-actions.adapter.ts",
-      "sha256": "aaa005c799f95df5b07d5b01f39594ad207de878d5c6b87971f511016f5808bc"
+      "sha256": "b0b9929723f2694e53f6c925eccb976317b7d106f7a28902cbe0578f1c70030f"
     },
     {
       "path": "apps/menubar-tauri/src/app/vault/trash-page.component.ts",

@@ -132,7 +132,11 @@ export class RecoveryPageActionsAdapter implements OnDestroy {
 
       const outcome = await this.runLifecycle(context, command);
       if ("reason" in outcome) {
-        return this.notCommitted(context, outcome);
+        return this.notCommitted(
+          context,
+          outcome,
+          confirmationPassed && isConfirmationCommand(command),
+        );
       }
       if (outcome.result.item !== context.source || !this.isContextCurrent(context)) {
         return staleResult();
@@ -176,8 +180,13 @@ export class RecoveryPageActionsAdapter implements OnDestroy {
   private notCommitted(
     context: RecoveryActionContext,
     outcome: RecoveryMutationNotCommitted,
+    confirmationOwnsFeedback: boolean,
   ): RecoveryPageActionResult {
-    if (outcome.reason !== "stale" && this.isCurrent(context)) {
+    if (
+      !confirmationOwnsFeedback
+      && outcome.reason !== "stale"
+      && this.isCurrent(context)
+    ) {
       this.store.setStatus(outcome.status);
     }
     return result(false, outcome.status, outcome.reason);
