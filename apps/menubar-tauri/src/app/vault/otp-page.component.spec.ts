@@ -4,6 +4,7 @@ import "@angular/compiler";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { Component } from "@angular/core";
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -24,6 +25,9 @@ import {
   OfficialI18nService,
   translateOfficialMessage,
 } from "../official-ui/official-i18n.service";
+import { AppFeedbackComponent } from "../official-ui/app-feedback.component";
+import { AppFeedbackService } from "../official-ui/app-feedback.service";
+import { AppStatusFeedbackBridgeService } from "../official-ui/app-status-feedback-bridge.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -32,6 +36,15 @@ try {
     throw error;
   }
 }
+
+@Component({
+  imports: [OtpPageComponent, AppFeedbackComponent],
+  template: `
+    <bw-otp-page />
+    <bw-app-feedback [hasMainSwitcher]="true" />
+  `,
+})
+class OtpAppFeedbackIntegrationHostComponent {}
 
 function installVaultVisualCss(): () => void {
   const style = document.createElement("style");
@@ -106,6 +119,95 @@ async function renderOtp(facade: OtpFacade) {
 }
 
 describe("OtpPageComponent", () => {
+  it("publishes one generic app-level accessible receipt after a real OTP copy", async () => {
+    TestBed.resetTestingModule();
+    const seed = "JBSWY3DPEHPK3PXP";
+    const item = {
+      ...demoVaultItems[0]!,
+      id: "private-otp-item-id",
+      name: "Private Enterprise OTP Account",
+      subtitle: "private-otp-account@example.test",
+      fields: demoVaultItems[0]!.fields.map((field) =>
+        field.id === "otp" ? { ...field, value: seed } : field
+      ),
+    };
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems([item]);
+    const copyFieldWithOutcome = vi.fn(async () => ({
+      committed: true as const,
+      status: "Copied OTP",
+    }));
+
+    TestBed.overrideComponent(PopupHeaderActionsComponent, {
+      set: { imports: [], template: '<div class="header-actions"></div>' },
+    });
+    await TestBed.configureTestingModule({
+      imports: [OtpAppFeedbackIntegrationHostComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultActionsService, useValue: { copyFieldWithOutcome } },
+        {
+          provide: TOTP_CODE_SOURCE,
+          useValue: {
+            generate: async () => ({
+              code: "123456",
+              formattedCode: "123 456",
+              period: 30,
+              secondsRemaining: 18,
+              isExpiring: false,
+            }),
+          },
+        },
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const bridge = TestBed.inject(AppStatusFeedbackBridgeService);
+    bridge.start();
+    const fixture = TestBed.createComponent(OtpAppFeedbackIntegrationHostComponent);
+    fixture.detectChanges();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    host.querySelector<HTMLButtonElement>("[data-testid='otp-code']")!.click();
+    await fixture.whenStable();
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    const accessibleAnnouncementOwners = Array.from(
+      host.querySelectorAll<HTMLElement>('[aria-live], [role="status"], [role="alert"]'),
+    ).filter((node) =>
+      node.getAttribute("aria-hidden") !== "true" && Boolean(node.textContent?.trim())
+    );
+    expect(accessibleAnnouncementOwners).toHaveLength(1);
+    expect(accessibleAnnouncementOwners[0]?.classList).toContain("app-feedback__announcer");
+    const announcementMarkup = accessibleAnnouncementOwners.map((node) => node.outerHTML).join("\n");
+    expect(announcementMarkup).toContain("已复制验证码");
+    for (const sensitiveValue of [
+      item.id,
+      item.name,
+      item.subtitle,
+      seed,
+      "123456",
+      "123 456",
+    ]) {
+      expect(announcementMarkup).not.toContain(sensitiveValue);
+    }
+    expect(TestBed.inject(AppFeedbackService).snapshot()).toMatchObject({
+      kind: "success",
+      message: "Copied OTP",
+    });
+    expect(host.querySelector(".otp-code-row__copy-icon.bwi-check")).not.toBeNull();
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("aria-live"))
+      .toBeNull();
+
+    bridge.destroy();
+    fixture.destroy();
+  });
+
   it("uses the immediate OTP count after external churn and keeps countdown seconds silent", async () => {
     vi.useFakeTimers();
     try {
@@ -384,13 +486,13 @@ describe("OtpPageComponent", () => {
     expect(getComputedStyle(copyTarget).minHeight).toBe("44px");
     expect(getComputedStyle(copyPlate).width).toBe("32px");
     expect(getComputedStyle(copyPlate).height).toBe("32px");
-    expect(parseFloat(getComputedStyle(countdownPlate).width)).toBeLessThanOrEqual(32);
-    expect(parseFloat(getComputedStyle(countdownPlate).height)).toBeLessThanOrEqual(32);
+    expect(getComputedStyle(countdownPlate).width).toBe("32px");
+    expect(getComputedStyle(countdownPlate).height).toBe("32px");
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(copyPlate).width).toBe("28px");
     expect(getComputedStyle(copyPlate).height).toBe("28px");
-    expect(parseFloat(getComputedStyle(countdownPlate).width)).toBeLessThanOrEqual(28);
-    expect(parseFloat(getComputedStyle(countdownPlate).height)).toBeLessThanOrEqual(28);
+    expect(getComputedStyle(countdownPlate).width).toBe("28px");
+    expect(getComputedStyle(countdownPlate).height).toBe("28px");
     document.documentElement.removeAttribute("data-bw-compact-mode");
     expect(host.textContent).toContain("项目 (2)");
     const search = host.querySelector<HTMLInputElement>('[aria-label="搜索验证码"]')!;

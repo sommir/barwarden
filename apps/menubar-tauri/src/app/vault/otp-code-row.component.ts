@@ -40,9 +40,7 @@ type OtpRowState =
         <span
           class="tw-sr-only"
           data-testid="otp-copy-status"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
+          aria-hidden="true"
         >{{ "i18nCopied" | i18n }}</span>
       }
       <bw-vault-item-icon class="otp-code-row__icon" [item]="item" />

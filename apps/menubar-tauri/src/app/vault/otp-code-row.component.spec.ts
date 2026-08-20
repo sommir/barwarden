@@ -73,7 +73,9 @@ describe("OtpCodeRowComponent", () => {
 
     fixture.componentRef.setInput("copied", true);
     fixture.detectChanges();
-    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("aria-live")).toBe("polite");
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("aria-live")).toBeNull();
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("role")).toBeNull();
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("aria-hidden")).toBe("true");
     expect(host.querySelector("[data-testid='otp-copy-status']")?.textContent?.trim()).toBe("已复制");
     expect(host.querySelector(".otp-code-row__countdown")?.getAttribute("aria-live")).toBeNull();
     fixture.componentRef.setInput("copied", false);

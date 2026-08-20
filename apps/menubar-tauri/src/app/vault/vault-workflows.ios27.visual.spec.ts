@@ -295,6 +295,72 @@ function cssTestPixels(value: string | undefined, rootSize: number): number {
   return 0;
 }
 
+function modeledOtpRowLayout(row: HTMLElement, containerWidth: number) {
+  const rootSize = effectiveTestRootSize();
+  const rowStyle = getComputedStyle(row);
+  const identity = row.querySelector<HTMLElement>(".otp-code-row__identity")!;
+  const name = row.querySelector<HTMLElement>(".otp-code-row__name")!;
+  const subtitle = row.querySelector<HTMLElement>(".otp-code-row__subtitle")!;
+  const code = row.querySelector<HTMLElement>(".otp-code-row__code")!;
+  const copy = row.querySelector<HTMLElement>(".otp-code-row__copy")!;
+  const copyPlate = row.querySelector<HTMLElement>(".otp-code-row__copy-icon")!;
+  const countdown = row.querySelector<HTMLElement>(".otp-code-row__countdown")!;
+  const icon = row.querySelector<HTMLElement>(".otp-code-row__icon")!;
+  const copyStyle = getComputedStyle(copy);
+  const codeStyle = getComputedStyle(code);
+  const codeFontSize = cssTestPixels(codeStyle.fontSize, rootSize) || rootSize * 1.125;
+  const copyWidth = Math.max(
+    cssTestPixels(copyStyle.minWidth, rootSize),
+    (code.textContent?.trim().length ?? 0) * codeFontSize * 0.62
+      + cssTestPixels(getComputedStyle(copyPlate).width, rootSize)
+      + cssTestPixels(copyStyle.columnGap || copyStyle.gap, rootSize)
+      + cssTestPixels(copyStyle.paddingLeft, rootSize)
+      + cssTestPixels(copyStyle.paddingRight, rootSize),
+  );
+  const fixedWidth = cssTestPixels(rowStyle.paddingLeft, rootSize)
+    + cssTestPixels(rowStyle.paddingRight, rootSize)
+    + cssTestPixels(getComputedStyle(icon).width, rootSize)
+    + cssTestPixels(getComputedStyle(countdown).width, rootSize)
+    + copyWidth
+    + 3 * cssTestPixels(rowStyle.columnGap || rowStyle.gap, rootSize);
+  const identityWidth = containerWidth - fixedWidth;
+  let identityHeight = 0;
+  let lineCount = 0;
+  let horizontalClip = false;
+  for (const node of [name, subtitle]) {
+    const computed = getComputedStyle(node);
+    const fontSize = cssTestPixels(computed.fontSize, rootSize);
+    const lineHeight = cssTestPixels(computed.lineHeight, rootSize) || fontSize * 1.3;
+    const estimatedWidth = (node.textContent?.trim().length ?? 0) * fontSize * 0.56;
+    const lines = Math.max(1, Math.ceil(estimatedWidth / Math.max(44, identityWidth)));
+    lineCount += lines;
+    identityHeight += lines * lineHeight;
+    horizontalClip ||= computed.whiteSpace !== "normal"
+      || ["hidden", "clip"].includes(computed.overflow)
+      || !["anywhere", "break-word"].includes(computed.overflowWrap);
+  }
+  const verticalClip = rowStyle.height !== "auto"
+    || [rowStyle.overflow, getComputedStyle(identity).overflow]
+      .some((overflow) => overflow === "hidden" || overflow === "clip");
+  const codeClip = [copyStyle.overflow, codeStyle.overflow]
+    .some((overflow) => overflow === "hidden" || overflow === "clip");
+  return {
+    horizontalClip,
+    verticalClip,
+    codeClip,
+    overlap: identityWidth < 44,
+    lineCount,
+    modeledHeight: verticalClip
+      ? cssTestPixels(rowStyle.minHeight, rootSize)
+      : Math.max(
+          cssTestPixels(rowStyle.minHeight, rootSize),
+          identityHeight
+            + cssTestPixels(rowStyle.paddingTop, rootSize)
+            + cssTestPixels(rowStyle.paddingBottom, rootSize),
+        ),
+  };
+}
+
 describe("iOS 27 Vault workflows", () => {
   it("computes real New Item rows at 52 pixels normally and 44 pixels in compact mode", async () => {
     TestBed.resetTestingModule();
@@ -403,21 +469,27 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(copy).minHeight).toBe("44px");
     expect(getComputedStyle(copyIcon).width).toBe("32px");
     expect(getComputedStyle(copyIcon).height).toBe("32px");
-    expect(parseFloat(getComputedStyle(countdown).width)).toBeLessThanOrEqual(32);
-    expect(parseFloat(getComputedStyle(countdown).height)).toBeLessThanOrEqual(32);
+    expect(getComputedStyle(countdown).width).toBe("32px");
+    expect(getComputedStyle(countdown).height).toBe("32px");
     expect(getComputedStyle(identity).minWidth).toBe("0px");
     expect(getComputedStyle(name).whiteSpace).toBe("normal");
     expect(getComputedStyle(name).overflowWrap).toBe("anywhere");
     expect(getComputedStyle(subtitle).whiteSpace).toBe("normal");
     expect(getComputedStyle(subtitle).overflowWrap).toBe("anywhere");
     expect(getComputedStyle(code).overflow).toBe("visible");
+    const normalLayout = modeledOtpRowLayout(row, 480);
+    expect(normalLayout.horizontalClip).toBe(false);
+    expect(normalLayout.verticalClip).toBe(false);
+    expect(normalLayout.codeClip).toBe(false);
+    expect(normalLayout.overlap).toBe(false);
+    expect(normalLayout.modeledHeight).toBeGreaterThan(48);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row).minHeight).toBe("44px");
     expect(getComputedStyle(copyIcon).width).toBe("28px");
     expect(getComputedStyle(copyIcon).height).toBe("28px");
-    expect(parseFloat(getComputedStyle(countdown).width)).toBeLessThanOrEqual(28);
-    expect(parseFloat(getComputedStyle(countdown).height)).toBeLessThanOrEqual(28);
+    expect(getComputedStyle(countdown).width).toBe("28px");
+    expect(getComputedStyle(countdown).height).toBe("28px");
 
     document.documentElement.style.fontSize = "200%";
     expect(getComputedStyle(document.documentElement).fontSize).toBe("200%");
@@ -426,6 +498,13 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(name).overflow).toBe("visible");
     expect(getComputedStyle(subtitle).overflow).toBe("visible");
     expect(getComputedStyle(code).overflow).toBe("visible");
+    const scaledLayout = modeledOtpRowLayout(row, 480);
+    expect(scaledLayout.horizontalClip).toBe(false);
+    expect(scaledLayout.verticalClip).toBe(false);
+    expect(scaledLayout.codeClip).toBe(false);
+    expect(scaledLayout.overlap).toBe(false);
+    expect(scaledLayout.lineCount).toBeGreaterThan(normalLayout.lineCount);
+    expect(scaledLayout.modeledHeight).toBeGreaterThan(normalLayout.modeledHeight);
     fixture.destroy();
   });
 
@@ -487,6 +566,11 @@ describe("iOS 27 Vault workflows", () => {
     expect(Number.parseFloat(getComputedStyle(plate).opacity)).toBeLessThan(1);
     expect(getComputedStyle(copy).backgroundColor).toBe(transparent);
     copy.disabled = false;
+    copy.setAttribute("aria-disabled", "true");
+    copy.dataset["vaultTestInteraction"] = "hover active";
+    expect(Number.parseFloat(getComputedStyle(plate).opacity)).toBeLessThan(1);
+    expect(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    copy.removeAttribute("aria-disabled");
 
     document.documentElement.setAttribute("data-vault-test-media", "reduced-motion");
     expect(getComputedStyle(plate).transitionDuration).toBe("0s");
