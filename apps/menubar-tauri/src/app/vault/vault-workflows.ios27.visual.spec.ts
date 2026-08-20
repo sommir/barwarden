@@ -141,9 +141,36 @@ class PasswordHistoryVisualHostComponent {
 }
 
 let style: HTMLStyleElement;
+
+// Keep the official Item/ItemContent host utilities in this mounted test. The
+// checked-in application stylesheet is loaded afterwards, matching production
+// cascade order and exposing collisions with legacy global selectors.
+const officialItemUtilityCss = `
+  .tw-block { display: block; }
+  .tw-flex { display: flex; }
+  .tw-flex-1 { flex: 1 1 0%; }
+  .tw-flex-col { flex-direction: column; }
+  .tw-flex-grow { flex-grow: 1; }
+  .tw-items-center { align-items: center; }
+  .tw-items-start { align-items: flex-start; }
+  .tw-w-full { width: 100%; }
+  .tw-min-w-0 { min-width: 0; }
+  .tw-overflow-hidden { overflow: hidden; }
+  .tw-overflow-auto { overflow: auto; }
+  .tw-text-wrap { white-space: normal; }
+  .tw-break-words { overflow-wrap: break-word; }
+  .tw-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tw-py-2 { padding-top: 8px; padding-bottom: 8px; }
+  .tw-py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
+  :root[data-bw-compact-mode="true"] [class~="bit-compact:tw-py-1.5"] {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+`;
+
 beforeAll(() => {
   style = document.createElement("style");
-  style.textContent = [
+  style.textContent = officialItemUtilityCss + [
     join(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"),
     join(process.cwd(), "apps/menubar-tauri/src/styles/macos-motion.css"),
     join(
@@ -337,7 +364,7 @@ function assertRecoveryRow(row: HTMLElement, action: HTMLElement, hasMainContent
   expect.soft(getComputedStyle(plate).width).toBe("32px");
   expect.soft(getComputedStyle(plate).height).toBe("32px");
   if (hasMainContent) {
-    const content = row.querySelector<HTMLElement>("[bit-item-content]")!;
+    const content = row.querySelector<HTMLElement>(":is(bit-item-content, [bit-item-content])")!;
     expect.soft(getComputedStyle(content).minHeight).toBe("48px");
     expect.soft(getComputedStyle(content).height).toBe("auto");
     expect.soft(getComputedStyle(content).overflow).toBe("visible");
@@ -529,7 +556,10 @@ describe("iOS 27 Vault workflows", () => {
   it("keeps real Folder rows and action owners continuous at 48/44px and growable at 200%", async () => {
     TestBed.resetTestingModule();
     const store = new PopupStateStore();
-    store.setItems([], [{ id: "work", name: "Work" }]);
+    store.setItems([], [{
+      id: "work",
+      name: "Work Folder With A Deliberately Hostile UnbrokenNameThatMustWrapAtTwoHundredPercent",
+    }]);
     await TestBed.configureTestingModule({
       imports: [FoldersPageComponent],
       providers: [
@@ -549,18 +579,38 @@ describe("iOS 27 Vault workflows", () => {
     expect(row.borderRadius).toBe("0px");
     expect(row.marginBottom).toBe("0px");
     const item = host.querySelector<HTMLElement>("bit-item")!;
+    const content = host.querySelector<HTMLElement>("bit-item-content")!;
+    const contentText = content.querySelector<HTMLElement>("[bitTypography='body2'] > div:first-child")!;
     const edit = host.querySelector<HTMLElement>("[data-testid='edit-folder-work']")!;
     expect(item.classList).toContain("macos-row--double");
+    expect(content.classList).toContain("macos-recovery-row__content");
+    expect(getComputedStyle(content).paddingTop).toBe("0px");
+    expect(getComputedStyle(content).paddingBottom).toBe("0px");
+    expect(getComputedStyle(contentText).whiteSpace).toBe("normal");
+    expect(getComputedStyle(contentText).overflow).not.toBe("hidden");
+    expect(["anywhere", "break-word"]).toContain(getComputedStyle(contentText).overflowWrap);
     expect(row.minHeight).toBe("48px");
     expect(row.height).toBe("auto");
     expect(row.overflow).toBe("visible");
     expect(getComputedStyle(edit).minWidth).toBe("44px");
     expect(getComputedStyle(edit).minHeight).toBe("44px");
+    assertRecoveryRow(item, edit);
     document.body.classList.add("tw-bit-compact");
     expect(getComputedStyle(host.querySelector<HTMLElement>("bit-item")!).minHeight).toBe("44px");
+    expect(getComputedStyle(content).minHeight).toBe("44px");
+    expect(getComputedStyle(content).paddingTop).toBe("0px");
+    expect(getComputedStyle(content).paddingBottom).toBe("0px");
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    expect(getComputedStyle(content).paddingTop).toBe("0px");
+    expect(getComputedStyle(content).paddingBottom).toBe("0px");
     document.documentElement.style.fontSize = "200%";
     expect(getComputedStyle(item).height).toBe("auto");
     expect(getComputedStyle(item).overflow).toBe("visible");
+    const modeled = modeledVaultTextLayout(item, content, [contentText], 260);
+    expect(modeled.horizontalClip).toBe(false);
+    expect(modeled.verticalClip).toBe(false);
+    expect(modeled.lineCount).toBeGreaterThan(1);
+    expect(modeled.modeledHeight).toBeGreaterThan(48);
     host.querySelector<HTMLButtonElement>("[data-testid='new-folder-button']")!.click();
     fixture.detectChanges();
     const sheet = getComputedStyle(host.querySelector<HTMLElement>(".app-bottom-sheet[open]")!);
@@ -613,9 +663,25 @@ describe("iOS 27 Vault workflows", () => {
     const historyHost = history.nativeElement as HTMLElement;
     const historyRow = historyHost.querySelector<HTMLElement>("bit-item")!;
     const historyCopy = historyHost.querySelector<HTMLElement>("[data-testid='history-copy-0']")!;
+    const historyMain = historyRow.querySelector<HTMLElement>(":scope > [data-item-main-content]")!;
+    const historyEnd = historyRow.querySelector<HTMLElement>(":scope > div")!;
+    const historyPassword = historyHost.querySelector<HTMLElement>("bit-color-password")!;
+    const credentialCharacters = Array.from(historyPassword.querySelectorAll<HTMLElement>("span"));
     assertRecoveryRow(historyRow, historyCopy, false);
-    expect(historyRow.classList).toContain("password-history-row");
-    expect(historyHost.querySelector("bit-color-password")).not.toBeNull();
+    expect(historyRow.classList).toContain("macos-password-history-row");
+    expect(historyRow.classList).not.toContain("password-history-row");
+    expect(getComputedStyle(historyRow).display).toBe("flex");
+    expect(getComputedStyle(historyMain).display).toBe("flex");
+    expect(getComputedStyle(historyEnd).display).toBe("flex");
+    expect(historyCopy.closest("bit-item") ?? null).toBe(historyRow);
+    expect(historyCopy.closest("[data-item-main-content]")).toBeNull();
+    expect(credentialCharacters.length).toBeGreaterThan(1);
+    expect(credentialCharacters.every((character) => getComputedStyle(character).display !== "grid"))
+      .toBe(true);
+    for (let ancestor: HTMLElement | null = historyPassword; ancestor; ancestor = ancestor.parentElement) {
+      expect(ancestor.getAttribute("aria-hidden")).not.toBe("true");
+      if (ancestor === historyRow) break;
+    }
     expect(historyHost.querySelector("[aria-live], [role='status'], [role='alert']")?.textContent ?? "")
       .not.toContain("old-secret-1");
     history.destroy();

@@ -7670,6 +7670,11 @@ body .macos-page--vault-recovery bit-item.macos-recovery-row:focus-within {
   box-shadow: none;
 }
 
+body .macos-page--vault-recovery bit-item.macos-recovery-row > [data-item-main-content] {
+  min-width: 0;
+  overflow: visible;
+}
+
 body .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row__content {
   min-width: 0;
   min-height: var(--mac-row-double) !important;
@@ -7690,18 +7695,62 @@ body .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row
   overflow-wrap: anywhere;
 }
 
-.macos-page--vault-recovery .password-history-row__content {
+.macos-page--vault-recovery bit-item.macos-password-history-row {
+  display: flex;
+  grid-template-columns: none;
+  padding: 0;
+}
+
+.macos-page--vault-recovery bit-item.macos-password-history-row > [data-item-main-content] {
+  display: flex;
+  flex: 1 1 0;
   min-width: 0;
   overflow: visible;
 }
 
-.macos-page--vault-recovery .password-history-row__content bit-color-password {
+.macos-page--vault-recovery bit-item.macos-password-history-row > div {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.macos-page--vault-recovery .macos-password-history-row__content {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: visible;
+}
+
+.macos-page--vault-recovery .macos-password-history-row__content bit-color-password {
   display: block;
   min-width: 0;
   overflow: visible;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.macos-page--vault-recovery .macos-password-history-row__content bit-color-password span {
+  display: inline;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row bit-item-content.macos-recovery-row__content {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.macos-page--vault-recovery bit-item-content.macos-recovery-row__content > .tw-flex:first-child > .tw-flex-col,
+.macos-page--vault-recovery bit-item-content.macos-recovery-row__content [bitTypography="body2"],
+.macos-page--vault-recovery bit-item-content.macos-recovery-row__content [bitTypography="body2"] > div:first-child {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-recovery bit-item-content.macos-recovery-row__content [bitTypography="body2"] {
+  flex-wrap: wrap;
 }
 
 body .macos-page--vault-recovery button.macos-recovery-action,

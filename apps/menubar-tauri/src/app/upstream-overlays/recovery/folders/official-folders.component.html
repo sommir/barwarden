@@ -28,7 +28,7 @@
     <bit-item-group>
       @for (folder of folders; track folder.id) {
         <bit-item class="macos-row macos-row--double macos-recovery-row" [attr.data-popup-focus-key]="'folder:' + folder.id">
-          <bit-item-content>
+          <bit-item-content class="macos-recovery-row__content" [truncate]="false">
             {{ folder.name }}
             <button
               slot="end"

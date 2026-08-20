@@ -290,7 +290,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.html",
-      "sha256": "b08b87e190e7449f5ad76945ff33ad94ca52f82b7af138cde6c9b973327a8275"
+      "sha256": "28533cff03390553d23ec5956b5d2556ee327cedeccbfbbbe09bcab6a3645615"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",
@@ -298,11 +298,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/official-recovery-member-transforms.ts",
-      "sha256": "20485024de7af8d6976604de2bd6ef024d6abe8add984811280fd7f3f31fd014"
+      "sha256": "ca15eb7da230e4dc3a1ae4769870b241b31f79993d68244129dfa0c2dff5927c"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.html",
-      "sha256": "e0589701b6e3e1febb3727af2543502e6e4fa5828d704211a6b9764b101a361a"
+      "sha256": "ee98d44427dc39262524bc0f84b3d74237545a1a94e61dbf287ce3c4590a5dac"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/password-history/official-password-history-view.component.ts",
