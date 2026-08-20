@@ -66,6 +66,7 @@ import { AppUpdateNoticeComponent } from "./updates/app-update-notice.component"
 import { VaultFacade } from "./vault/vault.facade";
 import { AutoFillSetupService } from "./autofill/autofill-setup.service";
 import { AutoFillVaultContextService } from "./autofill/autofill-vault-context.service";
+import { PopupRouteAnnouncerService } from "./platform/popup-route-announcer.service";
 
 const startupNavigationErrorMessage = () =>
   translateOfficialMessage("i18nStartupNavigationFailed");
@@ -217,6 +218,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly autoFillSetup: AutoFillSetupService | null = null,
     @Optional()
     private readonly autoFillVaultContext: AutoFillVaultContextService | null = null,
+    @Optional()
+    private readonly popupRouteAnnouncer: PopupRouteAnnouncerService | null = null,
   ) {
     // The root owns the singleton so every live route is refreshed when the
     // user changes language, including secondary Settings routes.
@@ -287,6 +290,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.processSessionBroker?.destroy();
     this.statusFeedbackBridge?.destroy();
+    this.popupRouteAnnouncer?.destroy();
     this.localCopyFeedback?.destroy();
     this.popupWindowSize?.destroy();
   }
@@ -298,6 +302,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     this.statusFeedbackBridge?.start();
+    this.popupRouteAnnouncer?.start();
     this.localCopyFeedback?.start();
     try {
       if (this.evidenceState) {

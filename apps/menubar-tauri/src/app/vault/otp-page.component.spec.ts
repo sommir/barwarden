@@ -18,7 +18,7 @@ import { demoVaultItems } from "../vault-demo";
 import { VaultActionsService } from "./vault-actions.service";
 import { OtpFacade } from "./otp.facade";
 import { OtpPageComponent } from "./otp-page.component";
-import { TOTP_CODE_SOURCE } from "./vault-totp-code.component";
+import { TOTP_CLOCK, TOTP_CODE_SOURCE } from "./vault-totp-code.component";
 import { PopupHeaderActionsComponent } from "../popup-header-actions.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
 
@@ -103,6 +103,82 @@ async function renderOtp(facade: OtpFacade) {
 }
 
 describe("OtpPageComponent", () => {
+  it("announces result-count changes without announcing countdown seconds", async () => {
+    vi.useFakeTimers();
+    try {
+      const validTotp = "JBSWY3DPEHPK3PXP";
+      const github = {
+        ...demoVaultItems[0]!,
+        fields: demoVaultItems[0]!.fields.map((field) =>
+          field.id === "otp" ? { ...field, value: validTotp } : field
+        ),
+      };
+      const calendar = {
+        ...github,
+        id: "calendar",
+        name: "Calendar",
+        subtitle: "calendar@example.com",
+      };
+      const store = new PopupStateStore();
+      store.setUnlocked("user@example.com");
+      store.setItems([github, calendar]);
+      let epochSeconds = 12;
+
+      TestBed.overrideComponent(PopupHeaderActionsComponent, {
+        set: { imports: [], template: '<div class="header-actions"></div>' },
+      });
+      await TestBed.configureTestingModule({
+        imports: [OtpPageComponent],
+        providers: [
+          provideRouter([]),
+          { provide: PopupStateStore, useValue: store },
+          { provide: VaultActionsService, useValue: { copyFieldWithOutcome: vi.fn() } },
+          { provide: TOTP_CLOCK, useValue: () => epochSeconds },
+          {
+            provide: TOTP_CODE_SOURCE,
+            useValue: {
+              generate: async () => ({
+                code: "123456",
+                formattedCode: "123 456",
+                period: 30,
+                secondsRemaining: 18,
+                isExpiring: false,
+              }),
+            },
+          },
+          OfficialI18nService,
+          { provide: I18nService, useExisting: OfficialI18nService },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(OtpPageComponent);
+      fixture.detectChanges();
+      await vi.advanceTimersByTimeAsync(0);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const resultStatus = host.querySelectorAll(
+        '[data-testid="result-announcement"][role="status"]',
+      );
+      expect(resultStatus).toHaveLength(1);
+      expect(resultStatus[0]!.getAttribute("aria-live")).toBe("polite");
+      expect(resultStatus[0]!.getAttribute("aria-atomic")).toBe("true");
+      expect(resultStatus[0]!.textContent?.trim()).toBe("");
+
+      fixture.componentInstance["setSearch"]("Calendar");
+      fixture.detectChanges();
+      expect(resultStatus[0]!.textContent).toContain("1");
+
+      const before = resultStatus[0]!.textContent;
+      epochSeconds += 1;
+      await vi.advanceTimersByTimeAsync(1_000);
+      fixture.detectChanges();
+      expect(resultStatus[0]!.textContent).toBe(before);
+      expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
+      fixture.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the OTP projection stable across unrelated popup state updates", () => {
     const store = new PopupStateStore();
     store.setItems(demoVaultItems);

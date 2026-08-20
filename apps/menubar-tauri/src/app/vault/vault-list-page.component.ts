@@ -1,4 +1,12 @@
-import { Component, HostListener, Inject, type OnDestroy, Optional, ViewChild } from "@angular/core";
+import {
+  type AfterViewInit,
+  Component,
+  HostListener,
+  Inject,
+  type OnDestroy,
+  Optional,
+  ViewChild,
+} from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 
 import { NoResults, VaultOpen } from "@bitwarden/assets/svg";
@@ -95,6 +103,13 @@ import { VaultContextualSectionOutletComponent } from "./vault-contextual-sectio
         [query]="vaultQuery"
         (queryChange)="setSearch($event)"
       />
+      <span
+        class="tw-sr-only"
+        data-testid="result-announcement"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >{{ resultAnnouncement }}</span>
 
       @if (showStaleSyncCallout) {
         <bw-macos-alert-strip
@@ -208,11 +223,13 @@ import { VaultContextualSectionOutletComponent } from "./vault-contextual-sectio
     </popup-page>
   `,
 })
-export class VaultListPageComponent implements OnDestroy {
+export class VaultListPageComponent implements AfterViewInit, OnDestroy {
   @ViewChild("vaultListReprompt") private repromptDialog?: VaultRepromptDialogComponent;
   openMenuRowId: string | null = null;
+  resultAnnouncement = "";
   readonly noResultsIcon = NoResults;
   readonly vaultIcon = VaultOpen;
+  private resultCount: number | undefined;
 
   constructor(
     private readonly store: PopupStateStore,
@@ -287,10 +304,15 @@ export class VaultListPageComponent implements OnDestroy {
     return this.settings.snapshot().showQuickCopyActions;
   }
 
+  ngAfterViewInit(): void {
+    this.resultCount = this.vault.filteredItems().length;
+  }
+
   setSearch(query: string | null | undefined): void {
     this.openMenuRowId = null;
     this.menuCoordinator.closeAll();
     this.vault.setSearch(query ?? "");
+    this.updateResultAnnouncement(this.vault.filteredItems().length);
   }
 
   @HostListener("input", ["$event"])
@@ -315,6 +337,14 @@ export class VaultListPageComponent implements OnDestroy {
   ngOnDestroy(): void {
     this.websiteContext.clear();
     this.rowActions.ngOnDestroy();
+  }
+
+  private updateResultAnnouncement(count: number): void {
+    const previous = this.resultCount;
+    this.resultCount = count;
+    if (previous !== undefined && previous !== count) {
+      this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
+    }
   }
 
   async viewItem(item: VaultItem): Promise<void> {

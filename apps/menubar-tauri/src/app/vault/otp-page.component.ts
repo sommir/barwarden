@@ -1,4 +1,4 @@
-import { Component, OnDestroy } from "@angular/core";
+import { type AfterViewInit, Component, OnDestroy } from "@angular/core";
 
 import { PopupPageComponent } from "../layout/popup-page.component";
 import { PopupHeaderComponent } from "../layout/popup-header.component";
@@ -11,6 +11,7 @@ import { OtpFacade } from "./otp.facade";
 import { buildOtpEntries } from "./otp-items";
 import { VaultActionsService } from "./vault-actions.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 
 @Component({
   selector: "bw-otp-page",
@@ -36,6 +37,13 @@ import { I18nPipe } from "../official-ui/official-ui-common";
         [query]="query"
         (queryChange)="setSearch($event)"
       />
+      <span
+        class="tw-sr-only"
+        data-testid="result-announcement"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >{{ resultAnnouncement }}</span>
 
       <section class="otp-page" aria-labelledby="otp-page-count">
         <h2 id="otp-page-count" class="otp-page__heading">{{ "i18nItemsCount" | i18n: entries.length }}</h2>
@@ -60,9 +68,11 @@ import { I18nPipe } from "../official-ui/official-ui-common";
     </popup-page>
   `,
 })
-export class OtpPageComponent implements OnDestroy {
+export class OtpPageComponent implements AfterViewInit, OnDestroy {
+  resultAnnouncement = "";
   protected copiedItemId: string | null = null;
   private copiedResetTimer?: ReturnType<typeof setTimeout>;
+  private resultCount: number | undefined;
   private entriesCache?: {
     readonly items: ReturnType<PopupStateStore["snapshot"]>["items"];
     readonly query: string;
@@ -93,6 +103,11 @@ export class OtpPageComponent implements OnDestroy {
 
   protected setSearch(query: string): void {
     this.otp.setSearch(query);
+    this.updateResultAnnouncement(this.entries.length);
+  }
+
+  ngAfterViewInit(): void {
+    this.resultCount = this.entries.length;
   }
 
   ngOnDestroy(): void {
@@ -127,5 +142,13 @@ export class OtpPageComponent implements OnDestroy {
       this.copiedItemId = null;
       this.copiedResetTimer = undefined;
     }, 1_200);
+  }
+
+  private updateResultAnnouncement(count: number): void {
+    const previous = this.resultCount;
+    this.resultCount = count;
+    if (previous !== undefined && previous !== count) {
+      this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
+    }
   }
 }

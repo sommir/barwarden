@@ -56,6 +56,37 @@ beforeEach(() => {
 });
 
 describe("SendPageComponent", () => {
+  it("renders one polite atomic region and announces changed search result counts", async () => {
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [PopupStateStore, provideRouter([])],
+    }).compileComponents();
+    const store = TestBed.inject(PopupStateStore);
+    store.setSends([
+      demoSend({ id: "send-1", name: "Payroll token", type: "text" }),
+      demoSend({ id: "send-2", name: "Travel token", type: "text" }),
+    ]);
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const resultStatus = host.querySelectorAll(
+      '[data-testid="result-announcement"][role="status"]',
+    );
+    expect(resultStatus).toHaveLength(1);
+    expect(resultStatus[0]!.getAttribute("aria-live")).toBe("polite");
+    expect(resultStatus[0]!.getAttribute("aria-atomic")).toBe("true");
+    expect(resultStatus[0]!.textContent?.trim()).toBe("");
+
+    const search = host.querySelector<HTMLInputElement>('bit-search input')!;
+    search.value = "Payroll";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(resultStatus[0]!.textContent).toContain("1");
+  });
+
   it("marks Send form and confirmation subroutes as in-flow pages without the main switcher", () => {
     const root = resolve(process.cwd(), "apps/menubar-tauri/src/app/send");
     const form = readFileSync(resolve(root, "send-add-edit-page.component.ts"), "utf8");

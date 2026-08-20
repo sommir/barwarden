@@ -1,5 +1,5 @@
 import { DialogModule as CdkDialogModule } from "@angular/cdk/dialog";
-import { Component, Inject, OnDestroy, Optional, ViewChild } from "@angular/core";
+import { type AfterViewInit, Component, Inject, OnDestroy, Optional, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 
 import type { AuthSession } from "../../auth/auth-session-store";
@@ -64,6 +64,13 @@ export { SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
       (copyLink)="copy($event)"
       (delete)="requestDelete($event)"
     />
+    <span
+      class="tw-sr-only"
+      data-testid="result-announcement"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >{{ resultAnnouncement }}</span>
     <bw-app-bottom-sheet
       #deleteDialog
       testId="send-permanent-delete-confirmation"
@@ -94,9 +101,10 @@ export { SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
     </bw-app-bottom-sheet>
   `,
 })
-export class SendPageComponent implements OnDestroy {
+export class SendPageComponent implements AfterViewInit, OnDestroy {
   @ViewChild("deleteDialog") private deleteDialog?: AppBottomSheetComponent;
 
+  resultAnnouncement = "";
   private readonly host: HostApi;
   private readonly operation: TextSendOperation;
   private pendingDelete: SendItem | null = null;
@@ -105,6 +113,7 @@ export class SendPageComponent implements OnDestroy {
     readonly now: number;
     readonly result: readonly OfficialTextSendListItem[];
   };
+  private resultCount: number | undefined;
   deleting = false;
 
   constructor(
@@ -177,8 +186,13 @@ export class SendPageComponent implements OnDestroy {
     return this.pendingDelete?.name ?? "";
   }
 
+  ngAfterViewInit(): void {
+    this.resultCount = this.sends.length;
+  }
+
   setSearch(query: string): void {
     this.sendFacade.setSearch(query);
+    this.updateResultAnnouncement(this.sends.length);
   }
 
   toggleFilters(): void {
@@ -187,6 +201,7 @@ export class SendPageComponent implements OnDestroy {
 
   setType(type: "" | "text"): void {
     this.sendFacade.setTypeFilter(type);
+    this.updateResultAnnouncement(this.sends.length);
   }
 
   open(send: OfficialTextSendListItem | undefined): void {
@@ -273,6 +288,14 @@ export class SendPageComponent implements OnDestroy {
 
   private source(send: OfficialTextSendListItem): SendItem | undefined {
     return this.store.snapshot().sends.find((candidate) => candidate.id === send.id && isTextSend(candidate));
+  }
+
+  private updateResultAnnouncement(count: number): void {
+    const previous = this.resultCount;
+    this.resultCount = count;
+    if (previous !== undefined && previous !== count) {
+      this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
+    }
   }
 }
 

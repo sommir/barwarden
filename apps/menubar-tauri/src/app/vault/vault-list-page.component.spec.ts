@@ -89,6 +89,36 @@ describe("VaultListPageComponent", () => {
     });
   });
 
+  it("renders one polite atomic region and announces changed search result counts", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems(demoVaultItems, demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const resultStatus = host.querySelectorAll(
+      '[data-testid="result-announcement"][role="status"]',
+    );
+    expect(resultStatus).toHaveLength(1);
+    expect(resultStatus[0]!.getAttribute("aria-live")).toBe("polite");
+    expect(resultStatus[0]!.getAttribute("aria-atomic")).toBe("true");
+    expect(resultStatus[0]!.textContent?.trim()).toBe("");
+
+    fixture.componentInstance.setSearch("GitHub");
+    fixture.detectChanges();
+    expect(resultStatus[0]!.textContent).toContain("1");
+  });
+
   it("uses the native root header, peer hierarchy, and title-bar add control", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
