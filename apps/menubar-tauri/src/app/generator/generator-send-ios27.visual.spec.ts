@@ -79,7 +79,9 @@ const hostileGeneratorDefaultsCss = `
     text-overflow: ellipsis;
   }
   .macos-generator__result-actions button .bwi,
-  .macos-generator__mode bit-toggle > label > span:first-child {
+  .macos-generator__mode bit-toggle > label > span:first-child,
+  .macos-generator__settings [bitfieldcontainer],
+  .macos-generator__settings bit-form-control > label {
     animation: generator-hostile-motion 1s infinite;
     transition: background-color 1s linear;
     transform: scale(1.1);
@@ -87,7 +89,10 @@ const hostileGeneratorDefaultsCss = `
   .macos-generator__result-actions button:focus:not(:focus-visible),
   .macos-generator__result-actions button:focus:not(:focus-visible) .bwi,
   .macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible) + label,
-  .macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible) + label > span:first-child {
+  .macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible) + label > span:first-child,
+  .macos-generator__settings [bitfieldcontainer]:has(:focus:not(:focus-visible)),
+  .macos-generator__settings :is(input, select, [role="combobox"]):focus:not(:focus-visible),
+  .macos-generator__settings bit-form-control > label:has(:focus:not(:focus-visible)) {
     outline-color: red !important;
     outline-style: solid !important;
     outline-width: 3px !important;
@@ -242,6 +247,9 @@ describe("iOS 27 Generator visual contract", () => {
     const fieldShells = official.querySelectorAll<HTMLElement>(
       ".macos-generator__settings [bitfieldcontainer]",
     );
+    const fieldOwners = official.querySelectorAll<HTMLElement>(
+      ".macos-generator__settings bit-form-field",
+    );
     const checkboxes = official.querySelectorAll<HTMLInputElement>(
       '.macos-generator__settings input[type="checkbox"][bitcheckbox]',
     );
@@ -316,12 +324,14 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft({
       modeRadios: Array.from(modeRadios, computedHitHeight),
       modeLabels: Array.from(modeLabels, computedHitHeight),
+      fieldOwners: Array.from(fieldOwners, computedHitHeight),
       fieldShells: Array.from(fieldShells, computedHitHeight),
       checkboxLabels: Array.from(checkboxLabels, computedHitHeight),
     }).toEqual({
       modeRadios: Array.from(modeRadios, () => 44),
       modeLabels: Array.from(modeLabels, () => 44),
-      fieldShells: Array.from(fieldShells, () => 44),
+      fieldOwners: Array.from(fieldOwners, () => 44),
+      fieldShells: Array.from(fieldShells, () => 40),
       checkboxLabels: Array.from(checkboxLabels, () => 44),
     });
     expect(computedHitHeight(outsideField)).toBe(40);
@@ -470,6 +480,231 @@ describe("iOS 27 Generator visual contract", () => {
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
     document.documentElement.removeAttribute("data-generator-test-media");
+  });
+
+  it("renders real Generator option fields with separate hit and painted geometry", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    await TestBed.configureTestingModule({
+      imports: [GeneratorVisualHostComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        ...officialCurrentAccountTestProviders(),
+        { provide: PopupStateStore, useValue: store },
+        { provide: GeneratorService, useValue: generatorService() },
+        { provide: ClipboardPolicyService, useValue: { copy: vi.fn(async () => undefined) } },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(GeneratorVisualHostComponent);
+    fixture.detectChanges(false);
+    await new Promise((resolve) => setTimeout(resolve));
+    await fixture.whenStable();
+    fixture.changeDetectorRef.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const official = host.querySelector<HTMLElement>("bw-official-credential-generator")!;
+    const settings = official.querySelector<HTMLElement>(".macos-generator__settings")!;
+    const modeLabels = official.querySelectorAll<HTMLLabelElement>(
+      ".macos-generator__mode bit-toggle label",
+    );
+    const outsideField = host.querySelector<HTMLElement>(
+      '[data-testid="outside-generator-controls"] [bitfieldcontainer]',
+    )!;
+    const characterControlNames = ["uppercase", "lowercase", "number", "special"];
+    const characterChoices = characterControlNames.map((name) =>
+      settings.querySelector<HTMLInputElement>(
+        `tools-password-settings input[type="checkbox"][formcontrolname="${name}"]`,
+      )!,
+    );
+    const characterOwners = characterChoices.map((checkbox) =>
+      checkbox.closest<HTMLElement>("bit-form-control")!,
+    );
+    const characterLabels = characterOwners.map((owner) =>
+      owner.querySelector<HTMLLabelElement>("label")!,
+    );
+    const passwordFieldOwners = settings.querySelectorAll<HTMLElement>(
+      "tools-password-settings bit-form-field",
+    );
+    const passwordPaintedControls = settings.querySelectorAll<HTMLElement>(
+      "tools-password-settings [bitfieldcontainer]",
+    );
+    const passwordInputs = Array.from(passwordPaintedControls, (control) =>
+      control.querySelector<HTMLInputElement>('input:not([type="checkbox"])')!,
+    );
+    const passwordFieldLabels = Array.from(passwordFieldOwners, (owner) =>
+      owner.querySelector<HTMLLabelElement>(":scope > div > label")!,
+    );
+
+    expect.soft(getComputedStyle(settings).display).toBe("grid");
+    expect.soft(getComputedStyle(settings).gap).toBe("12px");
+    expect.soft(getComputedStyle(settings).marginLeft).toBe("0px");
+    expect.soft(getComputedStyle(settings).marginRight).toBe("0px");
+    expect.soft(computedHitHeight(outsideField)).toBe(40);
+    expect(passwordFieldOwners.length).toBeGreaterThanOrEqual(3);
+    expect(passwordPaintedControls).toHaveLength(passwordFieldOwners.length);
+    expect(passwordInputs).toHaveLength(passwordFieldOwners.length);
+    expect.soft(Array.from(passwordFieldOwners, computedHitHeight).every((height) => height >= 44))
+      .toBe(true);
+    expect.soft(Array.from(passwordPaintedControls, (control) => getComputedStyle(control).height))
+      .toEqual(Array.from(passwordPaintedControls, () => "40px"));
+    expect.soft(passwordInputs.map((input) => getComputedStyle(input).height))
+      .toEqual(passwordInputs.map(() => "40px"));
+
+    expect(characterChoices).not.toContain(null);
+    expect(characterOwners).not.toContain(null);
+    expect(characterLabels).not.toContain(null);
+    expect.soft(characterChoices.map((choice) => choice.getAttribute("formcontrolname")))
+      .toEqual(characterControlNames);
+    expect.soft(new Set(characterChoices).size).toBe(4);
+    expect.soft(characterChoices.map((choice) => choice.checked))
+      .toEqual([true, true, true, false]);
+    expect.soft(characterChoices.every((choice, index) => characterLabels[index]!.contains(choice)))
+      .toBe(true);
+    expect.soft(characterChoices.map(computedHitHeight).every((height) => height <= 24)).toBe(true);
+    expect.soft(characterLabels.map(computedHitHeight)).toEqual([44, 44, 44, 44]);
+    characterLabels[3]!.click();
+    fixture.changeDetectorRef.detectChanges();
+    expect.soft(characterChoices.map((choice) => choice.checked)).toEqual([true, true, true, true]);
+    characterLabels[0]!.click();
+    fixture.changeDetectorRef.detectChanges();
+    expect.soft(characterChoices.map((choice) => choice.checked)).toEqual([false, true, true, true]);
+
+    const lengthControl = passwordPaintedControls[0]!;
+    const lengthInput = passwordInputs[0]!;
+    setGeneratorInteraction(lengthInput, "focus");
+    expect.soft(cssPixels(getComputedStyle(lengthControl).outlineWidth)).toBe(0);
+    expect.soft(cssPixels(getComputedStyle(lengthInput).outlineWidth)).toBe(0);
+    setGeneratorInteraction(lengthInput, "focus focus-visible");
+    expect.soft(getComputedStyle(lengthControl).outlineWidth).toBe("2px");
+    expect.soft(cssPixels(getComputedStyle(lengthInput).outlineWidth)).toBe(0);
+    setGeneratorInteraction(lengthInput, null);
+
+    const uppercase = characterChoices[0]!;
+    const uppercaseLabel = characterLabels[0]!;
+    setGeneratorInteraction(uppercase, "focus");
+    expect.soft(cssPixels(getComputedStyle(uppercaseLabel).outlineWidth)).toBe(0);
+    expect.soft(cssPixels(getComputedStyle(uppercase).outlineWidth)).toBe(0);
+    setGeneratorInteraction(uppercase, "focus focus-visible");
+    expect.soft(getComputedStyle(uppercaseLabel).outlineWidth).toBe("2px");
+    expect.soft(cssPixels(getComputedStyle(uppercase).outlineWidth)).toBe(0);
+    setGeneratorInteraction(uppercase, null);
+
+    document.documentElement.style.fontSize = "200%";
+    expect.soft(getComputedStyle(settings).overflow).toBe("visible");
+    expect.soft(characterLabels.map((label) => getComputedStyle(label).whiteSpace))
+      .toEqual(characterLabels.map(() => "normal"));
+    expect.soft(characterLabels.map((label) => getComputedStyle(label).overflow))
+      .toEqual(characterLabels.map(() => "visible"));
+    expect.soft(passwordFieldLabels.map((label) => getComputedStyle(label).whiteSpace))
+      .toEqual(passwordFieldLabels.map(() => "normal"));
+    expect.soft(passwordFieldLabels.map((label) => getComputedStyle(label).overflow))
+      .toEqual(passwordFieldLabels.map(() => "visible"));
+    expect.soft(Array.from(passwordFieldOwners, computedHitHeight).every((height) => height >= 44))
+      .toBe(true);
+    document.documentElement.style.removeProperty("font-size");
+
+    const normalFieldBorder = getComputedStyle(lengthControl).borderColor;
+    document.documentElement.setAttribute("data-generator-test-media", "reduced-motion");
+    expect.soft(getComputedStyle(lengthControl).animationName).toBe("none");
+    expect.soft(getComputedStyle(lengthControl).transitionDuration).toBe("0s");
+    expect.soft(getComputedStyle(lengthControl).transform).toBe("none");
+    expect.soft(getComputedStyle(uppercaseLabel).animationName).toBe("none");
+    expect.soft(getComputedStyle(uppercaseLabel).transitionDuration).toBe("0s");
+    expect.soft(getComputedStyle(uppercaseLabel).transform).toBe("none");
+
+    document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
+    expect.soft(getComputedStyle(lengthControl).forcedColorAdjust).toBe("none");
+    expect.soft(getComputedStyle(lengthControl).borderColor).not.toBe(normalFieldBorder);
+    setGeneratorInteraction(lengthInput, "focus focus-visible");
+    expect.soft(getComputedStyle(lengthControl).outlineWidth).toBe("2px");
+    expect.soft(cssPixels(getComputedStyle(lengthInput).outlineWidth)).toBe(0);
+    setGeneratorInteraction(lengthInput, null);
+    document.documentElement.removeAttribute("data-generator-test-media");
+
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect.soft(Array.from(passwordFieldOwners, computedHitHeight).every((height) => height >= 44))
+      .toBe(true);
+    expect.soft(Array.from(passwordPaintedControls, (control) => getComputedStyle(control).height))
+      .toEqual(Array.from(passwordPaintedControls, () => "36px"));
+    expect.soft(passwordInputs.map((input) => getComputedStyle(input).height))
+      .toEqual(passwordInputs.map(() => "36px"));
+    expect.soft(characterLabels.map(computedHitHeight)).toEqual([44, 44, 44, 44]);
+
+    modeLabels[1]!.click();
+    fixture.changeDetectorRef.detectChanges();
+    await fixture.whenStable();
+    fixture.changeDetectorRef.detectChanges();
+    const passphraseFieldOwners = settings.querySelectorAll<HTMLElement>(
+      "tools-passphrase-settings bit-form-field",
+    );
+    const passphrasePaintedControls = settings.querySelectorAll<HTMLElement>(
+      "tools-passphrase-settings [bitfieldcontainer]",
+    );
+    const passphraseInputs = Array.from(passphrasePaintedControls, (control) =>
+      control.querySelector<HTMLInputElement>('input:not([type="checkbox"])')!,
+    );
+    const passphraseCheckboxLabels = Array.from(
+      settings.querySelectorAll<HTMLElement>("tools-passphrase-settings bit-form-control > label"),
+    );
+    expect(passphraseFieldOwners.length).toBeGreaterThanOrEqual(2);
+    expect.soft(Array.from(passphraseFieldOwners, computedHitHeight).every((height) => height >= 44))
+      .toBe(true);
+    expect.soft(Array.from(passphrasePaintedControls, (control) => getComputedStyle(control).height))
+      .toEqual(Array.from(passphrasePaintedControls, () => "36px"));
+    expect.soft(passphraseInputs.map((input) => getComputedStyle(input).height))
+      .toEqual(passphraseInputs.map(() => "36px"));
+    expect.soft(passphraseCheckboxLabels.map(computedHitHeight).every((height) => height >= 44))
+      .toBe(true);
+
+    modeLabels[2]!.click();
+    fixture.changeDetectorRef.detectChanges();
+    await fixture.whenStable();
+    fixture.changeDetectorRef.detectChanges();
+    const usernameFieldOwner = settings.querySelector<HTMLElement>(
+      "bit-form-field.macos-field-owner",
+    )!;
+    const usernamePaintedControl = usernameFieldOwner?.querySelector<HTMLElement>(
+      "[bitfieldcontainer]",
+    );
+    const usernameSelect = usernameFieldOwner?.querySelector<HTMLElement>(
+      "bit-select.macos-control-visible",
+    );
+    const usernameNgSelect = usernameSelect?.querySelector<HTMLElement>("ng-select");
+    const usernameSelectContainer = usernameNgSelect?.querySelector<HTMLElement>(
+      ".ng-select-container",
+    );
+    expect(usernameFieldOwner).not.toBeNull();
+    expect(usernamePaintedControl).not.toBeNull();
+    expect(usernameSelect).not.toBeNull();
+    expect.soft(computedHitHeight(usernameFieldOwner)).toBeGreaterThanOrEqual(44);
+    expect.soft([
+      usernamePaintedControl,
+      usernameSelect,
+      usernameNgSelect,
+      usernameSelectContainer,
+    ].map((control) => getComputedStyle(control!).height)).toEqual(["36px", "36px", "36px", "36px"]);
+    const usernameCheckboxLabels = settings.querySelectorAll<HTMLElement>(
+      "tools-username-settings bit-form-control > label",
+    );
+    expect.soft(Array.from(usernameCheckboxLabels, computedHitHeight).every((height) => height >= 44))
+      .toBe(true);
+
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    expect.soft([
+      usernamePaintedControl,
+      usernameSelect,
+      usernameNgSelect,
+      usernameSelectContainer,
+    ].map((control) => getComputedStyle(control!).height)).toEqual(["40px", "40px", "40px", "40px"]);
+
+    fixture.destroy();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.removeAttribute("data-generator-test-media");
+    document.documentElement.style.removeProperty("font-size");
   });
 
   it("renders real history as a continuous shadowless list with compact-safe rows", async () => {

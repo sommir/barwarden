@@ -77,9 +77,10 @@
     <div class="tw-mb-4">
       <bit-card>
         <form [formGroup]="username" class="tw-container">
-          <bit-form-field>
+          <bit-form-field class="macos-field-owner">
             <bit-label>{{ "type" | i18n }}</bit-label>
             <bit-select
+              class="macos-control-visible"
               [items]="usernameOptions$ | async"
               formControlName="nav"
               data-testid="username-type"

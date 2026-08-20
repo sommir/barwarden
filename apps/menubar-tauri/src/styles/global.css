@@ -3396,7 +3396,14 @@ auth-account .macos-account-label {
   .macos-generator__result-actions button > span > .bwi,
   .macos-generator__mode bit-toggle,
   .macos-generator__mode bit-toggle > :is(input[type="radio"], label),
-  .macos-generator__mode bit-toggle > label > span:first-child {
+  .macos-generator__mode bit-toggle > label > span:first-child,
+  .macos-page--generator .macos-generator__settings [bitfieldcontainer],
+  .macos-page--generator .macos-generator__settings :is(
+    input,
+    select,
+    [role="combobox"]
+  ),
+  .macos-page--generator .macos-generator__settings bit-form-control > label {
     animation: none !important;
     transition: none !important;
     transform: none !important;
@@ -3451,19 +3458,153 @@ auth-account .macos-account-label {
   .macos-generator__mode bit-toggle > input[type="radio"]:focus-visible + label > span:first-child {
     outline-color: Highlight !important;
   }
+
 }
 
 .macos-generator__settings {
-  margin: 0 16px;
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  overflow: visible;
 }
 
-.macos-page--generator .macos-generator__settings [bitfieldcontainer] {
-  min-height: 44px;
+.macos-page--generator .macos-generator__settings bit-form-field {
+  min-height: var(--mac-hit-size);
+  margin: 0;
+  overflow: visible;
+}
+
+.macos-page--generator .macos-generator__settings bit-form-field.macos-field-owner {
+  display: block;
+  width: 100%;
+}
+
+.macos-page--generator .macos-generator__settings bit-form-field label {
+  overflow: visible;
+  white-space: normal;
+}
+
+.macos-page--generator .macos-generator__settings [bitfieldcontainer],
+.macos-page--generator .macos-generator__settings :is(
+  input:not([type="checkbox"]),
+  select,
+  [role="combobox"]
+),
+.macos-page--generator .macos-generator__settings bit-select.macos-control-visible,
+.macos-page--generator .macos-generator__settings bit-select.macos-control-visible ng-select,
+.macos-page--generator
+  .macos-generator__settings
+  bit-select.macos-control-visible
+  ng-select
+  > .ng-select-container {
+  box-sizing: border-box;
+  height: var(--mac-control-visible);
+  min-height: var(--mac-control-visible);
+  border-radius: var(--mac-control-radius);
+}
+
+.macos-page--generator .macos-generator__settings bit-form-control {
+  min-height: var(--mac-hit-size);
+  margin: 0;
 }
 
 .macos-page--generator .macos-generator__settings bit-form-control > label {
-  min-height: 44px;
+  min-height: var(--mac-hit-size);
   align-items: center;
+  margin: 0;
+  overflow: visible;
+  white-space: normal;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  [bitfieldcontainer]:has(:focus-visible),
+.macos-page--generator
+  .macos-generator__settings
+  bit-form-control
+  > label:has(:focus-visible) {
+  outline-color: var(--mac-focus);
+  outline-style: solid;
+  outline-width: var(--mac-focus-ring-width);
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  [bitfieldcontainer]
+  :is(input, select, [role="combobox"]):focus-visible,
+.macos-page--generator
+  .macos-generator__settings
+  bit-form-control
+  > label
+  :is(input, select, [role="combobox"]):focus-visible {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  [bitfieldcontainer]:has(:focus:not(:focus-visible)),
+.macos-page--generator
+  .macos-generator__settings
+  :is(input, select, [role="combobox"]):focus:not(:focus-visible),
+.macos-page--generator
+  .macos-generator__settings
+  bit-form-control
+  > label:has(:focus:not(:focus-visible)) {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  [bitfieldcontainer],
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  :is(input:not([type="checkbox"]), select, [role="combobox"]),
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  bit-select.macos-control-visible,
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  bit-select.macos-control-visible
+  ng-select,
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  bit-select.macos-control-visible
+  ng-select
+  > .ng-select-container {
+  height: var(--mac-control-visible-compact);
+  min-height: var(--mac-control-visible-compact);
+}
+
+@media (forced-colors: active) {
+  .macos-page--generator .macos-generator__settings [bitfieldcontainer] {
+    border-color: ButtonText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--generator
+    .macos-generator__settings
+    :is(
+      [bitfieldcontainer]:has(:focus-visible),
+      bit-form-control > label:has(:focus-visible)
+    ) {
+    border-color: Highlight !important;
+    outline-color: Highlight !important;
+  }
 }
 
 .macos-page--generator .macos-generator__settings :is(bit-card, bit-section) {

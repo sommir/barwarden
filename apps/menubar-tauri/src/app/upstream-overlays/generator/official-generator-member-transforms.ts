@@ -672,6 +672,12 @@ export const generatorTemplateContracts = [
         replacement:
           '@if ((category$ | async) !== "password") {\n  <bit-section>\n    <bit-section-header>\n      <h2 bitTypography="h6">{{ "options" | i18n }}</h2>\n    </bit-section-header>\n    <div class="tw-mb-4">\n      <bit-card>\n        <form [formGroup]="username" class="tw-container">\n          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"\n              formControlName="nav"\n              data-testid="username-type"\n            >\n            </bit-select>\n            @if (credentialTypeHint$ | async) {\n              <bit-hint>{{ credentialTypeHint$ | async }}</bit-hint>\n            }\n          </bit-form-field>\n        </form>\n        @if (showAlgorithm?.id === Algorithm.catchall) {\n          <tools-catchall-settings\n            [account]="account"\n            (onUpdated)="generate(\'catchall settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.plusAddress) {\n          <tools-subaddress-settings\n            [account]="account"\n            (onUpdated)="generate(\'subaddress settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.username) {\n          <tools-username-settings\n            [account]="account"\n            (onUpdated)="generate(\'username settings\')"\n          />\n        }\n      </bit-card>\n    </div>\n  </bit-section>\n}\n</section>\n',
       },
+      {
+        search:
+          '          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"',
+        replacement:
+          '          <bit-form-field class="macos-field-owner">\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              class="macos-control-visible"\n              [items]="usernameOptions$ | async"',
+      },
     ],
   },
   {
