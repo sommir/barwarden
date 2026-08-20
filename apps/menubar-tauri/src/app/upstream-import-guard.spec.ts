@@ -112,14 +112,11 @@ function productionEvidenceAliases(source: string): ProductionEvidenceAlias[] {
           && property.name.text === "replacement",
       );
       if (find && replacement) {
-        const replacementLiteral = descendants(replacement.initializer)
-          .find((candidate): candidate is ts.StringLiteral =>
-            ts.isStringLiteral(candidate) && candidate.text.endsWith(".production.ts"),
-          );
-        if (replacementLiteral) {
+        const replacementLiteral = exactProductionReplacement(replacement.initializer);
+        if (replacementLiteral !== null) {
           aliases.push({
             find: find.initializer.getText(sourceFile),
-            replacement: replacementLiteral.text,
+            replacement: replacementLiteral,
           });
         }
       }
@@ -128,6 +125,43 @@ function productionEvidenceAliases(source: string): ProductionEvidenceAlias[] {
   };
   visit(sourceFile);
   return aliases;
+}
+
+function exactProductionReplacement(initializer: ts.Expression): string | null {
+  if (!ts.isCallExpression(initializer)
+      || initializer.questionDotToken
+      || !ts.isIdentifier(initializer.expression)
+      || initializer.expression.text !== "fileURLToPath"
+      || initializer.typeArguments?.length
+      || initializer.arguments.length !== 1) {
+    return null;
+  }
+
+  const [urlExpression] = initializer.arguments;
+  if (!urlExpression
+      || !ts.isNewExpression(urlExpression)
+      || !ts.isIdentifier(urlExpression.expression)
+      || urlExpression.expression.text !== "URL"
+      || urlExpression.typeArguments?.length
+      || urlExpression.arguments?.length !== 2) {
+    return null;
+  }
+
+  const [pathExpression, baseExpression] = urlExpression.arguments;
+  if (!pathExpression
+      || !ts.isStringLiteral(pathExpression)
+      || !pathExpression.text.endsWith(".production.ts")
+      || !baseExpression
+      || !ts.isPropertyAccessExpression(baseExpression)
+      || baseExpression.questionDotToken
+      || baseExpression.name.text !== "url"
+      || !ts.isMetaProperty(baseExpression.expression)
+      || baseExpression.expression.keywordToken !== ts.SyntaxKind.ImportKeyword
+      || baseExpression.expression.name.text !== "meta") {
+    return null;
+  }
+
+  return pathExpression.text;
 }
 
 function productionProviderViolations(source: string): string[] {
@@ -140,19 +174,51 @@ function productionProviderViolations(source: string): string[] {
   const [importStatement, functionStatement, ...extraStatements] = sourceFile.statements;
   const violations: string[] = [];
   if (!importStatement || !ts.isImportDeclaration(importStatement)
+      || sourceFile.parseDiagnostics.length > 0
+      || importStatement.modifiers?.length
       || !importStatement.importClause?.isTypeOnly
+      || importStatement.importClause.name
       || !ts.isStringLiteral(importStatement.moduleSpecifier)
       || importStatement.moduleSpecifier.text !== "@angular/core"
+      || importStatement.attributes
       || !importStatement.importClause.namedBindings
       || !ts.isNamedImports(importStatement.importClause.namedBindings)
       || importStatement.importClause.namedBindings.elements.length !== 1
+      || importStatement.importClause.namedBindings.elements[0]?.isTypeOnly
+      || importStatement.importClause.namedBindings.elements[0]?.propertyName
       || importStatement.importClause.namedBindings.elements[0]?.name.text !== "Provider") {
     violations.push("production provider must have only the Provider type import");
   }
+  const parametersAreExact = functionStatement && ts.isFunctionDeclaration(functionStatement)
+    && functionStatement.parameters.length === 2
+    && functionStatement.parameters.every((parameter) =>
+      !parameter.dotDotDotToken
+      && !parameter.initializer
+      && !parameter.modifiers?.length
+      && !ts.getDecorators(parameter)?.length
+      && ts.isIdentifier(parameter.name))
+    && functionStatement.parameters[0]?.name.getText(sourceFile) === "_search"
+    && functionStatement.parameters[0]?.questionToken === undefined
+    && functionStatement.parameters[0]?.type?.kind === ts.SyntaxKind.StringKeyword
+    && functionStatement.parameters[1]?.name.getText(sourceFile) === "_evidenceEnabled"
+    && functionStatement.parameters[1]?.questionToken !== undefined
+    && functionStatement.parameters[1]?.type?.kind === ts.SyntaxKind.BooleanKeyword;
+  const returnTypeIsProviderArray = functionStatement && ts.isFunctionDeclaration(functionStatement)
+    && functionStatement.type
+    && ts.isArrayTypeNode(functionStatement.type)
+    && ts.isTypeReferenceNode(functionStatement.type.elementType)
+    && ts.isIdentifier(functionStatement.type.elementType.typeName)
+    && functionStatement.type.elementType.typeName.text === "Provider"
+    && !functionStatement.type.elementType.typeArguments?.length;
   if (!functionStatement || !ts.isFunctionDeclaration(functionStatement)
       || functionStatement.name?.text !== "createEvidenceProviders"
-      || !functionStatement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
-      || functionStatement.modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
+      || functionStatement.modifiers?.length !== 1
+      || functionStatement.modifiers[0]?.kind !== ts.SyntaxKind.ExportKeyword
+      || ts.getDecorators(functionStatement)?.length
+      || functionStatement.asteriskToken
+      || functionStatement.typeParameters?.length
+      || !parametersAreExact
+      || !returnTypeIsProviderArray
       || !functionStatement.body
       || functionStatement.body.statements.length !== 1
       || !ts.isReturnStatement(functionStatement.body.statements[0])
@@ -165,16 +231,6 @@ function productionProviderViolations(source: string): string[] {
     violations.push("production provider must not contain top-level side effects or exports");
   }
   return violations;
-}
-
-function descendants(node: ts.Node): ts.Node[] {
-  const nodes: ts.Node[] = [];
-  const visit = (candidate: ts.Node): void => {
-    nodes.push(candidate);
-    ts.forEachChild(candidate, visit);
-  };
-  visit(node);
-  return nodes;
 }
 
 const productionLockModules = [
@@ -296,11 +352,27 @@ describe("upstream reuse guard", () => {
     );
     expect(productionEvidenceAliases(misconfiguredViteSource))
       .not.toEqual(expectedProductionEvidenceAliases);
+    const wrongReplacementCallee = viteSource.replace(
+      'replacement: fileURLToPath(\n                new URL("./src/app/evidence/evidence-providers.production.ts", import.meta.url),\n              )',
+      'replacement: unsafePath(\n                new URL("./src/app/evidence/evidence-providers.production.ts", import.meta.url),\n              )',
+    );
+    expect(productionEvidenceAliases(wrongReplacementCallee))
+      .not.toEqual(expectedProductionEvidenceAliases);
+    const wrongReplacementUrlBase = viteSource.replace(
+      'new URL("./src/app/evidence/evidence-providers.production.ts", import.meta.url)',
+      'new URL("./src/app/evidence/evidence-providers.production.ts", sideEffect())',
+    );
+    expect(productionEvidenceAliases(wrongReplacementUrlBase))
+      .not.toEqual(expectedProductionEvidenceAliases);
     expect(providerSource).toContain(
       'evidenceEnabled = import.meta.env.VITE_BW_VAULT_EVIDENCE === "true"',
     );
     expect(providerSource).toMatch(/if\s*\(!evidenceEnabled\)\s*\{\s*return \[\];/u);
     expect(productionProviderViolations(productionProviderSource)).toEqual([]);
+    expect(productionProviderViolations(productionProviderSource.replace(
+      "_evidenceEnabled?: boolean",
+      "_evidenceEnabled: boolean = sideEffect()",
+    ))).toContain("production provider must only export createEvidenceProviders returning []");
     expect(productionProviderViolations(`${productionProviderSource}\nconsole.log("side effect");`))
       .toContain("production provider must not contain top-level side effects or exports");
     expect(rootSource).not.toContain("import.meta.env.VITE_BW_VAULT_EVIDENCE");
