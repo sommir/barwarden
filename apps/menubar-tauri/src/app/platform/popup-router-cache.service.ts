@@ -37,6 +37,10 @@ export interface PopupUiSnapshot {
 }
 
 type CacheEntry = PopupUiSnapshot & { readonly url: RetainedPopupRoute };
+type PopupBackOwner = {
+  readonly id: symbol;
+  readonly back: () => void | Promise<void>;
+};
 type PendingFocusRestore = {
   readonly token: number;
   readonly owner: HTMLElement;
@@ -79,6 +83,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   private readonly otp = inject(OtpFacade);
   private readonly retainedRoutes = new Set(inject(POPUP_ROUTER_CACHE_ROUTE_GRAPH));
   private entries: CacheEntry[] = [];
+  private backOwner: PopupBackOwner | null = null;
   private readonly tabSnapshots = new Map<PopupTabRoute, PopupUiSnapshot>();
   private restoring = false;
   private tabSnapshotEpoch = 0;
@@ -164,12 +169,14 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
     this.suppressionNavigationIds.clear();
     this.cancelPendingFocusRestore();
     this.entries = [];
+    this.backOwner = null;
     this.tabSnapshots.clear();
     this.routeReuse.clear();
     this.otp.resetSearch();
   }
 
   hasBackTarget(): boolean {
+    if (this.backOwner) return true;
     const data = deepestIos27RouteData(this.router.routerState.snapshot.root);
     if (data?.popupLayer !== "secondary") return false;
     const current = canonicalUrl(this.router.url);
@@ -196,6 +203,12 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   }
 
   async back(): Promise<boolean> {
+    const owner = this.backOwner;
+    if (owner) {
+      await owner.back();
+      return true;
+    }
+
     this.captureScrollAndFocus();
     const current = canonicalUrl(this.router.url);
     if (this.entries.at(-1)?.url === current) this.entries.pop();
@@ -210,6 +223,16 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
 
     await this.navigateFallback();
     return true;
+  }
+
+  registerBackOwner(back: () => void | Promise<void>): () => void {
+    const owner: PopupBackOwner = { id: Symbol("popup-back-owner"), back };
+    this.backOwner = owner;
+    return () => {
+      if (this.backOwner?.id === owner.id) {
+        this.backOwner = null;
+      }
+    };
   }
 
   private record(url: string): void {

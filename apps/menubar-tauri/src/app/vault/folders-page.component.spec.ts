@@ -16,6 +16,7 @@ import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component
 import { PopupStateStore } from "../popup-state";
 import { demoFolders, demoVaultItems } from "../vault-demo";
 import { FoldersPageComponent } from "./folders-page.component";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -104,10 +105,9 @@ describe("FoldersPageComponent", () => {
     expect(popOutHost.popOut).toHaveBeenCalledWith("/");
   });
 
-  it("keeps the folder header back action on the vault settings route", async () => {
+  it("keeps the folder header back action in the popup navigation owner", async () => {
     const fixture = await setup(new PopupStateStore());
-    const router = TestBed.inject(Router);
-    const navigateByUrl = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+    const back = vi.spyOn(TestBed.inject(PopupRouterCacheService), "back").mockResolvedValue(true);
     const backButton = (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLButtonElement>("[aria-label='返回']");
 
@@ -115,7 +115,7 @@ describe("FoldersPageComponent", () => {
     backButton!.click();
     await fixture.whenStable();
 
-    expect(navigateByUrl).toHaveBeenCalledWith("/vault-settings");
+    expect(back).toHaveBeenCalledOnce();
   });
 });
 

@@ -26,6 +26,7 @@ import {
 } from "./recovery-page-actions.adapter";
 import { VaultActionsService } from "./vault-actions.service";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-trash-page",
@@ -99,6 +100,7 @@ export class TrashPageComponent implements OnDestroy {
     private readonly store: PopupStateStore,
     actions: VaultActionsService,
     private readonly router: Router,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly feedback: AppFeedbackService,
     @Optional() @Inject(POP_OUT_HOST) popOutHost: PopOutHost | null = null,
   ) {
@@ -128,7 +130,7 @@ export class TrashPageComponent implements OnDestroy {
   }
 
   async back(): Promise<void> {
-    await this.router.navigateByUrl("/vault-settings");
+    await this.routeCache.back();
   }
 
   async popOut(): Promise<void> {

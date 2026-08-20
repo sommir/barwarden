@@ -1,4 +1,3 @@
-import { Location } from "@angular/common";
 import { Component } from "@angular/core";
 import { Router } from "@angular/router";
 
@@ -6,6 +5,7 @@ import { PopupHeaderComponent } from "../layout/popup-header.component";
 import { PopupPageComponent } from "../layout/popup-page.component";
 import { I18nPipe } from "../official-ui/official-ui-common";
 import thirdPartyComponents from "../../../../../THIRD_PARTY_COMPONENTS.json";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-third-party-notices-page",
@@ -22,10 +22,10 @@ export class ThirdPartyNoticesPageComponent {
   readonly licenseGroups = thirdPartyComponents.licenseGroups;
 
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.location.back();
+    this.routeCache.back();
 
   constructor(
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly router: Router,
   ) {}
 

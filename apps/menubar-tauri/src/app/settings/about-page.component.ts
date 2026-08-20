@@ -1,4 +1,3 @@
-import { Location } from "@angular/common";
 import { Component } from "@angular/core";
 import { Router } from "@angular/router";
 
@@ -16,6 +15,7 @@ import { EnvironmentHandoffService, helpUrl, sourceUrl } from "./environment-han
 import { ClipboardPolicyService } from "./clipboard-policy.service";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { AppUpdateService } from "../updates/app-update.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-about-page",
@@ -50,7 +50,7 @@ export class AboutPageComponent {
   readonly updateView: AppUpdateService["view"];
 
   constructor(
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly handoff: EnvironmentHandoffService,
     private readonly store: PopupStateStore,
     private readonly clipboard: ClipboardPolicyService,
@@ -70,8 +70,8 @@ export class AboutPageComponent {
     };
   }
 
-  back(): void {
-    this.location.back();
+  async back(): Promise<void> {
+    await this.routeCache.back();
   }
 
   setMetadataView(view: OfficialAboutDialogView | null): void {

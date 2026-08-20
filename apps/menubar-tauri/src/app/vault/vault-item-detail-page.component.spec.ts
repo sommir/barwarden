@@ -45,6 +45,7 @@ import {
 import { VaultFacade } from "./vault.facade";
 import { VaultDetailFieldComponent } from "./vault-detail-field.component";
 import { VaultItemDetailPageComponent } from "./vault-item-detail-page.component";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { OFFICIAL_TOTP_CLOCK } from "./official-totp.service.adapter";
 import { VaultRepromptService } from "./vault-reprompt.service";
 
@@ -977,6 +978,7 @@ describe("VaultItemDetailPageComponent", () => {
 
   it("returns to the Vault through the shared popup header", async () => {
     const { fixture, navigateByUrl } = await createFixture();
+    const back = vi.spyOn(TestBed.inject(PopupRouterCacheService), "back").mockResolvedValue(true);
     fixture.componentRef.setInput("id", "github");
     fixture.detectChanges();
 
@@ -984,7 +986,8 @@ describe("VaultItemDetailPageComponent", () => {
     host.querySelector<HTMLButtonElement>('[aria-label="返回"]')!.click();
     await fixture.whenStable();
 
-    expect(navigateByUrl).toHaveBeenCalledWith("/tabs/vault");
+    expect(back).toHaveBeenCalledOnce();
+    expect(navigateByUrl).not.toHaveBeenCalled();
   });
 
   it("maps the official detail pop-out action to the native menubar window command", async () => {

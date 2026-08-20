@@ -1,4 +1,3 @@
-import { Location } from "@angular/common";
 import {
   ChangeDetectorRef,
   Component,
@@ -25,6 +24,7 @@ import { EnvironmentHandoffService, twoStepLoginHelpUrl } from "./environment-ha
 import { PinSetupDialogComponent } from "./pin-setup-dialog.component";
 import type { RetainedSettingsActions } from "./settings-actions.port";
 import { SettingsService } from "./settings.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 type SetupContext = {
   readonly accountId: string;
@@ -93,7 +93,7 @@ export class AccountSecurityPageComponent implements OnInit {
 
   constructor(
     private readonly settingsService: SettingsService,
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly handoff: EnvironmentHandoffService,
     private readonly vaultTimeout: VaultTimeoutService,
     private readonly auth: AuthFacade,
@@ -112,8 +112,8 @@ export class AccountSecurityPageComponent implements OnInit {
     return this.settingsService.snapshot();
   }
 
-  back(): void {
-    this.location.back();
+  async back(): Promise<void> {
+    await this.routeCache.back();
   }
 
   readonly setVaultTimeoutMinutes: RetainedSettingsActions["setVaultTimeoutMinutes"] = (value) => {

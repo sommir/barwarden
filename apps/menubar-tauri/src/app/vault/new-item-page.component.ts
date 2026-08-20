@@ -7,6 +7,7 @@ import { PopupPageComponent } from "../layout/popup-page.component";
 import { VaultFolderDialogComponent } from "./vault-folder-dialog.component";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 interface NewItemOption {
   readonly label: string;
@@ -117,6 +118,7 @@ export class NewItemPageComponent {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly router: Router,
+    private readonly routeCache: PopupRouterCacheService,
   ) {
     this.folderId = this.route.snapshot.queryParamMap.get("folderId") ?? "";
     this.route.queryParamMap
@@ -146,6 +148,6 @@ export class NewItemPageComponent {
   }
 
   async back(): Promise<void> {
-    await this.router.navigateByUrl("/tabs/vault");
+    await this.routeCache.back();
   }
 }

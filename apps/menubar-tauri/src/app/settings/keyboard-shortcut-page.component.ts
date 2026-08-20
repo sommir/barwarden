@@ -1,4 +1,3 @@
-import { Location } from "@angular/common";
 import {
   ChangeDetectorRef,
   Component,
@@ -31,6 +30,7 @@ import {
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
 import { GlobalShortcutSettingsService } from "./global-shortcut-settings.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Directive({
   selector: "button[bwShortcutRecorder]",
@@ -120,7 +120,7 @@ export class KeyboardShortcutPageComponent {
   private shortcutRecorder?: ElementRef<HTMLButtonElement>;
 
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.location.back();
+    this.routeCache.back();
 
   recording = false;
   private validationMessage = "";
@@ -128,7 +128,7 @@ export class KeyboardShortcutPageComponent {
 
   constructor(
     private readonly settings: GlobalShortcutSettingsService,
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly destroyRef: DestroyRef,
   ) {

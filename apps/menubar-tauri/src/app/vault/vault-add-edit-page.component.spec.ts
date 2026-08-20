@@ -22,6 +22,7 @@ import { DialogModule } from "@bitwarden/components/dialog/dialog.module";
 import type { AuthSession } from "../../auth/auth-session-store";
 import { buildSelfHostedEnvironmentFromServerUrl } from "../../bitwarden-api/bitwarden-api";
 import { PopupStateStore } from "../popup-state";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component";
 import { demoFolders, demoVaultItems } from "../vault-demo";
 import type { VaultItem } from "./vault-item.model";
@@ -1431,6 +1432,22 @@ describe("VaultAddEditPageComponent", () => {
       expect(document.activeElement).toBe(trigger);
     },
   );
+
+  it("routes secondary Escape through the mounted dirty form owner before cache navigation", async () => {
+    const { fixture, navigateByUrl } = await createFixture("3", "add-cipher", "", demoVaultItems, {
+      session: fakeAuthSession(TEST_USER_KEY),
+      cipherWrite: new RecordingCipherWrite(),
+    });
+    await initializeOfficialPersonalForm(fixture, "Unsaved card");
+
+    const leaving = TestBed.inject(PopupRouterCacheService).back();
+    await vi.waitFor(() => expect(TestBed.inject(CdkDialog).openDialogs.length).toBe(1));
+    detectOpenDialogs();
+    clickDialogButton("取消");
+    await leaving;
+
+    expect(navigateByUrl).not.toHaveBeenCalledWith("/tabs/vault");
+  });
 
   it.each(PERSONAL_DIRTY_CASES)(
     "invalidates pending $label save before awaiting dirty $action confirmation",

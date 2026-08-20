@@ -9,6 +9,7 @@ import { PopupStateStore } from "../popup-state";
 import { VaultSessionService } from "../vault/vault-session.service";
 import type { RetainedSettingsActions } from "./settings-actions.port";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-vault-settings-page",
@@ -34,6 +35,7 @@ export class VaultSettingsPageComponent {
     private readonly store: PopupStateStore,
     private readonly vaultSession: VaultSessionService,
     private readonly router: Router,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly changeDetectorRef: ChangeDetectorRef,
   ) {}
 
@@ -48,7 +50,7 @@ export class VaultSettingsPageComponent {
   }
 
   async back(): Promise<void> {
-    await this.router.navigateByUrl("/tabs/settings");
+    await this.routeCache.back();
   }
 
   async navigateTo(route: RetainedVaultSettingsRoute): Promise<void> {

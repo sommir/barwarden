@@ -1,6 +1,7 @@
 import {
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   Inject,
   OnDestroy,
   Optional,
@@ -27,6 +28,7 @@ import {
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
 import { PopupStateStore, type PopupState } from "../popup-state";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component";
 import { OfficialLoginCipherFormComponent } from "../upstream-overlays/cipher-form/official-login-cipher-form.component";
 import { OfficialPersonalCipherFormComponent } from "../upstream-overlays/cipher-form/official-personal-cipher-form.component";
@@ -182,11 +184,15 @@ export class VaultAddEditPageComponent implements OnDestroy {
     private readonly dirtyFormService: DirtyFormService,
     private readonly vaultSession: VaultSessionService,
     private readonly changeDetectorRef: ChangeDetectorRef,
+    routeCache: PopupRouterCacheService,
+    destroyRef: DestroyRef,
     @Optional()
     @Inject(VAULT_CIPHER_WRITE_PORT)
     private readonly cipherWrite: VaultCipherWritePort | null = null,
     @Optional() @Inject(POP_OUT_HOST) popOutHost: PopOutHost | null = null,
   ) {
+    const releaseBackOwner = routeCache.registerBackOwner(() => this.backToVault());
+    destroyRef.onDestroy(releaseBackOwner);
     this.popOutHost = popOutHost ?? new TauriHostService();
     this.routePath = this.route.snapshot?.routeConfig?.path ?? "add-cipher";
     this.personalOperation = new PersonalCipherSaveOperation({

@@ -1,10 +1,10 @@
-import { Location } from "@angular/common";
 import { Component } from "@angular/core";
 
 import completeLicenseText from "../../../../../THIRD_PARTY_LICENSES.txt?raw";
 import { PopupHeaderComponent } from "../layout/popup-header.component";
 import { PopupPageComponent } from "../layout/popup-page.component";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-third-party-licenses-page",
@@ -20,7 +20,7 @@ export class ThirdPartyLicensesPageComponent {
   readonly licenseText = completeLicenseText;
 
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.location.back();
+    this.routeCache.back();
 
-  constructor(private readonly location: Location) {}
+  constructor(private readonly routeCache: PopupRouterCacheService) {}
 }

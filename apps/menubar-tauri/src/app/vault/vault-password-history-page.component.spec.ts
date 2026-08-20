@@ -5,7 +5,6 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
-import { Location } from "@angular/common";
 import { By } from "@angular/platform-browser";
 import { TestBed } from "@angular/core/testing";
 import { ActivatedRoute, provideRouter, Router } from "@angular/router";
@@ -25,6 +24,7 @@ import { VaultFacade } from "./vault.facade";
 import { VaultPasswordHistoryPageComponent } from "./vault-password-history-page.component";
 import { VaultRepromptService } from "./vault-reprompt.service";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -70,7 +70,7 @@ describe("VaultPasswordHistoryPageComponent", () => {
       secureSet: vi.fn(async () => undefined),
       secureDelete: vi.fn(async () => undefined),
     };
-    const location = { back: vi.fn() };
+    const back = vi.fn(async () => true);
     const popOut = { popOut: vi.fn(async () => undefined) };
     const settings = new SettingsService();
     settings.setClipboardClearSeconds(60);
@@ -79,7 +79,7 @@ describe("VaultPasswordHistoryPageComponent", () => {
       imports: [VaultPasswordHistoryPageComponent],
       providers: [
         provideRouter([]),
-        { provide: Location, useValue: location },
+        { provide: PopupRouterCacheService, useValue: { back } },
         { provide: PopupStateStore, useValue: new PopupStateStore() },
         OfficialI18nService,
         { provide: I18nService, useExisting: OfficialI18nService },
@@ -111,7 +111,7 @@ describe("VaultPasswordHistoryPageComponent", () => {
 
     return {
       fixture,
-      location,
+      back,
       actionHost,
       router,
       store: TestBed.inject(PopupStateStore),
@@ -140,26 +140,11 @@ describe("VaultPasswordHistoryPageComponent", () => {
     expect(host.querySelector("popup-page main > span.tw-invisible")).not.toBeNull();
   });
 
-  it.each([null, "missing"])("returns through Location.back when %s resolves and popup history exists", async (cipherId) => {
-    vi.spyOn(window.history, "state", "get").mockReturnValue({ navigationId: 2 });
-    const { fixture, location } = await setupHistory({ cipherId, item: null });
+  it.each([null, "missing"])("returns through the popup navigation owner when %s resolves", async (cipherId) => {
+    const { fixture, back } = await setupHistory({ cipherId, item: null });
     await settle(fixture);
-    expect(location.back).toHaveBeenCalledOnce();
+    expect(back).toHaveBeenCalledOnce();
   });
-
-  it.each([null, "missing"])(
-    "navigates to /tabs/vault without back-navigation when %s resolves with no popup history",
-    async (cipherId) => {
-      vi.spyOn(window.history, "state", "get").mockReturnValue(undefined);
-      vi.spyOn(window.history, "length", "get").mockReturnValue(1);
-
-      const { fixture, location, router } = await setupHistory({ cipherId, item: null });
-      await settle(fixture);
-
-      expect(location.back).not.toHaveBeenCalled();
-      expect(router.navigateByUrl).toHaveBeenCalledWith("/tabs/vault", { replaceUrl: true });
-    },
-  );
 
   it("renders the official empty state without generic attachment UI", async () => {
     const { fixture } = await setupHistory({ cipherId: "cipher-1", item: emptyHistoryItem });
@@ -336,15 +321,13 @@ describe("VaultPasswordHistoryPageComponent", () => {
   });
 
   it("closes safely when the selected item is not a Login", async () => {
-    vi.spyOn(window.history, "state", "get").mockReturnValue(undefined);
-    vi.spyOn(window.history, "length", "get").mockReturnValue(1);
     const nonLoginItem = { ...demoVaultItems[1], type: "card" as const };
 
-    const { fixture, router } = await setupHistory({ cipherId: nonLoginItem.id, item: nonLoginItem });
+    const { fixture, back } = await setupHistory({ cipherId: nonLoginItem.id, item: nonLoginItem });
     await settle(fixture);
 
     expect(fixture.componentInstance.item).toBeNull();
-    expect(router.navigateByUrl).toHaveBeenCalledWith("/tabs/vault", { replaceUrl: true });
+    expect(back).toHaveBeenCalledOnce();
   });
 
   it("falls back safely when an entry date is invalid", async () => {

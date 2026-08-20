@@ -1,5 +1,5 @@
 import { Component } from "@angular/core";
-import { Router, RouterLink } from "@angular/router";
+import { RouterLink } from "@angular/router";
 
 import { PopOutComponent } from "@bitwarden/browser-popup/components/pop-out.component";
 import { PopupHeaderComponent } from "../layout/popup-header.component";
@@ -8,6 +8,7 @@ import { EnvironmentHandoffService } from "./environment-handoff.service";
 import { MacosAlertStripComponent } from "../official-ui/macos-alert-strip.component";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-settings-password-page",
@@ -60,11 +61,11 @@ import { I18nPipe } from "../official-ui/official-ui-common";
 })
 export class SettingsPasswordPageComponent {
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.router.navigateByUrl("/account-security");
+    this.routeCache.back();
   handoffError = "";
 
   constructor(
-    private readonly router: Router,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly handoff: EnvironmentHandoffService,
   ) {}
 

@@ -9,6 +9,7 @@ import { of } from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 
 import { PopupStateStore } from "../popup-state";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { OfficialPasswordHintComponent } from "../upstream-overlays/auth/login/official-password-hint.component";
 import { OfficialPasswordAuthAdapter } from "./official-password-auth.adapter";
 import { OfficialPasswordHintApiAdapter } from "./official-password-hint-api.adapter";
@@ -94,6 +95,18 @@ describe("PasswordHintPageComponent", () => {
 
     expect(auth.cancel).toHaveBeenCalledOnce();
     expect(navigate).toHaveBeenCalledWith("/login");
+  });
+
+  it("lets the mounted route owner handle secondary Escape through the popup navigator", async () => {
+    const { fixture, auth, router } = await createPage();
+    const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+
+    await TestBed.inject(PopupRouterCacheService).back();
+    await fixture.whenStable();
+
+    expect(auth.cancel).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/login");
+    expect(navigate).not.toHaveBeenCalledWith("/tabs/vault", expect.anything());
   });
 
   it.each([

@@ -20,6 +20,7 @@ import type { AuthSession } from "../../auth/auth-session-store";
 import { buildSelfHostedEnvironmentFromServerUrl } from "../../bitwarden-api/bitwarden-api";
 import type { HostApi } from "../../host/host-api";
 import { PopupStateStore } from "../popup-state";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { AppFeedbackService } from "../official-ui/app-feedback.service";
 import { LocalCopyFeedbackService } from "../official-ui/local-copy-feedback.service";
 import {
@@ -1207,6 +1208,39 @@ describe("SendAddEditPageComponent", () => {
     expect(textSendDeletionPresetHours).toEqual([1, 24, 48, 72, 7 * 24, 14 * 24, 30 * 24]);
     expect(host.querySelector(".send-form-field")).toBeNull();
     expect(host.querySelector(".detail-card")).toBeNull();
+  });
+
+  it.each(["back", "cancel"] as const)(
+    "keeps a dirty mounted add Send on the form when %s is declined",
+    async (action) => {
+      openSimpleDialog.mockResolvedValueOnce(false);
+      const fixture = await createAddEditFixture("text");
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      fixture.componentInstance.name = "Unsaved Send";
+
+      if (action === "back") {
+        await fixture.componentInstance.back();
+      } else {
+        await fixture.componentInstance.cancelEditing();
+      }
+
+      expect(openSimpleDialog).toHaveBeenCalledOnce();
+      expect(navigate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("routes secondary Escape through the mounted dirty Send owner", async () => {
+    openSimpleDialog.mockResolvedValueOnce(false);
+    const fixture = await createAddEditFixture("text");
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, "navigate").mockResolvedValue(true);
+    fixture.componentInstance.text = "Unsaved secret";
+
+    await TestBed.inject(PopupRouterCacheService).back();
+
+    expect(openSimpleDialog).toHaveBeenCalledOnce();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("reveals all submit errors, focuses name first, and clears a corrected blur error", async () => {

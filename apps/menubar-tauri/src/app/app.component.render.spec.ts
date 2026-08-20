@@ -9,6 +9,7 @@ import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { of } from "rxjs";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 
 import { AuthFacade } from "./auth/auth.facade";
@@ -20,6 +21,9 @@ import { OfficialI18nService } from "./official-ui/official-i18n.service";
 import { PopupRouterCacheService } from "./platform/popup-router-cache.service";
 import { VaultFacade } from "./vault/vault.facade";
 import { ios27RouteData } from "./platform/popup-route-metadata";
+import { PasswordHintPageComponent } from "./auth/password-hint-page.component";
+import { OfficialPasswordAuthAdapter } from "./auth/official-password-auth.adapter";
+import { OfficialPasswordHintApiAdapter } from "./auth/official-password-hint-api.adapter";
 
 @Component({ standalone: true, template: "" })
 class OtpRouteStubComponent {}
@@ -376,6 +380,54 @@ describe("AppComponent rendering", () => {
     }));
 
     expect(routeCache.back).toHaveBeenCalledOnce();
+    expect(popupLifecycleHost.hidePopup).not.toHaveBeenCalled();
+  });
+
+  it("uses mounted root Escape and the real hint route owner to cancel back to login", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    const popupLifecycleHost = { hidePopup: vi.fn().mockResolvedValue(undefined) };
+    const auth = {
+      rememberedEmail$: of(""),
+      takeNavigationEmail: vi.fn(() => ""),
+      setNavigationEmail: vi.fn(),
+      cancel: vi.fn(),
+      rememberEmail: vi.fn(),
+    };
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([
+          { path: "login", component: LoginRouteStubComponent, data: ios27RouteData("auth", "base", false) },
+          { path: "hint", component: PasswordHintPageComponent, data: ios27RouteData("auth", "secondary", false) },
+        ]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: AuthFacade, useValue: { restoreStartup: vi.fn().mockResolvedValue("login") } },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultTimeoutService, useValue: { recordActivity: vi.fn() } },
+        { provide: POPUP_LIFECYCLE_HOST, useValue: popupLifecycleHost },
+        { provide: OfficialPasswordAuthAdapter, useValue: auth },
+        { provide: OfficialPasswordHintApiAdapter, useValue: { request: vi.fn() } },
+      ],
+    }).compileComponents();
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(router.url).toBe("/login"));
+    await router.navigateByUrl("/hint");
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }));
+    await vi.waitFor(() => expect(router.url).toBe("/login"));
+
+    expect(auth.setNavigationEmail).toHaveBeenCalledOnce();
+    expect(auth.cancel).toHaveBeenCalled();
     expect(popupLifecycleHost.hidePopup).not.toHaveBeenCalled();
   });
 

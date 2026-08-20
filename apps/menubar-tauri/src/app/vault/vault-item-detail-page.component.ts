@@ -81,6 +81,7 @@ import {
 import { VaultDetailFieldComponent } from "./vault-detail-field.component";
 import { VaultDetailSectionComponent } from "./vault-detail-section.component";
 import { VaultFacade, type VaultItemLocation } from "./vault.facade";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { VaultItemIconComponent } from "./vault-item-icon.component";
 import { vaultItemTypeLabel } from "./vault-item.model";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
@@ -229,7 +230,6 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   @ViewChild("confirmationDialog") private confirmationDialog?: AppBottomSheetComponent;
   @Input("id") itemId = "";
   pendingAction: "archive" | "delete" | "permanent-delete" | "autofill-mismatch" | "" = "";
-  private originLocation?: VaultItemLocation;
   private readonly revealedFieldIds = new Set<string>();
   private loginProjectionItem: VaultItem | undefined;
   private loginProjectionValue: OfficialLoginDetailProjection | undefined;
@@ -248,6 +248,7 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
   constructor(
     private readonly store: PopupStateStore,
     private readonly router: Router,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly vault: VaultFacade,
     private readonly actions: VaultActionsService,
     private readonly changeDetectorRef: ChangeDetectorRef,
@@ -314,7 +315,6 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
       this.loginProjectionValue = undefined;
       this.personalProjectionItem = undefined;
       this.personalProjectionValue = undefined;
-      this.originLocation = this.vault.itemLocation(this.itemId);
       this.detailItemReference = this.item;
       void this.refreshContextualFillAction();
     }
@@ -337,7 +337,7 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
 
   async backToVault(): Promise<void> {
     this.contextSession.navigationChanged("/");
-    await this.router.navigateByUrl(routeForLocation(this.originLocation ?? this.itemLocation));
+    await this.routeCache.back();
   }
 
   get contextualFillAction(): LoginContextualFillPresentation | undefined {
@@ -1190,15 +1190,6 @@ function contextualSecretField(field: VaultField): AutoFillSecretField | undefin
   return field.id === "otp" ? "totp" : undefined;
 }
 
-function routeForLocation(location: VaultItemLocation | undefined): string {
-  if (location === "archived") {
-    return "/archive";
-  }
-  if (location === "deleted") {
-    return "/trash";
-  }
-  return "/tabs/vault";
-}
 
 function eventTrigger(event: Event | undefined): HTMLElement | undefined {
   return event?.currentTarget instanceof HTMLElement ? event.currentTarget : undefined;

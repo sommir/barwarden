@@ -1,4 +1,3 @@
-import { Location } from "@angular/common";
 import { Component, Optional } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
@@ -30,6 +29,7 @@ import {
   isFillMode,
 } from "./settings-options";
 import { SettingsService } from "./settings.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-autofill-settings-page",
@@ -101,7 +101,7 @@ export class AutofillSettingsPageComponent {
 
   constructor(
     private readonly settingsService: SettingsService,
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
     @Optional() private readonly accessibility: AutoFillAccessibilityService | null = null,
     @Optional() private readonly setup: AutoFillSetupService | null = null,
   ) {}
@@ -110,8 +110,8 @@ export class AutofillSettingsPageComponent {
     return this.settingsService.snapshot();
   }
 
-  back(): void {
-    this.location.back();
+  async back(): Promise<void> {
+    await this.routeCache.back();
   }
 
   setClipboardClearSecondsValue(value: unknown): void {

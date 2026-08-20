@@ -52,6 +52,7 @@ import { SendFacade } from "../send/send.facade";
 import { demoVaultItems } from "../vault-demo";
 import { OtpFacade } from "../vault/otp.facade";
 import { OtpPageComponent } from "../vault/otp-page.component";
+import { FoldersPageComponent } from "../vault/folders-page.component";
 import { VaultActionsService } from "../vault/vault-actions.service";
 import { VaultFacade } from "../vault/vault.facade";
 import {
@@ -207,6 +208,49 @@ describe("PopupRouterCacheService", () => {
     expect(router.url).toBe("/tabs/vault");
   });
 
+  it("uses a mounted folders header as one cache-owned back chain and restores the settings snapshot", async () => {
+    const { fixture, router, scrollLayout, service } = await createService([
+      {
+        path: "tabs/settings",
+        component: SettingsScrollRouteComponent,
+        data: ios27RouteData("settings", "base", true),
+      },
+      {
+        path: "vault-settings",
+        component: RouteComponent,
+        data: ios27RouteData("settings", "secondary", false),
+      },
+      {
+        path: "folders",
+        component: FoldersPageComponent,
+        data: ios27RouteData("vault", "secondary", false),
+      },
+    ], true);
+
+    await router.navigateByUrl("/tabs/settings");
+    fixture!.detectChanges();
+    const settingsTrigger = fixture!.nativeElement.querySelector<HTMLButtonElement>(
+      '[data-popup-focus-key="settings:folders"]',
+    )!;
+    settingsTrigger.focus();
+    scrollLayout.scrollableRef()!.nativeElement.scrollTop = 63;
+    await router.navigateByUrl("/vault-settings");
+    await router.navigateByUrl("/folders");
+    fixture!.detectChanges();
+
+    fixture!.nativeElement.querySelector<HTMLButtonElement>('[aria-label="返回"]')!.click();
+    await fixture!.whenStable();
+    expect(router.url).toBe("/vault-settings");
+
+    await service.back();
+    fixture!.detectChanges();
+    await fixture!.whenStable();
+
+    expect(router.url).toBe("/tabs/settings");
+    expect(scrollLayout.scrollableRef()!.nativeElement.scrollTop).toBe(63);
+    expect(document.activeElement?.getAttribute("data-popup-focus-key")).toBe("settings:folders");
+  });
+
   it("does not add duplicate navigation entries", async () => {
     const { router, service } = await createService();
 
@@ -214,6 +258,22 @@ describe("PopupRouterCacheService", () => {
     await router.navigateByUrl("/tabs/vault");
 
     expect(service.history()).toEqual(["/tabs/vault"]);
+  });
+
+  it("keeps a newer mounted back owner when an older route releases late", async () => {
+    const { service } = await createService();
+    const oldBack = vi.fn(async () => undefined);
+    const currentBack = vi.fn(async () => undefined);
+    const releaseOld = service.registerBackOwner(oldBack);
+    const releaseCurrent = service.registerBackOwner(currentBack);
+
+    releaseOld();
+    await service.back();
+
+    expect(oldBack).not.toHaveBeenCalled();
+    expect(currentBack).toHaveBeenCalledOnce();
+
+    releaseCurrent();
   });
 
   it("rejects login, challenge, item, query, and unknown URLs", async () => {

@@ -18,6 +18,7 @@ import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { VAULT_SYNC_PORT } from "../auth/vault-sync.shared";
 import { VaultSessionService } from "../vault/vault-session.service";
 import { VaultSettingsPageComponent } from "./vault-settings-page.component";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -30,6 +31,7 @@ try {
 describe("VaultSettingsPageComponent", () => {
   it("returns directly to the top-level Settings page instead of replaying recovery history", async () => {
     const navigateByUrl = vi.fn(async () => true);
+    const back = vi.fn(async () => true);
 
     await TestBed.configureTestingModule({
       imports: [VaultSettingsPageComponent],
@@ -40,6 +42,7 @@ describe("VaultSettingsPageComponent", () => {
         { provide: PopupStateStore, useValue: new PopupStateStore() },
         { provide: VaultSessionService, useValue: { syncNow: async () => undefined } },
         { provide: Router, useValue: { events: NEVER, navigateByUrl, url: "/vault-settings" } },
+        { provide: PopupRouterCacheService, useValue: { back } },
       ],
     }).compileComponents();
 
@@ -47,7 +50,8 @@ describe("VaultSettingsPageComponent", () => {
 
     await fixture.componentInstance.back();
 
-    expect(navigateByUrl).toHaveBeenCalledWith("/tabs/settings");
+    expect(back).toHaveBeenCalledOnce();
+    expect(navigateByUrl).not.toHaveBeenCalled();
   });
 
   it("renders vault setting rows", async () => {

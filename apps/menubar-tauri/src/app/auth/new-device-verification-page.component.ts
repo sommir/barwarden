@@ -1,8 +1,9 @@
-import { Component, ViewChild } from "@angular/core";
+import { Component, DestroyRef, ViewChild } from "@angular/core";
 import { PopupStateStore } from "../popup-state";
 import { OfficialAnonymousShellComponent } from "../upstream-overlays/auth/anonymous/official-anonymous-shell.component";
 import { OfficialNewDeviceVerificationComponent } from "../upstream-overlays/auth/new-device/official-new-device-verification.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-new-device-verification-page",
@@ -26,7 +27,12 @@ export class NewDeviceVerificationPageComponent {
   constructor(
     private readonly store: PopupStateStore,
     readonly i18n: OfficialI18nService,
-  ) {}
+    routeCache: PopupRouterCacheService,
+    destroyRef: DestroyRef,
+  ) {
+    const releaseBackOwner = routeCache.registerBackOwner(() => this.backAction());
+    destroyRef.onDestroy(releaseBackOwner);
+  }
 
   get email(): string {
     return this.store.snapshot().authChallenge?.email ?? "";
