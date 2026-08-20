@@ -489,14 +489,16 @@ describe("popup visual smoke classes", () => {
     );
 
     const heading = cssDeclarations(globalCss, ".macos-page-heading");
-    const title = cssDeclarations(globalCss, ".macos-page-heading h1");
+    const title = cssDeclarations(globalCss, "popup-header > header h1");
     const actions = cssDeclarations(globalCss, ".macos-page-heading__actions");
 
     expect(heading).toContain("display: grid;");
     expect(heading).toContain("grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);");
     expect(heading).toContain("width: 100%;");
-    expect(title).toContain("font-size: 18px;");
-    expect(title).toContain("font-weight: 680;");
+    expect(title).toContain("font-size: 17px;");
+    expect(title).toContain("line-height: 22px;");
+    expect(title).toContain("font-weight: 650;");
+    expect(title).toContain("letter-spacing: -0.01em;");
     expect(title).toContain("text-align: center;");
     expect(actions).toContain("display: flex;");
     expect(actions).toContain("grid-column: 3;");
@@ -509,7 +511,7 @@ describe("popup visual smoke classes", () => {
       "utf8",
     );
     const header = cssDeclarations(globalCss, "popup-header > header");
-    const title = cssDeclarations(globalCss, ".macos-page-heading h1");
+    const title = cssDeclarations(globalCss, "popup-header > header h1");
 
     expect(header).toContain("background: transparent !important;");
     expect(header).toContain("border-color: transparent !important;");
