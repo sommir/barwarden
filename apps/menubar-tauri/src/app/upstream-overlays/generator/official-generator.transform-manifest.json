@@ -293,6 +293,7 @@
       "apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
       "apps/menubar-tauri/src/app/official-ui/official-state-types.adapter.ts",
       "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts",
       "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
       "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
       "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
@@ -317,6 +318,7 @@
       "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.html",
       "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
       "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts",
+      "apps/menubar-tauri/src/app/vault/otp.facade.ts",
       "apps/menubar-tauri/src/auth/account-session-errors.ts",
       "apps/menubar-tauri/src/auth/account-session-port.ts",
       "apps/menubar-tauri/src/auth/account-session-store.ts",
@@ -1665,6 +1667,18 @@
       {
         "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
         "kind": "import",
+        "specifier": "../vault/otp.facade",
+        "target": "apps/menubar-tauri/src/app/vault/otp.facade.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "./popup-route-metadata",
+        "target": "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
         "specifier": "./popup-route-reuse.strategy",
         "target": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts"
       },
@@ -1673,6 +1687,12 @@
         "kind": "import",
         "specifier": "./popup-router-cache.lifecycle",
         "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
       },
       {
         "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
@@ -2195,6 +2215,12 @@
         "kind": "export",
         "specifier": "../../platform/popup-router-cache.service",
         "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/vault/otp.facade.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
       },
       {
         "from": "apps/menubar-tauri/src/auth/account-session-port.ts",
@@ -4554,7 +4580,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
-        "sha256": "3db4b593328849b8a210286aad2bc881b0abe2784897a91fdf312a0f8a89f209"
+        "sha256": "8cd7b0c06512584260f6d24d9c221db953906bbc81b443f2eb73f212f22ed292"
       },
       {
         "path": "apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
@@ -4569,6 +4595,10 @@
         "sha256": "e70e118273a93443d77485c86c51748030d1b9478989ba25d2877ef82d0e6fd2"
       },
       {
+        "path": "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts",
+        "sha256": "ef93bdf8d94854d9d2fa87ba910c50b8246894eaf8349b240a0f5ef6b6f15d74"
+      },
+      {
         "path": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
         "sha256": "1136b4e6e91486ec6d8b43a676f39d423155d887062c74fd84d4b8797026e806"
       },
@@ -4578,7 +4608,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
-        "sha256": "9af20e663db06c66b1b34c07b75806d7a3d95b9a4738d0a87bf93a1820fa99f5"
+        "sha256": "e244d74e8aae062c39fbce00a1c08bd774aa8e34ee8c31a397a3515f52b489e0"
       },
       {
         "path": "apps/menubar-tauri/src/app/popup-state.ts",
@@ -4665,6 +4695,10 @@
         "sha256": "ed5394784e2bb82aaaac11b36f5a854cbfdeb9c22d8df68cc253a17f90e490f7"
       },
       {
+        "path": "apps/menubar-tauri/src/app/vault/otp.facade.ts",
+        "sha256": "0308a95fb20d0e2f45657d518adda08bc0843f2737c0da957f253c499e6f45b2"
+      },
+      {
         "path": "apps/menubar-tauri/src/auth/account-session-errors.ts",
         "sha256": "cb41353a5de06b835b7ab84aad0a91885ed7d7b4940c7171d30d634c04acb15e"
       },
@@ -4706,7 +4740,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/host/tauri-host.service.ts",
-        "sha256": "9dee0facbb70cfcb9c981094dee3cfd6f4c67617e33f8efcc2481887f1da1ffd"
+        "sha256": "3213af17bf84c13f6397097111e0503dfa247d034c9f13554d7f012024870bf6"
       },
       {
         "path": "apps/menubar-tauri/src/host/website-context.ts",
@@ -5381,7 +5415,7 @@
         "sha256": "162dd777bc2ad6abcd19e7ce8c6c78463ebabf63a73bd22ecf6cf8a9558f5286"
       }
     ],
-    "sha256": "508a2645d9e11d78a3cda8c6e2734baeef53e7978a9db1374b36fb32aaba60cc"
+    "sha256": "ffede226182eb4ec43eff1fb64afda68855d457a28c11e90d4bf6c9babfe6d72"
   },
   "removedDependencies": [
     "forwarded-email provider graph",
