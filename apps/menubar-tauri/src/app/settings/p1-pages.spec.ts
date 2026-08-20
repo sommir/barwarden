@@ -8,6 +8,7 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
@@ -30,6 +31,23 @@ import { OfficialAccountSecurityComponent } from "../upstream-overlays/settings/
 import { OfficialAppearanceComponent } from "../upstream-overlays/settings/official-appearance.component";
 import { VaultTimeoutService } from "../auth/vault-timeout.service";
 import type { VaultTimeoutMinutes } from "./settings-options";
+import { AutoFillAccessibilityService } from "../autofill/autofill-accessibility.service";
+import { AutoFillSetupService } from "../autofill/autofill-setup.service";
+import { AccessibilityPermissionDialogComponent } from "../official-ui/accessibility-permission-dialog.component";
+import {
+  ACCESSIBILITY_SETTINGS_HOST,
+  AccessibilityPermissionDialogService,
+} from "../official-ui/accessibility-permission-dialog.service";
+
+@Component({
+  standalone: true,
+  imports: [AutofillSettingsPageComponent, AccessibilityPermissionDialogComponent],
+  template: `
+    <bw-autofill-settings-page />
+    <bw-accessibility-permission-dialog />
+  `,
+})
+class AutofillPermissionTestHostComponent {}
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -312,6 +330,26 @@ describe("P1 settings pages", () => {
     expect(visibleSelects).toHaveLength(2);
     expect(visibleSelects.map((select) => getComputedStyle(select).height))
       .toEqual(["40px", "40px"]);
+    const checkboxRows = preferenceRows.slice(0, 2);
+    const checkboxOwners = checkboxRows.map((row) =>
+      row.querySelector<HTMLLabelElement>(":scope > label"),
+    );
+    const checkboxInputs = checkboxRows.map((row) =>
+      row.querySelector<HTMLInputElement>(":scope > label > input[type='checkbox']"),
+    );
+    expect(checkboxOwners.every((owner) => owner !== null)).toBe(true);
+    expect(checkboxInputs.map((input) => input?.id)).toEqual([
+      "biometricUnlock",
+      "pinUnlock",
+    ]);
+    expect(checkboxOwners.map((owner) => getComputedStyle(owner!).width))
+      .toEqual(["100%", "100%"]);
+    expect(checkboxOwners.map((owner) => getComputedStyle(owner!).minHeight))
+      .toEqual(["44px", "44px"]);
+    checkboxInputs[1]!.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(checkboxOwners[1]!).outlineWidth).toBe("2px");
+    expect(getComputedStyle(checkboxOwners[1]!).outlineStyle).toBe("solid");
+    expect(getComputedStyle(checkboxInputs[1]!).outlineWidth).toBe("0px");
     document.documentElement.style.fontSize = "200%";
     const unlockLabel = group!.querySelector<HTMLElement>('bit-label[for="pinUnlock"]')!;
     const originalUnlockLabel = unlockLabel.textContent;
@@ -847,6 +885,14 @@ describe("P1 settings pages", () => {
     expect(getComputedStyle(fieldIcon!).minWidth).toBe("44px");
     expect(getComputedStyle(fieldIcon!).minHeight).toBe("44px");
     expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    const permissionAction = host.querySelector<HTMLButtonElement>(
+      '[data-testid="autofill-accessibility-permission"]',
+    );
+    expect(permissionAction).not.toBeNull();
+    expect(permissionAction!.classList).toContain("secondary-action");
+    expect(permissionAction!.classList).not.toContain("primary-action");
+    expect(Number.parseFloat(getComputedStyle(permissionAction!).minHeight))
+      .toBeGreaterThanOrEqual(44);
     expect(host.querySelector(".primary-action, [buttonType='primary']")).toBeNull();
     const switchTrack = fieldIcon!.querySelector<HTMLElement>("span")!;
     fieldIcon!.dataset["testFocusVisible"] = "true";
@@ -891,6 +937,90 @@ describe("P1 settings pages", () => {
     expect(getComputedStyle(fieldIcon!).minHeight).toBe("44px");
     document.documentElement.removeAttribute("data-bw-compact-mode");
     expect(host.querySelectorAll("button[disabled]")).toHaveLength(0);
+  });
+
+  it("uses the accessibility fallback exactly once without AutoFillSetup and swallows rejection", async () => {
+    const service = new SettingsStateService();
+    const setFloatingIconEnabled = vi.fn(async (_enabled: boolean) => {
+      throw new Error("private accessibility host failure");
+    });
+    await TestBed.configureTestingModule({
+      imports: [AutofillSettingsPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: SettingsStateService, useValue: service },
+        {
+          provide: AutoFillAccessibilityService,
+          useValue: { setFloatingIconEnabled },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AutofillSettingsPageComponent);
+    fixture.detectChanges();
+    expect(TestBed.inject(AutoFillSetupService, null)).toBeNull();
+
+    fixture.componentInstance.setShowInputFieldIconValue(false);
+    await fixture.whenStable();
+
+    expect(service.snapshot().showInputFieldIcon).toBe(false);
+    expect(setFloatingIconEnabled).toHaveBeenCalledTimes(1);
+    expect(setFloatingIconEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("opens the real permission Sheet from one secondary AutoFill action and restores its focus owner", async () => {
+    await TestBed.configureTestingModule({
+      imports: [AutofillPermissionTestHostComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: SettingsStateService, useValue: new SettingsStateService() },
+        {
+          provide: AutoFillAccessibilityService,
+          useValue: { setFloatingIconEnabled: vi.fn(async () => undefined) },
+        },
+        {
+          provide: ACCESSIBILITY_SETTINGS_HOST,
+          useValue: { openUrl: vi.fn(async () => undefined) },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AutofillPermissionTestHostComponent);
+    fixture.detectChanges();
+    installAppearancePreferenceCss();
+    const host = fixture.nativeElement as HTMLElement;
+    const action = host.querySelector<HTMLButtonElement>(
+      '[data-testid="autofill-accessibility-permission"]',
+    );
+    expect(action).not.toBeNull();
+    expect(action!.classList).toContain("secondary-action");
+    expect(action!.getAttribute("type")).toBe("button");
+    expect(Number.parseFloat(getComputedStyle(action!).minHeight))
+      .toBeGreaterThanOrEqual(44);
+
+    action!.focus();
+    action!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const dialog = TestBed.inject(AccessibilityPermissionDialogService);
+    const sheet = host.querySelector<HTMLDialogElement>(
+      '.app-bottom-sheet[open][data-testid="accessibility-permission-sheet"]',
+    );
+    expect(dialog.trigger()).toBe(action);
+    expect(sheet).not.toBeNull();
+    expect(document.activeElement).toBe(
+      sheet!.querySelector<HTMLButtonElement>('[data-testid="accessibility-later"]'),
+    );
+
+    sheet!.querySelector<HTMLButtonElement>('[data-testid="accessibility-later"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(action);
   });
 
 
@@ -1269,6 +1399,10 @@ function installAppearancePreferenceCss(
   height: 36px;
   min-height: 36px;
   overflow: hidden;
+}
+bit-form-control.macos-preference-row > label {
+  width: max-content;
+  min-height: 20px;
 }
 .macos-preference-row__copy {
   height: 18px;

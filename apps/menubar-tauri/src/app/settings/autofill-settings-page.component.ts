@@ -7,6 +7,7 @@ import {
   BitFormFieldComponent,
   BitHintDirective,
   BitLabelComponent,
+  ButtonComponent,
   SectionComponent,
   SectionHeaderComponent,
   SelectComponent,
@@ -28,6 +29,7 @@ import {
 } from "./settings-options";
 import { SettingsService } from "./settings.service";
 import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
+import { AccessibilityPermissionDialogService } from "../official-ui/accessibility-permission-dialog.service";
 
 @Component({
   selector: "bw-autofill-settings-page",
@@ -37,6 +39,7 @@ import { PopupRouterCacheService } from "../platform/popup-router-cache.service"
     BitFormFieldComponent,
     BitHintDirective,
     BitLabelComponent,
+    ButtonComponent,
     FormsModule,
     I18nPipe,
     PopupHeaderComponent,
@@ -80,6 +83,18 @@ import { PopupRouterCacheService } from "../platform/popup-router-cache.service"
           </div>
         </section>
       </bit-section>
+      <div class="autofill-permission-action">
+        <button
+          bitButton
+          buttonType="secondary"
+          type="button"
+          class="secondary-action macos-hit-target"
+          data-testid="autofill-accessibility-permission"
+          (click)="openAccessibilityPermission($event)"
+        >
+          {{ "i18nAllowAutofill" | i18n }}
+        </button>
+      </div>
     </popup-page>
   `,
 })
@@ -104,6 +119,8 @@ export class AutofillSettingsPageComponent {
     private readonly routeCache: PopupRouterCacheService,
     @Optional() private readonly accessibility: AutoFillAccessibilityService | null = null,
     @Optional() private readonly setup: AutoFillSetupService | null = null,
+    @Optional()
+    private readonly permissionDialog: AccessibilityPermissionDialogService | null = null,
   ) {}
 
   get settings() {
@@ -131,6 +148,11 @@ export class AutofillSettingsPageComponent {
     const update = this.setup?.setFloatingIconPreference(enabled)
       ?? this.accessibility?.setFloatingIconEnabled(enabled);
     void update?.catch(() => undefined);
+  }
+
+  openAccessibilityPermission(event: Event): void {
+    const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    this.permissionDialog?.present(trigger);
   }
 
   private refreshLocalizedOptions(): void {

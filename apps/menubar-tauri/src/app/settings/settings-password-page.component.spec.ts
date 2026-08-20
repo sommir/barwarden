@@ -69,12 +69,10 @@ describe("SettingsPasswordPageComponent", () => {
         "button.web-vault-action.macos-button-owner",
       );
       expect(action).not.toBeNull();
-      expect(Number.parseFloat(getComputedStyle(action!).minHeight)).toBeGreaterThanOrEqual(44);
-      const activeVisibleToken = compact
-        ? "--mac-control-visible-compact"
-        : "--mac-control-visible";
-      expect(getComputedStyle(action!).getPropertyValue(activeVisibleToken).trim())
-        .toBe(visibleHeight);
+      const paint = paintedPseudoGeometry(action!);
+      expect(paint.ownerHeight).toBe(44);
+      expect(paint.insetBlock).toBe(compact ? 4 : 2);
+      expect(paint.visibleHeight).toBe(Number.parseFloat(visibleHeight));
       expect(host.querySelectorAll('[aria-busy="true"] [role="progressbar"]').length)
         .toBeLessThanOrEqual(1);
 
@@ -124,4 +122,37 @@ function resolveCustomProperty(
       ? resolveCustomProperty(next, rootStyle, new Set([...seen, name]))
       : reference;
   });
+}
+
+function paintedPseudoGeometry(owner: HTMLElement): {
+  ownerHeight: number;
+  insetBlock: number;
+  visibleHeight: number;
+} {
+  const ownerHeight = Number.parseFloat(getComputedStyle(owner).minHeight);
+  let activeInsetBlock: string | null = null;
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const insetBlock = rule.style.getPropertyValue("inset-block").trim();
+      if (!insetBlock) continue;
+      const matchesOwnerPseudo = rule.selectorText.split(",").some((selector) => {
+        const ownerSelector = selector.trim().replace(/::before$/, "");
+        if (ownerSelector === selector.trim()) return false;
+        try {
+          return owner.matches(ownerSelector);
+        } catch {
+          return false;
+        }
+      });
+      if (matchesOwnerPseudo) activeInsetBlock = insetBlock;
+    }
+  }
+  expect(activeInsetBlock, "the real painted ::before layer must own an inset").not.toBeNull();
+  const insetBlock = Number.parseFloat(activeInsetBlock!);
+  return {
+    ownerHeight,
+    insetBlock,
+    visibleHeight: ownerHeight - (insetBlock * 2),
+  };
 }

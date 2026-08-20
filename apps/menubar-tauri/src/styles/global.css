@@ -6405,9 +6405,49 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
 
 .macos-page--settings-detail .settings-detail-row { padding-inline: 12px; }
 
-.macos-page--settings-detail [data-testid="shortcut-recorder"].macos-control-visible {
-  height: var(--mac-control-visible);
+.macos-page--settings-detail .shortcut-recorder-owner {
+  display: grid;
+  width: 100%;
   min-height: var(--mac-hit-size);
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.macos-page--settings-detail .shortcut-recorder__surface.macos-control-visible {
+  display: flex;
+  height: var(--mac-control-visible);
+  min-height: var(--mac-control-visible);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--mac-border);
+  border-radius: var(--mac-control-radius);
+  background: var(--mac-surface-solid);
+}
+
+.macos-page--settings-detail .shortcut-recorder-owner:focus-visible {
+  outline-width: 0;
+  outline-style: none;
+}
+
+.macos-page--settings-detail .shortcut-recorder-owner:focus-visible .shortcut-recorder__surface {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--settings-detail bit-form-control.macos-checkbox-owner > label {
+  width: 100%;
+  min-height: var(--mac-hit-size);
+  align-items: center;
+}
+
+.macos-page--settings-detail .autofill-permission-action {
+  display: flex;
+  margin: 0 16px 16px;
 }
 
 .macos-page--settings-detail .web-vault-action.macos-button-owner {
@@ -6415,8 +6455,9 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
 }
 
 :root[data-bw-compact-mode="true"]
-  .macos-page--settings-detail [data-testid="shortcut-recorder"].macos-control-visible {
+  .macos-page--settings-detail .shortcut-recorder__surface.macos-control-visible {
   height: var(--mac-control-visible-compact);
+  min-height: var(--mac-control-visible-compact);
 }
 
 .macos-page--settings-detail :is(bit-card, .settings-password-handoff) {
@@ -6454,7 +6495,7 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   outline: 0;
 }
 
-.macos-page :is(button, a, input, select, textarea, [tabindex]):not(.macos-button-owner):focus-visible {
+.macos-page :is(button, a, input, select, textarea, [tabindex]):not(.macos-button-owner):not(.shortcut-recorder-owner):focus-visible {
   outline: 2px solid var(--mac-focus);
   outline-offset: 2px;
 }

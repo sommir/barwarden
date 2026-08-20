@@ -75,7 +75,7 @@ class ShortcutRecorderControlDirective {}
             bitButton
             buttonType="secondary"
             type="button"
-            class="macos-form-field__control macos-control-visible"
+            class="macos-form-field__control shortcut-recorder-owner macos-hit-target"
             data-testid="shortcut-recorder"
             [attr.aria-label]="recorderAccessibleLabel"
             [disabled]="view.pending"
@@ -83,7 +83,11 @@ class ShortcutRecorderControlDirective {}
             (click)="startRecording()"
             (keydown)="record($event)"
           >
-            {{ displayValue }}
+            <span
+              class="shortcut-recorder__surface macos-control-visible"
+              data-testid="shortcut-recorder-surface"
+              aria-hidden="true"
+            >{{ displayValue }}</span>
           </button>
           <button
             bitSuffix

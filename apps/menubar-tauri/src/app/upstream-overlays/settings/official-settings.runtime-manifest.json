@@ -64,11 +64,11 @@
       },
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/runtime-patches/apps__browser__src__auth__popup__settings__account-security.component.html.patch",
-        "sha256": "f1a70e48bd923b3cf2cc8b145632018542dc80950907f9cbbf282d740c743381"
+        "sha256": "6d0fb5b2e631763facb480647005f49f3c6c77fdb7f00eca2ec44fb06da394fb"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-account-security.component.html",
-        "sha256": "88b44250fb1b3254d753f1d804284ae0b9fe3df8ec192d0b979ab95cce1712d2"
+        "sha256": "b8c48fec338b14e51308e669f4e8bb1ad3a40d215d4f618a81c27e5de7ac8bd1"
       }
     },
     {

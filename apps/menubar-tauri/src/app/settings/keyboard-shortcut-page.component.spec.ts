@@ -57,6 +57,7 @@ describe("KeyboardShortcutPageComponent", () => {
     const { fixture, host } = await renderPage();
     const page = host.querySelector<HTMLElement>("bw-keyboard-shortcut-page");
     const recorder = shortcutRecorder(host);
+    const surface = shortcutRecorderSurface(host);
     const clear = clearButton(host);
 
     expect(page).not.toBeNull();
@@ -73,7 +74,8 @@ describe("KeyboardShortcutPageComponent", () => {
     expect(recorder.getAttribute("aria-label")).toBe("录制唤出 Barwarden 快捷键");
     expect(clear.getAttribute("aria-label")).toBe("清除快捷键");
     expect(recorder.classList).toContain("macos-form-field__control");
-    expect(recorder.classList).toContain("macos-control-visible");
+    expect(recorder.classList).toContain("shortcut-recorder-owner");
+    expect(surface.classList).toContain("macos-control-visible");
     expect(clear.classList).toContain("macos-form-field__suffix");
     expect(clear.classList).toContain("macos-hit-target");
     expect(clear.hasAttribute("bitSuffix")).toBe(true);
@@ -95,11 +97,13 @@ describe("KeyboardShortcutPageComponent", () => {
       document.body.classList.toggle("tw-bit-compact", compact);
       const { host } = await renderPage();
       const recorder = shortcutRecorder(host);
+      const surface = shortcutRecorderSurface(host);
       const clear = clearButton(host);
       const fieldContainer = recorder.closest<HTMLElement>("[bitfieldcontainer]");
 
       expect(fieldContainer).not.toBeNull();
       const recorderStyle = getComputedStyle(recorder);
+      const surfaceStyle = getComputedStyle(surface);
       const clearStyle = getComputedStyle(clear);
       const row = host.querySelector<HTMLElement>("bit-form-field.macos-preference-row");
 
@@ -108,7 +112,10 @@ describe("KeyboardShortcutPageComponent", () => {
       expect(getComputedStyle(row!).boxShadow).toBe("none");
       expect(Number.parseFloat(recorderStyle.minWidth)).toBeGreaterThanOrEqual(44);
       expect(Number.parseFloat(recorderStyle.minHeight)).toBeGreaterThanOrEqual(44);
-      expect(recorderStyle.height).toBe(compact ? "36px" : "40px");
+      expect(recorderStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(surfaceStyle.height).toBe(compact ? "36px" : "40px");
+      expect(surfaceStyle.minHeight).toBe(compact ? "36px" : "40px");
+      expect(surfaceStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
       expect(Number.parseFloat(clearStyle.minWidth)).toBeGreaterThanOrEqual(44);
       expect(Number.parseFloat(clearStyle.minHeight)).toBeGreaterThanOrEqual(44);
       expect(recorderStyle.width).toBe("100%");
@@ -129,8 +136,9 @@ describe("KeyboardShortcutPageComponent", () => {
 
       recorder.dataset["testFocusVisible"] = "true";
       clear.dataset["testFocusVisible"] = "true";
-      expect(getComputedStyle(recorder).outlineWidth).toBe("2px");
-      expect(getComputedStyle(recorder).outlineStyle).toBe("solid");
+      expect(getComputedStyle(recorder).outlineWidth).toBe("0px");
+      expect(getComputedStyle(surface).outlineWidth).toBe("2px");
+      expect(getComputedStyle(surface).outlineStyle).toBe("solid");
       expect(getComputedStyle(clear).outlineWidth).toBe("2px");
       expect(getComputedStyle(clear).outlineStyle).toBe("solid");
     },
@@ -352,6 +360,14 @@ function shortcutRecorder(host: HTMLElement): HTMLButtonElement {
   return recorder!;
 }
 
+function shortcutRecorderSurface(host: HTMLElement): HTMLElement {
+  const surface = host.querySelector<HTMLElement>(
+    '[data-testid="shortcut-recorder-surface"]',
+  );
+  expect(surface).not.toBeNull();
+  return surface!;
+}
+
 function clearButton(host: HTMLElement): HTMLButtonElement {
   const clear = host.querySelector<HTMLButtonElement>('[data-testid="shortcut-clear"]');
   expect(clear).not.toBeNull();
@@ -456,7 +472,13 @@ function installProductionCss(): void {
 
   const style = document.createElement("style");
   style.dataset["keyboardShortcutProductionCss"] = "true";
-  style.textContent = root.toString()
+  style.textContent = `
+.shortcut-recorder__surface {
+  height: 18px;
+  min-height: 18px;
+  background: transparent;
+}
+${root.toString()}`
     .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
   const rootStyle = getComputedStyle(document.documentElement);

@@ -10,7 +10,7 @@
         <h2 bitTypography="h6">{{ "i18nUnlockOptions" | i18n }}</h2>
       </bit-section-header>
       <div class="macos-preference-stack">
-      <bit-form-control class="settings-detail-row macos-preference-row">
+      <bit-form-control class="settings-detail-row macos-preference-row macos-checkbox-owner">
         <input
           bitCheckbox
           id="biometricUnlock"
@@ -26,7 +26,7 @@
           <bit-hint>{{ biometricUnavailableReason }}</bit-hint>
         }
       </bit-form-control>
-      <bit-form-control class="settings-detail-row macos-preference-row" disableMargin>
+      <bit-form-control class="settings-detail-row macos-preference-row macos-checkbox-owner" disableMargin>
         <input
           bitCheckbox
           id="pinUnlock"
