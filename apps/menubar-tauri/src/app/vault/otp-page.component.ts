@@ -43,7 +43,11 @@ import { translateOfficialMessage } from "../official-ui/official-i18n.service";
         role="status"
         aria-live="polite"
         aria-atomic="true"
-      >{{ resultAnnouncement }}</span>
+      >
+        @for (publication of resultAnnouncementPublications; track publication.revision) {
+          <span [attr.data-result-announcement-revision]="publication.revision">{{ resultAnnouncement }}</span>
+        }
+      </span>
 
       <section class="otp-page" aria-labelledby="otp-page-count">
         <h2 id="otp-page-count" class="otp-page__heading">{{ "i18nItemsCount" | i18n: entries.length }}</h2>
@@ -70,8 +74,10 @@ import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 })
 export class OtpPageComponent implements OnDestroy {
   resultAnnouncement = "";
+  resultAnnouncementPublications: readonly { readonly revision: number }[] = [];
   protected copiedItemId: string | null = null;
   private copiedResetTimer?: ReturnType<typeof setTimeout>;
+  private resultAnnouncementRevision = 0;
   private entriesCache?: {
     readonly items: ReturnType<PopupStateStore["snapshot"]>["items"];
     readonly query: string;
@@ -101,9 +107,9 @@ export class OtpPageComponent implements OnDestroy {
   }
 
   protected setSearch(query: string): void {
-    const previousCount = this.entries.length;
+    const previousIdentity = visibleOtpResultIdentity(this.entries);
     this.otp.setSearch(query);
-    this.updateResultAnnouncement(previousCount, this.entries.length);
+    this.updateResultAnnouncement(previousIdentity, visibleOtpResultIdentity(this.entries));
   }
 
   ngOnDestroy(): void {
@@ -140,9 +146,25 @@ export class OtpPageComponent implements OnDestroy {
     }, 1_200);
   }
 
-  private updateResultAnnouncement(previousCount: number, count: number): void {
-    if (previousCount !== count) {
-      this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
+  private updateResultAnnouncement(
+    previousIdentity: readonly string[],
+    identity: readonly string[],
+  ): void {
+    if (sameResultIdentity(previousIdentity, identity)) {
+      return;
     }
+    this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", identity.length);
+    this.resultAnnouncementRevision += 1;
+    this.resultAnnouncementPublications = [{ revision: this.resultAnnouncementRevision }];
   }
+}
+
+function visibleOtpResultIdentity(
+  entries: ReturnType<typeof buildOtpEntries>,
+): readonly string[] {
+  return entries.map((entry) => entry.item.id);
+}
+
+function sameResultIdentity(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
 }

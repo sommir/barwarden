@@ -108,7 +108,11 @@ import { VaultContextualSectionOutletComponent } from "./vault-contextual-sectio
         role="status"
         aria-live="polite"
         aria-atomic="true"
-      >{{ resultAnnouncement }}</span>
+      >
+        @for (publication of resultAnnouncementPublications; track publication.revision) {
+          <span [attr.data-result-announcement-revision]="publication.revision">{{ resultAnnouncement }}</span>
+        }
+      </span>
 
       @if (showStaleSyncCallout) {
         <bw-macos-alert-strip
@@ -226,8 +230,10 @@ export class VaultListPageComponent implements OnDestroy {
   @ViewChild("vaultListReprompt") private repromptDialog?: VaultRepromptDialogComponent;
   openMenuRowId: string | null = null;
   resultAnnouncement = "";
+  resultAnnouncementPublications: readonly { readonly revision: number }[] = [];
   readonly noResultsIcon = NoResults;
   readonly vaultIcon = VaultOpen;
+  private resultAnnouncementRevision = 0;
 
   constructor(
     private readonly store: PopupStateStore,
@@ -303,11 +309,14 @@ export class VaultListPageComponent implements OnDestroy {
   }
 
   setSearch(query: string | null | undefined): void {
-    const previousCount = this.vault.filteredItems().length;
+    const previousIdentity = visibleVaultResultIdentity(this.vault.filteredItems());
     this.openMenuRowId = null;
     this.menuCoordinator.closeAll();
     this.vault.setSearch(query ?? "");
-    this.updateResultAnnouncement(previousCount, this.vault.filteredItems().length);
+    this.updateResultAnnouncement(
+      previousIdentity,
+      visibleVaultResultIdentity(this.vault.filteredItems()),
+    );
   }
 
   @HostListener("input", ["$event"])
@@ -334,10 +343,16 @@ export class VaultListPageComponent implements OnDestroy {
     this.rowActions.ngOnDestroy();
   }
 
-  private updateResultAnnouncement(previousCount: number, count: number): void {
-    if (previousCount !== count) {
-      this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", count);
+  private updateResultAnnouncement(
+    previousIdentity: readonly string[],
+    identity: readonly string[],
+  ): void {
+    if (sameResultIdentity(previousIdentity, identity)) {
+      return;
     }
+    this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", identity.length);
+    this.resultAnnouncementRevision += 1;
+    this.resultAnnouncementPublications = [{ revision: this.resultAnnouncementRevision }];
   }
 
   async viewItem(item: VaultItem): Promise<void> {
@@ -425,6 +440,14 @@ export class VaultListPageComponent implements OnDestroy {
   private async deleteNow(item: VaultItem): Promise<void> {
     await this.rowActions.delete(item);
   }
+}
+
+function visibleVaultResultIdentity(items: readonly VaultItem[]): readonly string[] {
+  return items.map((item) => item.id);
+}
+
+function sameResultIdentity(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
 function copyReceiptFailed(status: string | null): boolean {

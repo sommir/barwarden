@@ -142,6 +142,75 @@ describe("VaultListPageComponent", () => {
     expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
   });
 
+  it("announces same-count Vault identity changes once without exposing item data", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    const alpha = {
+      ...demoVaultItems[0]!,
+      id: "vault-alpha-private-id",
+      name: "Alpha Private Name",
+      uri: "https://alpha-private.example/login",
+    };
+    const beta = {
+      ...demoVaultItems[0]!,
+      id: "vault-beta-private-id",
+      name: "Beta Private Name",
+      uri: "https://beta-private.example/login",
+      fields: demoVaultItems[0]!.fields.map((field) =>
+        field.id === "password" ? { ...field, value: "vault-password-must-not-leak" } : field
+      ),
+    };
+    store.setItems([alpha, beta], demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const region = host.querySelector<HTMLElement>('[data-testid="result-announcement"]')!;
+    const publication = () =>
+      region.querySelector<HTMLElement>("[data-result-announcement-revision]");
+
+    fixture.componentInstance.setSearch("Alpha Private Name");
+    fixture.detectChanges();
+    const first = publication();
+    expect(first?.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+
+    fixture.componentInstance.setSearch("Beta Private Name");
+    fixture.detectChanges();
+    const second = publication();
+    expect(second).not.toBe(first);
+    expect(first?.isConnected).toBe(false);
+    expect(second?.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+    expect(second?.getAttribute("data-result-announcement-revision")).not.toBe(
+      first?.getAttribute("data-result-announcement-revision"),
+    );
+    expect(region.getAttribute("aria-label")).toBeNull();
+    expect(region.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+    expect(region.textContent).not.toContain(
+      second?.getAttribute("data-result-announcement-revision") ?? "revision-missing",
+    );
+    expect(region.outerHTML).not.toContain("Alpha Private Name");
+    expect(region.outerHTML).not.toContain("Beta Private Name");
+    expect(region.outerHTML).not.toContain("vault-password-must-not-leak");
+    expect(region.outerHTML).not.toContain("alpha-private.example");
+    expect(region.outerHTML).not.toContain("beta-private.example");
+    expect(region.outerHTML).not.toContain("vault-alpha-private-id");
+    expect(region.outerHTML).not.toContain("vault-beta-private-id");
+
+    fixture.componentInstance.setSearch("Beta Private Name");
+    fixture.detectChanges();
+    expect(publication()).toBe(second);
+    expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
+  });
+
   it("uses the native root header, peer hierarchy, and title-bar add control", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");

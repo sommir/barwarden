@@ -112,6 +112,77 @@ describe("SendPageComponent", () => {
     expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
   });
 
+  it("announces same-count Send identity changes once without exposing Send data", async () => {
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [PopupStateStore, provideRouter([])],
+    }).compileComponents();
+    const store = TestBed.inject(PopupStateStore);
+    store.setSends([
+      demoSend({
+        id: "send-alpha-private-id",
+        name: "Alpha Send Private Name",
+        text: "alpha-send-text-must-not-leak",
+        notes: "alpha-send-notes-must-not-leak",
+        accessId: "alpha-access-token-must-not-leak",
+      }),
+      demoSend({
+        id: "send-beta-private-id",
+        name: "Beta Send Private Name",
+        text: "beta-send-text-must-not-leak",
+        notes: "beta-send-notes-must-not-leak",
+        accessId: "beta-access-token-must-not-leak",
+      }),
+    ]);
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const region = host.querySelector<HTMLElement>('[data-testid="result-announcement"]')!;
+    const publication = () =>
+      region.querySelector<HTMLElement>("[data-result-announcement-revision]");
+    const search = host.querySelector<HTMLInputElement>('bit-search input')!;
+    const searchFor = async (query: string) => {
+      search.value = query;
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
+
+    await searchFor("Alpha Send Private Name");
+    const first = publication();
+    expect(first?.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+
+    await searchFor("Beta Send Private Name");
+    const second = publication();
+    expect(second).not.toBe(first);
+    expect(first?.isConnected).toBe(false);
+    expect(second?.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+    expect(second?.getAttribute("data-result-announcement-revision")).not.toBe(
+      first?.getAttribute("data-result-announcement-revision"),
+    );
+    expect(region.getAttribute("aria-label")).toBeNull();
+    expect(region.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+    expect(region.textContent).not.toContain(
+      second?.getAttribute("data-result-announcement-revision") ?? "revision-missing",
+    );
+    expect(region.outerHTML).not.toContain("Alpha Send Private Name");
+    expect(region.outerHTML).not.toContain("Beta Send Private Name");
+    expect(region.outerHTML).not.toContain("alpha-send-text-must-not-leak");
+    expect(region.outerHTML).not.toContain("beta-send-text-must-not-leak");
+    expect(region.outerHTML).not.toContain("alpha-send-notes-must-not-leak");
+    expect(region.outerHTML).not.toContain("beta-send-notes-must-not-leak");
+    expect(region.outerHTML).not.toContain("alpha-access-token-must-not-leak");
+    expect(region.outerHTML).not.toContain("beta-access-token-must-not-leak");
+    expect(region.outerHTML).not.toContain("send-alpha-private-id");
+    expect(region.outerHTML).not.toContain("send-beta-private-id");
+
+    await searchFor("Beta Send Private Name");
+    expect(publication()).toBe(second);
+    expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
+  });
+
   it("marks Send form and confirmation subroutes as in-flow pages without the main switcher", () => {
     const root = resolve(process.cwd(), "apps/menubar-tauri/src/app/send");
     const form = readFileSync(resolve(root, "send-add-edit-page.component.ts"), "utf8");
