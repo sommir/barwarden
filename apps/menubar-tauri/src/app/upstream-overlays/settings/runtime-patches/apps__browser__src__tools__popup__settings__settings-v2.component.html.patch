@@ -17,7 +17,7 @@
 -          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/appearance" routerLink="/appearance" [truncate]="false">
 -            <i slot="start" class="bwi bwi-brush" aria-hidden="true"></i>
 -            <span class="macos-preference-row__copy">{{ "appearance" | i18n }}</span>
--            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+-            <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
 -          </a>
 -        </bit-item>
 -      </bit-item-group>
@@ -30,7 +30,7 @@
 +        <bit-item-group class="settings-group__items">
 +          @if (group.id === "general") {
 +            <bit-item>
-+              <div bit-item-content class="macos-preference-row" data-testid="launch-at-login-row">
++              <div bit-item-content [truncate]="false" class="macos-preference-row" data-testid="launch-at-login-row">
 +                <span id="launch-at-login-label" class="macos-preference-row__copy">{{ "i18nLaunchAtLogin" | i18n }}</span>
 +                <button type="button" class="macos-switch-owner macos-hit-target" role="switch"
 +                  aria-labelledby="launch-at-login-label" [attr.aria-checked]="launchAtLoginEnabled"
@@ -43,11 +43,11 @@
 +          }
 +          @for (item of group.items; track item.route) {
 +            <bit-item>
-+              <button type="button" bit-item-content class="macos-preference-row macos-hit-target macos-pressable"
++              <button type="button" bit-item-content [truncate]="false" class="macos-preference-row macos-hit-target macos-pressable"
 +                [attr.data-settings-route]="item.route" (click)="navigate.emit(item.route)">
 +                <i slot="start" class="bwi" [class]="item.icon" aria-hidden="true"></i>
 +                <span class="macos-preference-row__copy">{{ item.label }}</span>
-+                <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
++                <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
 +              </button>
 +            </bit-item>
 +          }
@@ -62,7 +62,7 @@
 -          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/account-security" routerLink="/account-security" [truncate]="false">
 -            <i slot="start" class="bwi bwi-lock" aria-hidden="true"></i>
 -            <span class="macos-preference-row__copy">{{ "accountSecurity" | i18n }}</span>
--            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+-            <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
 -          </a>
 -        </bit-item>
 -      </bit-item-group>
@@ -75,7 +75,7 @@
 -          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/vault-settings" routerLink="/vault-settings" [truncate]="false">
 -            <i slot="start" class="bwi bwi-vault" aria-hidden="true"></i>
 -            <span class="macos-preference-row__copy">{{ "settingsVaultOptions" | i18n }}</span>
--            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+-            <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
 -          </a>
 -        </bit-item>
 -      </bit-item-group>
@@ -88,7 +88,7 @@
 -          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/about" routerLink="/about" [truncate]="false">
 -            <i slot="start" class="bwi bwi-info-circle" aria-hidden="true"></i>
 -            <span class="macos-preference-row__copy">{{ "about" | i18n }}</span>
--            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+-            <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
 -          </a>
 -        </bit-item>
 -      </bit-item-group>

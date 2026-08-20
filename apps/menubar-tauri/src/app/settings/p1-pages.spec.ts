@@ -172,8 +172,10 @@ describe("P1 settings pages", () => {
       "utf8",
     );
 
-    expect(css).toMatch(/\.macos-preference-group\s*{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-preference-group,[\s\S]*?bit-item-action\s*{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.settings-group__items\s*>\s*bit-item:not\(:last-child\)\s*{[^}]*border-bottom:\s*1px/s);
     expect(css).toMatch(/\.macos-preference-row\s*{[^}]*min-height:\s*var\(--mac-row-single\)[^}]*background:\s*var\(--mac-surface-solid\)[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-preference-row__value\s*{[^}]*justify-self:\s*end/s);
     expect(css).toMatch(/\.macos-switch-owner\s*{[^}]*min-width:\s*var\(--mac-hit-size\)[^}]*min-height:\s*var\(--mac-hit-size\)/s);
     expect(tokens).toContain("--mac-focus-ring-width: 2px;");
     expect(tokens).toContain("--mac-compact-row-height: 44px;");
@@ -183,6 +185,7 @@ describe("P1 settings pages", () => {
     expect(css).toMatch(/@media\s*\(prefers-contrast:\s*more\)[\s\S]*?\.floating-tab-switcher__segment\[aria-current="page"\][\s\S]*?text-decoration/s);
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.floating-tab-switcher__indicator[\s\S]*?transition:\s*none/s);
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.macos-pressable:active[\s\S]*?opacity/s);
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*{[^}]*\.macos-switch-owner\s*>\s*span::after[^}]*transition-duration:\s*0s/s);
     expect(css).toMatch(/@media\s*\(forced-colors:\s*active\)[\s\S]*?\.floating-tab-switcher__segment\[aria-current="page"\][\s\S]*?HighlightText/s);
     expect(css).toMatch(/@media\s*\(forced-colors:\s*active\)[\s\S]*?\[aria-invalid="true"\][\s\S]*?Mark/s);
     expect(css).not.toMatch(/outline:\s*3px/);

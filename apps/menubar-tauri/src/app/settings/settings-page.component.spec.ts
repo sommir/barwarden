@@ -34,6 +34,10 @@ describe("SettingsPageComponent", () => {
   afterEach(() => {
     document.head.querySelectorAll('style[data-test-owner="settings-preference-css"]')
       .forEach((node) => node.remove());
+    delete document.documentElement.dataset["bwCompactMode"];
+    delete document.documentElement.dataset["testHiDpi"];
+    delete document.documentElement.dataset["testReducedMotion"];
+    document.documentElement.style.removeProperty("font-size");
   });
 
   it("renders the approved preference groups with 44px rows and hit owners", async () => {
@@ -78,16 +82,78 @@ describe("SettingsPageComponent", () => {
     expect(style.minHeight).toBe("44px");
     expect(style.borderRadius).toBe("0px");
     expect(style.boxShadow).toBe("none");
+    const itemGroup = groups[0]!.querySelector<HTMLElement>("bit-item-group")!;
+    const items = Array.from(itemGroup.querySelectorAll<HTMLElement>(":scope > bit-item"));
+    const itemAction = items[0]!.querySelector<HTMLElement>(":scope > bit-item-action")!;
+    for (const wrapper of [itemGroup, items[0]!, itemAction]) {
+      const wrapperStyle = getComputedStyle(wrapper);
+      expect(wrapperStyle.margin).toBe("0px");
+      expect(wrapperStyle.borderRadius).toBe("0px");
+      expect(wrapperStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(wrapperStyle.boxShadow).toBe("none");
+      expect(wrapperStyle.overflow).toBe("visible");
+    }
+    expect(getComputedStyle(items[0]!).borderBottomWidth).toBe("1px");
+    expect(getComputedStyle(items.at(-1)!).borderBottomWidth).toBe("0px");
+    expect(getComputedStyle(row).borderBottomWidth).toBe("0px");
+
+    document.documentElement.dataset["testHiDpi"] = "true";
+    installSettingsPreferenceCss({ hiDpi: true });
+    expect(getComputedStyle(items[0]!).borderBottomWidth).toBe("0.5px");
+    expect(getComputedStyle(items.at(-1)!).borderBottomWidth).toBe("0px");
+
     const switchOwner = row.querySelector<HTMLButtonElement>(".macos-hit-target")!;
     expect(getComputedStyle(switchOwner).minWidth).toBe("44px");
-    switchOwner.focus();
-    expect(document.activeElement).toBe(switchOwner);
+    expect(getComputedStyle(switchOwner).minHeight).toBe("44px");
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    expect(getComputedStyle(switchOwner).minWidth).toBe("44px");
+    expect(getComputedStyle(switchOwner).minHeight).toBe("44px");
+    expect(getComputedStyle(switchOwner.firstElementChild!).width).toBe("34px");
+    expect(getComputedStyle(switchOwner.firstElementChild!).height).toBe("20px");
+
+    switchOwner.dataset["testFocusVisible"] = "true";
+    const switchOwnerStyle = getComputedStyle(switchOwner);
+    const switchTrackStyle = getComputedStyle(switchOwner.firstElementChild!);
+    expect(switchOwnerStyle.outlineWidth).toBe("0px");
+    expect(switchOwnerStyle.outlineStyle).toBe("none");
+    expect(switchTrackStyle.outlineWidth).toBe("2px");
+    expect(switchTrackStyle.outlineStyle).toBe("solid");
+    expect(switchTrackStyle.outlineColor).not.toBe("transparent");
+
+    const values = host.querySelectorAll<HTMLElement>(".macos-preference-row__value");
+    expect(values).toHaveLength(6);
+    expect(getComputedStyle(values[0]!).justifySelf).toBe("end");
     expect(host.querySelectorAll("bit-card")).toHaveLength(0);
-    routeRows.forEach((routeRow) => routeRow.click());
+
+    activateNativeButton(routeRows[0]!, "Enter");
+    activateNativeButton(routeRows[1]!, " ");
+    routeRows.slice(2).forEach((routeRow) => routeRow.click());
     expect(navigateByUrl.mock.calls.map(([route]) => route)).toEqual([
       "/appearance", "/account-security", "/autofill",
       "/keyboard-shortcut", "/vault-settings", "/about",
     ]);
+
+    document.documentElement.style.fontSize = "200%";
+    const launchContent = host.querySelector<HTMLElement>('[data-testid="launch-at-login-row"]')!;
+    for (const content of [launchContent, routeRows[0]!]) {
+      expect(content.querySelector(".tw-text-wrap.tw-break-words")).not.toBeNull();
+      const copy = content.querySelector<HTMLElement>(".macos-preference-row__copy")!;
+      expect(getComputedStyle(copy).whiteSpace).toBe("normal");
+      expect(getComputedStyle(copy).overflowWrap).toBe("anywhere");
+    }
+
+    document.documentElement.dataset["testReducedMotion"] = "true";
+    const reducedMotionStyle = installSettingsPreferenceCss({ reducedMotion: true });
+    expect(getComputedStyle(switchOwner.firstElementChild!).transitionDuration).toBe("0s");
+    expect(lastStyleRule(
+      reducedMotionStyle,
+      ".macos-switch-owner > span, .macos-switch-owner > span::after",
+    )
+      ?.style.transitionDuration).toBe("0s");
+    expect(lastStyleRule(
+      reducedMotionStyle,
+      '.macos-switch-owner[aria-checked="true"] > span::after',
+    )?.style.transform).toBe("translateX(14px)");
   });
 
   it("loads the confirmed login-item state and keeps it stable while a change is pending", async () => {
@@ -286,7 +352,9 @@ describe("SettingsPageComponent", () => {
   });
 });
 
-function installSettingsPreferenceCss(): void {
+function installSettingsPreferenceCss(
+  media: { hiDpi?: boolean; reducedMotion?: boolean } = {},
+): HTMLStyleElement {
   const source = [
     "apps/menubar-tauri/src/styles/macos-tokens.css",
     "apps/menubar-tauri/src/styles/global.css",
@@ -301,8 +369,54 @@ function installSettingsPreferenceCss(): void {
   );
   const style = document.createElement("style");
   style.dataset["testOwner"] = "settings-preference-css";
-  style.textContent = source
+  style.textContent = effectiveSettingsCss(source, media)
     .replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) => tokens.get(name) ?? value)
     .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
+  const retainedVendorBaseline = document.createElement("style");
+  retainedVendorBaseline.dataset["testOwner"] = "settings-preference-css";
+  retainedVendorBaseline.textContent = `
+    bit-item-group.settings-group__items { margin: 6px; overflow: hidden; border-radius: 8px; background: rgb(255, 255, 255); box-shadow: 0 1px 2px rgb(0 0 0 / 18%); }
+    bit-item.tw-overflow-hidden { margin: 0 0 6px; overflow: hidden; border-radius: 8px; background: rgb(255, 255, 255); box-shadow: 0 1px 2px rgb(0 0 0 / 18%); }
+    bit-item-action.tw-overflow-hidden { margin: 4px; overflow: hidden; border-radius: 6px; background: rgb(255, 255, 255); box-shadow: 0 1px 2px rgb(0 0 0 / 18%); }
+  `;
+  style.before(retainedVendorBaseline);
+  return style;
+}
+
+function effectiveSettingsCss(
+  source: string,
+  media: { hiDpi?: boolean; reducedMotion?: boolean },
+): string {
+  return source.replace(/@media\s*\((min-resolution:2dppx|prefers-reduced-motion:\s*reduce)\)\s*\{\s*([^{}]+\{[^{}]*\})\s*\}/g,
+    (_match, condition: string, rule: string) => {
+      if (condition.startsWith("min-resolution")) {
+        return media.hiDpi ? rule.replace(/^\s*/, ':root[data-test-hi-dpi="true"] ') : "";
+      }
+      return media.reducedMotion
+        ? rule.replace(/^\s*/, ':root[data-test-reduced-motion="true"] ')
+        : "";
+    });
+}
+
+function activateNativeButton(button: HTMLButtonElement, key: "Enter" | " "): void {
+  expect(button.tagName).toBe("BUTTON");
+  expect(button.type).toBe("button");
+  button.focus();
+  const event = new KeyboardEvent(key === "Enter" ? "keydown" : "keyup", {
+    bubbles: true,
+    cancelable: true,
+    key,
+  });
+  expect(button.dispatchEvent(event)).toBe(true);
+  button.click();
+}
+
+function lastStyleRule(style: HTMLStyleElement, selector: string): CSSStyleRule | undefined {
+  return Array.from(style.sheet?.cssRules ?? [])
+    .filter((rule): rule is CSSStyleRule =>
+      "selectorText" in rule &&
+      (rule.selectorText === selector || rule.selectorText.endsWith(` ${selector}`)),
+    )
+    .at(-1);
 }
