@@ -128,36 +128,43 @@ function decodeAccessibilityStatus(value: unknown): AccessibilityStatus {
     throw new Error("invalid accessibility status");
   }
   const record = value as Record<string, unknown>;
+  const permission = record["permission"];
+  const observation = record["observation"];
   if (Object.keys(record).some((key) => !["permission", "observation", "diagnostic"].includes(key))
-      || (record.permission !== "granted" && record.permission !== "denied")
-      || (record.observation !== "stopped"
-        && record.observation !== "hidden"
-        && record.observation !== "visible")) {
+      || (permission !== "granted" && permission !== "denied")
+      || (observation !== "stopped"
+        && observation !== "hidden"
+        && observation !== "visible")) {
     throw new Error("invalid accessibility status");
   }
   const status: AccessibilityStatus = {
-    permission: record.permission,
-    observation: record.observation,
+    permission,
+    observation,
   };
-  if (record.diagnostic === undefined) return status;
-  if (!record.diagnostic || typeof record.diagnostic !== "object"
-      || Array.isArray(record.diagnostic)) {
+  const diagnosticValue = record["diagnostic"];
+  if (diagnosticValue === undefined) return status;
+  if (!diagnosticValue || typeof diagnosticValue !== "object"
+      || Array.isArray(diagnosticValue)) {
     throw new Error("invalid accessibility status");
   }
-  const diagnostic = record.diagnostic as Record<string, unknown>;
+  const diagnostic = diagnosticValue as Record<string, unknown>;
+  const reason = diagnostic["reason"];
+  const bundleId = diagnostic["bundleId"];
   if (Object.keys(diagnostic).some((key) => !["reason", "bundleId"].includes(key))
-      || typeof diagnostic.reason !== "string"
-      || !ACCESSIBILITY_DIAGNOSTIC_REASONS.has(diagnostic.reason)
-      || (diagnostic.bundleId !== undefined
-        && (typeof diagnostic.bundleId !== "string"
-          || !validAccessibilityBundleId(diagnostic.bundleId)))) {
+      || typeof reason !== "string"
+      || !ACCESSIBILITY_DIAGNOSTIC_REASONS.has(reason)) {
     throw new Error("invalid accessibility status");
   }
+  if (bundleId !== undefined
+      && (typeof bundleId !== "string" || !validAccessibilityBundleId(bundleId))) {
+    throw new Error("invalid accessibility status");
+  }
+  const normalizedBundleId = typeof bundleId === "string" ? bundleId : undefined;
   return {
     ...status,
     diagnostic: {
-      reason: diagnostic.reason,
-      ...(diagnostic.bundleId === undefined ? {} : { bundleId: diagnostic.bundleId as string }),
+      reason,
+      ...(normalizedBundleId === undefined ? {} : { bundleId: normalizedBundleId }),
     },
   };
 }
@@ -1382,12 +1389,15 @@ function snapshotDenseAutoFillArray(
   }
   const keys = Reflect.ownKeys(value);
   const lengthDescriptor = Reflect.getOwnPropertyDescriptor(value, "length");
-  if (!lengthDescriptor || !("value" in lengthDescriptor)
-      || !Number.isSafeInteger(lengthDescriptor.value)
-      || lengthDescriptor.value < minimum || lengthDescriptor.value > maximum) {
+  const lengthValue = lengthDescriptor && "value" in lengthDescriptor
+    ? lengthDescriptor.value
+    : undefined;
+  if (typeof lengthValue !== "number"
+      || !Number.isSafeInteger(lengthValue)
+      || lengthValue < minimum || lengthValue > maximum) {
     throw new Error("AutoFill unavailable");
   }
-  const length = lengthDescriptor.value as number;
+  const length = lengthValue;
   const expectedKeys = new Set<string>(["length", ...Array.from({ length }, (_, index) => String(index))]);
   if (keys.length !== expectedKeys.size
       || keys.some((key) => typeof key !== "string" || !expectedKeys.has(key))) {

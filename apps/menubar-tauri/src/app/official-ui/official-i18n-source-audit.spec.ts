@@ -6,6 +6,10 @@ import { describe, expect, it } from "vitest";
 import { OfficialI18nService, type OfficialLocale } from "./official-i18n.service";
 
 const appRoot = join(process.cwd(), "apps/menubar-tauri/src/app");
+const pinnedZhCnMessagesPath = join(
+  process.cwd(),
+  "vendor/bitwarden-clients/apps/browser/src/_locales/zh_CN/messages.json",
+);
 const excludedPathFragments = [
   "/evidence/",
   "/runtime-patches/",
@@ -42,6 +46,24 @@ const intentionalInternalChinese = new Map<string, readonly RegExp[]>([
 ]);
 
 describe("official UI internationalization source audit", () => {
+  it("keeps Settings section labels exactly equal to the pinned zh_CN source", async () => {
+    const pinnedMessages = JSON.parse(readFileSync(pinnedZhCnMessagesPath, "utf8")) as Readonly<
+      Record<string, { readonly message?: unknown }>
+    >;
+    const i18n = new OfficialI18nService();
+
+    try {
+      await i18n.setLocale("zh-CN");
+      for (const key of ["general", "security"] as const) {
+        const pinnedMessage = pinnedMessages[key]?.message;
+        expect(typeof pinnedMessage).toBe("string");
+        expect(i18n.t(key)).toBe(pinnedMessage);
+      }
+    } finally {
+      await i18n.setLocale("zh-CN");
+    }
+  });
+
   it("keeps update actions concise and equivalent in both locales", async () => {
     const i18n = new OfficialI18nService();
 

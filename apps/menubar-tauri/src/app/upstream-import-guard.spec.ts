@@ -63,6 +63,120 @@ function readProjectFile(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
+type ProductionEvidenceAlias = {
+  readonly find: string;
+  readonly replacement: string;
+};
+
+const expectedProductionEvidenceAliases: readonly ProductionEvidenceAlias[] = [
+  {
+    find: "/^\\.\\/evidence\\/evidence-providers$/",
+    replacement: "./src/app/evidence/evidence-providers.production.ts",
+  },
+  {
+    find: "/^(?:\\.\\/recovery-workflow-evidence|\\.\\.\\/evidence\\/recovery-workflow-evidence)$/",
+    replacement: "./src/app/evidence/recovery-workflow-evidence.production.ts",
+  },
+  {
+    find: "/^\\.\\/vault\\/vault-main-evidence-preview$/",
+    replacement: "./src/app/vault/vault-main-evidence-preview.production.ts",
+  },
+  {
+    find: "/^\\.\\/send\\/send-evidence-preview$/",
+    replacement: "./src/app/send/send-evidence-preview.production.ts",
+  },
+  {
+    find: "/^\\.\\/settings\\/settings-evidence-preview$/",
+    replacement: "./src/app/settings/settings-evidence-preview.production.ts",
+  },
+  {
+    find: "/^\\.\\/auth\\/auth-evidence-preview$/",
+    replacement: "./src/app/auth/auth-evidence-preview.production.ts",
+  },
+];
+
+function productionEvidenceAliases(source: string): ProductionEvidenceAlias[] {
+  const sourceFile = ts.createSourceFile("vite.config.ts", source, ts.ScriptTarget.Latest, true);
+  const aliases: ProductionEvidenceAlias[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isObjectLiteralExpression(node)) {
+      const find = node.properties.find((property): property is ts.PropertyAssignment =>
+        ts.isPropertyAssignment(property)
+          && ts.isIdentifier(property.name)
+          && property.name.text === "find"
+          && property.initializer.kind === ts.SyntaxKind.RegularExpressionLiteral,
+      );
+      const replacement = node.properties.find((property): property is ts.PropertyAssignment =>
+        ts.isPropertyAssignment(property)
+          && ts.isIdentifier(property.name)
+          && property.name.text === "replacement",
+      );
+      if (find && replacement) {
+        const replacementLiteral = descendants(replacement.initializer)
+          .find((candidate): candidate is ts.StringLiteral =>
+            ts.isStringLiteral(candidate) && candidate.text.endsWith(".production.ts"),
+          );
+        if (replacementLiteral) {
+          aliases.push({
+            find: find.initializer.getText(sourceFile),
+            replacement: replacementLiteral.text,
+          });
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return aliases;
+}
+
+function productionProviderViolations(source: string): string[] {
+  const sourceFile = ts.createSourceFile(
+    "evidence-providers.production.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const [importStatement, functionStatement, ...extraStatements] = sourceFile.statements;
+  const violations: string[] = [];
+  if (!importStatement || !ts.isImportDeclaration(importStatement)
+      || !importStatement.importClause?.isTypeOnly
+      || !ts.isStringLiteral(importStatement.moduleSpecifier)
+      || importStatement.moduleSpecifier.text !== "@angular/core"
+      || !importStatement.importClause.namedBindings
+      || !ts.isNamedImports(importStatement.importClause.namedBindings)
+      || importStatement.importClause.namedBindings.elements.length !== 1
+      || importStatement.importClause.namedBindings.elements[0]?.name.text !== "Provider") {
+    violations.push("production provider must have only the Provider type import");
+  }
+  if (!functionStatement || !ts.isFunctionDeclaration(functionStatement)
+      || functionStatement.name?.text !== "createEvidenceProviders"
+      || !functionStatement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+      || functionStatement.modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
+      || !functionStatement.body
+      || functionStatement.body.statements.length !== 1
+      || !ts.isReturnStatement(functionStatement.body.statements[0])
+      || !functionStatement.body.statements[0].expression
+      || !ts.isArrayLiteralExpression(functionStatement.body.statements[0].expression)
+      || functionStatement.body.statements[0].expression.elements.length !== 0) {
+    violations.push("production provider must only export createEvidenceProviders returning []");
+  }
+  if (extraStatements.length > 0) {
+    violations.push("production provider must not contain top-level side effects or exports");
+  }
+  return violations;
+}
+
+function descendants(node: ts.Node): ts.Node[] {
+  const nodes: ts.Node[] = [];
+  const visit = (candidate: ts.Node): void => {
+    nodes.push(candidate);
+    ts.forEachChild(candidate, visit);
+  };
+  visit(node);
+  return nodes;
+}
+
 const productionLockModules = [
   "apps/menubar-tauri/src/app/auth/lock-page.component.ts",
   "apps/menubar-tauri/src/app/auth/official-master-password-unlock.adapter.ts",
@@ -175,21 +289,20 @@ describe("upstream reuse guard", () => {
     expect(configSource).toContain('from "./evidence/evidence-providers"');
     expect(configSource).not.toContain("g3-evidence-account");
     expect(viteSource).toContain('process.env.VITE_BW_VAULT_EVIDENCE === "true"');
-    expect(viteSource).toContain("evidence-providers.production.ts");
-    expect(viteSource).toContain("vault-main-evidence-preview.production.ts");
-    expect(viteSource).toContain("send-evidence-preview.production.ts");
-    expect(viteSource).toContain("settings-evidence-preview.production.ts");
-    expect(viteSource).toContain("auth-evidence-preview.production.ts");
+    expect(productionEvidenceAliases(viteSource)).toEqual(expectedProductionEvidenceAliases);
+    const misconfiguredViteSource = viteSource.replace(
+      "/^\\.\\/evidence\\/evidence-providers$/",
+      "/^\\.\\/evidence\\/evidence-provider$/",
+    );
+    expect(productionEvidenceAliases(misconfiguredViteSource))
+      .not.toEqual(expectedProductionEvidenceAliases);
     expect(providerSource).toContain(
       'evidenceEnabled = import.meta.env.VITE_BW_VAULT_EVIDENCE === "true"',
     );
     expect(providerSource).toMatch(/if\s*\(!evidenceEnabled\)\s*\{\s*return \[\];/u);
-    expect(productionProviderSource).toMatch(
-      /createEvidenceProviders\([^)]*\): Provider\[\]\s*\{[\s\S]*?return \[\];\s*\}/u,
-    );
-    expect(productionProviderSource).not.toMatch(
-      /g3-evidence-account|recovery-workflow-evidence|personal-cipher-workflow-evidence/u,
-    );
+    expect(productionProviderViolations(productionProviderSource)).toEqual([]);
+    expect(productionProviderViolations(`${productionProviderSource}\nconsole.log("side effect");`))
+      .toContain("production provider must not contain top-level side effects or exports");
     expect(rootSource).not.toContain("import.meta.env.VITE_BW_VAULT_EVIDENCE");
     expect(rootSource).toContain("@Inject(AUTH_EVIDENCE_STATE)");
     expect(rootSource).toMatch(/@Optional\(\)\s*@Inject\(VAULT_MAIN_EVIDENCE_STATE\)/u);

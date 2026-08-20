@@ -17,6 +17,14 @@ import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.servic
 import { FormFieldModule } from "@bitwarden/components";
 
 import { RootSearchComponent } from "../layout/root-search.component";
+import { PopupStateStore } from "../popup-state";
+import { SettingsService } from "../settings/settings.service";
+import { demoVaultItems } from "../vault-demo";
+import { OtpCodeRowComponent } from "../vault/otp-code-row.component";
+import {
+  TOTP_CLOCK,
+  TOTP_CODE_SOURCE,
+} from "../vault/vault-totp-code.component";
 import {
   ButtonComponent,
   CheckboxComponent,
@@ -71,6 +79,20 @@ const stylePaths = [
 })
 class ProductionAccessibilityHostComponent {}
 
+@Component({
+  imports: [OtpCodeRowComponent],
+  template: `
+    <bw-otp-code-row
+      [item]="item"
+      [field]="field"
+    />
+  `,
+})
+class OtpProductionAccessibilityHostComponent {
+  protected readonly item = demoVaultItems[0]!;
+  protected readonly field = this.item.fields.find((candidate) => candidate.id === "otp")!;
+}
+
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 } catch (error) {
@@ -87,6 +109,27 @@ afterEach(() => {
 });
 
 describe("iOS 27 production accessibility contract", () => {
+  it("keeps the real OTP row at 52px normally and 44px compact with 44px actions", async () => {
+    installProductionCss();
+    const fixture = await mountOtpHost();
+    const host = fixture.nativeElement as HTMLElement;
+    const row = host.querySelector<HTMLElement>(".otp-code-row")!;
+    const action = host.querySelector<HTMLButtonElement>("[data-testid='otp-code']")!;
+
+    expectOtpGeometry(row, action, {
+      rowMinHeight: 52,
+      paddingBlock: 4,
+      actionMinHeight: 44,
+    });
+
+    document.body.classList.add("tw-bit-compact");
+    expectOtpGeometry(row, action, {
+      rowMinHeight: 44,
+      paddingBlock: 0,
+      actionMinHeight: 44,
+    });
+  });
+
   it("renders one 2px owner ring only for focus-visible on real form and search controls", async () => {
     installProductionCss();
     const fixture = await mountHost();
@@ -178,6 +221,61 @@ async function mountHost() {
   const fixture = TestBed.createComponent(ProductionAccessibilityHostComponent);
   fixture.detectChanges();
   return fixture;
+}
+
+async function mountOtpHost() {
+  await TestBed.configureTestingModule({
+    imports: [OtpProductionAccessibilityHostComponent],
+    providers: [
+      OfficialI18nService,
+      { provide: I18nService, useExisting: OfficialI18nService },
+      PopupStateStore,
+      SettingsService,
+      {
+        provide: TOTP_CODE_SOURCE,
+        useValue: {
+          generate: async () => ({
+            code: "123456",
+            formattedCode: "123 456",
+            period: 30,
+            secondsRemaining: 18,
+            isExpiring: false,
+          }),
+        },
+      },
+      { provide: TOTP_CLOCK, useValue: () => 1_700_000_012 },
+    ],
+  }).compileComponents();
+  const fixture = TestBed.createComponent(OtpProductionAccessibilityHostComponent);
+  document.body.append(fixture.nativeElement as HTMLElement);
+  fixture.detectChanges();
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+  fixture.detectChanges();
+  return fixture;
+}
+
+function expectOtpGeometry(
+  row: HTMLElement,
+  action: HTMLButtonElement,
+  expected: {
+    readonly rowMinHeight: number;
+    readonly paddingBlock: number;
+    readonly actionMinHeight: number;
+  },
+): void {
+  const rowStyle = getComputedStyle(row);
+  const actionStyle = getComputedStyle(action);
+  const paddingTop = Number.parseFloat(rowStyle.paddingTop);
+  const paddingBottom = Number.parseFloat(rowStyle.paddingBottom);
+  const actionMinHeight = Number.parseFloat(actionStyle.minHeight);
+  const combinedContentBox = actionMinHeight + paddingTop + paddingBottom;
+
+  expect(rowStyle.boxSizing).toBe("border-box");
+  expect(Number.parseFloat(rowStyle.minHeight)).toBe(expected.rowMinHeight);
+  expect(paddingTop).toBe(expected.paddingBlock);
+  expect(paddingBottom).toBe(expected.paddingBlock);
+  expect(actionMinHeight).toBe(expected.actionMinHeight);
+  expect(Math.max(expected.rowMinHeight, combinedContentBox)).toBe(expected.rowMinHeight);
 }
 
 function productionFocusPairs(host: HTMLElement): Array<{

@@ -5638,14 +5638,14 @@ bw-otp-code-row {
   border-bottom-style: solid;
   border-bottom-color: var(--mac-border-subtle);
   border-radius: 0;
-  padding: var(--mac-space-2) var(--mac-space-3);
+  padding: 4px var(--mac-space-3);
   background: var(--mac-surface-solid);
   box-shadow: none;
 }
 
 body.tw-bit-compact .otp-code-row {
   min-height: var(--mac-compact-row-height);
-  padding-block: 4px;
+  padding: 0 var(--mac-space-3);
 }
 
 bw-otp-code-row:last-child .otp-code-row {
