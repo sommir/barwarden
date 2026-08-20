@@ -164,6 +164,12 @@ describe("upstream reuse guard", () => {
     );
     const configSource = readProjectFile("apps/menubar-tauri/src/app/app.config.ts");
     const rootSource = readProjectFile("apps/menubar-tauri/src/app/app.component.ts");
+    const providerSource = readProjectFile(
+      "apps/menubar-tauri/src/app/evidence/evidence-providers.ts",
+    );
+    const productionProviderSource = readProjectFile(
+      "apps/menubar-tauri/src/app/evidence/evidence-providers.production.ts",
+    );
 
     const viteSource = readProjectFile("apps/menubar-tauri/vite.config.ts");
     expect(configSource).toContain('from "./evidence/evidence-providers"');
@@ -172,10 +178,33 @@ describe("upstream reuse guard", () => {
     expect(viteSource).toContain("evidence-providers.production.ts");
     expect(viteSource).toContain("vault-main-evidence-preview.production.ts");
     expect(viteSource).toContain("send-evidence-preview.production.ts");
-    expect(rootSource).toContain('import.meta.env.VITE_BW_VAULT_EVIDENCE === "true"');
-    expect(rootSource).toMatch(
-      /await\s+import\(\s*["']\.\/vault\/vault-main-evidence-preview["']\s*\)/,
+    expect(viteSource).toContain("settings-evidence-preview.production.ts");
+    expect(viteSource).toContain("auth-evidence-preview.production.ts");
+    expect(providerSource).toContain(
+      'evidenceEnabled = import.meta.env.VITE_BW_VAULT_EVIDENCE === "true"',
     );
+    expect(providerSource).toMatch(/if\s*\(!evidenceEnabled\)\s*\{\s*return \[\];/u);
+    expect(productionProviderSource).toMatch(
+      /createEvidenceProviders\([^)]*\): Provider\[\]\s*\{[\s\S]*?return \[\];\s*\}/u,
+    );
+    expect(productionProviderSource).not.toMatch(
+      /g3-evidence-account|recovery-workflow-evidence|personal-cipher-workflow-evidence/u,
+    );
+    expect(rootSource).not.toContain("import.meta.env.VITE_BW_VAULT_EVIDENCE");
+    expect(rootSource).toContain("@Inject(AUTH_EVIDENCE_STATE)");
+    expect(rootSource).toMatch(/@Optional\(\)\s*@Inject\(VAULT_MAIN_EVIDENCE_STATE\)/u);
+    expect(rootSource).toMatch(/@Optional\(\)\s*@Inject\(SEND_EVIDENCE_STATE\)/u);
+    expect(rootSource).toMatch(/@Optional\(\)\s*@Inject\(SETTINGS_EVIDENCE_STATE\)/u);
+    for (const preview of [
+      "auth/auth-evidence-preview",
+      "vault/vault-main-evidence-preview",
+      "send/send-evidence-preview",
+      "settings/settings-evidence-preview",
+    ]) {
+      expect(rootSource).toMatch(
+        new RegExp(`await\\s+import\\(\\s*["']\\./${preview}["']\\s*\\)`, "u"),
+      );
+    }
     expect(rootSource).not.toMatch(/^import .*vault-main-evidence-preview/m);
     expect(evidenceSource).not.toMatch(
       /localStorage|sessionStorage|fetch\(|secureGet|access-token|refresh-token|PRIVATE KEY|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,

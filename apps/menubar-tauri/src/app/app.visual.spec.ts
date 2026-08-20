@@ -71,9 +71,10 @@ function frontendTemplateSources(directory: string): string[] {
 }
 
 function cssDeclarations(css: string, selector: string): string {
-  const selectorIndex = css.indexOf(`${selector} {`);
-  expect(selectorIndex).toBeGreaterThanOrEqual(0);
-  const blockStart = css.indexOf("{", selectorIndex);
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const selectorMatch = new RegExp(`(?:^|\\n)\\s*${escapedSelector}\\s*\\{`, "u").exec(css);
+  expect(selectorMatch?.index ?? -1).toBeGreaterThanOrEqual(0);
+  const blockStart = css.indexOf("{", selectorMatch!.index);
   const blockEnd = css.indexOf("}", blockStart);
   return css.slice(blockStart + 1, blockEnd);
 }
@@ -926,11 +927,22 @@ describe("popup visual smoke classes", () => {
     const row = cssDeclarations(globalCss, ".otp-code-row");
     const code = cssDeclarations(globalCss, ".otp-code-row__code");
     const countdown = cssDeclarations(globalCss, ".otp-code-row__countdown");
+    const compactRow = cssDeclarations(globalCss, "body.tw-bit-compact .otp-code-row");
+    const tokens = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"),
+      "utf8",
+    );
 
-    expect(list).toContain("border-radius: 12px;");
+    expect(list).toContain("border-radius: 0;");
     expect(list).toContain("background: var(--mac-surface-solid);");
-    expect(row).toContain("min-height: 64px;");
+    expect(list).toContain("box-shadow: none;");
+    expect(row).toContain("min-height: var(--mac-row-height);");
+    expect(row).toContain("border-radius: 0;");
+    expect(row).toContain("box-shadow: none;");
     expect(row).toContain("grid-template-columns: 28px minmax(0, 1fr) auto auto;");
+    expect(compactRow).toContain("min-height: var(--mac-compact-row-height);");
+    expect(tokens).toContain("--mac-row-height: 52px;");
+    expect(tokens).toContain("--mac-compact-row-height: 44px;");
     expect(code).toContain("font-family: ui-monospace");
     expect(code).toContain("font-size: 18px;");
     expect(countdown).toContain("width: 32px;");
@@ -1155,8 +1167,16 @@ describe("popup visual smoke classes", () => {
         || JSON.stringify(labels) === JSON.stringify(["Password", "Passphrase", "Username"]),
     );
     expect(generatorHost.querySelector(".generator-algorithm-toggle")).toBeNull();
-    expect(generatorHost.querySelector("bit-toggle-group + bit-card .bwi-generate")).not.toBeNull();
-    expect(generatorHost.querySelector("bit-toggle-group + bit-card .bwi-clone")).not.toBeNull();
+    const generatorResult = generatorHost.querySelector<HTMLElement>(".macos-generator__result");
+    const generatorMode = generatorHost.querySelector<HTMLElement>(".macos-generator__mode");
+    expect(generatorResult).not.toBeNull();
+    expect(generatorResult?.querySelector(".bwi-generate")).not.toBeNull();
+    expect(generatorResult?.querySelector(".bwi-clone")).not.toBeNull();
+    expect(
+      generatorResult && generatorMode
+        ? Boolean(generatorResult.compareDocumentPosition(generatorMode) & Node.DOCUMENT_POSITION_FOLLOWING)
+        : false,
+    ).toBe(true);
     expect(generatorHost.querySelector('bit-item a[routerlink="/generator-history"] .bwi-angle-right')).not.toBeNull();
     expect((send.nativeElement as HTMLElement).querySelector("popup-page > main")).not.toBeNull();
     expect((send.nativeElement as HTMLElement).querySelector("bit-no-items")).not.toBeNull();

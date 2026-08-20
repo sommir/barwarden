@@ -265,6 +265,7 @@
       "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
       "apps/menubar-tauri/src/app/official-ui/official-platform.adapter.ts",
       "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts",
       "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
       "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
       "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
@@ -295,6 +296,7 @@
       "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
       "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html",
       "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
+      "apps/menubar-tauri/src/app/vault/otp.facade.ts",
       "apps/menubar-tauri/src/auth/bitwarden-crypto.ts",
       "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
       "apps/menubar-tauri/src/host/biometric-host.ts",
@@ -1030,6 +1032,18 @@
       {
         "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
         "kind": "import",
+        "specifier": "../vault/otp.facade",
+        "target": "apps/menubar-tauri/src/app/vault/otp.facade.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "./popup-route-metadata",
+        "target": "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
         "specifier": "./popup-route-reuse.strategy",
         "target": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts"
       },
@@ -1038,6 +1052,12 @@
         "kind": "import",
         "specifier": "./popup-router-cache.lifecycle",
         "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
       },
       {
         "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
@@ -1752,6 +1772,12 @@
         "kind": "templateUrl",
         "specifier": "./official-send-text-details.component.html",
         "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/vault/otp.facade.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
       },
       {
         "from": "apps/menubar-tauri/src/host/launch-at-login.ts",
@@ -3338,6 +3364,6 @@
         "target": null
       }
     ],
-    "sha256": "389ff945ac89dc34e91730ea04e34e16cd1b811a6e4e4a5c0b03a7b5f3f97c2b"
+    "sha256": "91178733ee7d5e251a3ee91d5d6a42deadab96b16c79e642740d6db1e3b1615f"
   }
 }

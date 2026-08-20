@@ -482,7 +482,13 @@ export const officialPersonalFormZhCnMessages = {
 export const officialTrashWarningZhCn =
   "回收站中超过 30 天的项目将被自动删除。";
 
+const officialSettingsSectionZhCnMessages = {
+  general: "常规",
+  security: "安全",
+} as const satisfies Readonly<Record<"general" | "security", string>>;
+
 const translations: Readonly<Record<string, string>> = {
+  ...officialSettingsSectionZhCnMessages,
   autofillSuggestions: "自动填充建议",
   addWebsiteOrApp: "添加网站或应用",
   app: "应用",

@@ -43,7 +43,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/popup-header-actions.component.ts",
-      "sha256": "4634149ff5c3cd512751d0a0d7549d8dfe05d9a1911cd203dc3ce2cd45952f48"
+      "sha256": "49c3aabafdfd55ba8decc04b22ebd9e8aac40a24eb06ffad55e379b0210f07ba"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
