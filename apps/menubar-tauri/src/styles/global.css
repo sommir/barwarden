@@ -6439,6 +6439,14 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   outline-offset: 2px;
 }
 
+.macos-page--settings-detail
+  bit-form-field
+  [bitfieldcontainer]:has(.shortcut-recorder-owner:focus-visible) {
+  outline-width: 0;
+  outline-style: none;
+  box-shadow: none !important;
+}
+
 .macos-page--settings-detail bit-form-control.macos-checkbox-owner > label {
   width: 100%;
   min-height: var(--mac-hit-size);

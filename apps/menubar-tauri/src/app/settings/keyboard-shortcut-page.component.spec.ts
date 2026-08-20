@@ -136,7 +136,11 @@ describe("KeyboardShortcutPageComponent", () => {
 
       recorder.dataset["testFocusVisible"] = "true";
       clear.dataset["testFocusVisible"] = "true";
+      const focusedFieldContainerStyle = getComputedStyle(fieldContainer!);
       expect(getComputedStyle(recorder).outlineWidth).toBe("0px");
+      expect(focusedFieldContainerStyle.outlineWidth).toBe("0px");
+      expect(focusedFieldContainerStyle.outlineStyle).toBe("none");
+      expect(focusedFieldContainerStyle.boxShadow).toBe("none");
       expect(getComputedStyle(surface).outlineWidth).toBe("2px");
       expect(getComputedStyle(surface).outlineStyle).toBe("solid");
       expect(getComputedStyle(clear).outlineWidth).toBe("2px");
