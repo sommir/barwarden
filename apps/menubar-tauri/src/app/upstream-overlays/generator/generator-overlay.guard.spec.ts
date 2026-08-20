@@ -30,6 +30,38 @@ const root = process.cwd();
 const overlayRoot = "apps/menubar-tauri/src/app/upstream-overlays/generator";
 const vendorRoot = join(root, "vendor/bitwarden-clients");
 const temporaryDirectories: string[] = [];
+const productionRoots = [
+  "apps/menubar-tauri/src/app/generator/generator-page.component.ts",
+  "apps/menubar-tauri/src/app/generator/generator.service.ts",
+  "apps/menubar-tauri/src/app/generator/generator-history-page.component.ts",
+] as const;
+const localRuntimePaths = [
+  `${overlayRoot}/official-credential-generator.component.ts`,
+  `${overlayRoot}/official-credential-generator.component.html`,
+  `${overlayRoot}/official-generator-core.component.ts`,
+  `${overlayRoot}/official-generator-core.component.html`,
+  `${overlayRoot}/official-generator-header-actions.component.ts`,
+  "apps/menubar-tauri/src/app/generator/official-generator-core.boundary.ts",
+  "apps/menubar-tauri/src/app/generator/official-generator-history.boundary.ts",
+  "apps/menubar-tauri/src/app/generator/official-generator-account.adapter.ts",
+  "apps/menubar-tauri/src/app/generator/official-credential-generator-service.adapter.ts",
+  "apps/menubar-tauri/src/app/generator/official-generator-history.adapter.ts",
+  "apps/menubar-tauri/src/app/generator/official-generator-translate.adapter.ts",
+  "apps/menubar-tauri/src/app/generator/generator-clipboard.directive.ts",
+  "apps/menubar-tauri/src/app/generator/official-generator-toast.adapter.ts",
+  "apps/menubar-tauri/src/app/generator/official-generator-log.adapter.ts",
+  `${overlayRoot}/official-generator-history.component.ts`,
+  `${overlayRoot}/official-generator-history.component.html`,
+  `${overlayRoot}/official-generator-history-rows.component.ts`,
+  `${overlayRoot}/official-generator-history-rows.component.html`,
+  `${overlayRoot}/official-empty-generator-history.component.ts`,
+  `${overlayRoot}/official-empty-generator-history.component.html`,
+  "apps/menubar-tauri/src/app/generator/generator-history-page.component.ts",
+  "apps/menubar-tauri/src/app/generator/generator-history-runtime.port.ts",
+  "apps/menubar-tauri/src/app/generator/generator-history-route.owner.ts",
+  "apps/menubar-tauri/src/app/generator/official-generator-history-view.adapter.ts",
+  "apps/menubar-tauri/src/app/generator/official-generator-vendor-runtime.boundary.ts",
+] as const;
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
@@ -340,6 +372,32 @@ describe("guarded official Generator overlay", () => {
     )).toEqual([]);
   });
 
+  it("pins the exact production closure, local runtime hashes, and closure digest", () => {
+    const manifest = readManifest();
+    expect(manifest.productionClosure.roots).toEqual(productionRoots);
+    expect(manifest.localRuntimes.map(({ path }) => path)).toEqual(localRuntimePaths);
+    for (const runtime of manifest.localRuntimes) {
+      expect(runtime.sha256, runtime.path).toBe(sha(runtime.path));
+    }
+
+    const aliases = Object.fromEntries(
+      officialGeneratorAliasSources.map(([specifier, source]) => [specifier, [source]]),
+    );
+    const closure = deriveTypeScriptRuntimeClosure({
+      root,
+      roots: manifest.productionClosure.roots,
+      aliases,
+      resolveOverride: ({ importer, specifier }) =>
+        resolveOfficialGeneratorInternalBoundary(root, specifier, importer),
+    });
+    expect(closure.paths).toEqual(manifest.productionClosure.paths);
+    expect(closure.edges).toEqual(manifest.productionClosure.edges);
+
+    const closureMembers = closure.paths.map((path) => ({ path, sha256: sha(path) }));
+    expect(closureMembers).toEqual(manifest.productionClosure.members);
+    expect(shaText(JSON.stringify(closureMembers))).toBe(manifest.productionClosure.sha256);
+  });
+
   it("rejects history state, logging, dialog, copy, native-messaging, and SSO mutations", () => {
     const directory = temporaryDirectory();
     writeFileSync(join(directory, "entry.ts"), `
@@ -425,9 +483,29 @@ function read(path: string): string {
   return readFileSync(join(root, path), "utf8");
 }
 
+type GeneratorManifest = {
+  localRuntimes: { path: string; sha256: string }[];
+  productionClosure: {
+    roots: string[];
+    paths: string[];
+    edges: { from: string; kind: string; specifier: string; target: string | null }[];
+    members: { path: string; sha256: string }[];
+    sha256: string;
+  };
+};
+
+function readManifest(): GeneratorManifest {
+  return JSON.parse(
+    read(`${overlayRoot}/official-generator.transform-manifest.json`),
+  ) as GeneratorManifest;
+}
 
 function sha(path: string): string {
   return createHash("sha256").update(read(path)).digest("hex");
+}
+
+function shaText(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function temporaryDirectory(): string {

@@ -290,7 +290,10 @@ describe("iOS 27 Generator visual contract", () => {
     expect(content).not.toBeNull();
     expect(row).not.toBeNull();
     expect(clear).not.toBeNull();
-    expect(host.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+    expect(content!.hasAttribute("aria-live")).toBe(false);
+    for (const liveRegion of host.querySelectorAll('[aria-live], [role="status"], [role="alert"]')) {
+      expect(liveRegion.textContent).not.toContain("history-password");
+    }
     const copy = row!.querySelector<HTMLButtonElement>("button")!;
     expect(getComputedStyle(content!).boxShadow).toBe("none");
     expect(getComputedStyle(row!).minHeight).toBe("52px");

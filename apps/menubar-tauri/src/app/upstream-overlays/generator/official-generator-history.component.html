@@ -5,9 +5,13 @@
     </ng-container>
   </popup-header>
   @if (!(loading$ | async)) {
-    <section class="macos-generator-history__content" aria-live="polite">
+    <section class="macos-generator-history__content">
       <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />
-      <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />
+      <bit-credential-generator-history
+        role="list"
+        [account]="account$ | async"
+        *ngIf="hasHistory$ | async"
+      />
     </section>
   }
   @if (statusMessage$ | async; as statusMessage) {

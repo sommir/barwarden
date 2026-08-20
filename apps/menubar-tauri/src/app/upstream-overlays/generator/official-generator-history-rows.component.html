@@ -1,7 +1,15 @@
 @for (credential of credentials$ | async; track credential; let historyIndex = $index) {
-  <bit-item class="macos-generator-history__row">
+  <bit-item
+    class="macos-generator-history__row"
+    role="listitem"
+    [attr.aria-label]="getGeneratedValueText(credential)"
+  >
     <bit-item-content>
-      <bit-color-password class="tw-font-mono" [password]="credential.credential" />
+      <bit-color-password
+        class="tw-font-mono"
+        aria-hidden="true"
+        [password]="credential.credential"
+      />
       <div slot="secondary">
         {{ credential.generationDate | date: "medium" }}
       </div>

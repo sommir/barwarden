@@ -715,7 +715,7 @@ export const generatorTemplateContracts = [
         search:
           '  <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n  <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />',
         replacement:
-          '  @if (!(loading$ | async)) {\n    <section class="macos-generator-history__content" aria-live="polite">\n      <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n      <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />\n    </section>\n  }',
+          '  @if (!(loading$ | async)) {\n    <section class="macos-generator-history__content">\n      <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n      <bit-credential-generator-history\n        role="list"\n        [account]="account$ | async"\n        *ngIf="hasHistory$ | async"\n      />\n    </section>\n  }',
       },
       {
         search:
@@ -745,7 +745,13 @@ export const generatorTemplateContracts = [
       },
       {
         search: "  <bit-item>",
-        replacement: '  <bit-item class="macos-generator-history__row">',
+        replacement: '  <bit-item\n    class="macos-generator-history__row"\n    role="listitem"\n    [attr.aria-label]="getGeneratedValueText(credential)"\n  >',
+      },
+      {
+        search:
+          '      <bit-color-password class="tw-font-mono" [password]="credential.credential" />',
+        replacement:
+          '      <bit-color-password\n        class="tw-font-mono"\n        aria-hidden="true"\n        [password]="credential.credential"\n      />',
       },
       {
         search:

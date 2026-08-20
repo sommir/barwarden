@@ -75,7 +75,8 @@ describe("GeneratorHistoryPageComponent", () => {
 
     expect(host.querySelector("bit-empty-credential-history bit-no-items")).not.toBeNull();
     expect(host.querySelectorAll(".macos-generator-history__content")).toHaveLength(1);
-    expect(host.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+    expect(host.querySelector(".macos-generator-history__content")?.hasAttribute("aria-live"))
+      .toBe(false);
     expect(host.textContent).toContain("没有可显示的内容");
     expect(host.textContent).toContain("您最近没有生成任何内容");
     expect(clearButtonOrNull(host)).toBeNull();
@@ -95,7 +96,7 @@ describe("GeneratorHistoryPageComponent", () => {
     expect(host.textContent).toContain("没有可显示的内容");
   });
 
-  it("renders mixed official rows with color-password, timestamps, and algorithm labels", async () => {
+  it("keeps asynchronous credential history out of live regions while retaining safe row names", async () => {
     const history = [
       credential("password", "password-value", "2026-07-11T08:09:10.000Z"),
       credential("passphrase", "passphrase-value", "2026-07-10T08:09:10.000Z"),
@@ -106,14 +107,27 @@ describe("GeneratorHistoryPageComponent", () => {
     await render(fixture);
     const host = fixture.nativeElement as HTMLElement;
     const rows = host.querySelectorAll("bit-credential-generator-history bit-item");
-    const liveRegions = host.querySelectorAll('[aria-live="polite"]');
+    const liveRegions = host.querySelectorAll('[aria-live], [role="status"], [role="alert"]');
 
     expect(rows).toHaveLength(3);
     expect(host.querySelectorAll(".macos-generator-history__content")).toHaveLength(1);
-    expect(liveRegions).toHaveLength(1);
-    expect(liveRegions[0]?.classList).toContain("macos-generator-history__content");
+    for (const liveRegion of liveRegions) {
+      expect(liveRegion.textContent).not.toContain("password-value");
+      expect(liveRegion.textContent).not.toContain("passphrase-value");
+      expect(liveRegion.textContent).not.toContain("username-value");
+    }
     expect(host.querySelectorAll(".macos-generator-history__row")).toHaveLength(3);
     expect(rows[0]?.querySelector("bit-color-password")?.textContent).toContain("password-value");
+    expect(rows[0]?.getAttribute("role")).toBe("listitem");
+    expect(rows[0]?.closest('[role="list"]')).not.toBeNull();
+    expect(rows[0]?.getAttribute("aria-label")).toBe("密码");
+    expect(rows[1]?.getAttribute("aria-label")).toBe("密码短语");
+    expect(rows[2]?.getAttribute("aria-label")).toBe("用户名");
+    expect([...rows].map((row) => row.getAttribute("aria-label")).join("\n"))
+      .not.toMatch(/password-value|passphrase-value|username-value/);
+    for (const value of host.querySelectorAll("bit-color-password")) {
+      expect(value.getAttribute("aria-hidden")).toBe("true");
+    }
     expect(rows[0]?.querySelector('[slot="secondary"]')?.textContent?.trim()).not.toBe("");
     expect(button(host, "复制密码").querySelector(".bwi-clone")).not.toBeNull();
     expect(button(host, "复制密码短语")).toBeDefined();
