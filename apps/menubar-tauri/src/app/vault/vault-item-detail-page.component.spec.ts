@@ -990,6 +990,33 @@ describe("VaultItemDetailPageComponent", () => {
     expect(navigateByUrl).not.toHaveBeenCalled();
   });
 
+  it("stages the real Edit and password-history triggers as one-shot detail predecessors", async () => {
+    const item = {
+      ...demoVaultItems[0]!,
+      passwordHistory: [{ password: "old-password", lastUsedDate: "2026-07-01T00:00:00.000Z" }],
+    };
+    const { fixture } = await createFixture(undefined, undefined, [item]);
+    const routeCache = TestBed.inject(PopupRouterCacheService);
+    const stage = vi.spyOn(routeCache, "stageTransientBack");
+    vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+    fixture.componentRef.setInput("id", item.id);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    host.querySelector<HTMLAnchorElement>(
+      `[data-popup-focus-key="detail-edit:${item.id}"]`,
+    )!.click();
+    fixture.componentInstance.openPasswordHistory();
+    await fixture.whenStable();
+
+    expect(stage).toHaveBeenNthCalledWith(1, "/edit-cipher", `detail-edit:${item.id}`);
+    expect(stage).toHaveBeenNthCalledWith(
+      2,
+      "/cipher-password-history",
+      `detail-history:${item.id}`,
+    );
+  });
+
   it("maps the official detail pop-out action to the native menubar window command", async () => {
     const calls: string[] = [];
     const { fixture } = await createFixture(undefined, { popOut: async (route: string) => calls.push(route) });

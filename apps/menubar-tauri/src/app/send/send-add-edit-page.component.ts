@@ -26,7 +26,10 @@ import {
 } from "./retained-text-send-form.service";
 import { TextSendOperation } from "./text-send-operation";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
-import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
+import {
+  PopupRouterCacheService,
+  type PopupBackContinuation,
+} from "../platform/popup-router-cache.service";
 
 export const textSendDeletionPresetHours = [1, 24, 48, 72, 168, 336, 720] as const;
 
@@ -50,8 +53,8 @@ export class SendAddEditPageComponent implements OnDestroy {
   private readonly routeSubscription: Subscription;
   private readonly stateSubscription: Subscription;
 
-  constructor(route: ActivatedRoute, private readonly router: Router, private readonly store: PopupStateStore, private readonly generator: GeneratorService, private readonly clipboard: ClipboardPolicyService, private readonly dialogService: DialogService, private readonly changeDetectorRef: ChangeDetectorRef, routeCache: PopupRouterCacheService, destroyRef: DestroyRef, @Optional() @Inject(SEND_ACTION_PORT) actions: SendActionPort | null = null, @Optional() @Inject(SEND_CREATED_HOST) host: HostApi | null = null) {
-    const releaseBackOwner = routeCache.registerBackOwner(() => this.back());
+  constructor(route: ActivatedRoute, private readonly router: Router, private readonly store: PopupStateStore, private readonly generator: GeneratorService, private readonly clipboard: ClipboardPolicyService, private readonly dialogService: DialogService, private readonly changeDetectorRef: ChangeDetectorRef, private readonly routeCache: PopupRouterCacheService, destroyRef: DestroyRef, @Optional() @Inject(SEND_ACTION_PORT) actions: SendActionPort | null = null, @Optional() @Inject(SEND_CREATED_HOST) host: HostApi | null = null) {
+    const releaseBackOwner = routeCache.registerBackOwner((resume) => this.leaveRoute(resume));
     destroyRef.onDestroy(releaseBackOwner);
     this.host = host ?? new TauriHostService();
     const state = store.snapshot();
@@ -95,18 +98,20 @@ export class SendAddEditPageComponent implements OnDestroy {
       if (!(await this.discardEditing())) return;
       return;
     }
-    if (!(await this.discardEditing())) return;
-    this.invalidateContinuations();
-    void this.router.navigate(["/tabs/send"]);
+    await this.routeCache.back();
   }
   async back(): Promise<void> {
+    await this.routeCache.back();
+  }
+
+  private async leaveRoute(resume: PopupBackContinuation): Promise<void> {
     if (this.mode === "edit" && this.editing) {
       await this.discardEditing();
       return;
     }
     if (!(await this.discardEditing())) return;
     this.invalidateContinuations();
-    await this.router.navigate(["/tabs/send"]);
+    await resume("/tabs/send");
   }
 
   async save(): Promise<void> {

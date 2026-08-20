@@ -2052,6 +2052,32 @@ describe("SendCreatedPageComponent", () => {
     });
   });
 
+  it("routes the mounted created header Back through the shared navigation owner", async () => {
+    const fixture = await createCreatedFixture("send-created");
+    const routeCache = TestBed.inject(PopupRouterCacheService);
+    const back = vi.spyOn(routeCache, "back").mockResolvedValue(true);
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[aria-label="返回"]')!
+      .click();
+    await fixture.whenStable();
+
+    expect(back).toHaveBeenCalledOnce();
+  });
+
+  it("registers the created page as an Escape owner that returns to the Send list", async () => {
+    const fixture = await createCreatedFixture("send-created");
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/send-created?sendId=send-created", configurable: true });
+    const navigateByUrl = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+    fixture.detectChanges();
+
+    await TestBed.inject(PopupRouterCacheService).back();
+
+    expect(navigateByUrl).toHaveBeenCalledWith("/tabs/send", { replaceUrl: true });
+  });
+
   it("maps the official Send created pop-out action to the native menubar window command", async () => {
     const calls: string[] = [];
     const fixture = await createCreatedFixture("send-created", [], {

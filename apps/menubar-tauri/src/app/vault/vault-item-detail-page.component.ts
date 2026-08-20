@@ -175,6 +175,7 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
               routerLink="/edit-cipher"
               [queryParams]="cipherQueryParams"
               [attr.data-popup-focus-key]="'detail-edit:' + item.id"
+              (click)="rememberDetailBack('/edit-cipher', 'detail-edit:' + item.id)"
             >{{ "i18nEdit" | i18n }}</a>
           } @else {
             <button bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nRestore' | i18n" (click)="restore()">{{ "i18nRestore" | i18n }}</button>
@@ -869,6 +870,10 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
 
     const navigate = async () => {
       if (this.item?.id === item.id) {
+        this.rememberDetailBack(
+          "/cipher-password-history",
+          `detail-history:${item.id}`,
+        );
         await this.router.navigate(["/cipher-password-history"], {
           queryParams: { cipherId: item.id },
         });
@@ -877,6 +882,10 @@ export class VaultItemDetailPageComponent implements OnChanges, OnDestroy {
     if (!this.openReprompt(navigate)) {
       void navigate();
     }
+  }
+
+  rememberDetailBack(destinationUrl: string, focusKey: string): void {
+    this.routeCache.stageTransientBack(destinationUrl, focusKey);
   }
 
   private revealField(fieldId: string): void {

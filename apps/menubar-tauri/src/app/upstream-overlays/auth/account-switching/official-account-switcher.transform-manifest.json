@@ -55,7 +55,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
-      "sha256": "0c9232b6fa99f8bbd3932e391e9f7ac226a310830df0f4ea30ffd81b7cbe1293"
+      "sha256": "0bdf46e96aafb813a939ddf38a3cb3f5a2a2f5d5752a4761b4af5be7f6f4c293"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.html",

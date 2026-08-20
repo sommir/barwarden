@@ -14,7 +14,7 @@ const overlayRoot = join(
   "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching",
 );
 const manifestPath = join(overlayRoot, "official-account-switcher.transform-manifest.json");
-const manifestDigest = "1007a74897d62e4b67aaf1fc11dd5a977da3c4ca9517d9534924989703078706";
+const manifestDigest = "76d2baf7fc84121a19094393c508cc04b8ea1cfa6d3c10855e469e1106e54af9";
 const expectedRevision = [
   "https://github.com/bitwarden/clients.git",
   "f47b6946e01aed474875789081966d311d5b8289",
@@ -92,7 +92,7 @@ const localGraph = {
   "official-account-switcher.component.ts": {
     path: "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
     classes: { OfficialAccountSwitcherComponent: ["lockedStatus", "enableAccountSwitching$", "activeUserCanLock", "loading", "error$", "currentAccount$", "currentAuthorization$", "availableAccounts$", "showLockAll$", "accountLimit", "specialAddAccountId", "ngOnInit", "lock", "lockAll", "recover", "logOut"] },
-    imports: ["@angular/common", "@angular/core", "@angular/core/rxjs-interop", "rxjs", "@bitwarden/angular/jslib.module", "@bitwarden/components", "@bitwarden/official-auth-popup/account-switching/current-account.component", "@bitwarden/browser-popup/components/pop-out.component", "@bitwarden/ui-common", "../../../auth/official-account-switcher.adapter", "../../../../auth/account-session-store", "../../../layout/popup-header.component", "../../../layout/popup-page.component", "../../../official-ui/official-components", "./official-account.component"],
+    imports: ["@angular/common", "@angular/core", "@angular/core/rxjs-interop", "rxjs", "@bitwarden/angular/jslib.module", "@bitwarden/components", "@bitwarden/official-auth-popup/account-switching/current-account.component", "@bitwarden/browser-popup/components/pop-out.component", "@bitwarden/ui-common", "../../../auth/official-account-switcher.adapter", "../../../../auth/account-session-store", "../../../platform/popup-router-cache.service", "../../../popup-state", "../../../layout/popup-header.component", "../../../layout/popup-page.component", "../../../official-ui/official-components", "./official-account.component"],
   },
 } as const;
 

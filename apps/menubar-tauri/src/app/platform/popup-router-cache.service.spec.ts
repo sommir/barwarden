@@ -168,6 +168,16 @@ class SendScrollRouteComponent extends ScrollRouteHost {}
 })
 class SettingsScrollRouteComponent extends ScrollRouteHost {}
 
+@Component({
+  selector: "popup-detail-scroll-route",
+  standalone: true,
+  template: `
+    <button data-popup-focus-key="detail-edit:item-1">Edit</button>
+    <button data-popup-focus-key="detail-history:item-1">History</button>
+  `,
+})
+class DetailScrollRouteComponent extends ScrollRouteHost {}
+
 @Component({ selector: "popup-auth-scroll-route", standalone: true, template: "Auth" })
 class AuthScrollRouteComponent extends ScrollRouteHost {}
 
@@ -274,6 +284,93 @@ describe("PopupRouterCacheService", () => {
     expect(currentBack).toHaveBeenCalledOnce();
 
     releaseCurrent();
+  });
+
+  it.each([
+    ["edit-cipher", "detail-edit:item-1"],
+    ["cipher-password-history", "detail-history:item-1"],
+  ])("returns %s to its one-shot detail predecessor with scroll and focus", async (destination, focusKey) => {
+    const { fixture, router, scrollLayout, service } = await createService([
+      {
+        path: "tabs/vault",
+        component: VaultScrollRouteComponent,
+        data: ios27RouteData("vault", "base", true),
+      },
+      {
+        path: "view-cipher/:id",
+        component: DetailScrollRouteComponent,
+        data: ios27RouteData("vault", "secondary", false),
+      },
+      {
+        path: destination,
+        component: RouteComponent,
+        data: ios27RouteData("vault", "secondary", false),
+      },
+    ], true);
+
+    await router.navigateByUrl("/tabs/vault");
+    await router.navigateByUrl("/view-cipher/item-1");
+    fixture!.detectChanges();
+    const trigger = fixture!.nativeElement.querySelector<HTMLButtonElement>(
+      `[data-popup-focus-key="${focusKey}"]`,
+    )!;
+    trigger.focus();
+    scrollLayout.scrollableRef()!.nativeElement.scrollTop = 47;
+    (service as unknown as {
+      stageTransientBack(destinationUrl: string, focusKey: string): void;
+    }).stageTransientBack(`/${destination}`, focusKey);
+
+    await router.navigateByUrl(`/${destination}`);
+    service.registerBackOwner(async (resume) => {
+      await resume();
+    });
+    await service.back();
+    fixture!.detectChanges();
+    await fixture!.whenStable();
+
+    expect(router.url).toBe("/view-cipher/item-1");
+    expect(service.history()).toEqual(["/tabs/vault"]);
+    expect(scrollLayout.scrollableRef()!.nativeElement.scrollTop).toBe(47);
+    expect(document.activeElement?.getAttribute("data-popup-focus-key")).toBe(focusKey);
+  });
+
+  it("settles a terminal owner at an existing retained target and removes the stale form", async () => {
+    const { router, service } = await createService([
+      { path: "tabs/send", component: RouteComponent, data: ios27RouteData("send", "base", true) },
+      { path: "add-send", component: RouteComponent, data: ios27RouteData("send", "secondary", false) },
+      { path: "send-created", component: RouteComponent, data: ios27RouteData("send", "secondary", false) },
+    ]);
+    await router.navigateByUrl("/tabs/send");
+    await router.navigateByUrl("/add-send");
+    await router.navigateByUrl("/send-created");
+    service.registerBackOwner(async (...args: unknown[]) => {
+      const resume = args[0] as ((fallback: string) => Promise<boolean>) | undefined;
+      await resume!("/tabs/send");
+    });
+
+    await service.back();
+
+    expect(router.url).toBe("/tabs/send");
+    expect(service.history()).toEqual(["/tabs/send"]);
+  });
+
+  it("does not let a late owner continuation replace a newer mounted owner", async () => {
+    const { router, service } = await createService();
+    const gate = deferred<void>();
+    const currentBack = vi.fn(async () => undefined);
+    service.registerBackOwner(async (...args: unknown[]) => {
+      const resume = args[0] as ((fallback: string) => Promise<boolean>) | undefined;
+      await gate.promise;
+      await resume!("/tabs/send");
+    });
+    const pendingBack = service.back();
+    service.registerBackOwner(currentBack);
+    gate.resolve();
+    await pendingBack;
+
+    expect(router.url).not.toBe("/tabs/send");
+    await service.back();
+    expect(currentBack).toHaveBeenCalledOnce();
   });
 
   it("rejects login, challenge, item, query, and unknown URLs", async () => {

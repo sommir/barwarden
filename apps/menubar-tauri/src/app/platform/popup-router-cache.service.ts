@@ -37,9 +37,15 @@ export interface PopupUiSnapshot {
 }
 
 type CacheEntry = PopupUiSnapshot & { readonly url: RetainedPopupRoute };
+export type PopupBackContinuation = (fallbackUrl?: string) => Promise<boolean>;
 type PopupBackOwner = {
   readonly id: symbol;
-  readonly back: () => void | Promise<void>;
+  readonly back: (resume: PopupBackContinuation) => void | Promise<void>;
+};
+type TransientBackEntry = CacheEntry & {
+  readonly destinationUrl: string;
+  readonly token: number;
+  readonly navigationId: number | null;
 };
 type PendingFocusRestore = {
   readonly token: number;
@@ -84,6 +90,9 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   private readonly retainedRoutes = new Set(inject(POPUP_ROUTER_CACHE_ROUTE_GRAPH));
   private entries: CacheEntry[] = [];
   private backOwner: PopupBackOwner | null = null;
+  private pendingTransientBack: TransientBackEntry | null = null;
+  private transientBack: TransientBackEntry | null = null;
+  private nextTransientBackToken = 0;
   private readonly tabSnapshots = new Map<PopupTabRoute, PopupUiSnapshot>();
   private restoring = false;
   private tabSnapshotEpoch = 0;
@@ -126,6 +135,12 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
           }
           this.captureScrollAndFocus();
         }
+        const pending = this.pendingTransientBack;
+        if (pending && pending.destinationUrl === canonicalUrl(event.url)) {
+          this.pendingTransientBack = { ...pending, navigationId: event.id };
+        } else if (pending?.navigationId === null) {
+          this.pendingTransientBack = null;
+        }
       } else if (event instanceof NavigationEnd) {
         const captureWasSuppressed = this.tabCaptureSuppressed;
         if (
@@ -135,6 +150,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
           this.tabCaptureSuppressed = false;
           this.suppressionNavigationIds.clear();
         }
+        this.commitTransientBack(event);
         this.record(event.urlAfterRedirects);
         if (!captureWasSuppressed) {
           this.scheduleTabRestore(event.urlAfterRedirects);
@@ -144,6 +160,9 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
         || event instanceof NavigationError
         || event instanceof NavigationSkipped
       ) {
+        if (this.pendingTransientBack?.navigationId === event.id) {
+          this.pendingTransientBack = null;
+        }
         this.suppressionNavigationIds.delete(event.id);
       }
     });
@@ -170,6 +189,9 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
     this.cancelPendingFocusRestore();
     this.entries = [];
     this.backOwner = null;
+    this.pendingTransientBack = null;
+    this.transientBack = null;
+    this.nextTransientBackToken += 1;
     this.tabSnapshots.clear();
     this.routeReuse.clear();
     this.otp.resetSearch();
@@ -180,6 +202,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
     const data = deepestIos27RouteData(this.router.routerState.snapshot.root);
     if (data?.popupLayer !== "secondary") return false;
     const current = canonicalUrl(this.router.url);
+    if (this.transientBack?.destinationUrl === current) return true;
     const top = this.entries.at(-1);
     return Boolean(top && (top.url !== current || this.entries.length > 1));
   }
@@ -205,13 +228,70 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
   async back(): Promise<boolean> {
     const owner = this.backOwner;
     if (owner) {
-      await owner.back();
+      await owner.back(async (fallbackUrl) => {
+        if (this.backOwner?.id !== owner.id) return false;
+        return this.backWithoutOwner(fallbackUrl);
+      });
       return true;
     }
 
-    this.captureScrollAndFocus();
+    return this.backWithoutOwner();
+  }
+
+  registerBackOwner(
+    back: (resume: PopupBackContinuation) => void | Promise<void>,
+  ): () => void {
+    const owner: PopupBackOwner = { id: Symbol("popup-back-owner"), back };
+    this.backOwner = owner;
+    return () => {
+      if (this.backOwner?.id === owner.id) {
+        this.backOwner = null;
+      }
+    };
+  }
+
+  stageTransientBack(destinationUrl: string, focusKey?: PopupFocusKey): void {
     const current = canonicalUrl(this.router.url);
+    const host = this.scrollLayout.scrollableRef()?.nativeElement;
+    const candidate = focusKey ?? closestPopupFocusKey(this.document.activeElement);
+    this.pendingTransientBack = {
+      url: current,
+      scrollTop: host?.scrollTop ?? 0,
+      focusKey: candidate,
+      destinationUrl: canonicalUrl(destinationUrl),
+      token: ++this.nextTransientBackToken,
+      navigationId: null,
+    };
+  }
+
+  private async backWithoutOwner(fallbackUrl?: string): Promise<boolean> {
+    const current = canonicalUrl(this.router.url);
+    const transient = this.transientBack;
+    if (transient?.destinationUrl === current) {
+      this.transientBack = null;
+      if (await this.navigateTransientAndRestore(transient)) return true;
+    }
+
+    this.captureScrollAndFocus();
     if (this.entries.at(-1)?.url === current) this.entries.pop();
+
+    if (fallbackUrl) {
+      const target = canonicalUrl(fallbackUrl);
+      let targetIndex = -1;
+      for (let index = this.entries.length - 1; index >= 0; index -= 1) {
+        if (this.entries[index]?.url === target) {
+          targetIndex = index;
+          break;
+        }
+      }
+      if (targetIndex >= 0) {
+        this.entries = this.entries.slice(0, targetIndex + 1);
+        const entry = this.entries[targetIndex]!;
+        if (await this.navigateAndRestore(entry)) return true;
+      } else if (await this.navigate(target)) {
+        return true;
+      }
+    }
 
     while (this.entries.length > 0) {
       const entry = this.entries[this.entries.length - 1]!;
@@ -225,14 +305,17 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
     return true;
   }
 
-  registerBackOwner(back: () => void | Promise<void>): () => void {
-    const owner: PopupBackOwner = { id: Symbol("popup-back-owner"), back };
-    this.backOwner = owner;
-    return () => {
-      if (this.backOwner?.id === owner.id) {
-        this.backOwner = null;
-      }
-    };
+  private commitTransientBack(event: NavigationEnd): void {
+    const pending = this.pendingTransientBack;
+    const destination = canonicalUrl(event.urlAfterRedirects);
+    if (pending?.navigationId === event.id && pending.destinationUrl === destination) {
+      this.pendingTransientBack = null;
+      this.transientBack = pending;
+      return;
+    }
+    if (this.transientBack && this.transientBack.destinationUrl !== destination) {
+      this.transientBack = null;
+    }
   }
 
   private record(url: string): void {
@@ -295,6 +378,27 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
       { injector: this.injector },
     );
 
+    return true;
+  }
+
+  private async navigateTransientAndRestore(entry: TransientBackEntry): Promise<boolean> {
+    await this.navigate(entry.url);
+    if (canonicalUrl(this.router.url) !== canonicalUrl(entry.url)) return false;
+    const token = entry.token;
+    afterNextRender(
+      {
+        write: () => {
+          if (
+            token === this.nextTransientBackToken
+            && canonicalUrl(this.router.url) === canonicalUrl(entry.url)
+            && this.transientBack === null
+          ) {
+            this.restoreScrollAndFocus(entry);
+          }
+        },
+      },
+      { injector: this.injector },
+    );
     return true;
   }
 
@@ -385,7 +489,7 @@ export class PopupRouterCacheService implements PopupRouterCacheLifecyclePort, O
     await this.navigate("/tabs/vault");
   }
 
-  private async navigate(url: RetainedPopupRoute): Promise<boolean> {
+  private async navigate(url: string): Promise<boolean> {
     this.restoring = true;
     try {
       return await this.router.navigateByUrl(url, { replaceUrl: true });

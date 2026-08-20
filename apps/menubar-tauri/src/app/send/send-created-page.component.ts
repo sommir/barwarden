@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Inject, Injectable, InjectionToken, OnDestroy, Optional } from "@angular/core";
+import { ChangeDetectorRef, Component, DestroyRef, Inject, Injectable, InjectionToken, OnDestroy, Optional } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { Subscription } from "rxjs";
 
@@ -18,6 +18,7 @@ import {
 } from "../upstream-overlays/send/official-send-created.component";
 import type { SendItem } from "./send-item.model";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 export const SEND_CREATED_HOST = new InjectionToken<HostApi | null>("SEND_CREATED_HOST", {
   providedIn: "root",
@@ -71,9 +72,15 @@ export class SendCreatedPageComponent implements OnDestroy {
     private readonly clipboardPolicy: ClipboardPolicyService,
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly feedback: AppFeedbackService,
+    private readonly routeCache: PopupRouterCacheService,
+    destroyRef: DestroyRef,
     @Optional() @Inject(SEND_CREATED_HOST) host: HostApi | null = null,
     @Optional() @Inject(POP_OUT_HOST) popOutHost: PopOutHost | null = null,
   ) {
+    const releaseBackOwner = routeCache.registerBackOwner(async (resume) => {
+      await resume("/tabs/send");
+    });
+    destroyRef.onDestroy(releaseBackOwner);
     this.host = host ?? new TauriHostService();
     this.popOutHost = popOutHost ?? new TauriHostService();
     const sendId = route.snapshot.queryParamMap.get("sendId") ?? "";
@@ -131,7 +138,7 @@ export class SendCreatedPageComponent implements OnDestroy {
   }
 
   close(): void {
-    void this.router.navigate(["/tabs/send"]);
+    void this.routeCache.back();
   }
 
   async popOut(): Promise<void> {

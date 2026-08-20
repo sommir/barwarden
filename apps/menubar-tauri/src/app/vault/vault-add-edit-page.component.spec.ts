@@ -644,7 +644,7 @@ describe("VaultAddEditPageComponent", () => {
       } else {
         await fixture.componentInstance.cancel(document.body);
       }
-      expect(navigateByUrl).toHaveBeenLastCalledWith("/tabs/vault");
+      expect(navigateByUrl).toHaveBeenLastCalledWith("/tabs/vault", { replaceUrl: true });
       expect(fixture.componentInstance.canSubmitOfficialLogin).toBe(false);
 
       await expect(

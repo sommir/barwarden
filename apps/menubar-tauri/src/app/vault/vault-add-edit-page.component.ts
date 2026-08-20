@@ -28,7 +28,10 @@ import {
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
 import { PopupStateStore, type PopupState } from "../popup-state";
-import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
+import {
+  PopupRouterCacheService,
+  type PopupBackContinuation,
+} from "../platform/popup-router-cache.service";
 import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component";
 import { OfficialLoginCipherFormComponent } from "../upstream-overlays/cipher-form/official-login-cipher-form.component";
 import { OfficialPersonalCipherFormComponent } from "../upstream-overlays/cipher-form/official-personal-cipher-form.component";
@@ -159,7 +162,7 @@ export class VaultAddEditPageComponent implements OnDestroy {
   private officialPersonalForm: OfficialPersonalCipherFormComponent | undefined;
 
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.backToVault();
+    this.routeCache.back();
   folderId = "";
   cipherType: CipherTypeView = CIPHER_TYPES["1"];
   selectedItem: VaultItem | undefined;
@@ -174,6 +177,7 @@ export class VaultAddEditPageComponent implements OnDestroy {
   private syncRequiredEditId: string | null = null;
   private readonly popOutHost: PopOutHost;
   private readonly personalOperation: PersonalCipherSaveOperation;
+  private pendingBackFocusTarget: EventTarget | null = null;
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -184,14 +188,14 @@ export class VaultAddEditPageComponent implements OnDestroy {
     private readonly dirtyFormService: DirtyFormService,
     private readonly vaultSession: VaultSessionService,
     private readonly changeDetectorRef: ChangeDetectorRef,
-    routeCache: PopupRouterCacheService,
+    private readonly routeCache: PopupRouterCacheService,
     destroyRef: DestroyRef,
     @Optional()
     @Inject(VAULT_CIPHER_WRITE_PORT)
     private readonly cipherWrite: VaultCipherWritePort | null = null,
     @Optional() @Inject(POP_OUT_HOST) popOutHost: PopOutHost | null = null,
   ) {
-    const releaseBackOwner = routeCache.registerBackOwner(() => this.backToVault());
+    const releaseBackOwner = routeCache.registerBackOwner((resume) => this.leavePage(resume));
     destroyRef.onDestroy(releaseBackOwner);
     this.popOutHost = popOutHost ?? new TauriHostService();
     this.routePath = this.route.snapshot?.routeConfig?.path ?? "add-cipher";
@@ -261,12 +265,20 @@ export class VaultAddEditPageComponent implements OnDestroy {
   }
 
   async backToVault(): Promise<void> {
-    const focusTarget = document.activeElement;
+    this.pendingBackFocusTarget = document.activeElement;
+    await this.routeCache.back();
+  }
+
+  private async leavePage(
+    resume: PopupBackContinuation,
+  ): Promise<void> {
+    const focusTarget = this.pendingBackFocusTarget ?? document.activeElement;
+    this.pendingBackFocusTarget = null;
     this.invalidateOperations();
     if (!(await this.confirmDiscardChanges(focusTarget))) {
       return;
     }
-    await this.router.navigateByUrl("/tabs/vault");
+    await resume("/tabs/vault");
   }
 
   async cancel(trigger: Event | HTMLElement): Promise<void> {
@@ -275,11 +287,8 @@ export class VaultAddEditPageComponent implements OnDestroy {
       : trigger.currentTarget instanceof HTMLElement
         ? trigger.currentTarget
         : document.activeElement;
-    this.invalidateOperations();
-    if (!(await this.confirmDiscardChanges(focusTarget))) {
-      return;
-    }
-    await this.router.navigateByUrl("/tabs/vault");
+    this.pendingBackFocusTarget = focusTarget;
+    await this.routeCache.back();
   }
 
   readonly onOfficialLoginBeforeSubmit = async (value: CipherView): Promise<boolean> => {

@@ -14,6 +14,8 @@ import {
   type ActiveAccountAuthorization,
 } from "../../../auth/official-account-switcher.adapter";
 import type { StoredAccount } from "../../../../auth/account-session-store";
+import { PopupRouterCacheService } from "../../../platform/popup-router-cache.service";
+import { PopupStateStore } from "../../../popup-state";
 import { PopupHeaderComponent } from "../../../layout/popup-header.component";
 import { PopupPageComponent } from "../../../layout/popup-page.component";
 import {
@@ -80,6 +82,17 @@ export class OfficialAccountSwitcherComponent implements OnInit {
     private readonly dialogService: DialogService,
   ) {
     const destroyRef = inject(DestroyRef);
+    const routeCache = inject(PopupRouterCacheService);
+    const popupState = inject(PopupStateStore);
+    const releaseBackOwner = routeCache.registerBackOwner(async (resume) => {
+      const state = popupState.snapshot();
+      if (state.isUnlocked) {
+        await resume();
+        return;
+      }
+      await resume(state.email ? "/lock" : "/login");
+    });
+    destroyRef.onDestroy(releaseBackOwner);
     this.accountSwitcher.loading$
       .pipe(takeUntilDestroyed(destroyRef))
       .subscribe((loading) => {
