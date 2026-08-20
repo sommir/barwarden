@@ -837,6 +837,17 @@ describe("P1 settings pages", () => {
       selectHost.querySelector<HTMLInputElement>('input[role="combobox"]'),
     );
     expect(nativeSelectControls.every((control) => control !== null)).toBe(true);
+    const ngSelects = Array.from(selectHosts, (selectHost) =>
+      selectHost.querySelector<HTMLElement>("ng-select"),
+    );
+    const ngSelectContainers = Array.from(selectHosts, (selectHost) =>
+      selectHost.querySelector<HTMLElement>("ng-select > .ng-select-container"),
+    );
+    expect(ngSelects.every((control) => control !== null)).toBe(true);
+    expect(ngSelectContainers.every((control) => control !== null)).toBe(true);
+    expect(Array.from(selectHosts, (selectHost) =>
+      selectHost.closest("bit-form-field.macos-preference-row") !== null,
+    )).toEqual([true, true]);
     const selectRowLayouts = Array.from(
       host.querySelectorAll<HTMLElement>("bit-form-field.macos-preference-row"),
       (row) => row.querySelector<HTMLElement>(":scope > div"),
@@ -845,6 +856,10 @@ describe("P1 settings pages", () => {
     expect(selectRowLayouts.map((layout) => getComputedStyle(layout!).display))
       .toEqual(["grid", "grid"]);
     expect(Array.from(selectHosts, (selectHost) => getComputedStyle(selectHost).height))
+      .toEqual(["40px", "40px"]);
+    expect(ngSelects.map((control) => getComputedStyle(control!).height))
+      .toEqual(["40px", "40px"]);
+    expect(ngSelectContainers.map((control) => getComputedStyle(control!).height))
       .toEqual(["40px", "40px"]);
 
     const switches = Array.from(
@@ -875,15 +890,36 @@ describe("P1 settings pages", () => {
       expect(rowStyle.borderRadius).toBe("0px");
       expect(rowStyle.boxShadow).toBe("none");
     }
-    document.documentElement.style.fontSize = "200%";
-    for (const copy of host.querySelectorAll<HTMLElement>(".macos-preference-row__copy")) {
-      expect(getComputedStyle(copy).whiteSpace).toBe("normal");
-      expect(getComputedStyle(copy).overflowWrap).toBe("anywhere");
+    for (const group of host.querySelectorAll<HTMLElement>(".macos-preference-group")) {
+      const rows = group.querySelectorAll<HTMLElement>(":scope > .macos-preference-row");
+      expect(rows).toHaveLength(2);
+      expect(getComputedStyle(rows[0]!).borderBottomWidth).toBe("1px");
+      expect(getComputedStyle(rows[1]!).borderBottomWidth).toBe("0px");
     }
+    document.documentElement.style.fontSize = "200%";
+    const longCopy = host.querySelector<HTMLElement>("#appearance-quick-actions-label")!;
+    const originalCopy = longCopy.textContent;
+    longCopy.textContent = `${originalCopy} ${originalCopy} ${originalCopy}`;
+    for (const row of host.querySelectorAll<HTMLElement>(".macos-preference-row")) {
+      const rowStyle = getComputedStyle(row);
+      expect(rowStyle.height).toBe("auto");
+      expect(rowStyle.overflow).toBe("visible");
+    }
+    for (const copy of host.querySelectorAll<HTMLElement>(".macos-preference-row__copy")) {
+      const copyStyle = getComputedStyle(copy);
+      expect(copyStyle.whiteSpace).toBe("normal");
+      expect(copyStyle.overflowWrap).toBe("anywhere");
+      expect(copyStyle.overflow).toBe("visible");
+    }
+    longCopy.textContent = originalCopy;
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.dataset["bwCompactMode"] = "true";
     expect(Array.from(selectHosts, (selectHost) => getComputedStyle(selectHost).height))
+      .toEqual(["36px", "36px"]);
+    expect(ngSelects.map((control) => getComputedStyle(control!).height))
+      .toEqual(["36px", "36px"]);
+    expect(ngSelectContainers.map((control) => getComputedStyle(control!).height))
       .toEqual(["36px", "36px"]);
     for (const owner of switches) {
       expect(getComputedStyle(owner).minHeight).toBe("44px");
@@ -894,10 +930,56 @@ describe("P1 settings pages", () => {
     expect(getComputedStyle(switches[0]!.querySelector("span")!).transitionDuration).toBe("0s");
     document.documentElement.removeAttribute("data-test-reduced-motion");
 
+    document.documentElement.dataset["testHiDpi"] = "true";
+    installAppearancePreferenceCss({ hiDpi: true });
+    for (const group of host.querySelectorAll<HTMLElement>(".macos-preference-group")) {
+      const rows = group.querySelectorAll<HTMLElement>(":scope > .macos-preference-row");
+      expect(getComputedStyle(rows[0]!).borderBottomWidth).toBe("0.5px");
+      expect(getComputedStyle(rows[1]!).borderBottomWidth).toBe("0px");
+    }
+    document.documentElement.removeAttribute("data-test-hi-dpi");
+
+    document.documentElement.dataset["testForcedColors"] = "true";
+    installAppearancePreferenceCss({ forcedColors: true });
+    const uncheckedTrack = switches[0]!.querySelector<HTMLElement>("span")!;
+    const checkedTrack = switches[1]!.querySelector<HTMLElement>("span")!;
+    switches[1]!.dataset["testFocusVisible"] = "true";
+    const uncheckedTrackStyle = getComputedStyle(uncheckedTrack);
+    const checkedTrackStyle = getComputedStyle(checkedTrack);
+    expect(uncheckedTrackStyle.forcedColorAdjust).toBe("none");
+    expect(checkedTrackStyle.forcedColorAdjust).toBe("none");
+    expect(checkedTrackStyle.backgroundColor).not.toBe(uncheckedTrackStyle.backgroundColor);
+    expect(checkedTrackStyle.borderColor).not.toBe(uncheckedTrackStyle.borderColor);
+    expect(checkedTrackStyle.outlineWidth).toBe("2px");
+    expect(checkedTrackStyle.outlineColor).toBe(checkedTrackStyle.backgroundColor);
+    document.documentElement.removeAttribute("data-test-forced-colors");
+
     const overlay = fixture.debugElement.query(By.directive(OfficialAppearanceComponent))
       .componentInstance as OfficialAppearanceComponent;
     expect(overlay.themeOptions.map(({ value }) => value)).toEqual(["system", "light", "dark"]);
-    overlay.setThemeValue("dark");
+    const themeChanges: unknown[] = [];
+    const languageChanges: unknown[] = [];
+    overlay.themeChange.subscribe((value) => themeChanges.push(value));
+    overlay.languageChange.subscribe((value) => languageChanges.push(value));
+    const setTheme = vi.spyOn(service, "setTheme");
+    const setLanguage = vi.spyOn(service, "setLanguage");
+    const renderedSelects = fixture.debugElement.queryAll(
+      By.css("bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select"),
+    );
+    expect(renderedSelects).toHaveLength(2);
+    renderedSelects[0]!.triggerEventHandler(
+      "ngModelChange",
+      overlay.languageOptions.find(({ value }) => value === "en-US"),
+    );
+    renderedSelects[1]!.triggerEventHandler(
+      "ngModelChange",
+      overlay.themeOptions.find(({ value }) => value === "dark"),
+    );
+    fixture.detectChanges();
+    expect(languageChanges).toEqual(["en-US"]);
+    expect(themeChanges).toEqual(["dark"]);
+    expect(setLanguage).toHaveBeenCalledWith("en-US");
+    expect(setTheme).toHaveBeenCalledWith("dark");
     expect(switches.map((control) => control.getAttribute("aria-checked"))).toEqual([
       "false",
       "true",
@@ -911,6 +993,7 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     expect(service.snapshot()).toMatchObject({
+      language: "en-US",
       theme: "dark",
       compactMode: true,
       animations: false,
@@ -1048,7 +1131,7 @@ describe("P1 settings pages", () => {
 });
 
 function installAppearancePreferenceCss(
-  media: { reducedMotion?: boolean } = {},
+  media: { forcedColors?: boolean; hiDpi?: boolean; reducedMotion?: boolean } = {},
 ): HTMLStyleElement {
   const source = ["macos-tokens.css", "macos-motion.css", "global.css"]
     .map((file) => readFileSync(resolve(
@@ -1068,7 +1151,22 @@ function installAppearancePreferenceCss(
   );
   const style = document.createElement("style");
   style.dataset["testOwner"] = "appearance-preferences";
-  style.textContent = source
+  const activeMedia = [
+    media.hiDpi
+      ? scopeMediaRules(extractMediaBody(source, "min-resolution:2dppx"), "data-test-hi-dpi")
+      : "",
+    media.forcedColors
+      ? scopeMediaRules(
+          extractMediaBody(source, "forced-colors: active")
+            .split(/(?<=})/)
+            .filter((rule) => rule.includes("macos-switch-owner"))
+            .join("\n"),
+          "data-test-forced-colors",
+        )
+      : "",
+  ].join("\n");
+  style.textContent = `${source}
+${activeMedia}`
     .replace(
       /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*([^{}]+\{[^{}]*\})\s*\}/g,
       (_match, rule: string) => media.reducedMotion
@@ -1079,4 +1177,35 @@ function installAppearancePreferenceCss(
     .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
   return style;
+}
+
+function extractMediaBody(source: string, query: string): string {
+  const marker = `@media (${query})`;
+  const markerIndex = source.indexOf(marker);
+  if (markerIndex < 0) {
+    return "";
+  }
+  const openIndex = source.indexOf("{", markerIndex);
+  let depth = 1;
+  for (let index = openIndex + 1; index < source.length; index += 1) {
+    if (source[index] === "{") {
+      depth += 1;
+    } else if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(openIndex + 1, index);
+      }
+    }
+  }
+  return "";
+}
+
+function scopeMediaRules(body: string, attribute: string): string {
+  return body.replace(/([^{}]+)\{([^{}]*)\}/g, (_rule, selectorList: string, declarations: string) => {
+    const selectors = selectorList
+      .split(/,\s*(?=\.)/)
+      .map((selector) => `:root[${attribute}="true"] ${selector.trim()}`)
+      .join(",\n");
+    return `${selectors} {${declarations}}`;
+  });
 }

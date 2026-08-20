@@ -390,15 +390,14 @@ button {
 .macos-preference-group > .settings-group__items > bit-item > bit-item-action { margin:0; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
 .macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap); }
 .macos-preference-group > .settings-group__items > bit-item:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
-.macos-preference-row { display:grid; grid-template-columns:minmax(0,1fr) auto; min-height:var(--mac-row-single); align-items:center; gap:12px; padding-inline:12px; border:0; border-radius:0; background:var(--mac-surface-solid); box-shadow:none; }
+.macos-preference-row { display:grid; grid-template-columns:minmax(0,1fr) auto; height:auto; min-height:var(--mac-row-single); overflow:visible; align-items:center; gap:12px; padding-inline:12px; border:0; border-radius:0; background:var(--mac-surface-solid); box-shadow:none; }
 .macos-preference-group > .macos-preference-row:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
 bit-form-field.macos-preference-row { margin:0; }
 bit-form-field.macos-preference-row > div { display:grid; grid-template-columns:minmax(0,1fr) 160px; width:100%; min-width:0; align-items:center; gap:12px; }
 bit-form-field.macos-preference-row > div > :is(label, div) { min-width:0; }
-.macos-preference-row > bit-select.macos-control-visible { width:160px; }
-.macos-preference-row > bit-select.macos-control-visible > ng-select,
-.macos-preference-row > bit-select.macos-control-visible > ng-select > .ng-select-container { height:100%; min-height:100%; }
-.macos-preference-row__copy { min-width:0; padding-block:7px; white-space:normal; overflow-wrap:anywhere; }
+bit-form-field.macos-preference-row bit-select.macos-control-visible { width:160px; }
+bit-form-field.macos-preference-row bit-select.macos-control-visible :is(ng-select, ng-select > .ng-select-container) { height:var(--mac-control-visible); min-height:var(--mac-control-visible); }
+.macos-preference-row__copy { min-width:0; overflow:visible; padding-block:7px; white-space:normal; overflow-wrap:anywhere; }
 .macos-preference-row__copy > :first-child { font-size:14px; line-height:18px; font-weight:600; }
 .macos-preference-row__copy > :not(:first-child) { margin-top:2px; color:var(--mac-text-secondary); font-size:12px; line-height:16px; }
 .macos-preference-row__value { min-width:0; margin-inline-start:auto; justify-self:end; color:var(--mac-text-secondary); text-align:end; overflow-wrap:anywhere; }
@@ -410,6 +409,7 @@ bit-form-field.macos-preference-row > div > :is(label, div) { min-width:0; }
 .macos-switch-owner:focus-visible { outline-width:0; outline-style:none; }
 .macos-switch-owner:focus-visible > span { outline-width:2px; outline-style:solid; outline-color:var(--mac-focus); outline-offset:2px; }
 :root[data-bw-compact-mode="true"] .macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap-compact); }
+:root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible :is(ng-select, ng-select > .ng-select-container) { height:var(--mac-control-visible-compact); min-height:var(--mac-control-visible-compact); }
 @media (min-resolution:2dppx) {
   .macos-preference-group > .settings-group__items > bit-item:not(:last-child),
   .macos-preference-group > .macos-preference-row:not(:last-child) { border-bottom-width:.5px; }
@@ -3407,6 +3407,30 @@ bit-form-control > label :is(input, select, textarea):focus-visible,
 }
 
 @media (forced-colors: active) {
+  .macos-switch-owner > span {
+    border-color: CanvasText;
+    background: Canvas;
+    forced-color-adjust: none;
+  }
+
+  .macos-switch-owner > span::after {
+    background: CanvasText;
+    box-shadow: none;
+  }
+
+  .macos-switch-owner[aria-checked="true"] > span {
+    border-color: Highlight;
+    background: Highlight;
+  }
+
+  .macos-switch-owner[aria-checked="true"] > span::after {
+    background: HighlightText;
+  }
+
+  .macos-switch-owner:focus-visible > span {
+    outline-color: Highlight;
+  }
+
   .macos-auth-card,
   .macos-field :is(input, select, textarea) {
     border-color: CanvasText;

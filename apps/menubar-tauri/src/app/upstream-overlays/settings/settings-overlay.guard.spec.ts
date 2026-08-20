@@ -185,13 +185,32 @@ describe("guarded official Settings source", () => {
       "/archive",
       "/trash",
     ]);
-    expect(formControls(read(`${overlayRoot}/generated/apps/browser/src/vault/popup/settings/appearance.component.html`))).toEqual([
+    const appearanceTemplate = read(
+      `${overlayRoot}/generated/apps/browser/src/vault/popup/settings/appearance.component.html`,
+    );
+    expect(formControls(appearanceTemplate)).toEqual([
       "theme",
       "enableCompactMode",
       "enableAnimations",
       "enableFavicon",
       "showQuickCopyActions",
     ]);
+    const expectedSwitchBindings = [
+      { setting: "compactMode", read: "enableCompactMode", write: "enableCompactMode", toggled: "enableCompactMode" },
+      { setting: "animations", read: "enableAnimations", write: "enableAnimations", toggled: "enableAnimations" },
+      { setting: "showFavicons", read: "enableFavicon", write: "enableFavicon", toggled: "enableFavicon" },
+      { setting: "showQuickCopyActions", read: "showQuickCopyActions", write: "showQuickCopyActions", toggled: "showQuickCopyActions" },
+    ];
+    expect(appearanceSwitchBindings(appearanceTemplate)).toEqual(expectedSwitchBindings);
+    const appearanceSourcePatch = read(
+      `${overlayRoot}/source-patches/apps__browser__src__vault__popup__settings__appearance.component.html.patch`,
+    );
+    const addedAppearanceSource = appearanceSourcePatch
+      .split("\n")
+      .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
+      .map((line) => line.slice(1))
+      .join("\n");
+    expect(appearanceSwitchBindings(addedAppearanceSource)).toEqual(expectedSwitchBindings);
     expect(
       classMethods(read(`${overlayRoot}/generated/apps/browser/src/vault/popup/settings/appearance.component.ts`)),
     ).toEqual([
@@ -209,6 +228,26 @@ describe("guarded official Settings source", () => {
     expect(() =>
       read(`${overlayRoot}/upstream-edge-types/apps/browser/src/platform/popup/layout/popup-size.service.d.ts`),
     ).toThrow();
+  });
+
+  it("rejects cross-wired appearance switch reads and writes even when the inventory is unchanged", () => {
+    const template = read(
+      `${overlayRoot}/generated/apps/browser/src/vault/popup/settings/appearance.component.html`,
+    );
+    const crossWiredRead = template.replace(
+      '[attr.aria-checked]="appearanceForm.controls.enableCompactMode.value"',
+      '[attr.aria-checked]="appearanceForm.controls.enableAnimations.value"',
+    );
+    const crossWiredWrite = template.replace(
+      '(click)="appearanceForm.controls.enableCompactMode.setValue(!appearanceForm.controls.enableCompactMode.value)"',
+      '(click)="appearanceForm.controls.enableAnimations.setValue(!appearanceForm.controls.enableAnimations.value)"',
+    );
+
+    expect(crossWiredRead).not.toBe(template);
+    expect(crossWiredWrite).not.toBe(template);
+    const expected = appearanceSwitchBindings(template);
+    expect(appearanceSwitchBindings(crossWiredRead)).not.toEqual(expected);
+    expect(appearanceSwitchBindings(crossWiredWrite)).not.toEqual(expected);
   });
 
   it("rejects retained source and excluded template mutations with the transform contract", () => {
@@ -457,6 +496,27 @@ function formControls(template: string): string[] {
       /formControlName="([^"]+)"|appearanceForm\.controls\.([A-Za-z][A-Za-z0-9]*)/g,
     )].map(([, namedControl, referencedControl]) => namedControl ?? referencedControl),
   )];
+}
+
+function appearanceSwitchBindings(template: string): Array<{
+  setting: string;
+  read: string | undefined;
+  write: string | undefined;
+  toggled: string | undefined;
+}> {
+  return [...template.matchAll(/<button\b[\s\S]*?data-setting="([^"]+)"[\s\S]*?<\/button>/g)]
+    .map(([button, setting]) => {
+      const read = button.match(
+        /\[attr\.aria-checked\]="appearanceForm\.controls\.([A-Za-z][A-Za-z0-9]*)\.value"/,
+      )?.[1];
+      const write = button.match(
+        /\(click\)="appearanceForm\.controls\.([A-Za-z][A-Za-z0-9]*)\.setValue/,
+      )?.[1];
+      const toggled = button.match(
+        /\.setValue\(!appearanceForm\.controls\.([A-Za-z][A-Za-z0-9]*)\.value\)"/,
+      )?.[1];
+      return { setting, read, write, toggled };
+    });
 }
 
 function classMethods(source: string): string[] {
