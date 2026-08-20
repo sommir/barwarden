@@ -97,6 +97,15 @@ const hostileGeneratorDefaultsCss = `
     outline-style: solid !important;
     outline-width: 3px !important;
   }
+  .macos-generator__settings [data-generator-test-text-scale="control"] {
+    height: 40px;
+    overflow: hidden;
+    line-height: 40px;
+  }
+  .macos-generator__settings [data-generator-test-text-scale="row"] {
+    overflow: hidden;
+    flex-wrap: nowrap;
+  }
   @keyframes generator-hostile-motion {
     from { opacity: 0.99; }
     to { opacity: 1; }
@@ -538,6 +547,8 @@ describe("iOS 27 Generator visual contract", () => {
     const passwordFieldLabels = Array.from(passwordFieldOwners, (owner) =>
       owner.querySelector<HTMLLabelElement>(":scope > div > label")!,
     );
+    const characterRow = characterOwners[0]!.parentElement!;
+    const dualFieldRow = passwordFieldOwners[1]!.parentElement!;
 
     expect.soft(getComputedStyle(settings).display).toBe("grid");
     expect.soft(getComputedStyle(settings).gap).toBe("12px");
@@ -549,10 +560,14 @@ describe("iOS 27 Generator visual contract", () => {
     expect(passwordInputs).toHaveLength(passwordFieldOwners.length);
     expect.soft(Array.from(passwordFieldOwners, computedHitHeight).every((height) => height >= 44))
       .toBe(true);
-    expect.soft(Array.from(passwordPaintedControls, (control) => getComputedStyle(control).height))
-      .toEqual(Array.from(passwordPaintedControls, () => "40px"));
-    expect.soft(passwordInputs.map((input) => getComputedStyle(input).height))
-      .toEqual(passwordInputs.map(() => "40px"));
+    expect.soft(Array.from(passwordPaintedControls, (control) => ({
+      height: getComputedStyle(control).height,
+      minHeight: getComputedStyle(control).minHeight,
+    }))).toEqual(Array.from(passwordPaintedControls, () => ({ height: "auto", minHeight: "40px" })));
+    expect.soft(passwordInputs.map((input) => ({
+      height: getComputedStyle(input).height,
+      minHeight: getComputedStyle(input).minHeight,
+    }))).toEqual(passwordInputs.map(() => ({ height: "auto", minHeight: "40px" })));
 
     expect(characterChoices).not.toContain(null);
     expect(characterOwners).not.toContain(null);
@@ -566,6 +581,8 @@ describe("iOS 27 Generator visual contract", () => {
       .toBe(true);
     expect.soft(characterChoices.map(computedHitHeight).every((height) => height <= 24)).toBe(true);
     expect.soft(characterLabels.map(computedHitHeight)).toEqual([44, 44, 44, 44]);
+    expect.soft(characterRow.querySelectorAll(":scope > bit-form-control")).toHaveLength(4);
+    expect.soft(dualFieldRow.querySelectorAll(":scope > bit-form-field")).toHaveLength(2);
     characterLabels[3]!.click();
     fixture.changeDetectorRef.detectChanges();
     expect.soft(characterChoices.map((choice) => choice.checked)).toEqual([true, true, true, true]);
@@ -593,8 +610,55 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(cssPixels(getComputedStyle(uppercase).outlineWidth)).toBe(0);
     setGeneratorInteraction(uppercase, null);
 
+    for (const target of [...passwordPaintedControls, ...passwordInputs]) {
+      target.setAttribute("data-generator-test-text-scale", "control");
+    }
+    characterRow.setAttribute("data-generator-test-text-scale", "row");
+    dualFieldRow.setAttribute("data-generator-test-text-scale", "row");
     document.documentElement.style.fontSize = "200%";
     expect.soft(getComputedStyle(settings).overflow).toBe("visible");
+    expect.soft(Array.from(passwordPaintedControls, (control) => ({
+      height: getComputedStyle(control).height,
+      minHeight: getComputedStyle(control).minHeight,
+      lineHeight: getComputedStyle(control).lineHeight,
+      overflow: getComputedStyle(control).overflow,
+    }))).toEqual(Array.from(passwordPaintedControls, () => ({
+      height: "auto",
+      minHeight: "40px",
+      lineHeight: "40px",
+      overflow: "visible",
+    })));
+    expect.soft(passwordInputs.map((input) => ({
+      height: getComputedStyle(input).height,
+      minHeight: getComputedStyle(input).minHeight,
+      lineHeight: getComputedStyle(input).lineHeight,
+      minWidth: getComputedStyle(input).minWidth,
+      maxWidth: getComputedStyle(input).maxWidth,
+      width: getComputedStyle(input).width,
+    }))).toEqual(passwordInputs.map(() => ({
+      height: "auto",
+      minHeight: "40px",
+      lineHeight: "40px",
+      minWidth: "0px",
+      maxWidth: "100%",
+      width: "100%",
+    })));
+    expect.soft(Array.from(passwordFieldOwners, (owner) => ({
+      minWidth: getComputedStyle(owner).minWidth,
+      maxWidth: getComputedStyle(owner).maxWidth,
+      overflow: getComputedStyle(owner).overflow,
+    }))).toEqual(Array.from(passwordFieldOwners, () => ({
+      minWidth: "0px",
+      maxWidth: "100%",
+      overflow: "visible",
+    })));
+    expect.soft([characterRow, dualFieldRow].map((row) => ({
+      flexWrap: getComputedStyle(row).flexWrap,
+      overflow: getComputedStyle(row).overflow,
+    }))).toEqual([
+      { flexWrap: "wrap", overflow: "visible" },
+      { flexWrap: "wrap", overflow: "visible" },
+    ]);
     expect.soft(characterLabels.map((label) => getComputedStyle(label).whiteSpace))
       .toEqual(characterLabels.map(() => "normal"));
     expect.soft(characterLabels.map((label) => getComputedStyle(label).overflow))
@@ -605,7 +669,6 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual(passwordFieldLabels.map(() => "visible"));
     expect.soft(Array.from(passwordFieldOwners, computedHitHeight).every((height) => height >= 44))
       .toBe(true);
-    document.documentElement.style.removeProperty("font-size");
 
     const normalFieldBorder = getComputedStyle(lengthControl).borderColor;
     document.documentElement.setAttribute("data-generator-test-media", "reduced-motion");
@@ -628,11 +691,31 @@ describe("iOS 27 Generator visual contract", () => {
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect.soft(Array.from(passwordFieldOwners, computedHitHeight).every((height) => height >= 44))
       .toBe(true);
-    expect.soft(Array.from(passwordPaintedControls, (control) => getComputedStyle(control).height))
-      .toEqual(Array.from(passwordPaintedControls, () => "36px"));
-    expect.soft(passwordInputs.map((input) => getComputedStyle(input).height))
-      .toEqual(passwordInputs.map(() => "36px"));
+    expect.soft(Array.from(passwordPaintedControls, (control) => ({
+      height: getComputedStyle(control).height,
+      minHeight: getComputedStyle(control).minHeight,
+      overflow: getComputedStyle(control).overflow,
+    }))).toEqual(Array.from(passwordPaintedControls, () => ({
+      height: "auto",
+      minHeight: "36px",
+      overflow: "visible",
+    })));
+    expect.soft(passwordInputs.map((input) => ({
+      height: getComputedStyle(input).height,
+      minHeight: getComputedStyle(input).minHeight,
+      minWidth: getComputedStyle(input).minWidth,
+      maxWidth: getComputedStyle(input).maxWidth,
+      width: getComputedStyle(input).width,
+    }))).toEqual(passwordInputs.map(() => ({
+      height: "auto",
+      minHeight: "36px",
+      minWidth: "0px",
+      maxWidth: "100%",
+      width: "100%",
+    })));
     expect.soft(characterLabels.map(computedHitHeight)).toEqual([44, 44, 44, 44]);
+    expect.soft([characterRow, dualFieldRow].map((row) => getComputedStyle(row).flexWrap))
+      .toEqual(["wrap", "wrap"]);
 
     modeLabels[1]!.click();
     fixture.changeDetectorRef.detectChanges();
@@ -647,16 +730,37 @@ describe("iOS 27 Generator visual contract", () => {
     const passphraseInputs = Array.from(passphrasePaintedControls, (control) =>
       control.querySelector<HTMLInputElement>('input:not([type="checkbox"])')!,
     );
+    for (const target of [...passphrasePaintedControls, ...passphraseInputs]) {
+      target.setAttribute("data-generator-test-text-scale", "control");
+    }
     const passphraseCheckboxLabels = Array.from(
       settings.querySelectorAll<HTMLElement>("tools-passphrase-settings bit-form-control > label"),
     );
     expect(passphraseFieldOwners.length).toBeGreaterThanOrEqual(2);
     expect.soft(Array.from(passphraseFieldOwners, computedHitHeight).every((height) => height >= 44))
       .toBe(true);
-    expect.soft(Array.from(passphrasePaintedControls, (control) => getComputedStyle(control).height))
-      .toEqual(Array.from(passphrasePaintedControls, () => "36px"));
-    expect.soft(passphraseInputs.map((input) => getComputedStyle(input).height))
-      .toEqual(passphraseInputs.map(() => "36px"));
+    expect.soft(Array.from(passphrasePaintedControls, (control) => ({
+      height: getComputedStyle(control).height,
+      minHeight: getComputedStyle(control).minHeight,
+      overflow: getComputedStyle(control).overflow,
+    }))).toEqual(Array.from(passphrasePaintedControls, () => ({
+      height: "auto",
+      minHeight: "36px",
+      overflow: "visible",
+    })));
+    expect.soft(passphraseInputs.map((input) => ({
+      height: getComputedStyle(input).height,
+      minHeight: getComputedStyle(input).minHeight,
+      minWidth: getComputedStyle(input).minWidth,
+      maxWidth: getComputedStyle(input).maxWidth,
+      width: getComputedStyle(input).width,
+    }))).toEqual(passphraseInputs.map(() => ({
+      height: "auto",
+      minHeight: "36px",
+      minWidth: "0px",
+      maxWidth: "100%",
+      width: "100%",
+    })));
     expect.soft(passphraseCheckboxLabels.map(computedHitHeight).every((height) => height >= 44))
       .toBe(true);
 
@@ -680,13 +784,29 @@ describe("iOS 27 Generator visual contract", () => {
     expect(usernameFieldOwner).not.toBeNull();
     expect(usernamePaintedControl).not.toBeNull();
     expect(usernameSelect).not.toBeNull();
+    for (const target of [
+      usernamePaintedControl,
+      usernameSelect,
+      usernameNgSelect,
+      usernameSelectContainer,
+    ]) {
+      target!.setAttribute("data-generator-test-text-scale", "control");
+    }
     expect.soft(computedHitHeight(usernameFieldOwner)).toBeGreaterThanOrEqual(44);
     expect.soft([
       usernamePaintedControl,
       usernameSelect,
       usernameNgSelect,
       usernameSelectContainer,
-    ].map((control) => getComputedStyle(control!).height)).toEqual(["36px", "36px", "36px", "36px"]);
+    ].map((control) => ({
+      height: getComputedStyle(control!).height,
+      minHeight: getComputedStyle(control!).minHeight,
+      overflow: getComputedStyle(control!).overflow,
+    }))).toEqual(Array.from({ length: 4 }, () => ({
+      height: "auto",
+      minHeight: "36px",
+      overflow: "visible",
+    })));
     const usernameCheckboxLabels = settings.querySelectorAll<HTMLElement>(
       "tools-username-settings bit-form-control > label",
     );
@@ -694,12 +814,16 @@ describe("iOS 27 Generator visual contract", () => {
       .toBe(true);
 
     document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.style.removeProperty("font-size");
     expect.soft([
       usernamePaintedControl,
       usernameSelect,
       usernameNgSelect,
       usernameSelectContainer,
-    ].map((control) => getComputedStyle(control!).height)).toEqual(["40px", "40px", "40px", "40px"]);
+    ].map((control) => ({
+      height: getComputedStyle(control!).height,
+      minHeight: getComputedStyle(control!).minHeight,
+    }))).toEqual(Array.from({ length: 4 }, () => ({ height: "auto", minHeight: "40px" })));
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");

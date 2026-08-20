@@ -3470,6 +3470,8 @@ auth-account .macos-account-label {
 
 .macos-page--generator .macos-generator__settings bit-form-field {
   min-height: var(--mac-hit-size);
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   overflow: visible;
 }
@@ -3498,9 +3500,27 @@ auth-account .macos-account-label {
   ng-select
   > .ng-select-container {
   box-sizing: border-box;
-  height: var(--mac-control-visible);
+  width: 100%;
+  height: auto;
   min-height: var(--mac-control-visible);
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
   border-radius: var(--mac-control-radius);
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  tools-password-settings
+  :is(div):has(> bit-form-control),
+.macos-page--generator
+  .macos-generator__settings
+  tools-password-settings
+  :is(div):has(> bit-form-field + bit-form-field) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  flex-wrap: wrap;
 }
 
 .macos-page--generator .macos-generator__settings bit-form-control {
@@ -3584,7 +3604,6 @@ auth-account .macos-account-label {
   bit-select.macos-control-visible
   ng-select
   > .ng-select-container {
-  height: var(--mac-control-visible-compact);
   min-height: var(--mac-control-visible-compact);
 }
 
