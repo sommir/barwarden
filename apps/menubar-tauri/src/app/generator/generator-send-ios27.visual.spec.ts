@@ -580,6 +580,65 @@ describe("iOS 27 Generator visual contract", () => {
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    modePaintLayers[0]!.textContent = "Password";
+    modePaintLayers[1]!.textContent = "Passphrase";
+    modePaintLayers[2]!.textContent = "Username";
+    expect.soft(Array.from(modeLabels, (label) => ({
+      paddingTop: getComputedStyle(label).paddingTop,
+      paddingBottom: getComputedStyle(label).paddingBottom,
+    }))).toEqual(Array.from(modeLabels, () => ({ paddingTop: "4px", paddingBottom: "4px" })));
+    expect.soft(modeledStretchedModeHeights(
+      modeGroup,
+      modeToggles,
+      modeRadios,
+      modeLabels,
+      modePaintLayers,
+    )).toEqual({
+      intrinsic: [44, 44, 44],
+      toggleOwners: [44, 44, 44],
+      radioOwners: [44, 44, 44],
+      labelOwners: [44, 44, 44],
+      paintedLayers: [36, 36, 36],
+    });
+
+    modePaintLayers[1]!.replaceChildren(
+      document.createTextNode("Long localized"),
+      document.createElement("br"),
+      document.createTextNode("passphrase mode"),
+      document.createElement("br"),
+      document.createTextNode("description"),
+    );
+    document.documentElement.style.fontSize = "200%";
+    const compactScaledMode = modeledStretchedModeHeights(
+      modeGroup,
+      modeToggles,
+      modeRadios,
+      modeLabels,
+      modePaintLayers,
+    );
+    expect.soft(compactScaledMode).toEqual({
+      intrinsic: [48, 128, 48],
+      toggleOwners: [128, 128, 128],
+      radioOwners: [128, 128, 128],
+      labelOwners: [128, 128, 128],
+      paintedLayers: [120, 120, 120],
+    });
+    expect.soft(compactScaledMode.labelOwners.map((owner, index) =>
+      owner - compactScaledMode.paintedLayers[index]!
+    )).toEqual([8, 8, 8]);
+    expect.soft(Array.from(modePaintLayers, (layer) => ({
+      overflow: getComputedStyle(layer).overflow,
+      whiteSpace: getComputedStyle(layer).whiteSpace,
+      textOverflow: getComputedStyle(layer).textOverflow,
+      maxHeight: getComputedStyle(layer).maxHeight,
+    }))).toEqual(Array.from(modePaintLayers, () => ({
+      overflow: "visible",
+      whiteSpace: "normal",
+      textOverflow: "clip",
+      maxHeight: "none",
+    })));
+    document.documentElement.style.removeProperty("font-size");
+    modePaintLayers[1]!.textContent = "Passphrase";
     expect.soft(getComputedStyle(copy).minWidth).toBe("44px");
     expect.soft(getComputedStyle(regenerate).minWidth).toBe("44px");
     expect.soft(getComputedStyle(copyGlyph).width).toBe("28px");

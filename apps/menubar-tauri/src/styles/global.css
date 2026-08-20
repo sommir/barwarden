@@ -3435,6 +3435,11 @@ auth-account .macos-account-label {
 }
 
 :root[data-bw-compact-mode="true"]
+  .macos-generator__mode bit-toggle > label {
+  padding: 4px 0 !important;
+}
+
+:root[data-bw-compact-mode="true"]
   .macos-generator__mode bit-toggle > label > span:first-child {
   min-height: var(--mac-control-visible-compact);
 }

@@ -82,3 +82,24 @@ No synthetic `ng-content` shell was used to obtain the History evidence. The con
 - Clean snapshot `npm run typecheck:official-generator` passed at pinned upstream source `f47b6946e01aed474875789081966d311d5b8289`, including its 1,129-module embedded build.
 - Separate clean snapshot `npm run build:web` passed with 1,129 modules and repository-baselined warnings only.
 - The staged allowlist contains only this report, the mounted visual regression, and exact Generator hunks from `global.css`; unrelated Auth CSS, i18n, AutoFill, and every other user-owned dirty file remain unstaged.
+
+## Whole-plan final fix wave 3
+
+### RED
+
+- The final narrow review found that a compact mode label owner remained 44px with only 2px top and bottom padding. Because the painted span stretches inside the label, its actual compact painted height was 40px and the 36px compact minimum never took effect.
+- The real mounted model was extended before production changes and failed with four expected soft assertions:
+  - compact 100% labels computed 2px/2px padding and `[40, 40, 40]` painted heights instead of 4px/4px and `[36, 36, 36]`;
+  - compact 200% unequal one-line / three-line / one-line labels produced common 124px owners with 120px plates, leaving only 4px total inset;
+  - the required compact result is common 128px owners, common 120px plates, and exactly 8px owner-minus-plate inset.
+- Removing the compact padding rule returns all four failures, so the mounted regression is mutation-sensitive to this exact defect.
+
+### GREEN
+
+- Added one compact-only scoped declaration: real mode labels use 4px vertical padding in compact mode. Normal mode remains 2px per side.
+- Compact 100% now measures three equal 44px owners with three equal 36px painted layers.
+- Compact 200% lets the longest label drive three equal 128px owners and three equal 120px painted layers. Every owner remains exactly 8px taller than its plate, and all wrapping/no-clipping contracts remain intact.
+- Strict selected GREEN: 1/1 passed. Fresh focused mounted GREEN: 3 files, 46/46 tests passed.
+- Full Generator main-worktree run: 161/162 passed; the sole failure remains the user-dirty `official-i18n.service.ts` closure hash, and all behavior/visual suites passed.
+- Clean HEAD-plus-staged-delta guard: 17/17 passed. The updater ran twice before verification and once after both builds with zero diff and manifest SHA-256 `9607cbe0fad94db80b324feb8deb9aa042ffbd596fac1516d7fdb9e038590287`.
+- Clean `npm run typecheck:official-generator` passed at upstream pin `f47b6946e01aed474875789081966d311d5b8289`, including its 1,129-module embedded build. A separate clean `npm run build:web` also passed with 1,129 modules and repository-baselined warnings only.
