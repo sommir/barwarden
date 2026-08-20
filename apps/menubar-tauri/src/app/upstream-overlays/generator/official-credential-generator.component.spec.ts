@@ -70,9 +70,13 @@ describe("OfficialCredentialGeneratorComponent", () => {
     const result = host.querySelector<HTMLElement>(".macos-generator__result")!;
     const mode = host.querySelector<HTMLElement>(".macos-generator__mode")!;
     const settings = host.querySelector<HTMLElement>(".macos-generator__settings")!;
+    const layout = host.querySelector<HTMLElement>(
+      'popup-page.macos-generator[data-generator-layout="result-first"]',
+    );
     const copy = host.querySelector<HTMLButtonElement>('[data-testid="generator-copy"]')!;
     const regenerate = host.querySelector<HTMLButtonElement>('[data-testid="generator-regenerate"]')!;
 
+    expect(layout).not.toBeNull();
     expect(result.compareDocumentPosition(mode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(mode.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(result.getAttribute("aria-labelledby")).toBe("generator-result-title");

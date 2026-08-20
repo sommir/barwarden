@@ -3151,6 +3151,7 @@ auth-account .macos-account-label {
 
 .macos-generator__result {
   display: grid;
+  height: auto;
   min-height: 68px;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -3160,12 +3161,17 @@ auth-account .macos-account-label {
   border-bottom: 1px solid var(--mac-border-subtle);
   border-radius: 0;
   padding: 8px 0 12px;
+  overflow: visible;
   background: transparent;
   box-shadow: none;
 }
 
 .macos-generator__value {
   min-width: 0;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
   overflow-wrap: anywhere;
 }
 
@@ -3182,11 +3188,21 @@ auth-account .macos-account-label {
   padding: 6px;
   background: transparent;
   box-shadow: none;
+  outline: 0 !important;
 }
 
-.macos-generator__result-actions button:is(:hover, :active, :focus-visible, [aria-expanded="true"]) {
+.macos-generator__result-actions button:is(
+  :hover,
+  :active,
+  :focus,
+  :focus-visible,
+  :disabled,
+  [aria-expanded="true"]
+) {
   border-color: transparent !important;
   background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
 }
 
 .macos-generator__result-actions button > .bwi,
@@ -3196,7 +3212,8 @@ auth-account .macos-account-label {
   height: var(--mac-icon-plate);
   place-items: center;
   border-radius: var(--mac-control-radius);
-  outline: 0;
+  outline-style: none;
+  outline-width: 0;
 }
 
 .macos-generator__result-actions button[buttontype="primary"] > .bwi,
@@ -3205,21 +3222,46 @@ auth-account .macos-account-label {
   color: white;
 }
 
+.macos-generator__result-actions button[buttontype="primary"]:hover > .bwi,
+.macos-generator__result-actions button[buttontype="primary"]:hover > span > .bwi {
+  background: #075be6;
+  background: color-mix(in srgb, var(--mac-accent) 88%, black);
+}
+
+.macos-generator__result-actions button[buttontype="primary"]:active > .bwi,
+.macos-generator__result-actions button[buttontype="primary"]:active > span > .bwi {
+  background: #064bbd;
+  background: color-mix(in srgb, var(--mac-accent) 74%, black);
+}
+
+.macos-generator__result-actions button[buttontype="primary"]:disabled > .bwi,
+.macos-generator__result-actions button[buttontype="primary"]:disabled > span > .bwi {
+  background: var(--mac-disabled);
+  color: Canvas;
+}
+
 .macos-generator__result-actions button[buttontype="primaryGhost"] > .bwi,
 .macos-generator__result-actions button[buttontype="primaryGhost"] > span > .bwi {
   background: transparent;
   color: var(--mac-text-primary);
 }
 
-.macos-generator__result-actions button[buttontype="primaryGhost"]:is(:hover, :active) > .bwi,
-.macos-generator__result-actions button[buttontype="primaryGhost"]:is(:hover, :active) > span > .bwi {
+.macos-generator__result-actions button[buttontype="primaryGhost"]:hover > .bwi,
+.macos-generator__result-actions button[buttontype="primaryGhost"]:hover > span > .bwi {
   background: var(--mac-hover);
 }
 
-.macos-generator__result-actions button:focus-visible {
-  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
+.macos-generator__result-actions button[buttontype="primaryGhost"]:active > .bwi,
+.macos-generator__result-actions button[buttontype="primaryGhost"]:active > span > .bwi {
+  background: var(--mac-pressed);
+}
+
+.macos-generator__result-actions button:focus-visible > .bwi,
+.macos-generator__result-actions button:focus-visible > span > .bwi {
+  outline-color: var(--mac-focus);
+  outline-style: solid;
+  outline-width: var(--mac-focus-ring-width);
   outline-offset: 2px;
-  box-shadow: none !important;
 }
 
 .macos-generator__mode {
@@ -3236,8 +3278,63 @@ auth-account .macos-account-label {
 
 .macos-generator__mode bit-toggle,
 .macos-generator__mode bit-toggle > :is(input[type="radio"], label) {
+  height: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-generator__mode bit-toggle {
+  position: relative;
+}
+
+.macos-generator__mode bit-toggle > :is(input[type="radio"], label) {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.macos-generator__mode bit-toggle > label {
+  padding: 2px 0 !important;
+}
+
+.macos-generator__mode bit-toggle > label > span:first-child {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
   height: var(--mac-control-visible);
   min-height: var(--mac-control-visible);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--mac-accent);
+  padding-inline: 12px;
+  background: transparent;
+  color: var(--mac-accent);
+  outline-style: none;
+  outline-width: 0;
+}
+
+.macos-generator__mode bit-toggle:not(:first-of-type) > label > span:first-child {
+  border-inline-start-width: 0;
+}
+
+.macos-generator__mode bit-toggle:first-of-type > label > span:first-child {
+  border-start-start-radius: 999px;
+  border-end-start-radius: 999px;
+}
+
+.macos-generator__mode bit-toggle:last-of-type > label > span:first-child {
+  border-start-end-radius: 999px;
+  border-end-end-radius: 999px;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:checked + label > span:first-child {
+  border-color: var(--mac-accent);
+  background: var(--mac-accent);
+  color: white;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:not(:checked) + label:hover > span:first-child {
+  background: var(--mac-hover);
 }
 
 .macos-generator__mode bit-toggle > input[type="radio"]:focus-visible {
@@ -3246,9 +3343,15 @@ auth-account .macos-account-label {
 }
 
 .macos-generator__mode bit-toggle > input[type="radio"]:focus-visible + label {
-  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
-  outline-offset: 2px;
+  outline: 0 !important;
   box-shadow: none !important;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:focus-visible + label > span:first-child {
+  outline-color: var(--mac-focus);
+  outline-style: solid;
+  outline-width: var(--mac-focus-ring-width);
+  outline-offset: 2px;
 }
 
 :root[data-bw-compact-mode="true"] .macos-generator__result-actions button > .bwi,
@@ -3257,9 +3360,8 @@ auth-account .macos-account-label {
   height: var(--mac-icon-plate-compact);
 }
 
-:root[data-bw-compact-mode="true"] .macos-generator__mode bit-toggle,
 :root[data-bw-compact-mode="true"]
-  .macos-generator__mode bit-toggle > :is(input[type="radio"], label) {
+  .macos-generator__mode bit-toggle > label > span:first-child {
   height: var(--mac-control-visible-compact);
   min-height: var(--mac-control-visible-compact);
 }
@@ -3268,7 +3370,9 @@ auth-account .macos-account-label {
   .macos-generator__result-actions button,
   .macos-generator__result-actions button > .bwi,
   .macos-generator__result-actions button > span > .bwi,
-  .macos-generator__mode bit-toggle {
+  .macos-generator__mode bit-toggle,
+  .macos-generator__mode bit-toggle > :is(input[type="radio"], label),
+  .macos-generator__mode bit-toggle > label > span:first-child {
     animation: none !important;
     transition: none !important;
     transform: none !important;
@@ -3294,8 +3398,23 @@ auth-account .macos-account-label {
     forced-color-adjust: none;
   }
 
-  .macos-generator__result-actions button:focus-visible,
-  .macos-generator__mode bit-toggle > input[type="radio"]:focus-visible + label {
+  .macos-generator__mode bit-toggle > label > span:first-child {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__mode bit-toggle > input[type="radio"]:checked + label > span:first-child {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__result-actions button:focus-visible > .bwi,
+  .macos-generator__result-actions button:focus-visible > span > .bwi,
+  .macos-generator__mode bit-toggle > input[type="radio"]:focus-visible + label > span:first-child {
     outline-color: Highlight !important;
   }
 }

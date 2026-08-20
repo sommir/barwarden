@@ -684,7 +684,8 @@ export const generatorTemplateContracts = [
     transforms: [
       {
         search: "<popup-page>",
-        replacement: '<popup-page class="macos-generator">',
+        replacement:
+          '<popup-page class="macos-generator" data-generator-layout="result-first">',
       },
       {
         search: "      <app-pop-out />\n      <app-current-account />",

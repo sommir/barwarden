@@ -67,9 +67,32 @@ const officialUtilityHitTargetCss = `
   .tw-border-y { border-top-width: 1px; border-bottom-width: 1px; }
 `;
 
+const hostileGeneratorDefaultsCss = `
+  .macos-generator__result {
+    height: 68px;
+    overflow: hidden;
+  }
+  .macos-generator__value {
+    max-height: 32px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .macos-generator__result-actions button .bwi,
+  .macos-generator__mode bit-toggle > label > span:first-child {
+    animation: generator-hostile-motion 1s infinite;
+    transition: background-color 1s linear;
+    transform: scale(1.1);
+  }
+  @keyframes generator-hostile-motion {
+    from { opacity: 0.99; }
+    to { opacity: 1; }
+  }
+`;
+
 beforeAll(() => {
   style = document.createElement("style");
-  style.textContent = ["macos-tokens.css", "global.css"]
+  style.textContent = hostileGeneratorDefaultsCss + ["macos-tokens.css", "global.css"]
     .map((filename) => readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
       "utf8",
@@ -83,11 +106,14 @@ beforeAll(() => {
     resolveCustomProperty(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
       || value,
   );
+  style.textContent += projectGeneratorInteractionAndMediaRules(style.sheet!);
 });
 
 afterAll(() => {
   style.remove();
   document.documentElement.removeAttribute("data-bw-compact-mode");
+  document.documentElement.removeAttribute("data-generator-test-media");
+  document.documentElement.style.removeProperty("font-size");
   document.body.replaceChildren();
 });
 
@@ -183,6 +209,7 @@ describe("iOS 27 Generator visual contract", () => {
       '[data-testid="popup-layout-scroll-region"]',
     )!;
     const result = official.querySelector<HTMLElement>(".macos-generator__result")!;
+    const value = official.querySelector<HTMLElement>(".macos-generator__value")!;
     const mode = official.querySelector<HTMLElement>(".macos-generator__mode")!;
     const modeGroup = mode.querySelector<HTMLElement>("bit-toggle-group")!;
     const modeToggles = mode.querySelectorAll<HTMLElement>("bit-toggle");
@@ -200,6 +227,9 @@ describe("iOS 27 Generator visual contract", () => {
     );
     const modeLabels = official.querySelectorAll<HTMLLabelElement>(
       ".macos-generator__mode bit-toggle label",
+    );
+    const modePaintLayers = Array.from(modeLabels, (label) =>
+      label.querySelector<HTMLElement>(":scope > span:first-child")!,
     );
     const fieldShells = official.querySelectorAll<HTMLElement>(
       ".macos-generator__settings [bitfieldcontainer]",
@@ -223,6 +253,14 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(result).boxShadow).toBe("none");
     expect.soft(cssPixels(getComputedStyle(result).minHeight)).toBeGreaterThanOrEqual(68);
     expect.soft(cssPixels(getComputedStyle(result).minHeight)).toBeLessThanOrEqual(72);
+    expect.soft(getComputedStyle(result).height).toBe("auto");
+    expect.soft(getComputedStyle(result).overflow).toBe("visible");
+    expect.soft(getComputedStyle(result).paddingTop).toBe("8px");
+    expect.soft(getComputedStyle(result).paddingBottom).toBe("12px");
+    expect.soft(getComputedStyle(value).maxHeight).toBe("none");
+    expect.soft(getComputedStyle(value).overflow).toBe("visible");
+    expect.soft(getComputedStyle(value).whiteSpace).toBe("normal");
+    expect.soft(getComputedStyle(value).textOverflow).toBe("clip");
     expect.soft(getComputedStyle(scrollRegion).paddingInline).toBe("16px");
     expect.soft(getComputedStyle(result).marginLeft).toBe("0px");
     expect.soft(getComputedStyle(result).marginRight).toBe("0px");
@@ -254,15 +292,12 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(getComputedStyle(copyGlyph).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
     expect.soft(getComputedStyle(regenerate).backgroundColor).toBe("rgba(0, 0, 0, 0)");
     expect.soft(getComputedStyle(regenerateGlyph).backgroundColor).toBe("rgba(0, 0, 0, 0)");
-    expect.soft(style.textContent ?? "").toMatch(
-      /\.macos-generator__result-actions button:is\(:hover, :active, :focus-visible, \[aria-expanded="true"\]\)\s*\{[^}]*border-color:\s*transparent !important;[^}]*background:\s*transparent !important;/s,
-    );
     expect.soft(copy.getAttribute("buttontype")).toBe("primary");
     expect.soft(regenerate.getAttribute("buttontype")).toBe("primaryGhost");
     expect.soft(official.querySelectorAll('button[buttontype="primary"]')).toHaveLength(1);
     expect.soft(getComputedStyle(modeGroup).minHeight).toBe("44px");
     expect.soft(Array.from(modeToggles, (toggle) => getComputedStyle(toggle).height))
-      .toEqual(Array.from(modeToggles, () => "40px"));
+      .toEqual(Array.from(modeToggles, () => "44px"));
     expect(modeRadios).toHaveLength(3);
     expect(modeLabels).toHaveLength(3);
     expect(Array.from(modeRadios, (radio, index) => modeLabels[index]?.htmlFor === radio.id))
@@ -270,32 +305,103 @@ describe("iOS 27 Generator visual contract", () => {
     expect(fieldShells.length).toBeGreaterThan(0);
     expect(checkboxes.length).toBeGreaterThan(0);
     expect(Array.from(checkboxes, computedHitHeight).every((height) => height <= 24)).toBe(true);
-    expect({
+    expect.soft({
       modeRadios: Array.from(modeRadios, computedHitHeight),
       modeLabels: Array.from(modeLabels, computedHitHeight),
       fieldShells: Array.from(fieldShells, computedHitHeight),
       checkboxLabels: Array.from(checkboxLabels, computedHitHeight),
     }).toEqual({
-      modeRadios: Array.from(modeRadios, () => 40),
-      modeLabels: Array.from(modeLabels, () => 40),
+      modeRadios: Array.from(modeRadios, () => 44),
+      modeLabels: Array.from(modeLabels, () => 44),
       fieldShells: Array.from(fieldShells, () => 44),
       checkboxLabels: Array.from(checkboxLabels, () => 44),
     });
     expect(computedHitHeight(outsideField)).toBe(40);
     expect(getComputedStyle(history).minHeight).toBe("52px");
 
+    expect.soft(Array.from(modeRadios, computedHitHeight))
+      .toEqual(Array.from(modeRadios, () => 44));
+    expect.soft(Array.from(modePaintLayers, computedHitHeight))
+      .toEqual(Array.from(modePaintLayers, () => 40));
+    expect.soft(modeGroup.getAttribute("role")).toBe("radiogroup");
+    expect.soft(new Set(Array.from(modeRadios, (radio) => radio.name)).size).toBe(1);
+    expect.soft(Array.from(modeRadios, (radio) => radio.checked)).toEqual([true, false, false]);
+    expect.soft(Array.from(modeRadios, (radio) => radio.tabIndex)).toEqual([0, 0, 0]);
+
+    const longValue = "very-long-generated-value-".repeat(24);
+    value.textContent = longValue;
+    document.documentElement.style.fontSize = "200%";
+    expect.soft(value.textContent).toContain(longValue);
+    expect.soft(getComputedStyle(result).height).toBe("auto");
+    expect.soft(getComputedStyle(result).overflow).toBe("visible");
+    expect.soft(getComputedStyle(value).maxHeight).toBe("none");
+    expect.soft(getComputedStyle(value).overflow).toBe("visible");
+    expect.soft(getComputedStyle(value).whiteSpace).toBe("normal");
+    expect.soft(getComputedStyle(value).overflowWrap).toBe("anywhere");
+    document.documentElement.style.removeProperty("font-size");
+
+    const transparent = "rgba(0, 0, 0, 0)";
+    const copyDefault = getComputedStyle(copyGlyph).backgroundColor;
+    setGeneratorInteraction(copy, "hover");
+    const copyHover = getComputedStyle(copyGlyph).backgroundColor;
+    expect.soft(copyHover).not.toBe(copyDefault);
+    expect.soft(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    setGeneratorInteraction(copy, "active");
+    const copyPressed = getComputedStyle(copyGlyph).backgroundColor;
+    expect.soft(copyPressed).not.toBe(copyHover);
+    expect.soft(copyPressed).not.toBe(copyDefault);
+    expect.soft(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    setGeneratorInteraction(copy, null);
+    copy.disabled = true;
+    const copyDisabled = getComputedStyle(copyGlyph).backgroundColor;
+    expect.soft(copyDisabled).not.toBe(copyDefault);
+    expect.soft(copyDisabled).not.toBe(copyHover);
+    expect.soft(copyDisabled).not.toBe(copyPressed);
+    expect.soft(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    copy.disabled = false;
+
+    setGeneratorInteraction(regenerate, "hover");
+    const regenerateHover = getComputedStyle(regenerateGlyph).backgroundColor;
+    expect.soft(regenerateHover).not.toBe(transparent);
+    expect.soft(getComputedStyle(regenerate).backgroundColor).toBe(transparent);
+    setGeneratorInteraction(regenerate, "active");
+    const regeneratePressed = getComputedStyle(regenerateGlyph).backgroundColor;
+    expect.soft(regeneratePressed).not.toBe(regenerateHover);
+    expect.soft(regeneratePressed).not.toBe(transparent);
+    expect.soft(getComputedStyle(regenerate).backgroundColor).toBe(transparent);
+    setGeneratorInteraction(regenerate, null);
+
     copy.focus();
     expect.soft(document.activeElement).toBe(copy);
-    expect.soft(getComputedStyle(copy).outlineWidth).toBe("2px");
+    copy.blur();
+    setGeneratorInteraction(copy, "focus");
+    expect.soft(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
     expect.soft(cssPixels(getComputedStyle(copyGlyph).outlineWidth)).toBe(0);
+    setGeneratorInteraction(copy, "focus-visible");
+    expect.soft(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
+    expect.soft(getComputedStyle(copyGlyph).outlineStyle).toBe("solid");
+    expect.soft(getComputedStyle(copyGlyph).outlineWidth).toBe("2px");
+    const normalCopyFocusColor = getComputedStyle(copyGlyph).outlineColor;
+    setGeneratorInteraction(copy, null);
 
     modeRadios[0]!.focus();
     expect.soft(document.activeElement).toBe(modeRadios[0]);
     expect.soft(modeRadios[0]!.nextElementSibling).toBe(modeLabels[0]);
+    modeRadios[0]!.blur();
+    setGeneratorInteraction(modeRadios[0]!, "focus");
     expect.soft(cssPixels(getComputedStyle(modeRadios[0]!).outlineWidth)).toBe(0);
-    expect.soft(style.textContent ?? "").toMatch(
-      /\.macos-generator__mode bit-toggle > input\[type="radio"\]:focus-visible\s*\{[^}]*outline:\s*0 !important;[^}]*box-shadow:\s*none !important;[^}]*\}\s*\.macos-generator__mode bit-toggle > input\[type="radio"\]:focus-visible \+ label\s*\{[^}]*outline:\s*2px solid [^;]+;[^}]*box-shadow:\s*none !important;/s,
-    );
+    expect.soft(cssPixels(getComputedStyle(modeLabels[0]!).outlineWidth)).toBe(0);
+    expect.soft(cssPixels(getComputedStyle(modePaintLayers[0]!).outlineWidth)).toBe(0);
+    setGeneratorInteraction(modeRadios[0]!, "focus-visible");
+    expect.soft(cssPixels(getComputedStyle(modeRadios[0]!).outlineWidth)).toBe(0);
+    expect.soft(cssPixels(getComputedStyle(modeLabels[0]!).outlineWidth)).toBe(0);
+    expect.soft(getComputedStyle(modePaintLayers[0]!).outlineWidth).toBe("2px");
+    setGeneratorInteraction(modeRadios[0]!, null);
+
+    modeLabels[1]!.click();
+    fixture.changeDetectorRef.detectChanges();
+    expect.soft(Array.from(modeRadios, (radio) => radio.checked)).toEqual([false, true, false]);
+    expect.soft(modeRadios[1]!.type).toBe("radio");
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect.soft(getComputedStyle(copy).minWidth).toBe("44px");
@@ -306,23 +412,43 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(getComputedStyle(regenerateGlyph).height).toBe("28px");
     expect.soft(getComputedStyle(modeGroup).minHeight).toBe("44px");
     expect.soft(Array.from(modeToggles, (toggle) => getComputedStyle(toggle).height))
-      .toEqual(Array.from(modeToggles, () => "36px"));
+      .toEqual(Array.from(modeToggles, () => "44px"));
     expect.soft(Array.from(modeRadios, computedHitHeight))
-      .toEqual(Array.from(modeRadios, () => 36));
+      .toEqual(Array.from(modeRadios, () => 44));
     expect.soft(Array.from(modeLabels, computedHitHeight))
-      .toEqual(Array.from(modeLabels, () => 36));
+      .toEqual(Array.from(modeLabels, () => 44));
+    expect.soft(Array.from(modePaintLayers, computedHitHeight))
+      .toEqual(Array.from(modePaintLayers, () => 36));
     expect(getComputedStyle(history).minHeight).toBe("44px");
 
-    const css = style.textContent ?? "";
-    expect.soft(css).toMatch(
-      /@media \(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.macos-generator__result-actions button,[^}]*\.macos-generator__mode bit-toggle\s*\{[^}]*animation:\s*none[^}]*transition:\s*none[^}]*transform:\s*none/s,
-    );
-    expect.soft(css).toMatch(
-      /@media \(forced-colors:\s*active\)\s*\{\s*\.macos-generator__result\s*\{[^}]*border-bottom-color:\s*CanvasText[^}]*\}[^@]*\.macos-generator__result-actions button\[buttontype="primary"\] \.bwi\s*\{[^}]*background:\s*Highlight[^}]*color:\s*HighlightText[^}]*forced-color-adjust:\s*none/s,
-    );
+    const normalResultBorderColor = getComputedStyle(result).borderBottomColor;
+    document.documentElement.setAttribute("data-generator-test-media", "reduced-motion");
+    expect.soft(getComputedStyle(copyGlyph).animationName).toBe("none");
+    expect.soft(getComputedStyle(copyGlyph).transitionDuration).toBe("0s");
+    expect.soft(getComputedStyle(copyGlyph).transform).toBe("none");
+    expect.soft(getComputedStyle(modePaintLayers[0]!).animationName).toBe("none");
+    expect.soft(getComputedStyle(modePaintLayers[0]!).transitionDuration).toBe("0s");
+    expect.soft(getComputedStyle(modePaintLayers[0]!).transform).toBe("none");
+
+    document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
+    const forcedCopy = getComputedStyle(copyGlyph);
+    const forcedRegenerate = getComputedStyle(regenerateGlyph);
+    expect.soft(getComputedStyle(result).borderBottomColor).not.toBe(normalResultBorderColor);
+    expect.soft(forcedCopy.forcedColorAdjust).toBe("none");
+    expect.soft(forcedRegenerate.forcedColorAdjust).toBe("none");
+    expect.soft(forcedCopy.borderWidth).toBe("1px");
+    expect.soft(forcedRegenerate.borderWidth).toBe("1px");
+    expect.soft(forcedCopy.backgroundColor).not.toBe(forcedRegenerate.backgroundColor);
+    setGeneratorInteraction(copy, "focus-visible");
+    expect.soft(getComputedStyle(copy).outlineWidth).not.toBe("2px");
+    expect.soft(getComputedStyle(copyGlyph).outlineWidth).toBe("2px");
+    expect.soft(getComputedStyle(copyGlyph).outlineColor).not.toBe(normalCopyFocusColor);
+    expect.soft(getComputedStyle(copyGlyph).outlineColor).not.toBe("rgba(0, 0, 0, 0)");
+    setGeneratorInteraction(copy, null);
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.removeAttribute("data-generator-test-media");
   });
 
   it("renders real history as a continuous shadowless list with compact-safe rows", async () => {
@@ -594,6 +720,54 @@ function computedHitWidth(target: Element): number {
 
 function cssPixels(value: string): number {
   return value.endsWith("px") ? Number.parseFloat(value) : 0;
+}
+
+function setGeneratorInteraction(target: HTMLElement, interaction: string | null) {
+  if (interaction) {
+    target.setAttribute("data-generator-test-interaction", interaction);
+  } else {
+    target.removeAttribute("data-generator-test-interaction");
+  }
+}
+
+function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string {
+  const projected: string[] = [];
+  for (const rule of Array.from(sheet.cssRules)) {
+    if (rule.type === CSSRule.STYLE_RULE) {
+      const styleRule = rule as CSSStyleRule;
+      if (
+        styleRule.selectorText.includes(".macos-generator")
+        && /:(?:hover|active|focus-visible)/.test(styleRule.selectorText)
+      ) {
+        projected.push(`${projectGeneratorInteractionSelector(styleRule.selectorText)} { ${styleRule.style.cssText} }`);
+      }
+      continue;
+    }
+    if (rule.type !== CSSRule.MEDIA_RULE) continue;
+    const mediaRule = rule as CSSMediaRule;
+    const media = mediaRule.conditionText.includes("prefers-reduced-motion")
+      ? "reduced-motion"
+      : mediaRule.conditionText.includes("forced-colors")
+        ? "forced-colors"
+        : null;
+    if (!media) continue;
+    for (const nestedRule of Array.from(mediaRule.cssRules)) {
+      if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
+      const styleRule = nestedRule as CSSStyleRule;
+      if (!styleRule.selectorText.includes(".macos-generator")) continue;
+      projected.push(
+        `:root[data-generator-test-media="${media}"] :is(${projectGeneratorInteractionSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
+      );
+    }
+  }
+  return projected.join("\n");
+}
+
+function projectGeneratorInteractionSelector(selector: string): string {
+  return selector
+    .replaceAll(":hover", '[data-generator-test-interaction="hover"]')
+    .replaceAll(":active", '[data-generator-test-interaction="active"]')
+    .replaceAll(":focus-visible", '[data-generator-test-interaction="focus-visible"]');
 }
 
 function generatorService() {
