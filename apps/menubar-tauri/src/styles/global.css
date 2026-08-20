@@ -518,9 +518,10 @@ popup-page {
   left: 14px;
   display: grid;
   grid-template-columns: repeat(var(--segment-count), minmax(0, 1fr));
-  min-height: 58px;
-  padding: 4px;
-  border-radius: var(--mac-floating-radius);
+  height: var(--mac-tabbar-height);
+  min-height: var(--mac-tabbar-height);
+  padding: 4px 8px;
+  border-radius: 12px 12px 0 0;
   /* This is chrome laid over the same canvas as the content, not a footer.
    * Routed pages deliberately scroll beneath its translucent material. */
   isolation: isolate;
@@ -535,13 +536,12 @@ popup-page {
 
 .floating-tab-switcher__indicator {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 8px) / var(--segment-count));
-  border-radius: 10px;
+  inset-block: 4px;
+  left: 8px;
+  width: calc((100% - 16px) / var(--segment-count));
+  border-radius: 9px;
   background: var(--mac-selected);
-  box-shadow: inset 0 0 0 1px var(--mac-border-subtle);
+  box-shadow: none;
   transform: translateX(calc(var(--selected-index) * 100%));
   transition: transform var(--mac-motion-duration) cubic-bezier(.2, .8, .2, 1);
 }
@@ -550,30 +550,30 @@ popup-page {
   position: relative;
   z-index: 1;
   display: grid;
-  min-width: 0;
-  min-height: 50px;
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
   grid-template-rows: auto auto;
   place-items: center;
   align-content: center;
   gap: 1px;
-  border-radius: 10px;
-  padding: 3px 2px;
+  border-radius: 9px;
+  padding: 2px 4px;
   color: var(--mac-text-secondary);
-  font-weight: 600;
 }
 
 .floating-tab-switcher__icon {
   display: block;
-  font-size: 20px;
-  line-height: 1;
+  font-size: 18px;
+  line-height: 20px;
 }
 
 .floating-tab-switcher__label {
   display: block;
   overflow: hidden;
   max-width: 100%;
-  font-size: 12px;
-  line-height: 1.15;
+  font-size: 10.5px;
+  line-height: 12px;
+  font-weight: 550;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -591,7 +591,7 @@ popup-page {
   position: absolute;
   z-index: 60;
   right: 16px;
-  bottom: calc(13px + 58px + var(--mac-space-3));
+  bottom: calc(13px + var(--mac-tabbar-height) + var(--mac-space-3));
   left: 16px;
   display: grid;
   justify-items: center;
@@ -2507,7 +2507,7 @@ bw-keyboard-shortcut-page .macos-form-field__suffix {
 }
 
 :root:has(.floating-tab-switcher) .macos-alert-strip[data-presentation="toast"] {
-  bottom: calc(13px + 58px + var(--mac-space-3));
+  bottom: calc(13px + var(--mac-tabbar-height) + var(--mac-space-3));
 }
 
 :root[data-bw-window="popout"] .macos-alert-strip[data-presentation="toast"] {
@@ -3045,7 +3045,7 @@ auth-account .macos-account-label {
 }
 
 :root:has(.floating-tab-switcher) .app-update-notice {
-  bottom: calc(13px + 58px + var(--mac-space-3));
+  bottom: calc(13px + var(--mac-tabbar-height) + var(--mac-space-3));
 }
 
 :root[data-bw-window="popout"] .app-update-notice {

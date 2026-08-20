@@ -1,6 +1,9 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -27,6 +30,31 @@ class TabRouteComponent {}
 
 const routes = tabs.map((tab) => ({ path: tab.path.slice(1), component: TabRouteComponent }));
 
+function installTabSwitcherVisualCss(): () => void {
+  const style = document.createElement("style");
+  const source = ["macos-tokens.css", "global.css"]
+    .map((filename) =>
+      readFileSync(
+        join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+        "utf8",
+      ),
+    )
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const macTokens = new Map(
+    [...rootDeclarations.matchAll(/(--mac-[\w-]+):\s*([^;]+);/g)].map(([, token, value]) => [
+      token,
+      value.trim(),
+    ]),
+  );
+  style.textContent = source.replace(/var\((--mac-[\w-]+)\)/g, (reference, token) =>
+    macTokens.get(token) ?? reference,
+  );
+  document.head.append(style);
+  return () => style.remove();
+}
+
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 } catch (error) {
@@ -36,6 +64,37 @@ try {
 }
 
 describe("FloatingTabSwitcherComponent", () => {
+  it("paints a 52px tab bar with 44px segments and a quiet indicator", async () => {
+    const cleanupCss = installTabSwitcherVisualCss();
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [FloatingTabSwitcherComponent],
+        providers: [
+          provideRouter(routes),
+          OfficialI18nService,
+          { provide: I18nService, useExisting: OfficialI18nService },
+        ],
+      }).compileComponents();
+      const router = TestBed.inject(Router);
+      const fixture = TestBed.createComponent(FloatingTabSwitcherComponent);
+      fixture.componentRef.setInput("tabs", tabs);
+      await router.navigateByUrl("/tabs/vault");
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const nav = getComputedStyle(host.querySelector<HTMLElement>("nav")!);
+      const segment = getComputedStyle(host.querySelector<HTMLButtonElement>("button")!);
+      const icon = getComputedStyle(host.querySelector<HTMLElement>(".floating-tab-switcher__icon")!);
+
+      expect(nav.height).toBe("52px");
+      expect(segment.minHeight).toBe("44px");
+      expect(icon.fontSize).toBe("18px");
+      expect(host.querySelectorAll(".floating-tab-switcher__indicator")).toHaveLength(1);
+    } finally {
+      cleanupCss();
+    }
+  });
+
   it("marks the actual OTP segment as the route focus trigger", async () => {
     await TestBed.configureTestingModule({
       imports: [FloatingTabSwitcherComponent],
