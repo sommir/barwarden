@@ -142,11 +142,22 @@ describe("official popup layout primitives", () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
+    const css = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
+    expect(css).toMatch(
+      /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*calc\(var\(--mac-tabbar-height\)\s*\+\s*12px\);/s,
+    );
     const header = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header")!);
+    const action = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header button")!);
+    const title = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header h1")!);
     const scroller = getComputedStyle(
       host.querySelector<HTMLElement>('[data-testid="popup-layout-scroll-region"]')!,
     );
     expect(header.height).toBe("52px");
+    expect(action.minWidth).toBe("44px");
+    expect(action.minHeight).toBe("44px");
+    expect(title.fontSize).toBe("17px");
+    expect(title.lineHeight).toBe("22px");
+    expect(title.fontWeight).toBe("650");
     expect(scroller.paddingInlineStart).toBe("16px");
     expect(scroller.paddingInlineEnd).toBe("16px");
     expect(scroller.paddingBottom).toBe("64px");
@@ -204,6 +215,7 @@ function installAccessibilityCss(): HTMLStyleElement {
     [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
       .map(([, name, value]) => [name, value.trim()]),
   );
+  const tabbedPageBottomSafe = resolveTabbedPageBottomSafe(source, tokens);
   const style = document.createElement("style");
   style.dataset["ios27Accessibility"] = "true";
   style.textContent = source
@@ -215,8 +227,33 @@ function installAccessibilityCss(): HTMLStyleElement {
       "padding-inline: 16px;",
       "padding-inline-start: 16px; padding-inline-end: 16px;",
     )
-    .replace("padding-bottom: var(--mac-page-bottom-safe);", "padding-bottom: 64px;")
+    .replace(
+      "padding-bottom: var(--mac-page-bottom-safe);",
+      `padding-bottom: ${tabbedPageBottomSafe};`,
+    )
     .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
   return style;
+}
+
+function resolveTabbedPageBottomSafe(source: string, tokens: Map<string, string>): string {
+  const shellDeclaration = source.match(
+    /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*([^;]+);/s,
+  )?.[1];
+  if (!shellDeclaration) {
+    throw new Error("Missing the production tabbed page safe-area declaration");
+  }
+
+  const resolvedDeclaration = shellDeclaration.replace(
+    /var\((--(?:mac|bw)-[\w-]+)\)/g,
+    (value, name) => tokens.get(name) ?? value,
+  );
+  const pixelTerms = resolvedDeclaration.match(
+    /^calc\(\s*(\d+(?:\.\d+)?)px\s*\+\s*(\d+(?:\.\d+)?)px\s*\)$/,
+  );
+  if (!pixelTerms) {
+    throw new Error(`Unsupported production tabbed page safe-area value: ${shellDeclaration}`);
+  }
+
+  return `${Number(pixelTerms[1]) + Number(pixelTerms[2])}px`;
 }
