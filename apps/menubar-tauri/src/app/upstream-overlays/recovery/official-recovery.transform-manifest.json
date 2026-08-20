@@ -406,7 +406,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/host/tauri-host.service.ts",
-      "sha256": "9dee0facbb70cfcb9c981094dee3cfd6f4c67617e33f8efcc2481887f1da1ffd"
+      "sha256": "3213af17bf84c13f6397097111e0503dfa247d034c9f13554d7f012024870bf6"
     },
     {
       "path": "apps/menubar-tauri/src/host/website-context.ts",
