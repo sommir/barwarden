@@ -49,3 +49,36 @@ No synthetic `ng-content` shell was used to obtain the History evidence. The con
 - No browser, Playwright, or Computer Use automation was used.
 - No subagents were used.
 - No retained template, manifest, transform, or pinned vendor source changed.
+
+## Whole-plan final fix wave 2
+
+### RED and real vendor cascade
+
+- A follow-up review identified three remaining vendor-cascade defects. The mounted visual test was extended before production changes with the real retained utility contracts:
+  - `bit-item-content.tw-py-2` contributes 8px top and bottom padding normally;
+  - `bit-compact:tw-py-1.5` contributes 6px top and bottom in compact mode;
+  - the retained `body2` and `helper` lines contribute 20px and 16px respectively;
+  - every real `tw-truncate` ancestor contributes hidden overflow, nowrap, and ellipsis;
+  - the mode labels use unequal one-line / three-line / one-line content at an independent 200% root scale.
+- Strict mounted RED failed both selected real-page tests with 13 expected soft assertions:
+  - History modeled to 56px normal (`2 + 8 + 20 + 16 + 8 + 2`) and 48px compact (`6 + 20 + 16 + 6`) instead of 48/44px.
+  - The credential had three real `tw-truncate` ancestors between `bit-color-password` and `bit-item-content`; each remained clipped at 200%.
+  - Mode intrinsic heights were `[44, 124, 44]`; `bit-toggle-group` used `align-items:center`, while toggle/radio/label/paint alignment stayed normal/auto, so all three owners and plates remained unequal.
+
+### GREEN
+
+- Cleared only the Generator History `bit-item-content` vertical padding. With the existing outer 2px normal / 0px compact row padding and the real 44px Copy owner, the actual model is now exactly 48px normal and 44px compact.
+- Released `max-height`, overflow, nowrap, and ellipsis only for real `.tw-truncate` descendants inside Generator History rows. The credential, all intermediate retained wrappers, timestamp, safe row name, and Copy semantics remain intact, and long values can grow at 200%.
+- Changed the real mode group, each toggle host, native radio, label owner, and painted first span to a stretch chain. The longest localized label now drives a common owner height of 124px and a common painted height of 120px in the hostile 200% fixture, while ordinary labels retain 44px owners with 40px normal / 36px compact painted minimums.
+- No retained template, vendor source, transform, manifest, semantic role, label association, selection binding, or history behavior changed.
+
+### Wave 2 verification
+
+- Strict selected GREEN: 2/2 real mounted tests passed.
+- Fresh focused mounted GREEN: 3 files, 46/46 tests passed.
+- Full Generator main-worktree run: 161/162 passed; the sole failure remains the pre-existing user-dirty `official-i18n.service.ts` closure hash (`c34d…` versus committed `8cd7…`). All behavior and visual tests passed.
+- Clean HEAD-plus-staged-delta snapshot guard: 17/17 passed.
+- Clean snapshot updater ran twice before verification and once after both builds. Every run was zero-diff with manifest SHA-256 `9607cbe0fad94db80b324feb8deb9aa042ffbd596fac1516d7fdb9e038590287`.
+- Clean snapshot `npm run typecheck:official-generator` passed at pinned upstream source `f47b6946e01aed474875789081966d311d5b8289`, including its 1,129-module embedded build.
+- Separate clean snapshot `npm run build:web` passed with 1,129 modules and repository-baselined warnings only.
+- The staged allowlist contains only this report, the mounted visual regression, and exact Generator hunks from `global.css`; unrelated Auth CSS, i18n, AutoFill, and every other user-owned dirty file remain unstaged.

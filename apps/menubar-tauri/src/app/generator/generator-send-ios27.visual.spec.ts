@@ -65,10 +65,18 @@ const officialUtilityHitTargetCss = `
   .tw-mb-4 { margin-bottom: 16px; }
   :root[data-bw-compact-mode="true"] .bit-compact\\:tw-mb-3 { margin-bottom: 12px; }
   .tw-h-6 { height: 24px; }
-  .tw-leading-5 { line-height: 20px; }
+  .tw-leading-5 { line-height: 1.25rem; }
+  .tw-py-2 { padding-top: 8px; padding-bottom: 8px; }
+  .tw-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  [bitTypography="body2"] { font-size: 14px; line-height: 20px; }
+  [bitTypography="helper"] { font-size: 12px; line-height: 16px; }
   .tw-py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
   .tw-mb-1\\.5 { margin-bottom: 6px; }
   .tw-border-y { border-top-width: 1px; border-bottom-width: 1px; }
+  :root[data-bw-compact-mode="true"] [class~="bit-compact:tw-py-1.5"] {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
 `;
 
 const hostileGeneratorDefaultsCss = `
@@ -493,14 +501,15 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(getComputedStyle(modePaintLayers[2]!).backgroundColor).not.toBe(modeDefault);
     setGeneratorInteraction(modeLabels[2]!, null);
 
-    const longModeLabels = [
-      "Extremely long localized password mode label",
-      "Extremely long localized passphrase mode label",
-      "Extremely long localized username mode label",
-    ];
-    modePaintLayers.forEach((layer, index) => {
-      layer.textContent = longModeLabels[index]!;
-    });
+    modePaintLayers[0]!.textContent = "Password";
+    modePaintLayers[1]!.replaceChildren(
+      document.createTextNode("Long localized"),
+      document.createElement("br"),
+      document.createTextNode("passphrase mode"),
+      document.createElement("br"),
+      document.createTextNode("description"),
+    );
+    modePaintLayers[2]!.textContent = "Username";
     document.documentElement.style.fontSize = "200%";
     expect.soft(Array.from(modeToggles, (toggle) => ({
       height: getComputedStyle(toggle).height,
@@ -543,6 +552,31 @@ describe("iOS 27 Generator visual contract", () => {
       textOverflow: "clip",
       lineClamp: "none",
     })));
+    expect.soft(getComputedStyle(modeGroup).alignItems).toBe("stretch");
+    expect.soft(Array.from(modeToggles, (toggle) => getComputedStyle(toggle).alignItems))
+      .toEqual(Array.from(modeToggles, () => "stretch"));
+    expect.soft(Array.from(modeRadios, (radio) => getComputedStyle(radio).alignSelf))
+      .toEqual(Array.from(modeRadios, () => "stretch"));
+    expect.soft(Array.from(modeLabels, (label) => getComputedStyle(label).alignSelf))
+      .toEqual(Array.from(modeLabels, () => "stretch"));
+    expect.soft(Array.from(modeLabels, (label) => getComputedStyle(label).alignItems))
+      .toEqual(Array.from(modeLabels, () => "stretch"));
+    expect.soft(Array.from(modePaintLayers, (layer) => getComputedStyle(layer).alignSelf))
+      .toEqual(Array.from(modePaintLayers, () => "stretch"));
+    expect.soft(modeledStretchedModeHeights(
+      modeGroup,
+      modeToggles,
+      modeRadios,
+      modeLabels,
+      modePaintLayers,
+    ))
+      .toEqual({
+        intrinsic: [44, 124, 44],
+        toggleOwners: [124, 124, 124],
+        radioOwners: [124, 124, 124],
+        labelOwners: [124, 124, 124],
+        paintedLayers: [120, 120, 120],
+      });
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
@@ -1082,6 +1116,9 @@ describe("iOS 27 Generator visual contract", () => {
     const copy = row!.querySelector<HTMLButtonElement>("button")!;
     const copyGlyph = copy.querySelector<HTMLElement>(".bwi")!;
     const credentialValue = row!.querySelector<HTMLElement>("bit-color-password")!;
+    const itemContent = row!.querySelector<HTMLElement>("bit-item-content")!;
+    const bodyLine = itemContent.querySelector<HTMLElement>('[bitTypography="body2"]')!;
+    const helperLine = itemContent.querySelector<HTMLElement>('[bitTypography="helper"]')!;
     expect(getComputedStyle(content!).boxShadow).toBe("none");
     expect(row!.classList).toContain("macos-row");
     expect(row!.classList).toContain("macos-row--double");
@@ -1095,6 +1132,10 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(row!).borderBottomWidth).toBe("1px");
     expect(getComputedStyle(row!).borderRadius).toBe("0px");
     expect(getComputedStyle(row!).boxShadow).toBe("none");
+    expect.soft(getComputedStyle(itemContent).paddingTop).toBe("0px");
+    expect.soft(getComputedStyle(itemContent).paddingBottom).toBe("0px");
+    expect.soft(getComputedStyle(bodyLine).lineHeight).toBe("20px");
+    expect.soft(getComputedStyle(helperLine).lineHeight).toBe("16px");
     expect(credentialValue.hasAttribute("aria-hidden")).toBe(false);
     expect(credentialValue.textContent).toContain("history-password");
     expect(copy.getAttribute("aria-label") ?? copy.getAttribute("label") ?? copy.textContent)
@@ -1103,7 +1144,7 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(copy).minHeight).toBe("44px");
     expect(getComputedStyle(copyGlyph).width).toBe("32px");
     expect(getComputedStyle(copyGlyph).height).toBe("32px");
-    expect.soft(modeledGridRowHeight(row!)).toBe(48);
+    expect.soft(modeledHistoryRowHeight(row!, itemContent, bodyLine, helperLine)).toBe(48);
     expect(computedHitWidth(clear!)).toBeGreaterThanOrEqual(44);
     expect(computedHitHeight(clear!)).toBeGreaterThanOrEqual(44);
 
@@ -1138,6 +1179,22 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(credentialValue).overflow).toBe("visible");
     expect(getComputedStyle(credentialValue).whiteSpace).toBe("normal");
     expect(getComputedStyle(credentialValue).overflowWrap).toBe("anywhere");
+    const truncatingAncestors: HTMLElement[] = [];
+    for (let node = credentialValue.parentElement; node && node !== itemContent; node = node.parentElement) {
+      if (node.classList.contains("tw-truncate")) truncatingAncestors.push(node);
+    }
+    expect(truncatingAncestors.length).toBeGreaterThanOrEqual(3);
+    expect.soft(truncatingAncestors.map((ancestor) => ({
+      overflow: getComputedStyle(ancestor).overflow,
+      whiteSpace: getComputedStyle(ancestor).whiteSpace,
+      textOverflow: getComputedStyle(ancestor).textOverflow,
+      maxHeight: getComputedStyle(ancestor).maxHeight,
+    }))).toEqual(Array.from(truncatingAncestors, () => ({
+      overflow: "visible",
+      whiteSpace: "normal",
+      textOverflow: "clip",
+      maxHeight: "none",
+    })));
     document.documentElement.style.removeProperty("font-size");
 
     clear!.click();
@@ -1164,7 +1221,9 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(row!).minHeight).toBe("44px");
     expect.soft(getComputedStyle(row!).paddingTop).toBe("0px");
     expect.soft(getComputedStyle(row!).paddingBottom).toBe("0px");
-    expect.soft(modeledGridRowHeight(row!)).toBe(44);
+    expect.soft(getComputedStyle(itemContent).paddingTop).toBe("0px");
+    expect.soft(getComputedStyle(itemContent).paddingBottom).toBe("0px");
+    expect.soft(modeledHistoryRowHeight(row!, itemContent, bodyLine, helperLine)).toBe(44);
     expect(getComputedStyle(copyGlyph).width).toBe("28px");
     expect(getComputedStyle(copyGlyph).height).toBe("28px");
     expect([clear, cancel, danger].map((action) => computedHitWidth(action!)))
@@ -1383,13 +1442,70 @@ function computedHitWidth(target: Element): number {
   return Math.max(explicit, contentBox, descendantWidth);
 }
 
-function modeledGridRowHeight(row: HTMLElement): number {
+function modeledHistoryRowHeight(
+  row: HTMLElement,
+  itemContent: HTMLElement,
+  bodyLine: HTMLElement,
+  helperLine: HTMLElement,
+): number {
   const rowStyle = getComputedStyle(row);
-  const contentHeight = Math.max(0, ...Array.from(row.children, computedHitHeight));
+  const itemStyle = getComputedStyle(itemContent);
+  const textHeight = cssPixels(getComputedStyle(bodyLine).lineHeight)
+    + cssPixels(getComputedStyle(helperLine).lineHeight);
+  const itemHeight = cssPixels(itemStyle.paddingTop) + textHeight + cssPixels(itemStyle.paddingBottom);
+  const copyOwnerHeight = Math.max(
+    0,
+    ...Array.from(row.querySelectorAll("button"), computedHitHeight),
+  );
   return Math.max(
     cssPixels(rowStyle.minHeight),
-    cssPixels(rowStyle.paddingTop) + contentHeight + cssPixels(rowStyle.paddingBottom),
+    cssPixels(rowStyle.paddingTop)
+      + Math.max(itemHeight, copyOwnerHeight)
+      + cssPixels(rowStyle.paddingBottom),
   );
+}
+
+function modeledStretchedModeHeights(
+  group: HTMLElement,
+  toggles: NodeListOf<HTMLElement>,
+  radios: NodeListOf<HTMLInputElement>,
+  labels: NodeListOf<HTMLLabelElement>,
+  plates: HTMLElement[],
+) {
+  const rootFontSize = effectiveRootFontSize(16);
+  const intrinsic = plates.map((plate, index) => {
+    const lineCount = 1 + plate.querySelectorAll("br").length;
+    const labelStyle = getComputedStyle(labels[index]!);
+    const lineHeight = cssLengthPixels(labelStyle.lineHeight, rootFontSize);
+    return Math.max(
+      cssPixels(getComputedStyle(toggles[index]!).minHeight),
+      cssPixels(labelStyle.paddingTop) + lineCount * lineHeight + cssPixels(labelStyle.paddingBottom),
+    );
+  });
+  const tallest = Math.max(...intrinsic);
+  const toggleOwners = intrinsic.map((height) =>
+    getComputedStyle(group).alignItems === "stretch" ? tallest : height
+  );
+  const radioOwners = Array.from(radios, (radio, index) =>
+    getComputedStyle(radio).alignSelf === "stretch" ? toggleOwners[index]! : intrinsic[index]!
+  );
+  const labelOwners = Array.from(labels, (label, index) =>
+    getComputedStyle(label).alignSelf === "stretch" ? toggleOwners[index]! : intrinsic[index]!
+  );
+  const paintedLayers = plates.map((plate, index) => {
+    const labelStyle = getComputedStyle(labels[index]!);
+    if (getComputedStyle(plate).alignSelf === "stretch") {
+      return labelOwners[index]!
+        - cssPixels(labelStyle.paddingTop)
+        - cssPixels(labelStyle.paddingBottom);
+    }
+    return Math.max(
+      cssPixels(getComputedStyle(plate).minHeight),
+      (1 + plate.querySelectorAll("br").length)
+        * cssLengthPixels(labelStyle.lineHeight, rootFontSize),
+    );
+  });
+  return { intrinsic, toggleOwners, radioOwners, labelOwners, paintedLayers };
 }
 
 function cssPixels(value: string): number {

@@ -3308,7 +3308,7 @@ auth-account .macos-account-label {
 
 .macos-generator__mode bit-toggle-group {
   min-height: var(--mac-hit-size);
-  align-items: center;
+  align-items: stretch;
 }
 
 .macos-generator__mode bit-toggle,
@@ -3324,6 +3324,7 @@ auth-account .macos-account-label {
 
 .macos-generator__mode bit-toggle {
   position: relative;
+  align-items: stretch;
 }
 
 .macos-generator__mode bit-toggle > :is(input[type="radio"], label) {
@@ -3335,6 +3336,12 @@ auth-account .macos-account-label {
 
 .macos-generator__mode bit-toggle > label {
   padding: 2px 0 !important;
+  align-self: stretch;
+  align-items: stretch !important;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"] {
+  align-self: stretch;
 }
 
 .macos-generator__mode bit-toggle > label > span:first-child {
@@ -3345,6 +3352,8 @@ auth-account .macos-account-label {
   min-height: var(--mac-control-visible);
   max-height: none;
   align-items: center;
+  align-self: stretch;
+  flex: 1 1 auto;
   justify-content: center;
   border: 1px solid var(--mac-accent);
   padding-inline: 12px;
@@ -3749,6 +3758,19 @@ auth-account .macos-account-label {
   max-height: none;
   overflow: visible;
   white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-generator-history__row bit-item-content {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.macos-generator-history__row bit-item-content .tw-truncate {
+  max-height: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
   overflow-wrap: anywhere;
 }
 
