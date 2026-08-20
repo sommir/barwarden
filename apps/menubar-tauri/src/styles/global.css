@@ -7238,6 +7238,12 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   background: transparent !important;
 }
 
+.macos-page--vault-list .vault-list-row [data-item-main-content],
+.vault-autofill-suggestions .vault-list-row [data-item-main-content] {
+  min-width: 0;
+  overflow: visible;
+}
+
 .macos-page--vault-list .vault-list-row :is([data-testid="item-name"], [slot="secondary"]),
 .vault-autofill-suggestions .vault-list-row :is(
   [data-testid="vault-autofill-candidate-name"],
@@ -7261,6 +7267,20 @@ body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
   border-radius: 0;
   background: transparent !important;
   box-shadow: none !important;
+}
+
+/* The retained item primitive still has an older global :hover/:active rule
+ * with !important. Keep the 44px owner transparent in every state and let the
+ * nested glyph plate below remain the sole painted feedback surface. */
+body .macos-page--vault-list .vault-list-row bit-item-action button[biticonbutton][data-field],
+body .vault-autofill-suggestions .vault-list-row bit-item-action button[biticonbutton][data-field],
+body .macos-page--vault-list .vault-list-row bit-item-action button[biticonbutton][data-field]:hover,
+body .vault-autofill-suggestions .vault-list-row bit-item-action button[biticonbutton][data-field]:hover,
+body .macos-page--vault-list .vault-list-row bit-item-action button[biticonbutton][data-field]:active,
+body .vault-autofill-suggestions .vault-list-row bit-item-action button[biticonbutton][data-field]:active,
+body .macos-page--vault-list .vault-list-row bit-item-action button[biticonbutton][data-field]:is(:disabled, [aria-disabled="true"]),
+body .vault-autofill-suggestions .vault-list-row bit-item-action button[biticonbutton][data-field]:is(:disabled, [aria-disabled="true"]) {
+  background: transparent !important;
 }
 
 .macos-page--vault-list .vault-list-row [data-field] .bwi,

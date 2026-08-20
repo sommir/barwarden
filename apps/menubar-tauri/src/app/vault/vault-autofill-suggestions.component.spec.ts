@@ -251,6 +251,62 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     }
   });
 
+  it("keeps suggestion interaction and accessibility feedback on the glyph plate only", async () => {
+    const harness = await render(ready([
+      candidate("github", "exact", "service_identifier", ["username", "password", "totp"]),
+    ]));
+    const cleanupCss = installInteractionCss();
+    const transparent = "rgba(0, 0, 0, 0)";
+
+    try {
+      const action = harness.host.querySelector<HTMLButtonElement>(
+        "[data-testid='vault-autofill-field-action'][data-field='username']",
+      )!;
+      const plate = action.querySelector<HTMLElement>(".bwi")!;
+      expect(getComputedStyle(action).backgroundColor).toBe(transparent);
+      expect(getComputedStyle(plate).backgroundColor).toBe(transparent);
+
+      action.dataset["suggestionTestInteraction"] = "hover";
+      const hover = getComputedStyle(plate).backgroundColor;
+      expect(getComputedStyle(action).backgroundColor).toBe(transparent);
+      expect(hover).not.toBe(transparent);
+
+      action.dataset["suggestionTestInteraction"] = "active";
+      const pressed = getComputedStyle(plate).backgroundColor;
+      expect(getComputedStyle(action).backgroundColor).toBe(transparent);
+      expect(pressed).not.toBe(transparent);
+      expect(pressed).not.toBe(hover);
+
+      action.disabled = true;
+      action.dataset["suggestionTestInteraction"] = "hover active";
+      const disabled = getComputedStyle(plate);
+      expect(getComputedStyle(action).backgroundColor).toBe(transparent);
+      expect(Number.parseFloat(disabled.opacity)).toBeLessThan(1);
+      action.disabled = false;
+
+      action.dataset["suggestionTestInteraction"] = "focus";
+      expect(getComputedStyle(action).outlineStyle).not.toBe("solid");
+      expect(getComputedStyle(plate).outlineStyle).not.toBe("solid");
+      action.dataset["testFocusVisible"] = "true";
+      expect(getComputedStyle(action).outlineStyle).not.toBe("solid");
+      expect(getComputedStyle(plate).outlineWidth).toBe("2px");
+      action.removeAttribute("data-test-focus-visible");
+      action.removeAttribute("data-suggestion-test-interaction");
+
+      document.documentElement.setAttribute("data-suggestion-test-media", "reduced-motion");
+      expect(getComputedStyle(plate).transitionDuration).toBe("0s");
+      expect(getComputedStyle(plate).transform).toBe("none");
+      document.documentElement.setAttribute("data-suggestion-test-media", "forced-colors");
+      action.dataset["testFocusVisible"] = "true";
+      expect(getComputedStyle(plate).forcedColorAdjust).toBe("none");
+      expect(getComputedStyle(plate).outlineWidth).toBe("2px");
+    } finally {
+      document.documentElement.removeAttribute("data-suggestion-test-media");
+      harness.fixture.destroy();
+      cleanupCss();
+    }
+  });
+
   it("opens the exact Login detail from the row body without filling", async () => {
     const harness = await render(ready([candidate("github", "exact", "service_identifier")]));
 
@@ -506,13 +562,15 @@ function installInteractionCss(): () => void {
   ]
     .map((filename) => readFileSync(join(process.cwd(), filename), "utf8"))
     .join("\n")
-    .replace(/^@import[^;]+;\s*/gm, "");
+    .replace(/^@import[^;]+;\s*/gm, "")
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
   document.head.append(style);
   const rootStyle = getComputedStyle(document.documentElement);
   style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
     resolveCssVariable(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
       || value,
   );
+  style.textContent += `\n${projectSuggestionInteractionAndMediaRules(style.sheet!)}`;
   return () => style.remove();
 }
 
@@ -527,4 +585,46 @@ function resolveCssVariable(
     if (!next) return reference;
     return resolveCssVariable(next, rootStyle, new Set([...seen, name]));
   });
+}
+
+function projectSuggestionInteractionAndMediaRules(sheet: CSSStyleSheet): string {
+  const projected: string[] = [];
+  for (const rule of Array.from(sheet.cssRules)) {
+    if (rule.type === CSSRule.STYLE_RULE) {
+      const styleRule = rule as CSSStyleRule;
+      if (
+        styleRule.selectorText.includes(".vault-list-row")
+        && /:(?:hover|active|focus)/.test(styleRule.selectorText)
+      ) {
+        projected.push(
+          `${projectSuggestionSelector(styleRule.selectorText)} { ${styleRule.style.cssText} }`,
+        );
+      }
+      continue;
+    }
+    if (rule.type !== CSSRule.MEDIA_RULE) continue;
+    const mediaRule = rule as CSSMediaRule;
+    const media = mediaRule.conditionText.includes("prefers-reduced-motion")
+      ? "reduced-motion"
+      : mediaRule.conditionText.includes("forced-colors")
+        ? "forced-colors"
+        : null;
+    if (!media) continue;
+    for (const nestedRule of Array.from(mediaRule.cssRules)) {
+      if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
+      const styleRule = nestedRule as CSSStyleRule;
+      if (!styleRule.selectorText.includes(".vault-list-row")) continue;
+      projected.push(
+        `:root[data-suggestion-test-media="${media}"] :is(${projectSuggestionSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
+      );
+    }
+  }
+  return projected.join("\n");
+}
+
+function projectSuggestionSelector(selector: string): string {
+  return selector
+    .replaceAll(":focus", '[data-suggestion-test-interaction~="focus"]')
+    .replaceAll(":hover", '[data-suggestion-test-interaction~="hover"]')
+    .replaceAll(":active", '[data-suggestion-test-interaction~="active"]');
 }

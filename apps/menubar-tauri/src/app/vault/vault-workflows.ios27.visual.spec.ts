@@ -97,7 +97,11 @@ class VaultFormVisualHostComponent {
   `,
 })
 class VaultRowVisualHostComponent {
-  readonly cipher = toRetainedPopupCipherView(demoVaultItems[0]!);
+  readonly cipher = toRetainedPopupCipherView({
+    ...demoVaultItems[0]!,
+    name: "GitHub Enterprise Production Credential With A Deliberately Hostile Long Name",
+    subtitle: "operations-team-with-a-deliberately-long-address@example.enterprise.test",
+  });
 }
 
 let style: HTMLStyleElement;
@@ -153,7 +157,7 @@ function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
     if (rule.type === CSSRule.STYLE_RULE) {
       const styleRule = rule as CSSStyleRule;
       if (
-        styleRule.selectorText.includes(".macos-page--vault-list")
+        styleRule.selectorText.includes(".vault-list-row")
         && /:(?:hover|active|focus)/.test(styleRule.selectorText)
       ) {
         projected.push(`${projectVaultSelector(styleRule.selectorText)} { ${styleRule.style.cssText} }`);
@@ -171,7 +175,7 @@ function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
     for (const nestedRule of Array.from(mediaRule.cssRules)) {
       if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
       const styleRule = nestedRule as CSSStyleRule;
-      if (!styleRule.selectorText.includes(".macos-page--vault-list")) continue;
+      if (!styleRule.selectorText.includes(".vault-list-row")) continue;
       projected.push(
         `:root[data-vault-test-media="${media}"] :is(${projectVaultSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
       );
@@ -186,6 +190,86 @@ function projectVaultSelector(selector: string): string {
     .replaceAll(":focus", '[data-vault-test-interaction~="focus"]')
     .replaceAll(":hover", '[data-vault-test-interaction~="hover"]')
     .replaceAll(":active", '[data-vault-test-interaction~="active"]');
+}
+
+function modeledVaultTextLayout(
+  row: HTMLElement,
+  content: HTMLElement,
+  textNodes: readonly HTMLElement[],
+  containerWidth: number,
+) {
+  const rootSize = effectiveTestRootSize();
+  const actionWidth = Array.from(
+    row.querySelectorAll<HTMLElement>('button[aria-label]:not([data-testid="vault-item-content"])'),
+  ).reduce((total, action) => total + Math.max(
+    cssTestPixels(getComputedStyle(action).minWidth, rootSize),
+    cssTestPixels(getComputedStyle(action).width, rootSize),
+  ), 0);
+  const leading = row.querySelector<HTMLElement>(".item-icon");
+  const leadingWidth = leading
+    ? Math.max(
+        cssTestPixels(getComputedStyle(leading).width, rootSize),
+        cssTestPixels(getComputedStyle(leading).minWidth, rootSize),
+      )
+    : 0;
+  const contentStyle = getComputedStyle(content);
+  const availableWidth = Math.max(
+    44,
+    containerWidth
+      - actionWidth
+      - leadingWidth
+      - cssTestPixels(contentStyle.paddingLeft, rootSize)
+      - cssTestPixels(contentStyle.paddingRight, rootSize)
+      - 24,
+  );
+  let lineCount = 0;
+  let textHeight = 0;
+  let horizontalClip = false;
+  for (const node of textNodes) {
+    const computed = getComputedStyle(node);
+    const fontSize = cssTestPixels(computed.fontSize, rootSize) || rootSize * 0.875;
+    const lineHeight = computed.lineHeight === "normal"
+      ? fontSize * 1.3
+      : cssTestPixels(computed.lineHeight, rootSize) || fontSize * 1.3;
+    const estimatedTextWidth = (node.textContent?.trim().length ?? 0) * fontSize * 0.56;
+    const lines = Math.max(1, Math.ceil(estimatedTextWidth / availableWidth));
+    lineCount += lines;
+    textHeight += lines * lineHeight;
+    horizontalClip ||= computed.whiteSpace !== "normal"
+      || ["hidden", "clip"].includes(computed.overflow)
+      || !["anywhere", "break-word"].includes(computed.overflowWrap);
+  }
+  const rowStyle = getComputedStyle(row);
+  const mainContent = row.querySelector<HTMLElement>("[data-item-main-content]");
+  const mainStyle = mainContent ? getComputedStyle(mainContent) : null;
+  const verticalClip = rowStyle.height !== "auto"
+    || contentStyle.height !== "auto"
+    || [rowStyle.overflow, contentStyle.overflow, mainStyle?.overflow]
+      .some((overflow) => overflow === "hidden" || overflow === "clip");
+  const padding = cssTestPixels(contentStyle.paddingTop, rootSize)
+    + cssTestPixels(contentStyle.paddingBottom, rootSize);
+  return {
+    horizontalClip,
+    verticalClip,
+    lineCount,
+    modeledHeight: verticalClip
+      ? cssTestPixels(rowStyle.minHeight, rootSize)
+      : Math.max(cssTestPixels(rowStyle.minHeight, rootSize), textHeight + padding),
+  };
+}
+
+function effectiveTestRootSize(): number {
+  const value = getComputedStyle(document.documentElement).fontSize;
+  if (value.endsWith("%")) return 16 * Number.parseFloat(value) / 100;
+  return cssTestPixels(value, 16) || 16;
+}
+
+function cssTestPixels(value: string | undefined, rootSize: number): number {
+  if (!value) return 0;
+  if (value.endsWith("rem")) return Number.parseFloat(value) * rootSize;
+  if (value.endsWith("em")) return Number.parseFloat(value) * rootSize;
+  if (value.endsWith("px")) return Number.parseFloat(value);
+  return 0;
 }
 
 describe("iOS 27 Vault workflows", () => {
@@ -309,8 +393,10 @@ describe("iOS 27 Vault workflows", () => {
 
     const host = fixture.nativeElement as HTMLElement;
     const row = host.querySelector<HTMLElement>("bit-item.vault-list-row")!;
+    const mainContent = row.querySelector<HTMLElement>("[data-item-main-content]")!;
     const content = host.querySelector<HTMLElement>('[data-testid="vault-item-content"]')!;
     const name = host.querySelector<HTMLElement>('[data-testid="item-name"]')!;
+    const subtitle = host.querySelector<HTMLElement>('[slot="secondary"]')!;
     const actions = host.querySelectorAll<HTMLElement>('button[aria-label]');
     const fieldActions = host.querySelectorAll<HTMLElement>("[data-field]");
     const plates = host.querySelectorAll<HTMLElement>("[data-field] .bwi");
@@ -318,6 +404,8 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(row).minHeight).toBe("48px");
     expect(getComputedStyle(row).borderRadius).toBe("0px");
     expect(getComputedStyle(row).boxShadow).toBe("none");
+    expect(getComputedStyle(mainContent).minWidth).toBe("0px");
+    expect(getComputedStyle(mainContent).overflow).toBe("visible");
     expect(getComputedStyle(content).minHeight).toBe("48px");
     expect(getComputedStyle(content).height).toBe("auto");
     expect(actions.length).toBeGreaterThan(0);
@@ -331,6 +419,11 @@ describe("iOS 27 Vault workflows", () => {
       getComputedStyle(plate).width,
       getComputedStyle(plate).height,
     ])).toEqual(Array.from(plates, () => ["32px", "32px"]));
+    const normalLayout = modeledVaultTextLayout(row, content, [name, subtitle], 480);
+    expect(normalLayout.horizontalClip).toBe(false);
+    expect(normalLayout.verticalClip).toBe(false);
+    expect(normalLayout.lineCount).toBeGreaterThan(2);
+    expect(normalLayout.modeledHeight).toBeGreaterThan(48);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row).minHeight).toBe("44px");
@@ -347,6 +440,13 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(content).minWidth).toBe("0px");
     expect(getComputedStyle(name).minWidth).toBe("0px");
     expect(getComputedStyle(name).overflowWrap).toBe("anywhere");
+    expect(getComputedStyle(subtitle).overflowWrap).toBe("anywhere");
+    const scaledLayout = modeledVaultTextLayout(row, content, [name, subtitle], 480);
+    expect(scaledLayout.horizontalClip).toBe(false);
+    expect(scaledLayout.verticalClip).toBe(false);
+    expect(scaledLayout.lineCount).toBeGreaterThan(normalLayout.lineCount);
+    expect(scaledLayout.modeledHeight).toBeGreaterThan(normalLayout.modeledHeight);
+    expect(scaledLayout.modeledHeight).toBeGreaterThan(44);
     fixture.destroy();
   });
 
