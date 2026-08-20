@@ -839,9 +839,9 @@ describe("VaultListPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('[aria-label="打开"]')).not.toBeNull();
     expect(host.querySelector('[aria-label="更多"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入用户名"]')).toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入密码"]')).toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入验证码"]')).toBeNull();
+    expect(host.querySelector('[data-field="username"]')).toBeNull();
+    expect(host.querySelector('[data-field="password"]')).toBeNull();
+    expect(host.querySelector('[data-field="totp"]')).toBeNull();
   });
 
   it("keeps at most one row overflow menu open", async () => {
@@ -1443,7 +1443,7 @@ describe("VaultListPageComponent", () => {
     await clickMenuAction("查看");
     await clickMenuAction("编辑");
     await clickMenuAction("克隆");
-    const fillButton = row.querySelector<HTMLButtonElement>('[aria-label="复制并填入用户名"]')!;
+    const fillButton = row.querySelector<HTMLButtonElement>('[data-field="username"]')!;
     fillButton.click();
     row.querySelector<HTMLButtonElement>('[aria-label="打开"]')!.click();
     await fixture.whenStable();
