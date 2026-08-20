@@ -7,6 +7,7 @@ const root = process.cwd();
 const app = (path: string) => join(root, "apps/menubar-tauri/src/app", path);
 
 const nativeDialogOwners = [
+  "official-ui/accessibility-permission-dialog.component.ts",
   "settings/pin-setup-dialog.component.ts",
   "upstream-overlays/auth/environment/official-self-hosted-dialog.component.html",
   "upstream-overlays/auth/two-factor/official-two-factor-options.component.html",
@@ -24,6 +25,8 @@ describe("application bottom-sheet adoption", () => {
       const source = readFileSync(app(path), "utf8");
       expect(source, path).toContain("<bw-app-bottom-sheet");
       expect(source, path).not.toContain("<dialog");
+      expect(source, path).not.toContain("accessibility-permission-backdrop");
+      expect(source, path).not.toContain("document:keydown.escape");
     }
   });
 

@@ -31,4 +31,39 @@ describe("AccessibilityPermissionDialogService", () => {
     expect(service.isOpen()).toBe(true);
     expect(service.launchFailed()).toBe(true);
   });
+
+  it("captures the explicit trigger or the active element when presented", () => {
+    const service = new AccessibilityPermissionDialogService({ openUrl: vi.fn() });
+    const explicitTrigger = document.createElement("button");
+    const activeTrigger = document.createElement("button");
+    document.body.append(explicitTrigger, activeTrigger);
+
+    service.present(explicitTrigger);
+    expect(service.trigger()).toBe(explicitTrigger);
+
+    activeTrigger.focus();
+    service.present();
+    expect(service.trigger()).toBe(activeTrigger);
+
+    explicitTrigger.remove();
+    activeTrigger.remove();
+  });
+
+  it("rejects dismissal while System Settings is opening", async () => {
+    let finishOpening!: () => void;
+    const host = {
+      openUrl: vi.fn(() => new Promise<void>((resolve) => {
+        finishOpening = resolve;
+      })),
+    };
+    const service = new AccessibilityPermissionDialogService(host);
+
+    service.present();
+    const opening = service.openSystemSettings();
+    service.dismiss();
+
+    expect(service.isOpen()).toBe(true);
+    finishOpening();
+    await opening;
+  });
 });

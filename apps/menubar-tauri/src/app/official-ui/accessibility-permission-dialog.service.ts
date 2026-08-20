@@ -21,14 +21,16 @@ export class AccessibilityPermissionDialogService {
   readonly isOpen = signal(false);
   readonly openingSettings = signal(false);
   readonly launchFailed = signal(false);
+  readonly trigger = signal<HTMLElement | null>(null);
 
   constructor(
     @Inject(ACCESSIBILITY_SETTINGS_HOST)
     private readonly host: Pick<HostApi, "openUrl">,
   ) {}
 
-  present(): void {
+  present(trigger: HTMLElement | null = activeHTMLElement()): void {
     this.launchFailed.set(false);
+    this.trigger.set(trigger);
     this.isOpen.set(true);
   }
 
@@ -53,4 +55,8 @@ export class AccessibilityPermissionDialogService {
       this.openingSettings.set(false);
     }
   }
+}
+
+function activeHTMLElement(): HTMLElement | null {
+  return document.activeElement instanceof HTMLElement ? document.activeElement : null;
 }
