@@ -74,8 +74,8 @@ describe("GeneratorHistoryPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector("bit-empty-credential-history bit-no-items")).not.toBeNull();
-    expect(host.querySelectorAll(".macos-generator-history__content")).toHaveLength(1);
-    expect(host.querySelector(".macos-generator-history__content")?.hasAttribute("aria-live"))
+    expect(host.querySelectorAll('[data-testid="generator-history-content"]')).toHaveLength(1);
+    expect(host.querySelector('[data-testid="generator-history-content"]')?.hasAttribute("aria-live"))
       .toBe(false);
     expect(host.textContent).toContain("没有可显示的内容");
     expect(host.textContent).toContain("您最近没有生成任何内容");
@@ -106,17 +106,23 @@ describe("GeneratorHistoryPageComponent", () => {
     const { fixture } = await setup(generatorService({ history: vi.fn(async () => history) }));
     await render(fixture);
     const host = fixture.nativeElement as HTMLElement;
-    const rows = host.querySelectorAll("bit-credential-generator-history bit-item");
+    const content = host.querySelector<HTMLElement>(
+      '[data-testid="generator-history-content"]',
+    );
+    const rows = host.querySelectorAll("bit-credential-generator-history [role=listitem]");
     const liveRegions = host.querySelectorAll('[aria-live], [role="status"], [role="alert"]');
 
     expect(rows).toHaveLength(3);
-    expect(host.querySelectorAll(".macos-generator-history__content")).toHaveLength(1);
+    expect(content).not.toBeNull();
+    expect(content?.hasAttribute("aria-live")).toBe(false);
     for (const liveRegion of liveRegions) {
       expect(liveRegion.textContent).not.toContain("password-value");
       expect(liveRegion.textContent).not.toContain("passphrase-value");
       expect(liveRegion.textContent).not.toContain("username-value");
     }
     expect(host.querySelectorAll(".macos-generator-history__row")).toHaveLength(3);
+    expect([...rows].every((row) => row.classList.contains("macos-row"))).toBe(true);
+    expect([...rows].every((row) => row.classList.contains("macos-row--double"))).toBe(true);
     expect(rows[0]?.querySelector("bit-color-password")?.textContent).toContain("password-value");
     expect(rows[0]?.getAttribute("role")).toBe("listitem");
     expect(rows[0]?.closest('[role="list"]')).not.toBeNull();

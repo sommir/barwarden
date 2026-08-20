@@ -722,7 +722,7 @@ export const generatorTemplateContracts = [
         search:
           '  <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n  <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />',
         replacement:
-          '  @if (!(loading$ | async)) {\n    <section class="macos-generator-history__content">\n      <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n      <bit-credential-generator-history\n        role="list"\n        [account]="account$ | async"\n        *ngIf="hasHistory$ | async"\n      />\n    </section>\n  }',
+          '  @if (!(loading$ | async)) {\n    <section class="macos-generator-history__content" data-testid="generator-history-content">\n      <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n      <bit-credential-generator-history\n        role="list"\n        [account]="account$ | async"\n        *ngIf="hasHistory$ | async"\n      />\n    </section>\n  }',
       },
       {
         search:
@@ -752,7 +752,7 @@ export const generatorTemplateContracts = [
       },
       {
         search: "  <bit-item>",
-        replacement: '  <bit-item\n    class="macos-generator-history__row"\n    role="listitem"\n    [attr.aria-label]="getGeneratedValueText(credential)"\n  >',
+        replacement: '  <bit-item\n    class="macos-generator-history__row macos-row macos-row--double"\n    role="listitem"\n    [attr.aria-label]="getGeneratedValueText(credential)"\n  >',
       },
       {
         search:

@@ -1,6 +1,6 @@
 @for (credential of credentials$ | async; track credential; let historyIndex = $index) {
   <bit-item
-    class="macos-generator-history__row"
+    class="macos-generator-history__row macos-row macos-row--double"
     role="listitem"
     [attr.aria-label]="getGeneratedValueText(credential)"
   >

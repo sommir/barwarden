@@ -5,7 +5,7 @@
     </ng-container>
   </popup-header>
   @if (!(loading$ | async)) {
-    <section class="macos-generator-history__content">
+    <section class="macos-generator-history__content" data-testid="generator-history-content">
       <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />
       <bit-credential-generator-history
         role="list"

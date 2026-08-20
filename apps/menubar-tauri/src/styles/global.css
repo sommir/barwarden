@@ -3680,7 +3680,11 @@ auth-account .macos-account-label {
 }
 
 .macos-generator-history__row {
-  min-height: 52px;
+  box-sizing: border-box;
+  height: auto;
+  min-height: var(--mac-row-double);
+  padding: 4px 0 4px 12px;
+  overflow: visible;
   border: 0;
   border-bottom: 1px solid var(--mac-border-subtle);
   border-radius: 0;
@@ -3688,9 +3692,70 @@ auth-account .macos-account-label {
   box-shadow: none;
 }
 
+.macos-generator-history__row bit-item-content,
+.macos-generator-history__row bit-color-password {
+  min-width: 0;
+  max-width: 100%;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .macos-generator-history__row button {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  padding: 6px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  outline: 0 !important;
+}
+
+.macos-generator-history__row button:is(
+  :hover,
+  :active,
+  :focus,
+  :focus-visible
+) {
+  background: transparent;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.macos-generator-history__row button .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline-style: none;
+  outline-width: 0;
+}
+
+.macos-generator-history__row button:hover .bwi {
+  background: var(--mac-hover);
+}
+
+.macos-generator-history__row button:active .bwi {
+  background: var(--mac-pressed);
+}
+
+.macos-generator-history__row button:focus-visible .bwi {
+  outline-color: var(--mac-focus);
+  outline-style: solid;
+  outline-width: var(--mac-focus-ring-width);
+  outline-offset: 2px;
+}
+
+.macos-generator-history__row button:focus:not(:focus-visible),
+.macos-generator-history__row button:focus:not(:focus-visible) .bwi {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
 }
 
 .macos-page--generator-history :is(
@@ -3702,7 +3767,38 @@ auth-account .macos-account-label {
 }
 
 :root[data-bw-compact-mode="true"] .macos-generator-history__row {
-  min-height: 44px;
+  min-height: var(--mac-row-double-compact);
+}
+
+:root[data-bw-compact-mode="true"] .macos-generator-history__row button .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-generator-history__row button,
+  .macos-generator-history__row button .bwi {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-generator-history__row {
+    border-bottom-color: CanvasText;
+  }
+
+  .macos-generator-history__row button .bwi {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator-history__row button:focus-visible .bwi {
+    outline-color: Highlight !important;
+  }
 }
 
 /* Upstream success and custom-field templates carry utility background

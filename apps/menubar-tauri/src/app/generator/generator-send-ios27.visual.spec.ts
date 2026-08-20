@@ -110,6 +110,29 @@ const hostileGeneratorDefaultsCss = `
     overflow: hidden;
     flex-wrap: nowrap;
   }
+  .macos-generator-history__row {
+    height: 52px;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgb(0 0 0 / 20%);
+  }
+  .macos-generator-history__row bit-color-password {
+    max-height: 20px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .macos-generator-history__row button,
+  .macos-generator-history__row button .bwi {
+    animation: generator-hostile-motion 1s infinite;
+    transition: background-color 1s linear;
+    transform: scale(1.1);
+  }
+  .macos-generator-history__row button:focus:not(:focus-visible),
+  .macos-generator-history__row button:focus:not(:focus-visible) .bwi {
+    outline-color: red !important;
+    outline-style: solid !important;
+    outline-width: 3px !important;
+  }
   @keyframes generator-hostile-motion {
     from { opacity: 0.99; }
     to { opacity: 1; }
@@ -941,8 +964,10 @@ describe("iOS 27 Generator visual contract", () => {
     fixture.changeDetectorRef.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    const content = host.querySelector<HTMLElement>(".macos-generator-history__content");
-    const row = host.querySelector<HTMLElement>(".macos-generator-history__row");
+    const content = host.querySelector<HTMLElement>(
+      '[data-testid="generator-history-content"]',
+    );
+    const row = host.querySelector<HTMLElement>("[role=listitem].macos-generator-history__row");
     const clear = host.querySelector<HTMLButtonElement>(
       '[data-testid="generator-history-clear"]',
     );
@@ -955,13 +980,64 @@ describe("iOS 27 Generator visual contract", () => {
       expect(liveRegion.textContent).not.toContain("history-password");
     }
     const copy = row!.querySelector<HTMLButtonElement>("button")!;
+    const copyGlyph = copy.querySelector<HTMLElement>(".bwi")!;
+    const credentialValue = row!.querySelector<HTMLElement>("bit-color-password")!;
     expect(getComputedStyle(content!).boxShadow).toBe("none");
-    expect(getComputedStyle(row!).minHeight).toBe("52px");
+    expect(row!.classList).toContain("macos-row");
+    expect(row!.classList).toContain("macos-row--double");
+    expect(getComputedStyle(row!).height).toBe("auto");
+    expect(getComputedStyle(row!).minHeight).toBe("48px");
+    expect(getComputedStyle(row!).overflow).toBe("visible");
+    expect(getComputedStyle(row!).paddingTop).toBe("4px");
+    expect(getComputedStyle(row!).paddingRight).toBe("0px");
+    expect(getComputedStyle(row!).paddingBottom).toBe("4px");
+    expect(getComputedStyle(row!).paddingLeft).toBe("12px");
+    expect(getComputedStyle(row!).borderBottomWidth).toBe("1px");
     expect(getComputedStyle(row!).borderRadius).toBe("0px");
     expect(getComputedStyle(row!).boxShadow).toBe("none");
+    expect(credentialValue.hasAttribute("aria-hidden")).toBe(false);
+    expect(credentialValue.textContent).toContain("history-password");
+    expect(copy.getAttribute("aria-label") ?? copy.getAttribute("label") ?? copy.textContent)
+      .not.toContain("history-password");
+    expect(getComputedStyle(copy).minWidth).toBe("44px");
     expect(getComputedStyle(copy).minHeight).toBe("44px");
+    expect(getComputedStyle(copyGlyph).width).toBe("32px");
+    expect(getComputedStyle(copyGlyph).height).toBe("32px");
     expect(computedHitWidth(clear!)).toBeGreaterThanOrEqual(44);
     expect(computedHitHeight(clear!)).toBeGreaterThanOrEqual(44);
+
+    const transparent = "rgba(0, 0, 0, 0)";
+    const copyDefault = getComputedStyle(copyGlyph).backgroundColor;
+    setGeneratorInteraction(copy, "hover");
+    const copyHover = getComputedStyle(copyGlyph).backgroundColor;
+    expect(copyHover).not.toBe(copyDefault);
+    expect(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    setGeneratorInteraction(copy, "active");
+    const copyPressed = getComputedStyle(copyGlyph).backgroundColor;
+    expect(copyPressed).not.toBe(copyHover);
+    expect(copyPressed).not.toBe(copyDefault);
+    expect(getComputedStyle(copy).backgroundColor).toBe(transparent);
+    setGeneratorInteraction(copy, "focus");
+    expect(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
+    expect(cssPixels(getComputedStyle(copyGlyph).outlineWidth)).toBe(0);
+    setGeneratorInteraction(copy, "focus focus-visible");
+    expect(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
+    expect(getComputedStyle(copyGlyph).outlineWidth).toBe("2px");
+    const normalCopyFocusColor = getComputedStyle(copyGlyph).outlineColor;
+    setGeneratorInteraction(copy, null);
+
+    const longCredential = "correct-horse-battery-staple-".repeat(12);
+    credentialValue.textContent = longCredential;
+    row!.style.width = "240px";
+    document.documentElement.style.fontSize = "200%";
+    expect(credentialValue.textContent).toContain(longCredential);
+    expect(getComputedStyle(row!).height).toBe("auto");
+    expect(getComputedStyle(row!).overflow).toBe("visible");
+    expect(getComputedStyle(credentialValue).maxHeight).toBe("none");
+    expect(getComputedStyle(credentialValue).overflow).toBe("visible");
+    expect(getComputedStyle(credentialValue).whiteSpace).toBe("normal");
+    expect(getComputedStyle(credentialValue).overflowWrap).toBe("anywhere");
+    document.documentElement.style.removeProperty("font-size");
 
     clear!.click();
     await fixture.whenStable();
@@ -985,13 +1061,35 @@ describe("iOS 27 Generator visual contract", () => {
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row!).minHeight).toBe("44px");
+    expect(getComputedStyle(copyGlyph).width).toBe("28px");
+    expect(getComputedStyle(copyGlyph).height).toBe("28px");
     expect([clear, cancel, danger].map((action) => computedHitWidth(action!)))
       .toEqual([44, 44, 44]);
+
+    document.documentElement.setAttribute("data-generator-test-media", "reduced-motion");
+    expect(getComputedStyle(copy).animationName).toBe("none");
+    expect(getComputedStyle(copy).transitionDuration).toBe("0s");
+    expect(getComputedStyle(copy).transform).toBe("none");
+    expect(getComputedStyle(copyGlyph).animationName).toBe("none");
+    expect(getComputedStyle(copyGlyph).transitionDuration).toBe("0s");
+    expect(getComputedStyle(copyGlyph).transform).toBe("none");
+
+    document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
+    const forcedCopy = forcedColorSignature(copyGlyph);
+    expect(forcedCopy.forcedColorAdjust).toBe("none");
+    expect(forcedCopy.borderWidth).toBe("1px");
+    setGeneratorInteraction(copy, "focus focus-visible");
+    expect(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
+    expect(getComputedStyle(copyGlyph).outlineWidth).toBe("2px");
+    expect(getComputedStyle(copyGlyph).outlineColor).not.toBe(normalCopyFocusColor);
+    setGeneratorInteraction(copy, null);
     expect([clear, cancel, danger].map((action) => computedHitHeight(action!)))
       .toEqual([44, 44, 44]);
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.removeAttribute("data-generator-test-media");
+    document.documentElement.style.removeProperty("font-size");
   });
 
   it("renders Send as a flat shadowless list with compact-safe rows and actions", async () => {
