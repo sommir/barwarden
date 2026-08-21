@@ -6,16 +6,18 @@
     <span bitTypography="body1" slot="end">{{ sends().length }}</span>
   </bit-section-header>
   <bit-item-group class="macos-send-list">
-    <bit-item class="macos-send-row" *ngFor="let send of sends(); trackBy: trackById">
+    <bit-item class="macos-send-row macos-row macos-row--double" *ngFor="let send of sends(); trackBy: trackById">
       <button
         bit-item-content
+        class="macos-hit-target"
+        [truncate]="false"
         [attr.aria-label]="'i18nViewItem' | i18n: send.name"
         [attr.data-popup-focus-key]="'send-item:' + send.id"
         (click)="open.emit(send)"
         type="button"
       >
         <div slot="start" class="tw-justify-start">
-          <bit-icon name="bwi-file-text" class="bwi-lg tw-text-muted tw-w-6" />
+          <bit-icon name="bwi-file-text" class="bwi-lg tw-text-muted tw-w-6 macos-icon-plate" />
         </div>
         {{ send.name }}
         <div slot="default-trailing" class="tw-flex tw-gap-2 tw-relative tw-z-10">
@@ -39,7 +41,7 @@
       <ng-container slot="end">
         <bit-item-action class="macos-send-row__actions">
           <button
-            class="tw-p-1"
+            class="tw-p-1 macos-hit-target"
             [attr.data-popup-focus-key]="'send-item:' + send.id + ':copy'"
             bitIconButton="bwi-clone"
             size="small"
@@ -51,6 +53,7 @@
         <bit-item-action class="macos-send-row__actions">
           <button
             #moreTrigger
+            class="macos-hit-target"
             [attr.data-popup-focus-key]="'send-item:' + send.id + ':more'"
             bitIconButton="bwi-ellipsis-v"
             size="small"
@@ -60,7 +63,7 @@
           ></button>
           <bit-menu #sendActions [ariaLabel]="(('i18nMore' | i18n) + ' - ' + send.name)">
             <button
-              class="macos-send-row__delete-action"
+              class="macos-send-row__delete-action macos-hit-target"
               data-testid="send-delete-action"
               type="button"
               bitMenuItem

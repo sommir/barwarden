@@ -1314,7 +1314,7 @@ describe("iOS 27 Generator visual contract", () => {
     document.documentElement.style.removeProperty("font-size");
   });
 
-  it("renders Send as a flat shadowless list with compact-safe rows and actions", async () => {
+  it("renders the mounted Send header and flat list with 48px rows and 44px action owners", async () => {
     TestBed.resetTestingModule();
     const store = new PopupStateStore();
     store.setSends([{
@@ -1345,16 +1345,33 @@ describe("iOS 27 Generator visual contract", () => {
     const host = fixture.nativeElement as HTMLElement;
     const list = host.querySelector<HTMLElement>(".macos-send-list")!;
     const row = host.querySelector<HTMLElement>(".macos-send-row")!;
+    const view = row.querySelector<HTMLElement>("[bit-item-content]")!;
+    const viewPlate = view.querySelector<HTMLElement>("bit-icon.macos-icon-plate")!;
     const actions = row.querySelectorAll<HTMLElement>(".macos-send-row__actions button");
     const newAction = host.querySelector<HTMLButtonElement>('[data-testid="send-new-action"]');
     const filterAction = host.querySelector<HTMLButtonElement>('[data-testid="send-filter-action"]');
 
     expect(getComputedStyle(list).display).toBe("block");
     expect(getComputedStyle(list).boxShadow).toBe("none");
-    expect(getComputedStyle(row).minHeight).toBe("52px");
+    expect(row.classList).toContain("macos-row");
+    expect(row.classList).toContain("macos-row--double");
+    expect(getComputedStyle(row).minHeight).toBe("48px");
+    expect(getComputedStyle(row).height).toBe("auto");
+    expect(getComputedStyle(row).paddingTop).toBe("2px");
+    expect(getComputedStyle(row).paddingRight).toBe("0px");
+    expect(getComputedStyle(row).paddingBottom).toBe("2px");
+    expect(getComputedStyle(row).paddingLeft).toBe("12px");
     expect(getComputedStyle(row).marginBottom).toBe("0px");
     expect(getComputedStyle(row).borderRadius).toBe("0px");
     expect(actions).toHaveLength(2);
+    expect(view.classList).toContain("macos-hit-target");
+    expect(Array.from(actions, (action) => action.classList.contains("macos-hit-target")))
+      .toEqual([true, true]);
+    expect(computedHitWidth(view)).toBeGreaterThanOrEqual(44);
+    expect(computedHitHeight(view)).toBeGreaterThanOrEqual(44);
+    expect(viewPlate).not.toBeNull();
+    expect(getComputedStyle(viewPlate).width).toBe("32px");
+    expect(getComputedStyle(viewPlate).height).toBe("32px");
     expect(Array.from(actions, (action) => getComputedStyle(action).minWidth)).toEqual([
       "44px",
       "44px",
@@ -1369,6 +1386,32 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual([44, 44]);
     expect([newAction, filterAction].map((action) => computedHitHeight(action!)))
       .toEqual([44, 44]);
+    expect(newAction?.classList).toContain("macos-hit-target");
+    expect(filterAction?.classList).toContain("macos-hit-target");
+    expect(row.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
+
+    const iconPlates = row.querySelectorAll<HTMLElement>(".macos-send-row__actions button > span");
+    expect(iconPlates.length).toBeGreaterThanOrEqual(2);
+    expect(Array.from(iconPlates, (plate) => getComputedStyle(plate).width))
+      .toEqual(Array.from(iconPlates, () => "32px"));
+    expect(Array.from(iconPlates, (plate) => getComputedStyle(plate).height))
+      .toEqual(Array.from(iconPlates, () => "32px"));
+
+    const copy = actions[0]!.querySelector<HTMLButtonElement>("button") ?? actions[0]!;
+    const copyPlate = copy.querySelector<HTMLElement>(":scope > span")!;
+    const normalPlateBackground = getComputedStyle(copyPlate).backgroundColor;
+    setGeneratorInteraction(copy, "hover");
+    expect(getComputedStyle(copyPlate).backgroundColor).not.toBe(normalPlateBackground);
+    const hoverPlateBackground = getComputedStyle(copyPlate).backgroundColor;
+    setGeneratorInteraction(copy, "active");
+    expect(getComputedStyle(copyPlate).backgroundColor).not.toBe(hoverPlateBackground);
+    setGeneratorInteraction(copy, "focus");
+    expect(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
+    expect(cssPixels(getComputedStyle(copyPlate).outlineWidth)).toBe(0);
+    setGeneratorInteraction(copy, "focus focus-visible");
+    expect(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
+    expect(getComputedStyle(copyPlate).outlineWidth).toBe("2px");
+    setGeneratorInteraction(copy, null);
 
     const more = row.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
     more.click();
@@ -1377,18 +1420,44 @@ describe("iOS 27 Generator visual contract", () => {
       '[data-testid="send-delete-action"]',
     );
     expect(deleteAction).not.toBeNull();
+    expect(row.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
+    expect(deleteAction?.classList).toContain("macos-hit-target");
     expect(computedHitWidth(deleteAction!)).toBeGreaterThanOrEqual(44);
     expect(computedHitHeight(deleteAction!)).toBeGreaterThanOrEqual(44);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(row).minHeight).toBe("44px");
+    expect(Array.from(iconPlates, (plate) => getComputedStyle(plate).width))
+      .toEqual(Array.from(iconPlates, () => "28px"));
+    expect(Array.from(iconPlates, (plate) => getComputedStyle(plate).height))
+      .toEqual(Array.from(iconPlates, () => "28px"));
+    expect(getComputedStyle(viewPlate).width).toBe("28px");
+    expect(getComputedStyle(viewPlate).height).toBe("28px");
     expect([newAction, filterAction, deleteAction].map((action) => computedHitWidth(action!)))
       .toEqual([44, 44, 44]);
     expect([newAction, filterAction, deleteAction].map((action) => computedHitHeight(action!)))
       .toEqual([44, 44, 44]);
 
+    document.documentElement.style.fontSize = "200%";
+    const wrappedText = view.querySelector<HTMLElement>(".tw-truncate")!;
+    expect(getComputedStyle(row).height).toBe("auto");
+    expect(getComputedStyle(view).height).toBe("auto");
+    expect(getComputedStyle(wrappedText).whiteSpace).toBe("normal");
+    expect(getComputedStyle(wrappedText).overflow).toBe("visible");
+    expect(getComputedStyle(wrappedText).textOverflow).toBe("clip");
+
+    document.documentElement.setAttribute("data-generator-test-media", "reduced-motion");
+    expect(getComputedStyle(copy).transitionDuration).toBe("0s");
+    expect(getComputedStyle(copyPlate).transitionDuration).toBe("0s");
+
+    document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
+    expect(getComputedStyle(copyPlate).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(copyPlate).borderWidth).toBe("1px");
+
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.removeAttribute("data-generator-test-media");
+    document.documentElement.style.removeProperty("font-size");
   });
 
   it("renders the real empty Send Create action as a compact-safe 44px target", async () => {
@@ -1413,6 +1482,7 @@ describe("iOS 27 Generator visual contract", () => {
 
     expect(host.querySelector("bw-official-send-list")).not.toBeNull();
     expect(create).not.toBeNull();
+    expect(create?.classList).toContain("macos-hit-target");
     expect(computedHitWidth(create!)).toBe(44);
     expect(computedHitHeight(create!)).toBe(44);
 
@@ -1632,7 +1702,8 @@ function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string 
     if (rule.type === CSSRule.STYLE_RULE) {
       const styleRule = rule as CSSStyleRule;
       if (
-        styleRule.selectorText.includes(".macos-generator")
+        (styleRule.selectorText.includes(".macos-generator")
+          || styleRule.selectorText.includes(".macos-page--send"))
         && /:(?:hover|active|focus)/.test(styleRule.selectorText)
       ) {
         projected.push(`${projectGeneratorInteractionSelector(styleRule.selectorText)} { ${styleRule.style.cssText} }`);
@@ -1650,7 +1721,10 @@ function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string 
     for (const nestedRule of Array.from(mediaRule.cssRules)) {
       if (nestedRule.type !== CSSRule.STYLE_RULE) continue;
       const styleRule = nestedRule as CSSStyleRule;
-      if (!styleRule.selectorText.includes(".macos-generator")) continue;
+      if (
+        !styleRule.selectorText.includes(".macos-generator")
+        && !styleRule.selectorText.includes(".macos-page--send")
+      ) continue;
       projected.push(
         `:root[data-generator-test-media="${media}"] :is(${projectGeneratorInteractionSelector(styleRule.selectorText)}) { ${styleRule.style.cssText} }`,
       );

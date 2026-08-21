@@ -95,7 +95,7 @@ const replaceBrowserAccountAndPopOutWithExistingPopupHeaderSlots = [
     replacement: `  <popup-header slot="header" pageTitle="Send">
     <ng-container slot="end">
       @if (!disabled()) {
-        <button class="macos-send__new-action" data-testid="send-new-action" bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+        <button class="macos-send__new-action macos-hit-target" data-testid="send-new-action" bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
           {{ "new" | i18n }}
         </button>
       }
@@ -132,7 +132,7 @@ const retainOfficialPolicySearchFilterLoadingEmptyAndNoResultsBlocks = [
           (ngModelChange)="queryChange.emit($event ?? '')"
         />
         <button
-          class="macos-send__filter-action"
+          class="macos-send__filter-action macos-hit-target"
           data-testid="send-filter-action"
           bitIconButton="bwi-sliders"
           buttonType="primaryGhost"
@@ -182,7 +182,7 @@ const removeFileNewSendChoice = [
           <p bitTypography="body2" class="tw-mx-6 tw-mt-2">{{ "i18nSendEmptyDescription" | i18n }}</p>
         </ng-container>
         @if (!disabled()) {
-          <button class="macos-send__empty-create-action" data-testid="send-empty-create-action" slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+          <button class="macos-send__empty-create-action macos-hit-target" data-testid="send-empty-create-action" slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
             {{ "i18nCreateSend" | i18n }}
           </button>
         }
@@ -207,7 +207,7 @@ const removeSendTypeFileIconBlock = [
           @if (send.type === sendType.File) {
             <bit-icon name="bwi-file" class="bwi-lg tw-text-muted tw-w-6" />
           }`,
-    replacement: '          <bit-icon name="bwi-file-text" class="bwi-lg tw-text-muted tw-w-6" />',
+    replacement: '          <bit-icon name="bwi-file-text" class="bwi-lg tw-text-muted tw-w-6 macos-icon-plate" />',
   },
 ] as const;
 
@@ -230,14 +230,16 @@ const replaceRouterLinkWithOpenOutput = [
     <span bitTypography="body1" slot="end">{{ sends().length }}</span>
   </bit-section-header>
   <bit-item-group class="macos-send-list">
-    <bit-item class="macos-send-row" *ngFor="let send of sends(); trackBy: trackById">`,
+    <bit-item class="macos-send-row macos-row macos-row--double" *ngFor="let send of sends(); trackBy: trackById">`,
   },
   {
     search: `        appA11yTitle="{{ 'edit' | i18n }} - {{ send.name }}"
         routerLink="/edit-send"
         [queryParams]="{ sendId: send.id, type: send.type }"
         appStopClick`,
-    replacement: `        [attr.aria-label]="'i18nViewItem' | i18n: send.name"
+    replacement: `        class="macos-hit-target"
+        [truncate]="false"
+        [attr.aria-label]="'i18nViewItem' | i18n: send.name"
         [attr.data-popup-focus-key]="'send-item:' + send.id"
         (click)="open.emit(send)"`,
   },
@@ -298,7 +300,7 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
         </bit-item-action>`,
     replacement: `        <bit-item-action class="macos-send-row__actions">
           <button
-            class="tw-p-1"
+            class="tw-p-1 macos-hit-target"
             [attr.data-popup-focus-key]="'send-item:' + send.id + ':copy'"
             bitIconButton="bwi-clone"
             size="small"
@@ -321,6 +323,7 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
     replacement: `        <bit-item-action class="macos-send-row__actions">
           <button
             #moreTrigger
+            class="macos-hit-target"
             [attr.data-popup-focus-key]="'send-item:' + send.id + ':more'"
             bitIconButton="bwi-ellipsis-v"
             size="small"
@@ -330,7 +333,7 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
           ></button>
           <bit-menu #sendActions [ariaLabel]="(('i18nMore' | i18n) + ' - ' + send.name)">
             <button
-              class="macos-send-row__delete-action"
+              class="macos-send-row__delete-action macos-hit-target"
               data-testid="send-delete-action"
               type="button"
               bitMenuItem

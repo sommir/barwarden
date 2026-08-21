@@ -550,6 +550,7 @@ describe("SendPageComponent", () => {
       expect(host.querySelectorAll('[data-testid="send-permanent-delete-confirmation"]'))
         .toHaveLength(1);
       expect(confirmation.hasAttribute("open")).toBe(true);
+      expect(document.activeElement).toBe(more);
 
       await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
       expect(staleDeleteItem.isConnected).toBe(false);
@@ -573,6 +574,38 @@ describe("SendPageComponent", () => {
       host.remove();
     },
   );
+
+  it("keeps mounted Send focus keys structural and secret-free", async () => {
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [PopupStateStore, provideRouter([])],
+    }).compileComponents();
+    const store = TestBed.inject(PopupStateStore);
+    store.setSends([demoSend({
+      id: "send-1",
+      name: "private-name-must-not-be-a-focus-key",
+      text: "private-body-must-not-be-a-focus-key",
+      notes: "private-notes-must-not-be-a-focus-key",
+      accessId: "private-access-token-must-not-be-a-focus-key",
+    })]);
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+
+    const keys = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>("[data-popup-focus-key]"),
+      (element) => element.getAttribute("data-popup-focus-key"),
+    );
+    expect(keys).toEqual([
+      "send:search",
+      "send-item:send-1",
+      "send-item:send-1:copy",
+      "send-item:send-1:more",
+    ]);
+    expect(keys.join(" ")).not.toContain("private-name");
+    expect(keys.join(" ")).not.toContain("private-body");
+    expect(keys.join(" ")).not.toContain("private-notes");
+    expect(keys.join(" ")).not.toContain("private-access-token");
+  });
 
   it("clears the pending Send when Escape dismisses the permanent deletion confirmation", async () => {
     const sendActions = new RecordingSendActions();

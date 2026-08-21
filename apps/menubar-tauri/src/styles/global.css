@@ -8397,3 +8397,174 @@ body.tw-bit-compact
     color: GrayText !important;
   }
 }
+
+/* iOS 27 Send list: compact information rows keep 44px owners while icon
+ * feedback paints on a separate 32/28px plate. Keep this task-owned block
+ * after retained compatibility styles. */
+.macos-page--send .macos-send-row {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto;
+  margin: 0;
+  padding: 2px 0 2px 12px;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send .macos-send-row [bit-item-content] {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  padding-block: 0;
+  overflow: visible;
+  white-space: normal;
+}
+
+.macos-page--send .macos-send-row [bit-item-content] .tw-truncate {
+  max-height: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send :is(
+  [data-testid="send-new-action"],
+  [data-testid="send-filter-action"],
+  [data-testid="send-empty-create-action"],
+  .macos-send-row button,
+  .macos-send-row a
+),
+.bit-menu-panel [role="menu"] .macos-send-row__delete-action {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+) {
+  border: 0;
+  background: transparent;
+  box-shadow: none !important;
+  outline: 0 !important;
+  transform: none;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+) > span {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):not(:disabled):not([aria-disabled="true"]):hover > span {
+  background: var(--mac-hover);
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):not(:disabled):not([aria-disabled="true"]):active > span {
+  background: var(--mac-pressed);
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):is(:disabled, [aria-disabled="true"]) > span {
+  opacity: 0.38;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):focus-visible > span {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):focus:not(:focus-visible) > span {
+  outline: 0;
+  box-shadow: none;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send .macos-send-row {
+  min-height: var(--mac-row-double-compact);
+  padding-block: 0;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+) > span {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button,
+    [data-testid="send-filter-action"] > span,
+    .macos-send-row__actions button > span
+  ) {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button
+  ) {
+    transform: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--send .macos-send-row {
+    border-bottom-color: CanvasText;
+  }
+
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button
+  ) > span {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button
+  ):focus-visible > span {
+    outline-color: Highlight;
+  }
+}
