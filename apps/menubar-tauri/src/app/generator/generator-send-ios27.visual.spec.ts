@@ -208,6 +208,7 @@ beforeAll(() => {
       || value,
   );
   style.textContent += projectGeneratorInteractionAndMediaRules(style.sheet!);
+  normalizeImportantMotionShorthandsForJSDOM(style.sheet!);
 });
 
 afterAll(() => {
@@ -1443,10 +1444,10 @@ describe("iOS 27 Generator visual contract", () => {
     const more = row.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
     const filterPlate = filterAction!.querySelector<HTMLElement>(":scope > span")!;
     const morePlate = more.querySelector<HTMLElement>(":scope > span")!;
-    const removeOwnerMotionProbe = installSendOwnerMotionProbe(
-      style.sheet!,
-      [filterAction!, more],
-    );
+    const removeHostileOwnerMotion = installPostProductionHostileOwnerMotion([
+      filterAction!,
+      more,
+    ]);
     for (const [owner, plate] of [[filterAction!, filterPlate], [more, morePlate]] as const) {
       const normalOwner = getComputedStyle(owner);
       expect(normalOwner.getPropertyValue("--send-owner-motion-probe")).toBe("1");
@@ -1555,7 +1556,7 @@ describe("iOS 27 Generator visual contract", () => {
       expect(getComputedStyle(plate).outlineWidth).toBe("2px");
       setGeneratorInteraction(owner, null);
     }
-    removeOwnerMotionProbe();
+    removeHostileOwnerMotion();
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
@@ -1823,32 +1824,42 @@ function setGeneratorInteraction(target: HTMLElement, interaction: string | null
   }
 }
 
-function installSendOwnerMotionProbe(
-  sheet: CSSStyleSheet,
+function installPostProductionHostileOwnerMotion(
   owners: readonly HTMLElement[],
 ): () => void {
-  const marker = "data-send-owner-motion-probe";
+  const marker = "data-send-owner-hostile-motion";
   for (const owner of owners) owner.setAttribute(marker, "");
-  const reset = Array.from(sheet.cssRules)
-    .filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE)
-    .find((rule) =>
-      rule.selectorText.includes("send-filter-action")
-      && rule.selectorText.includes(".macos-send-row__actions button")
-      && !rule.selectorText.includes("data-generator-test-media")
-      && rule.style.cssText.includes("animation: none")
-      && rule.style.cssText.includes("transition: none")
-    );
   const probeSelector = `[${marker}][${marker}][${marker}][${marker}]`;
   const probe = document.createElement("style");
-  probe.textContent = `${probeSelector} { --send-owner-motion-probe: 1; animation-name: generator-hostile-motion !important; animation-duration: 1s !important; animation-iteration-count: infinite !important; transition-property: transform !important; transition-duration: 1s !important; transition-timing-function: linear !important; }`;
-  if (reset) {
-    probe.textContent += `${probeSelector} { animation-name: none !important; animation-duration: 0s !important; animation-iteration-count: 1 !important; transition-property: none !important; transition-duration: 0s !important; transition-timing-function: ease !important; }`;
-  }
+  probe.textContent = `${probeSelector} { --send-owner-motion-probe: 1; animation-name: generator-hostile-motion; animation-duration: 1s; animation-iteration-count: infinite; transition-property: transform; transition-duration: 1s; transition-timing-function: linear; }`;
   document.head.append(probe);
   return () => {
     probe.remove();
     for (const owner of owners) owner.removeAttribute(marker);
   };
+}
+
+function normalizeImportantMotionShorthandsForJSDOM(sheet: CSSStyleSheet): void {
+  for (const rule of Array.from(sheet.cssRules)) {
+    if (rule.type !== CSSRule.STYLE_RULE) continue;
+    const declaration = (rule as CSSStyleRule).style;
+    if (declaration.getPropertyPriority("animation") === "important") {
+      const value = declaration.getPropertyValue("animation").trim();
+      if (value === "none") {
+        declaration.setProperty("animation-name", "none", "important");
+        declaration.setProperty("animation-duration", "0s", "important");
+        declaration.setProperty("animation-iteration-count", "1", "important");
+      }
+    }
+    if (declaration.getPropertyPriority("transition") === "important") {
+      const value = declaration.getPropertyValue("transition").trim();
+      if (value === "none") {
+        declaration.setProperty("transition-property", "none", "important");
+        declaration.setProperty("transition-duration", "0s", "important");
+        declaration.setProperty("transition-timing-function", "ease", "important");
+      }
+    }
+  }
 }
 
 function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string {

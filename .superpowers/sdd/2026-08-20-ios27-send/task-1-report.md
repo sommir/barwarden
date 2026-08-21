@@ -86,3 +86,19 @@
   child plate retains hover, pressed, focus, disabled, and media behavior.
 - Mutation check: removing the two owner reset declarations made the mounted
   test fail with `generator-hostile-motion`; restoring them returned it green.
+
+## Owner-motion cascade test correction
+
+- Removed the CSSOM search-and-reset projection from the prior regression.
+- After production global CSS is loaded, the mounted test now appends only a
+  normal-priority hostile animation/transition rule to the real Filter and
+  More owners and reads their actual computed styles. No production reset is
+  found, copied, or synthesized.
+- A generic test-environment normalization expands important `none` motion
+  shorthands into equivalent important longhands because JSDOM otherwise
+  resolves important shorthand versus later longhand contrary to the CSS
+  cascade. The normalization is not Send-specific and adds no reset result.
+- Mutation checks independently proved sensitivity: removing `!important`
+  exposed `generator-hostile-motion`, and mismatching the owner selector
+  exposed the hostile owner surface/motion. Restoring production unchanged
+  returned the mounted test green.
