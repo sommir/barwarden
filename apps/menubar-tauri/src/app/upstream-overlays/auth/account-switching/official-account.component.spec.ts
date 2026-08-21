@@ -65,7 +65,7 @@ function installAccountVisualCss(): () => void {
 }
 
 describe("OfficialAccountComponent authorization copy", () => {
-  it("renders the product account wrappers as continuous 52 px rows with one row action", async () => {
+  it("renders the product account wrappers as compact 48 px rows with one 44 px row action", async () => {
     const cleanupCss = installAccountVisualCss();
     const select = vi.fn(async () => undefined);
     const add = vi.fn(async () => undefined);
@@ -181,7 +181,10 @@ describe("OfficialAccountComponent authorization copy", () => {
       }
       for (const row of rows) {
         const styles = getComputedStyle(row);
-        expect(styles.minHeight).toBe("52px");
+        expect(row.classList).toContain("macos-row");
+        expect(row.classList).toContain("macos-row--double");
+        expect(styles.minHeight).toBe("48px");
+        expect(styles.margin).toBe("0px");
         expect(styles.borderTopWidth).toBe("0px");
         expect(styles.borderRightWidth).toBe("0px");
         expect(styles.borderBottomWidth).toBe("1px");
@@ -191,7 +194,13 @@ describe("OfficialAccountComponent authorization copy", () => {
       }
       for (const buttonsInRow of buttons) {
         expect(buttonsInRow).toHaveLength(1);
-        expect(getComputedStyle(buttonsInRow[0]!).minHeight).toBe("52px");
+        expect(buttonsInRow[0]!.classList).toContain("macos-hit-target");
+        expect(getComputedStyle(buttonsInRow[0]!).minHeight).toBe("44px");
+      }
+      for (const avatar of host.querySelectorAll<HTMLElement>("auth-account bit-avatar")) {
+        const styles = getComputedStyle(avatar);
+        expect(styles.width).toBe("32px");
+        expect(styles.height).toBe("32px");
       }
       for (const label of labels) {
         const styles = getComputedStyle(label);
@@ -205,6 +214,12 @@ describe("OfficialAccountComponent authorization copy", () => {
       expect(getComputedStyle(writtenStatus).overflowWrap).toBe("anywhere");
       expect(getComputedStyle(writtenStatus).whiteSpace).toBe("normal");
       expect(statusIcon.classList).toContain("bwi-unlock");
+
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      for (const row of rows) {
+        expect(getComputedStyle(row).minHeight).toBe("44px");
+      }
+      document.documentElement.removeAttribute("data-bw-compact-mode");
 
       (buttons[1]![0] as HTMLButtonElement).click();
       expect(select).toHaveBeenCalledOnce();

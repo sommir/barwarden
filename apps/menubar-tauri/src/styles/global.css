@@ -2965,7 +2965,8 @@ auth-account .macos-account-label {
 }
 
 .macos-page--account-switcher auth-account bit-item {
-  min-height: 52px;
+  min-height: var(--mac-row-double);
+  margin: 0;
   border: 0;
   border-bottom: 1px solid var(--mac-border-subtle);
   border-radius: 0;
@@ -2983,12 +2984,28 @@ auth-account .macos-account-label {
 }
 
 .macos-page--account-switcher auth-account button[bit-item-content] {
-  min-height: 52px;
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--account-switcher auth-account :is(button, a),
+.macos-page--account-switcher .macos-hit-target {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--account-switcher .account-avatar {
+  width: 32px;
+  height: 32px;
 }
 
 .macos-page--account-switcher auth-account .tw-italic {
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--account-switcher auth-account bit-item,
+body.tw-bit-compact .macos-page--account-switcher auth-account bit-item {
+  min-height: var(--mac-row-double-compact);
 }
 
 @media (prefers-reduced-motion: reduce) {
