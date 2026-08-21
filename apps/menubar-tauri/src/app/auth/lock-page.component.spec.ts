@@ -310,11 +310,21 @@ describe("LockPageComponent", () => {
         expect([...group!.querySelectorAll<HTMLElement>("[data-testid]")].map((element) => element.dataset.testid))
           .toEqual([state.primary, ...state.alternatives]);
         expect([...group!.querySelectorAll(".macos-primary-action")]).toEqual([rows[0]]);
+        expect(rows[0]!.classList).toContain("macos-button-owner");
+        for (const alternative of rows.slice(1)) {
+          expect(alternative!.classList).toContain("macos-auth-alternative");
+          expect(alternative!.classList).toContain("macos-hit-target");
+          expect(alternative!.classList).toContain("macos-pressable");
+        }
+        expect(
+          group!.querySelector<HTMLElement>('[data-testid="lock-logout-button"]')!.classList,
+        ).toContain("macos-danger-action");
 
         const groupStyles = getComputedStyle(group!);
-        expect(groupStyles.display).toBe("flex");
-        expect(groupStyles.flexDirection).toBe("column");
-        expect(groupStyles.gap).toBe("0px");
+        expect(groupStyles.display).toBe("grid");
+        expect(groupStyles.rowGap).toBe("0px");
+        expect(groupStyles.borderTopWidth).toBe("1px");
+        expect(groupStyles.borderBottomWidth).toBe("1px");
         for (const row of rows) {
           const styles = getComputedStyle(row!);
           expect(styles.display).toBe("flex");
@@ -330,12 +340,18 @@ describe("LockPageComponent", () => {
           expect(styles.boxShadow).toBe("none");
         }
 
+        document.documentElement.style.fontSize = "200%";
+        expect(getComputedStyle(rows[0]!).height).not.toBe("0px");
+        expect(getComputedStyle(rows[0]!).overflow).not.toBe("hidden");
+        document.documentElement.style.removeProperty("font-size");
+
         if (state.next) {
           group!.querySelector<HTMLButtonElement>(`[data-testid="${state.next}"]`)!.click();
           fixture.detectChanges();
         }
       }
     } finally {
+      document.documentElement.style.removeProperty("font-size");
       fixture.destroy();
       cleanupCss();
     }

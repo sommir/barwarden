@@ -37,7 +37,7 @@
       bitButton
       bitFormButton
       buttonType="primary"
-      class="macos-primary-action"
+      class="macos-primary-action macos-button-owner"
       block
       [disabled]="submitting"
       data-testid="lock-pin-button"
@@ -53,6 +53,7 @@
         bitButton
         bitFormButton
         buttonType="secondary"
+        class="macos-auth-alternative macos-hit-target macos-pressable"
         block
         [disabled]="submitting"
         (click)="selectMethod('biometric')"
@@ -67,6 +68,7 @@
       bitButton
       bitFormButton
       buttonType="secondary"
+      class="macos-auth-alternative macos-hit-target macos-pressable"
       block
       [disabled]="submitting"
       (click)="selectMethod('masterPassword')"
@@ -79,6 +81,7 @@
       type="button"
       bitButton
       bitFormButton
+      class="macos-auth-alternative macos-hit-target macos-pressable macos-danger-action"
       block
       [disabled]="submitting"
       (click)="logout()"

@@ -38,7 +38,7 @@
               type="button"
               bitButton
               buttonType="primary"
-              class="macos-primary-action"
+              class="macos-primary-action macos-button-owner"
               block
               [disabled]="submitting"
               (click)="unlockWithBiometric()"
@@ -54,6 +54,7 @@
                 type="button"
                 bitButton
                 buttonType="secondary"
+                class="macos-auth-alternative macos-hit-target macos-pressable"
                 block
                 [disabled]="submitting"
                 (click)="selectMethod('pin')"
@@ -67,6 +68,7 @@
               type="button"
               bitButton
               buttonType="secondary"
+              class="macos-auth-alternative macos-hit-target macos-pressable"
               block
               [disabled]="submitting"
               (click)="selectMethod('masterPassword')"
@@ -78,6 +80,7 @@
             <button
               type="button"
               bitButton
+              class="macos-auth-alternative macos-hit-target macos-pressable macos-danger-action"
               block
               [disabled]="submitting"
               (click)="logout()"
@@ -86,7 +89,7 @@
               {{ "logOut" | i18n }}
             </button>
 
-            <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+            <a bitLink routerLink="/account-switcher" class="macos-auth-alternative macos-hit-target macos-pressable" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
           </div>
         }
         @case ("pin") {
@@ -98,7 +101,7 @@
             (loggedOut)="logout()"
             (methodSelected)="selectMethod($event)"
           >
-            <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+            <a bitLink routerLink="/account-switcher" class="macos-auth-alternative macos-hit-target macos-pressable" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
           </bw-official-pin-lock>
         }
         @default {
@@ -110,7 +113,7 @@
             (loggedOut)="logoutSucceeded()"
             (methodSelected)="selectMethod($event)"
           >
-            <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+            <a bitLink routerLink="/account-switcher" class="macos-auth-alternative macos-hit-target macos-pressable" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
           </bw-official-master-password-lock>
         }
       }

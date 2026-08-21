@@ -2885,18 +2885,26 @@ bw-official-password-login .macos-primary-action.macos-button-owner {
 }
 
 .macos-unlock-methods {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 0;
+  row-gap: 0;
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: var(--mac-border-subtle);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
 }
 
 .macos-unlock-methods > .macos-primary-action {
   display: flex;
   width: 100%;
   min-height: 44px !important;
+  margin: 8px 0;
   box-sizing: border-box;
   align-items: center;
   justify-content: center;
+  border-radius: var(--mac-control-radius);
 }
 
 [data-testid="lock-switch-account"] {
