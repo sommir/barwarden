@@ -8420,8 +8420,11 @@ body.tw-bit-compact
   box-sizing: border-box;
   width: 100%;
   min-height: var(--mac-control-visible);
-  height: var(--mac-control-visible);
+  height: auto;
+  padding-block: 0.5625rem;
   border-radius: var(--mac-control-radius);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   overflow: visible;
 }
 
@@ -8557,7 +8560,8 @@ body.tw-bit-compact
 
 :root[data-bw-compact-mode="true"] .macos-page--send .send-filter-disclosure select.macos-control-visible {
   min-height: var(--mac-control-visible-compact);
-  height: var(--mac-control-visible-compact);
+  height: auto;
+  padding-block: 0.4375rem;
 }
 
 :root[data-bw-compact-mode="true"] .macos-page--send .macos-send-skeleton-row {
@@ -8663,11 +8667,14 @@ body.tw-bit-compact
 ) {
   box-sizing: border-box;
   min-width: 0;
-  height: var(--mac-control-visible) !important;
+  height: auto !important;
   min-height: var(--mac-control-visible) !important;
   max-height: none !important;
+  padding-block: 0.5625rem !important;
   overflow: visible;
   border-radius: var(--mac-control-radius) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
 }
 
 .macos-page--send-form textarea.macos-textarea-visible {
@@ -8774,8 +8781,9 @@ body.tw-bit-compact
   bit-select.macos-control-visible ng-select > .ng-select-container,
   bit-select.macos-control-visible [role="combobox"]
 ) {
-  height: var(--mac-control-visible-compact) !important;
+  height: auto !important;
   min-height: var(--mac-control-visible-compact) !important;
+  padding-block: 0.4375rem !important;
 }
 
 :root[data-bw-compact-mode="true"]

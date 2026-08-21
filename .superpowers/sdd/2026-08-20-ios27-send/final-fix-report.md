@@ -20,3 +20,10 @@
 - `npm run typecheck:official-send`: passed, including pinned upstream guard and web build.
 - Independent `npm run build:web`: passed with the accepted warning baseline.
 - `npm run update:official-send-manifest`: clean staged state was run twice after staging; both runs ended with zero Send overlay diff.
+
+## Dynamic-type control follow-up
+
+- Replaced fixed 40/36px heights on mounted Send editing controls and the Filter select with `height: auto`, retained 40/36px minimums, and rem-based font, line-height, and block padding.
+- The mounted geometry model remains exactly 40px normal and 36px compact at 100%, then grows above the compact minimum at 200% without hidden overflow or scroll clipping.
+- Regression tests failed when `height: auto`, either minimum, or the rem scaling declarations were independently mutated, then returned green after each restoration.
+- Final focused tests passed, the full Send gate passed 226 tests, the updater ran twice with zero overlay diff, and typecheck/build passed.

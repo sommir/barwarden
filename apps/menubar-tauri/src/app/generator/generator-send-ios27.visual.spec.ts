@@ -316,9 +316,11 @@ describe("iOS 27 Generator visual contract", () => {
       expect(cssPixels(getComputedStyle(fieldContainer).minHeight)).toBeGreaterThanOrEqual(44);
     }
     for (const control of controls) {
-      expect(getComputedStyle(control).minHeight).toBe("40px");
-      expect(modeledSingleLineControlPaintHeight(control)).toBe(40);
-      expect(getComputedStyle(control).maxHeight).toBe("none");
+      const computed = getComputedStyle(control);
+      expect(computed.height).toBe("auto");
+      expect(computed.minHeight).toBe("40px");
+      expect(modeledSingleLineControlPaintHeight(control, 16)).toBe(40);
+      expect(computed.maxHeight).toBe("none");
     }
     for (const textarea of textareas) {
       expect(cssPixels(getComputedStyle(textarea).minHeight)).toBeGreaterThanOrEqual(72);
@@ -389,7 +391,8 @@ describe("iOS 27 Generator visual contract", () => {
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     for (const control of controls) {
-      expect(modeledSingleLineControlPaintHeight(control)).toBe(36);
+      expect(getComputedStyle(control).height).toBe("auto");
+      expect(modeledSingleLineControlPaintHeight(control, 16)).toBe(36);
     }
     for (const group of groups) expect(getComputedStyle(group).gap).toBe("10px");
     for (const control of controls) {
@@ -403,6 +406,20 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(nestedTextSection).gap).toBe("10px");
 
     document.documentElement.style.fontSize = "200%";
+    for (const control of controls) {
+      const computed = getComputedStyle(control);
+      const scaledHeight = modeledSingleLineControlPaintHeight(control, 32);
+      expect(computed.height).toBe("auto");
+      expect(cssLengthPixels(computed.fontSize, 32)).toBeGreaterThan(
+        cssLengthPixels(computed.fontSize, 16),
+      );
+      expect(cssLengthPixels(computed.lineHeight, 32)).toBeGreaterThan(
+        cssLengthPixels(computed.lineHeight, 16),
+      );
+      expect(scaledHeight).toBeGreaterThan(36);
+      expect(computed.overflow).not.toBe("hidden");
+      expect(control.scrollHeight).toBeLessThanOrEqual(scaledHeight);
+    }
     for (const field of fields) {
       expect(getComputedStyle(field).height).toBe("auto");
       expect(getComputedStyle(field).maxHeight).toBe("none");
@@ -1706,7 +1723,8 @@ describe("iOS 27 Generator visual contract", () => {
     expect(filterSelect.value).toBe("text");
     expect(filterSelect.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
     expect(getComputedStyle(filterOwner).minHeight).toBe("44px");
-    expect(getComputedStyle(filterSelect).height).toBe("40px");
+    expect(getComputedStyle(filterSelect).height).toBe("auto");
+    expect(modeledSingleLineControlPaintHeight(filterSelect, 16)).toBe(40);
     expect(row.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
 
     const iconPlates = row.querySelectorAll<HTMLElement>(".macos-send-row__actions button > span");
@@ -1784,7 +1802,8 @@ describe("iOS 27 Generator visual contract", () => {
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(getComputedStyle(filterOwner).minHeight).toBe("44px");
-    expect(getComputedStyle(filterSelect).height).toBe("36px");
+    expect(getComputedStyle(filterSelect).height).toBe("auto");
+    expect(modeledSingleLineControlPaintHeight(filterSelect, 16)).toBe(36);
     expect(getComputedStyle(row).minHeight).toBe("44px");
     expect(Array.from(iconPlates, (plate) => getComputedStyle(plate).width))
       .toEqual(Array.from(iconPlates, () => "28px"));
@@ -1800,6 +1819,10 @@ describe("iOS 27 Generator visual contract", () => {
     document.documentElement.style.fontSize = "200%";
     expect(getComputedStyle(filterOwner).overflow).toBe("visible");
     expect(getComputedStyle(filterSelect).overflow).toBe("visible");
+    expect(modeledSingleLineControlPaintHeight(filterSelect, 32)).toBeGreaterThan(36);
+    expect(filterSelect.scrollHeight).toBeLessThanOrEqual(
+      modeledSingleLineControlPaintHeight(filterSelect, 32),
+    );
     const title = view.querySelector<HTMLElement>('[bitTypography="body2"] > div')!;
     const subtitle = view.querySelector<HTMLElement>('[bitTypography="helper"]')!;
     title.append(document.createElement("br"), "second mounted title line");
@@ -2072,9 +2095,16 @@ function modeledSendPrimaryPaintHeight(owner: HTMLElement, paint: HTMLElement): 
   return ownerHeight - 2 * inset;
 }
 
-function modeledSingleLineControlPaintHeight(control: HTMLElement): number {
+function modeledSingleLineControlPaintHeight(control: HTMLElement, rootFontSize: number): number {
   const style = getComputedStyle(control);
-  return cssPixels(style.height);
+  return Math.max(
+    cssLengthPixels(style.minHeight, rootFontSize),
+    cssLengthPixels(style.lineHeight, rootFontSize)
+      + cssLengthPixels(style.paddingTop, rootFontSize)
+      + cssLengthPixels(style.paddingBottom, rootFontSize)
+      + cssLengthPixels(style.borderTopWidth, rootFontSize)
+      + cssLengthPixels(style.borderBottomWidth, rootFontSize),
+  );
 }
 
 function modeledNaturalReadonlyHeight(
