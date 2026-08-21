@@ -441,10 +441,24 @@ describe("iOS 27 Generator visual contract", () => {
       expect(source.classList).toContain("macos-send-readonly-source");
       expect(source.getAttribute("aria-hidden")).toBe("true");
       expect(source.tabIndex).toBe(-1);
+      expect(source.value).toBe("");
     }
     expect(host.querySelector<HTMLInputElement>('.macos-send-readonly-source[type="password"]')?.value)
       .toBe("");
     expect(values.length).toBeGreaterThanOrEqual(5);
+    for (const value of values) {
+      const labelledBy = value.getAttribute("aria-labelledby");
+      expect(labelledBy).toBeTruthy();
+      const label = host.querySelector<HTMLElement>(`#${labelledBy}`);
+      expect(label?.textContent?.trim().length).toBeGreaterThan(0);
+    }
+    const passwordValue = host.querySelector<HTMLElement>(
+      '.macos-send-readonly-value[data-field="password"]',
+    )!;
+    const passwordLabel = host.querySelector<HTMLElement>(
+      `#${passwordValue.getAttribute("aria-labelledby")}`,
+    )!;
+    expect(passwordLabel.textContent?.trim()).toBe(TestBed.inject(I18nService).t("password"));
     expect(host.querySelectorAll(".macos-primary-action")).toHaveLength(0);
     expect(host.querySelector('[data-testid="edit-send"]')).not.toBeNull();
     const switches = host.querySelectorAll<HTMLButtonElement>('button[role="switch"]');
@@ -467,6 +481,14 @@ describe("iOS 27 Generator visual contract", () => {
       expect(getComputedStyle(row).overflow).toBe("visible");
     }
 
+    const nameValue = host.querySelector<HTMLElement>(
+      '.macos-send-readonly-value[data-field="name"]',
+    )!;
+    nameValue.style.width = "180px";
+    const normalFontSize = cssLengthPixels(getComputedStyle(nameValue).fontSize, 16);
+    const normalLineHeight = cssLengthPixels(getComputedStyle(nameValue).lineHeight, 16);
+    const normalModeledHeight = modeledNaturalReadonlyHeight(nameValue, 180, 16);
+
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(Array.from(groups, (group) => getComputedStyle(group).gap))
       .toEqual(Array.from(groups, () => "0px"));
@@ -484,9 +506,18 @@ describe("iOS 27 Generator visual contract", () => {
     expect(Array.from(values, (value) => value.textContent)).toContain(
       "Mounted multi-line secret value",
     );
-    const nameValue = values[0]!;
-    nameValue.append(document.createElement("br"), "second visible name line");
-    expect(modeledReadonlyValueHeight(nameValue)).toBeGreaterThan(44);
+    expect(nameValue.querySelector("br")).toBeNull();
+    const scaledFontSize = cssLengthPixels(getComputedStyle(nameValue).fontSize, 32);
+    const scaledLineHeight = cssLengthPixels(getComputedStyle(nameValue).lineHeight, 32);
+    const scaledModeledHeight = modeledNaturalReadonlyHeight(nameValue, 180, 32);
+    expect(scaledFontSize).toBeGreaterThan(normalFontSize);
+    expect(scaledLineHeight).toBeGreaterThan(normalLineHeight);
+    expect(scaledModeledHeight).toBeGreaterThan(normalModeledHeight);
+    expect(scaledModeledHeight).toBeGreaterThan(44);
+    for (const region of host.querySelectorAll<HTMLElement>('[role="status"],[role="alert"],[aria-live]')) {
+      expect(region.textContent).not.toContain("Mounted multi-line secret value");
+      expect(region.textContent).not.toContain("Mounted private note");
+    }
 
     host.querySelector<HTMLButtonElement>('[data-testid="edit-send"]')!.click();
     await fixture.whenStable();
@@ -1963,11 +1994,19 @@ function modeledSendPrimaryPaintHeight(owner: HTMLElement, paint: HTMLElement): 
   return ownerHeight - 2 * inset;
 }
 
-function modeledReadonlyValueHeight(value: HTMLElement): number {
+function modeledNaturalReadonlyHeight(
+  value: HTMLElement,
+  width: number,
+  rootFontSize: number,
+): number {
   const computed = getComputedStyle(value);
-  return cssPixels(computed.paddingTop)
-    + (1 + value.querySelectorAll("br").length) * cssPixels(computed.lineHeight)
-    + cssPixels(computed.paddingBottom);
+  const fontSize = cssLengthPixels(computed.fontSize, rootFontSize);
+  const lineHeight = cssLengthPixels(computed.lineHeight, rootFontSize);
+  const charactersPerLine = Math.max(1, Math.floor(width / (fontSize * 0.55)));
+  const lineCount = Math.max(1, Math.ceil((value.textContent?.length ?? 0) / charactersPerLine));
+  return cssLengthPixels(computed.paddingTop, rootFontSize)
+    + lineCount * lineHeight
+    + cssLengthPixels(computed.paddingBottom, rootFontSize);
 }
 
 function modeledStretchedModeHeights(

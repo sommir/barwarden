@@ -6,10 +6,10 @@
     <div class="macos-send-form__group">
       @if (maxAccessCountVisible()) {
         <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
-          <bit-label>{{ "i18nMaxAccessCount" | i18n }}</bit-label>
+          <bit-label id="send-readonly-label-max-access">{{ "i18nMaxAccessCount" | i18n }}</bit-label>
           @if (!editing()) {
-            <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" [value]="value().maxAccessCount" />
-            <span class="macos-send-readonly-value" role="textbox" aria-readonly="true" tabindex="0">{{ value().maxAccessCount || "—" }}</span>
+            <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" value="" />
+            <span class="macos-send-readonly-value" data-field="max-access" role="textbox" aria-readonly="true" aria-labelledby="send-readonly-label-max-access" tabindex="0">{{ value().maxAccessCount || "—" }}</span>
           } @else {
             <input class="macos-control-visible" bitInput id="send-maxAccessCount" type="number" min="1" step="1" inputmode="numeric" [value]="value().maxAccessCount" [attr.aria-invalid]="touched().has('maxAccessCount') && errors().maxAccessCount ? 'true' : null" [attr.aria-errormessage]="touched().has('maxAccessCount') && errors().maxAccessCount ? 'send-error-maxAccessCount' : null" (input)="valueChange.emit({ maxAccessCount: inputValue($event) })" (blur)="fieldBlur.emit('maxAccessCount')" />
           }
@@ -27,10 +27,10 @@
       }
       @if (privateNoteVisible()) {
         <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
-          <bit-label>{{ "i18nPrivateNotes" | i18n }}</bit-label>
+          <bit-label id="send-readonly-label-notes">{{ "i18nPrivateNotes" | i18n }}</bit-label>
           @if (!editing()) {
-            <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" [value]="value().notes" />
-            <span class="macos-send-readonly-value macos-send-readonly-value--multiline" role="textbox" aria-readonly="true" tabindex="0">{{ value().notes || "—" }}</span>
+            <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" value="" />
+            <span class="macos-send-readonly-value macos-send-readonly-value--multiline" data-field="notes" role="textbox" aria-readonly="true" aria-labelledby="send-readonly-label-notes" tabindex="0">{{ value().notes || "—" }}</span>
           } @else {
             <textarea class="macos-textarea-visible" bitInput rows="3" [value]="value().notes" (input)="valueChange.emit({ notes: inputValue($event) })"></textarea>
           }

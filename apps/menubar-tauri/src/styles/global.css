@@ -8884,8 +8884,8 @@ body.tw-bit-compact
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   white-space: normal;
   text-overflow: clip;
   overflow-wrap: anywhere;

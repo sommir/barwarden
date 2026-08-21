@@ -5,10 +5,10 @@
 
   <div class="macos-send-form__group">
     <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
-      <bit-label>{{ "i18nSendName" | i18n }}</bit-label>
+      <bit-label id="send-readonly-label-name">{{ "i18nSendName" | i18n }}</bit-label>
       @if (!editing()) {
-        <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" [value]="value().name" />
-        <span class="macos-send-readonly-value" role="textbox" aria-readonly="true" tabindex="0">{{ value().name }}</span>
+        <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" value="" />
+        <span class="macos-send-readonly-value" data-field="name" role="textbox" aria-readonly="true" aria-labelledby="send-readonly-label-name" tabindex="0">{{ value().name }}</span>
       } @else {
         <input class="macos-control-visible" bitInput id="send-name" type="text" [value]="value().name" [attr.aria-invalid]="touched().has('name') && errors().name ? 'true' : null" [attr.aria-describedby]="touched().has('name') && errors().name ? 'send-error-name' : null" (input)="valueChange.emit({ name: inputValue($event) })" (blur)="fieldBlur.emit('name')" />
       }
@@ -20,10 +20,10 @@
     <bw-official-send-text-details [editing]="editing()" [value]="value()" [errors]="errors()" [touched]="touched()" (valueChange)="valueChange.emit($event)" (fieldBlur)="fieldBlur.emit($event)"></bw-official-send-text-details>
 
     <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
-      <bit-label>{{ "i18nDeleteDate" | i18n }}</bit-label>
+      <bit-label id="send-readonly-label-deletion">{{ "i18nDeleteDate" | i18n }}</bit-label>
       @if (!editing()) {
-        <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" [value]="deletionLabel()" />
-        <span class="macos-send-readonly-value" role="textbox" aria-readonly="true" tabindex="0">{{ deletionLabel() }}</span>
+        <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" value="" />
+        <span class="macos-send-readonly-value" data-field="deletion" role="textbox" aria-readonly="true" aria-labelledby="send-readonly-label-deletion" tabindex="0">{{ deletionLabel() }}</span>
       } @else {
         <bit-select class="macos-control-visible" [ngModel]="value().deletionPresetHours" (ngModelChange)="valueChange.emit({ deletionPresetHours: deletionPreset($event) })" [ngModelOptions]="{ standalone: true }">
           @for (option of datePresetOptions; track option.value) {
@@ -35,10 +35,10 @@
     </bit-form-field>
 
     <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
-      <bit-label>{{ "i18nWhoCanAccess" | i18n }}</bit-label>
+      <bit-label id="send-readonly-label-auth">{{ "i18nWhoCanAccess" | i18n }}</bit-label>
       @if (!editing()) {
-        <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" [value]="authTypeLabel()" />
-        <span class="macos-send-readonly-value" role="textbox" aria-readonly="true" tabindex="0">{{ authTypeLabel() }}</span>
+        <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" value="" />
+        <span class="macos-send-readonly-value" data-field="auth" role="textbox" aria-readonly="true" aria-labelledby="send-readonly-label-auth" tabindex="0">{{ authTypeLabel() }}</span>
       } @else {
         <bit-select class="macos-control-visible" [ngModel]="value().authType" (ngModelChange)="valueChange.emit({ authType: authType($event) })" [ngModelOptions]="{ standalone: true }">
           @for (option of authorizationOptions; track option.value) {
@@ -51,10 +51,10 @@
 
     @if (value().authType === 'password') {
       <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
-        <bit-label>{{ originalHadPassword() ? ("i18nNewPassword" | i18n) : ("password" | i18n) }}</bit-label>
+        <bit-label id="send-readonly-label-password">{{ !editing() ? ("password" | i18n) : originalHadPassword() ? ("i18nNewPassword" | i18n) : ("password" | i18n) }}</bit-label>
         @if (!editing()) {
           <input class="macos-send-readonly-source" bitInput type="password" readonly aria-hidden="true" tabindex="-1" value="" />
-          <span class="macos-send-readonly-value" role="textbox" aria-readonly="true" tabindex="0">{{ "i18nPasswordProtected" | i18n }}</span>
+          <span class="macos-send-readonly-value" data-field="password" role="textbox" aria-readonly="true" aria-labelledby="send-readonly-label-password" tabindex="0">{{ "i18nPasswordProtected" | i18n }}</span>
         } @else {
           <input class="macos-control-visible" bitInput id="send-password" type="password" [value]="value().password" [readonly]="originalHadPassword()" [attr.aria-invalid]="touched().has('password') && errors().password ? 'true' : null" [attr.aria-describedby]="touched().has('password') && errors().password ? 'send-error-password' : null" (input)="valueChange.emit({ password: inputValue($event) })" (blur)="fieldBlur.emit('password')" />
         }
