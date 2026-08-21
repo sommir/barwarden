@@ -95,20 +95,34 @@ describe("OfficialSendListComponent", () => {
   });
 
   it("emits search and filter commands and exposes only a Text new action", async () => {
-    const fixture = await createFixture({ sends: [textSend()], state: "ready", filtersVisible: true });
+    const fixture = await createFixture({
+      sends: [textSend()],
+      state: "ready",
+      filtersVisible: true,
+      filterType: "text",
+    });
     const commands = outputCommands(fixture.componentInstance);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
+    const select = host.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!;
+
+    expect(select.value).toBe("text");
+    fixture.componentRef.setInput("filtersVisible", false);
+    fixture.detectChanges();
+    fixture.componentRef.setInput("filtersVisible", true);
+    fixture.detectChanges();
+    const reopenedSelect = host.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!;
+    expect(reopenedSelect.value).toBe("text");
 
     const search = host.querySelector<HTMLInputElement>("bit-search input")!;
     search.value = "payroll";
     search.dispatchEvent(new Event("input"));
     await fixture.whenStable();
     host.querySelector<HTMLButtonElement>('[aria-label="筛选 Send"]')?.click();
-    host.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!.value = "text";
-    host.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!.dispatchEvent(new Event("change"));
+    reopenedSelect.value = "text";
+    reopenedSelect.dispatchEvent(new Event("change"));
     host.querySelector<HTMLButtonElement>('[aria-label="新增文本 Send"]')?.click();
 
     expect(commands).toEqual(["query:payroll", "filters", "filter:text", "open:new"]);
@@ -173,6 +187,7 @@ async function createFixture(inputs: Record<string, unknown>) {
   fixture.componentRef.setInput("sends", []);
   fixture.componentRef.setInput("query", "");
   fixture.componentRef.setInput("filtersVisible", false);
+  fixture.componentRef.setInput("filterType", "");
   fixture.componentRef.setInput("loading", false);
   fixture.componentRef.setInput("disabled", false);
   fixture.componentRef.setInput("state", "empty");

@@ -54,6 +54,7 @@ export { SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
       [sends]="sends"
       [query]="query"
       [filtersVisible]="filtersVisible"
+      [filterType]="filterType"
       [loading]="loading"
       [disabled]="disabled"
       [state]="state"
@@ -177,6 +178,10 @@ export class SendPageComponent implements OnDestroy {
 
   get filtersVisible(): boolean {
     return this.sendFacade.filtersVisible();
+  }
+
+  get filterType(): "" | "text" {
+    return this.sendFacade.filterType() === "text" ? "text" : "";
   }
 
   get loading(): boolean {

@@ -317,6 +317,7 @@ describe("iOS 27 Generator visual contract", () => {
     }
     for (const control of controls) {
       expect(getComputedStyle(control).minHeight).toBe("40px");
+      expect(modeledSingleLineControlPaintHeight(control)).toBe(40);
       expect(getComputedStyle(control).maxHeight).toBe("none");
     }
     for (const textarea of textareas) {
@@ -387,6 +388,9 @@ describe("iOS 27 Generator visual contract", () => {
     setGeneratorInteraction(iconOwner, null);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    for (const control of controls) {
+      expect(modeledSingleLineControlPaintHeight(control)).toBe(36);
+    }
     for (const group of groups) expect(getComputedStyle(group).gap).toBe("10px");
     for (const control of controls) {
       expect(getComputedStyle(control).minHeight).toBe("36px");
@@ -1626,6 +1630,8 @@ describe("iOS 27 Generator visual contract", () => {
       disabled: false,
       accessCount: 0,
     }]);
+    store.setSendFilterVisible(true);
+    store.setSendTypeFilter("text");
     TestBed.overrideComponent(PopupPageComponent, { set: { template: "<ng-content />" } });
     await TestBed.configureTestingModule({
       imports: [SendPageComponent],
@@ -1648,6 +1654,8 @@ describe("iOS 27 Generator visual contract", () => {
     const actions = row.querySelectorAll<HTMLElement>(".macos-send-row__actions button");
     const newAction = host.querySelector<HTMLButtonElement>('[data-testid="send-new-action"]');
     const filterAction = host.querySelector<HTMLButtonElement>('[data-testid="send-filter-action"]');
+    const filterOwner = host.querySelector<HTMLElement>(".send-filter-disclosure.macos-field-owner")!;
+    const filterSelect = filterOwner?.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!;
 
     expect(getComputedStyle(list).display).toBe("block");
     expect(getComputedStyle(list).boxShadow).toBe("none");
@@ -1694,6 +1702,11 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual([44, 44]);
     expect(newAction?.classList).toContain("macos-hit-target");
     expect(filterAction?.classList).toContain("macos-hit-target");
+    expect(filterOwner).not.toBeNull();
+    expect(filterSelect.value).toBe("text");
+    expect(filterSelect.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
+    expect(getComputedStyle(filterOwner).minHeight).toBe("44px");
+    expect(getComputedStyle(filterSelect).height).toBe("40px");
     expect(row.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
 
     const iconPlates = row.querySelectorAll<HTMLElement>(".macos-send-row__actions button > span");
@@ -1770,6 +1783,8 @@ describe("iOS 27 Generator visual contract", () => {
     expect(computedHitHeight(deleteAction!)).toBeGreaterThanOrEqual(44);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(getComputedStyle(filterOwner).minHeight).toBe("44px");
+    expect(getComputedStyle(filterSelect).height).toBe("36px");
     expect(getComputedStyle(row).minHeight).toBe("44px");
     expect(Array.from(iconPlates, (plate) => getComputedStyle(plate).width))
       .toEqual(Array.from(iconPlates, () => "28px"));
@@ -1783,6 +1798,8 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual([44, 44, 44]);
 
     document.documentElement.style.fontSize = "200%";
+    expect(getComputedStyle(filterOwner).overflow).toBe("visible");
+    expect(getComputedStyle(filterSelect).overflow).toBe("visible");
     const title = view.querySelector<HTMLElement>('[bitTypography="body2"] > div')!;
     const subtitle = view.querySelector<HTMLElement>('[bitTypography="helper"]')!;
     title.append(document.createElement("br"), "second mounted title line");
@@ -1855,6 +1872,39 @@ describe("iOS 27 Generator visual contract", () => {
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     expect(computedHitWidth(create!)).toBe(44);
     expect(computedHitHeight(create!)).toBe(44);
+
+    fixture.destroy();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+  });
+
+  it("renders real loading Send skeletons with flat 48px and compact 44px rows", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setSyncing(true);
+    TestBed.overrideComponent(PopupPageComponent, { set: { template: "<ng-content />" } });
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: PopupStateStore, useValue: store },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const rows = host.querySelectorAll<HTMLElement>(".macos-send-skeleton-row");
+
+    expect(rows).toHaveLength(5);
+    for (const row of rows) {
+      expect(getComputedStyle(row).height).toBe("48px");
+      expect(getComputedStyle(row).borderRadius).toBe("0px");
+      expect(getComputedStyle(row).boxShadow).toBe("none");
+    }
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    for (const row of rows) expect(getComputedStyle(row).height).toBe("44px");
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
@@ -2020,6 +2070,11 @@ function modeledSendPrimaryPaintHeight(owner: HTMLElement, paint: HTMLElement): 
       : paintStyle.inset.split(" ")[0] ?? "0px",
   );
   return ownerHeight - 2 * inset;
+}
+
+function modeledSingleLineControlPaintHeight(control: HTMLElement): number {
+  const style = getComputedStyle(control);
+  return cssPixels(style.height);
 }
 
 function modeledNaturalReadonlyHeight(

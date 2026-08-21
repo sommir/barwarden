@@ -41,6 +41,7 @@ export class OfficialSendListComponent {
   readonly sends = input.required<readonly OfficialTextSendListItem[]>();
   readonly query = input.required<string>();
   readonly filtersVisible = input.required<boolean>();
+  readonly filterType = input.required<"" | "text">();
   readonly loading = input.required<boolean>();
   readonly disabled = input.required<boolean>();
   readonly state = input.required<OfficialSendListState>();

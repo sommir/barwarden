@@ -10,7 +10,7 @@ import {
 } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
 import { Component } from "@angular/core";
-import { ActivatedRoute, NavigationEnd, provideRouter, Router } from "@angular/router";
+import { ActivatedRoute, NavigationEnd, provideRouter, Router, RouterOutlet } from "@angular/router";
 import { of, Subject } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,6 +51,13 @@ const openSimpleDialog = vi.fn(async () => true);
   template: '<button data-popup-focus-key="send:search">Search Sends</button>',
 })
 class CreatedRouteStubComponent {}
+
+@Component({
+  standalone: true,
+  imports: [RouterOutlet],
+  template: "<router-outlet />",
+})
+class RealSendRouteHostComponent {}
 
 beforeEach(() => {
   openSimpleDialog.mockReset();
@@ -2214,24 +2221,54 @@ describe("SendCreatedPageComponent", () => {
   });
 
   it.each(["Close", "Escape"] as const)(
-    "%s consumes the add-Send predecessor without polluting retained history",
+    "%s destroys and rebuilds real Send routes while consuming the add-Send predecessor",
     async (action) => {
-      const fixture = await createCreatedFixture("send-created");
+      TestBed.resetTestingModule();
+      const store = new PopupStateStore();
+      unlockForSendOperation(store);
+      store.setSends([demoSend({
+        id: "send-created",
+        accessId: "access-token",
+        urlB64Key: "url-key",
+        type: "text",
+      })]);
+      await TestBed.configureTestingModule({
+        imports: [RealSendRouteHostComponent],
+        providers: [
+          OfficialI18nService,
+          { provide: I18nService, useExisting: OfficialI18nService },
+          provideRouter([
+            { path: "tabs/send", component: SendPageComponent },
+            { path: "add-send", component: SendAddEditPageComponent },
+            { path: "send-created", component: SendCreatedPageComponent },
+          ]),
+          { provide: PopupStateStore, useValue: store },
+          { provide: GeneratorService, useValue: generatorService() },
+          { provide: DialogService, useValue: { openSimpleDialog } },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(RealSendRouteHostComponent);
       const router = TestBed.inject(Router);
       const routeCache = TestBed.inject(PopupRouterCacheService);
       const ends: string[] = [];
       const subscription = router.events.subscribe((event) => {
         if (event instanceof NavigationEnd) ends.push(event.urlAfterRedirects);
       });
-      const focusOwner = document.createElement("button");
-      focusOwner.setAttribute("data-popup-focus-key", "send:search");
-      document.body.append(focusOwner);
       await router.navigateByUrl("/tabs/send");
-      focusOwner.focus();
-      focusOwner.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const initialSearch = (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>('[data-popup-focus-key="send:search"] input')!;
+      expect(initialSearch).not.toBeNull();
+      initialSearch.focus();
+      initialSearch.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
       await router.navigateByUrl("/add-send");
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector("bw-send-add-edit-page")).not.toBeNull();
       await router.navigateByUrl("/send-created?sendId=send-created&type=text");
       fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector("bw-send-created-page")).not.toBeNull();
 
       if (action === "Close") {
         (fixture.nativeElement as HTMLElement)
@@ -2241,15 +2278,22 @@ describe("SendCreatedPageComponent", () => {
       } else {
         await routeCache.back();
       }
-      await new Promise((resolvePromise) => setTimeout(resolvePromise));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
 
       expect(ends.filter((url) => url === "/tabs/send")).toHaveLength(2);
       expect(router.url).toBe("/tabs/send");
       expect(routeCache.history()).not.toContain("/add-send");
       expect(routeCache.history()).not.toContain("/send-created");
-      expect(document.activeElement).toBe(focusOwner);
+      expect((fixture.nativeElement as HTMLElement).querySelector("bw-send-created-page")).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector("bw-send-page")).not.toBeNull();
+      const restoredSearch = (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>('[data-popup-focus-key="send:search"] input')!;
+      expect(restoredSearch).not.toBe(initialSearch);
+      await vi.waitFor(() => expect(document.activeElement).toBe(restoredSearch));
       subscription.unsubscribe();
-      focusOwner.remove();
+      fixture.destroy();
     },
   );
 
@@ -2328,12 +2372,17 @@ describe("SendCreatedPageComponent", () => {
     const store = TestBed.inject(PopupStateStore);
 
     fixture.detectChanges();
+    const router = TestBed.inject(Router);
+    const recover = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
     invalidate(store);
     fixture.detectChanges();
+    await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).querySelector("bw-official-send-created")).toBeNull();
     await fixture.componentInstance.copyLink();
     expect(copied).toEqual([]);
+    expect(recover).toHaveBeenCalledOnce();
+    expect(recover).toHaveBeenCalledWith("/tabs/send", { replaceUrl: true });
   });
 
   it("does not render or copy a created Send replaced under the same id", async () => {

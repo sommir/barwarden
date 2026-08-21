@@ -75,7 +75,7 @@
 +    SkeletonComponent,
 @@ -43,0 +37 @@
 +  templateUrl: "./official-send-list.component.html",
-@@ -46,4 +40,7 @@
+@@ -46,4 +40,8 @@
 -export class SendListComponent {
 -  protected readonly noItemIcon = NoSendsIcon;
 -  protected readonly noResultsIcon = NoResults;
@@ -84,10 +84,11 @@
 +  readonly sends = input.required<readonly OfficialTextSendListItem[]>();
 +  readonly query = input.required<string>();
 +  readonly filtersVisible = input.required<boolean>();
++  readonly filterType = input.required<"" | "text">();
 +  readonly loading = input.required<boolean>();
 +  readonly disabled = input.required<boolean>();
 +  readonly state = input.required<OfficialSendListState>();
-@@ -51,6 +48,6 @@
+@@ -51,6 +49,6 @@
 -  readonly sends = input.required<SendView[]>();
 -  readonly loading = input<boolean>(false);
 -  readonly disableSend = input<boolean>(false);
@@ -100,7 +101,7 @@
 +  readonly open = output<OfficialTextSendListItem | undefined>();
 +  readonly copyLink = output<OfficialTextSendCopyRequest>();
 +  readonly delete = output<OfficialTextSendListItem>();
-@@ -58,15 +55,2 @@
+@@ -58,15 +56,2 @@
 -  protected readonly showSearchBar = computed(
 -    () => (this.sends().length > 0 || this.searchText().length > 0) && !this.hideSearchBar(),
 -  );
@@ -118,7 +119,7 @@
 -    });
 +  inputValue(event: Event): "" | "text" {
 +    return event.target instanceof HTMLSelectElement && event.target.value === "text" ? "text" : "";
-@@ -74,21 +57,0 @@
+@@ -74,21 +58,0 @@
 -
 -  readonly editSend = output<SendView>();
 -  readonly copySend = output<SendView>();
@@ -140,6 +141,6 @@
 -  protected onDeleteSend(send: SendView): void {
 -    this.deleteSend.emit(send);
 -  }
-@@ -95,0 +59,2 @@
+@@ -95,0 +60,2 @@
 +
 +export type OfficialSendListState = "empty" | "no-results" | "ready";

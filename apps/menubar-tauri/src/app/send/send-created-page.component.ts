@@ -63,6 +63,7 @@ export class SendCreatedPageComponent implements OnDestroy {
   private readonly popOutHost: PopOutHost;
   private readonly owner: SendCreatedOwnership | undefined;
   private readonly stateSubscription: Subscription;
+  private recoveryQueued = false;
 
   constructor(
     route: ActivatedRoute,
@@ -85,7 +86,12 @@ export class SendCreatedPageComponent implements OnDestroy {
     this.popOutHost = popOutHost ?? new TauriHostService();
     const sendId = route.snapshot.queryParamMap.get("sendId") ?? "";
     this.owner = captureSendCreatedOwnership(store.snapshot(), store.currentSendRevision(), sendId);
-    this.stateSubscription = store.state$.subscribe(() => this.changeDetectorRef.markForCheck());
+    this.stateSubscription = store.state$.subscribe(() => {
+      this.changeDetectorRef.markForCheck();
+      if (!this.currentSend()) {
+        this.recoverInvalidOwnership();
+      }
+    });
   }
 
   get send(): OfficialCreatedTextSend | undefined {
@@ -153,6 +159,14 @@ export class SendCreatedPageComponent implements OnDestroy {
     }
     const send = state.sends.find((candidate) => candidate.id === owner.sendId);
     return isCopyableTextSend(send) ? send : undefined;
+  }
+
+  private recoverInvalidOwnership(): void {
+    if (this.recoveryQueued) return;
+    this.recoveryQueued = true;
+    queueMicrotask(() => {
+      void this.router.navigateByUrl("/tabs/send", { replaceUrl: true });
+    });
   }
 
   ngOnDestroy(): void {

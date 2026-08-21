@@ -8416,6 +8416,30 @@ body.tw-bit-compact
   box-shadow: none;
 }
 
+.macos-page--send .send-filter-disclosure select.macos-control-visible {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--mac-control-visible);
+  height: var(--mac-control-visible);
+  border-radius: var(--mac-control-radius);
+  overflow: visible;
+}
+
+.macos-page--send .send-filter-disclosure.macos-field-owner {
+  display: flex;
+  min-height: var(--mac-hit-size);
+  align-items: center;
+  overflow: visible;
+}
+
+.macos-page--send .macos-send-skeleton-row {
+  box-sizing: border-box;
+  height: var(--mac-row-double);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .macos-page--send .macos-send-row button[bit-item-content].macos-hit-target {
   min-width: var(--mac-hit-size);
   min-height: var(--mac-hit-size);
@@ -8531,6 +8555,15 @@ body.tw-bit-compact
   padding-block: 0;
 }
 
+:root[data-bw-compact-mode="true"] .macos-page--send .send-filter-disclosure select.macos-control-visible {
+  min-height: var(--mac-control-visible-compact);
+  height: var(--mac-control-visible-compact);
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send .macos-send-skeleton-row {
+  height: var(--mac-row-double-compact);
+}
+
 :root[data-bw-compact-mode="true"] .macos-page--send :is(
   [data-testid="send-filter-action"],
   .macos-send-row__actions button
@@ -8630,7 +8663,7 @@ body.tw-bit-compact
 ) {
   box-sizing: border-box;
   min-width: 0;
-  height: auto !important;
+  height: var(--mac-control-visible) !important;
   min-height: var(--mac-control-visible) !important;
   max-height: none !important;
   overflow: visible;
@@ -8741,6 +8774,7 @@ body.tw-bit-compact
   bit-select.macos-control-visible ng-select > .ng-select-container,
   bit-select.macos-control-visible [role="combobox"]
 ) {
+  height: var(--mac-control-visible-compact) !important;
   min-height: var(--mac-control-visible-compact) !important;
 }
 

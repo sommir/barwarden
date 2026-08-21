@@ -73,7 +73,7 @@ const replaceSendItemsServiceStateWithTypedInputs = [
   @if (loading()) {
     <bit-item-group class="macos-send-list" [attr.aria-label]="'i18nLoadingSends' | i18n">
       @for (row of [0, 1, 2, 3, 4]; track row) {
-        <div class="tw-flex tw-items-center tw-gap-3 tw-h-[59px] tw-px-3">
+        <div class="macos-send-skeleton-row tw-flex tw-items-center tw-gap-3 tw-px-3">
           <bit-skeleton edgeShape="circle" class="tw-size-8 tw-flex-none" />
           <bit-skeleton class="tw-h-4 tw-flex-1" />
         </div>
@@ -143,8 +143,8 @@ const retainOfficialPolicySearchFilterLoadingEmptyAndNoResultsBlocks = [
         ></button>
       </div>
       @if (filtersVisible()) {
-        <div class="send-filter-disclosure">
-          <select [attr.aria-label]="'type' | i18n" (change)="filterChange.emit(inputValue($event))">
+        <div class="send-filter-disclosure macos-field-owner">
+          <select class="macos-control-visible" [attr.aria-label]="'type' | i18n" [value]="filterType()" (change)="filterChange.emit(inputValue($event))">
             <option value="">{{ "type" | i18n }}</option>
             <option value="text">{{ "i18nTextSend" | i18n }}</option>
           </select>
@@ -623,7 +623,7 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
     authorityClass: "SendListComponent", runtimeClass: "OfficialSendListComponent",
     authoritySha256: "34992501db328590360fa2dc4b9e935ce399afa3451757da4e5a17dba8c03aac",
-    requiredRuntimeMembers: ["sends", "query", "filtersVisible", "loading", "disabled", "state", "queryChange", "toggleFilters", "filterChange", "open", "copyLink", "delete", "inputValue"],
+    requiredRuntimeMembers: ["sends", "query", "filtersVisible", "filterType", "loading", "disabled", "state", "queryChange", "toggleFilters", "filterChange", "open", "copyLink", "delete", "inputValue"],
     requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "@angular/forms", bindings: ["FormsModule"] }, { module: "./official-send-list-items-container.component", bindings: ["OfficialSendListItemsContainerComponent", "OfficialTextSendListItem"] }],
     mutationSearch: "readonly queryChange", mutationReplacement: "readonly damagedQueryChange",
     patch: listTypeScriptPatch, transforms: staticPatchTransforms(listTypeScriptPatch),
