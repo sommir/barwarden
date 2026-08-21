@@ -8460,6 +8460,8 @@ body.tw-bit-compact
 ) {
   border: 0;
   background: transparent;
+  animation: none !important;
+  transition: none !important;
   box-shadow: none !important;
   outline: 0 !important;
   transform: none;

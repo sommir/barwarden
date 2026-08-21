@@ -181,9 +181,6 @@ const hostileGeneratorDefaultsCss = `
   ) {
     background: rgb(255 0 0);
     box-shadow: 0 0 0 3px red;
-    animation: generator-hostile-motion 1s infinite;
-    transition: transform 1s linear;
-    transform: scale(1.1);
   }
   .macos-page--send :is(
     [data-testid="send-filter-action"],
@@ -1446,8 +1443,13 @@ describe("iOS 27 Generator visual contract", () => {
     const more = row.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
     const filterPlate = filterAction!.querySelector<HTMLElement>(":scope > span")!;
     const morePlate = more.querySelector<HTMLElement>(":scope > span")!;
+    const removeOwnerMotionProbe = installSendOwnerMotionProbe(
+      style.sheet!,
+      [filterAction!, more],
+    );
     for (const [owner, plate] of [[filterAction!, filterPlate], [more, morePlate]] as const) {
       const normalOwner = getComputedStyle(owner);
+      expect(normalOwner.getPropertyValue("--send-owner-motion-probe")).toBe("1");
       const normalPlateBackground = getComputedStyle(plate).backgroundColor;
       expect(normalOwner.backgroundColor).toBe("rgba(0, 0, 0, 0)");
       expect(normalOwner.boxShadow).toBe("none");
@@ -1553,6 +1555,7 @@ describe("iOS 27 Generator visual contract", () => {
       expect(getComputedStyle(plate).outlineWidth).toBe("2px");
       setGeneratorInteraction(owner, null);
     }
+    removeOwnerMotionProbe();
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
@@ -1818,6 +1821,34 @@ function setGeneratorInteraction(target: HTMLElement, interaction: string | null
   } else {
     target.removeAttribute("data-generator-test-interaction");
   }
+}
+
+function installSendOwnerMotionProbe(
+  sheet: CSSStyleSheet,
+  owners: readonly HTMLElement[],
+): () => void {
+  const marker = "data-send-owner-motion-probe";
+  for (const owner of owners) owner.setAttribute(marker, "");
+  const reset = Array.from(sheet.cssRules)
+    .filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE)
+    .find((rule) =>
+      rule.selectorText.includes("send-filter-action")
+      && rule.selectorText.includes(".macos-send-row__actions button")
+      && !rule.selectorText.includes("data-generator-test-media")
+      && rule.style.cssText.includes("animation: none")
+      && rule.style.cssText.includes("transition: none")
+    );
+  const probeSelector = `[${marker}][${marker}][${marker}][${marker}]`;
+  const probe = document.createElement("style");
+  probe.textContent = `${probeSelector} { --send-owner-motion-probe: 1; animation-name: generator-hostile-motion !important; animation-duration: 1s !important; animation-iteration-count: infinite !important; transition-property: transform !important; transition-duration: 1s !important; transition-timing-function: linear !important; }`;
+  if (reset) {
+    probe.textContent += `${probeSelector} { animation-name: none !important; animation-duration: 0s !important; animation-iteration-count: 1 !important; transition-property: none !important; transition-duration: 0s !important; transition-timing-function: ease !important; }`;
+  }
+  document.head.append(probe);
+  return () => {
+    probe.remove();
+    for (const owner of owners) owner.removeAttribute(marker);
+  };
 }
 
 function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string {

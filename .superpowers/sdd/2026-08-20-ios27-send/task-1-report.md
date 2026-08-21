@@ -71,3 +71,18 @@
   review fix changes only scoped CSS and its mounted visual regression test.
 - Focused Send behavior/visual/list/guard verification passed 111/111 tests;
   `npm run typecheck:official-send` passed, including its production build.
+
+## Final owner-motion fix
+
+- The prior hostile owner motion was declared before the production selector,
+  while the test's Reduced Motion projection was flattened into top-level
+  CSSOM. That ordering made the default-state assertion falsely green.
+- The mounted regression now installs a post-production CSSOM motion probe on
+  the real Filter and More owners, excludes media-only reset projections, and
+  projects a reset only when the default scoped production rule owns both
+  `animation: none` and `transition: none`.
+- The default owner rule now clears animation and transition with important
+  priority; the existing Reduced Motion rule remains consistent, while the
+  child plate retains hover, pressed, focus, disabled, and media behavior.
+- Mutation check: removing the two owner reset declarations made the mounted
+  test fail with `generator-hostile-motion`; restoring them returned it green.
