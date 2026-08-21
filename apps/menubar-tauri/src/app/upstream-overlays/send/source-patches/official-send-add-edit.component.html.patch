@@ -23,7 +23,7 @@
 +  } @else {
 +    @if (status()) { <bit-callout type="info" [title]="'send' | i18n"><div role="status" data-testid="send-password-error">{{ status() }}</div></bit-callout> }
 +    <bw-official-send-details [editing]="editing()" [disabled]="disabled()" [originalHadPassword]="originalHadPassword()" [hideEmailAllowed]="hideEmailAllowed()" [value]="value()" [errors]="errors()" [touched]="touched()" (valueChange)="valueChange.emit($event)" (fieldBlur)="fieldBlur.emit($event)" (removePassword)="removePassword.emit()" (generatePassword)="generatePassword.emit()" (copyPassword)="copyPassword.emit($event)"></bw-official-send-details>
-@@ -20,11 +10,0 @@
+@@ -20,27 +11,2 @@
 -  <tools-send-form
 -    formId="sendForm"
 -    [config]="config"
@@ -35,7 +35,7 @@
 -  >
 -  </tools-send-form>
 -
-@@ -32,15 +12 @@
+-  <popup-footer slot="footer">
 -    <!-- Send is disabled -->
 -    @if (disabledSendConfig()) {
 -      <!-- User is allowed to make a copy of the Send -->
@@ -51,6 +51,7 @@
 -      <!-- Send is enabled -->
 -    } @else {
 -      <!-- Send is actively being edited -->
++  <popup-footer class="macos-form-actions" slot="footer">
 +    @if (!unavailable()) {
 @@ -48,6 +14,2 @@
 -        <button bitButton type="submit" form="sendForm" buttonType="primary" #submitBtn>
@@ -59,16 +60,16 @@
 -        <button bitButton type="button" buttonType="secondary" (click)="onCancelClick()">
 -          {{ "cancel" | i18n }}
 -        </button>
-+        <button bitButton type="button" buttonType="primary" data-testid="save-send" [disabled]="disabled() || pending()" [attr.aria-busy]="pending() ? 'true' : null" (click)="save.emit()">{{ "save" | i18n }}</button>
-+        <button bitButton type="button" buttonType="secondary" data-testid="cancel-send-edit" [disabled]="pending()" (click)="cancel.emit()">{{ "cancel" | i18n }}</button>
++        <button class="macos-primary-action macos-button-owner" bitButton type="button" buttonType="primary" data-testid="save-send" [disabled]="disabled() || pending()" [attr.aria-busy]="pending() ? 'true' : null" (click)="save.emit()">{{ "save" | i18n }}</button>
++        <button class="macos-secondary-action macos-hit-target" bitButton type="button" buttonType="secondary" data-testid="cancel-send-edit" [disabled]="pending()" (click)="cancel.emit()">{{ "cancel" | i18n }}</button>
 @@ -55,3 +17 @@
 -        <button bitButton type="button" buttonType="secondary" (click)="editSend()">
 -          {{ "edit" | i18n }}
 -        </button>
-+        <button bitButton type="button" buttonType="secondary" data-testid="edit-send" (click)="edit.emit(); editingChange.emit(true)">{{ "i18nEdit" | i18n }}</button>
++        <button class="macos-secondary-action macos-hit-target" bitButton type="button" buttonType="secondary" data-testid="edit-send" (click)="edit.emit(); editingChange.emit(true)">{{ "i18nEdit" | i18n }}</button>
 @@ -58,0 +19,3 @@
 +      @if (mode() === 'edit') {
-+        <button class="tw-ml-auto" type="button" buttonType="dangerGhost" slot="end" bitIconButton="bwi-trash" [disabled]="pending()" (click)="delete.emit()"></button>
++        <button class="tw-ml-auto macos-hit-target macos-send-form__icon-action" type="button" buttonType="dangerGhost" slot="end" bitIconButton="bwi-trash" [disabled]="pending()" (click)="delete.emit()"></button>
 +      }
 @@ -60,13 +22,0 @@
 -    @if (

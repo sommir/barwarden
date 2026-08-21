@@ -12,9 +12,9 @@
 -      <bit-label>Send {{ "name" | i18n | lowercase }}</bit-label>
 -      <input bitInput type="text" formControlName="name" [readonly]="!editing()" />
 +  <div class="macos-send-form__group">
-+    <bit-form-field class="macos-send-form__field" [disableMargin]="true">
++    <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
 +      <bit-label>{{ "i18nSendName" | i18n }}</bit-label>
-+      <input bitInput id="send-name" type="text" [value]="value().name" [readonly]="!editing()" [attr.aria-invalid]="touched().has('name') && errors().name ? 'true' : null" [attr.aria-describedby]="touched().has('name') && errors().name ? 'send-error-name' : null" (input)="valueChange.emit({ name: inputValue($event) })" (blur)="fieldBlur.emit('name')" />
++      <input class="macos-control-visible" bitInput id="send-name" type="text" [value]="value().name" [readonly]="!editing()" [attr.aria-invalid]="touched().has('name') && errors().name ? 'true' : null" [attr.aria-describedby]="touched().has('name') && errors().name ? 'send-error-name' : null" (input)="valueChange.emit({ name: inputValue($event) })" (blur)="fieldBlur.emit('name')" />
 +      @if (touched().has("name") && errors().name) {
 +        <p id="send-error-name" data-testid="send-error-name" role="alert" class="macos-send-form__error">{{ "inputRequired" | i18n }}</p>
 +      }
@@ -29,7 +29,7 @@
 @@ -19,2 +17,2 @@
 -    <bit-form-field>
 -      <bit-label>{{ "deletionDate" | i18n }}</bit-label>
-+    <bit-form-field class="macos-send-form__field" [disableMargin]="true">
++    <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
 +      <bit-label>{{ "i18nDeleteDate" | i18n }}</bit-label>
 @@ -22,6 +20 @@
 -        <input
@@ -38,7 +38,7 @@
 -          [value]="sendFormService.originalSendView()?.deletionDate | date: 'short'"
 -          readonly
 -        />
-+        <input bitInput type="text" [value]="deletionLabel()" readonly />
++        <input class="macos-control-visible" bitInput type="text" [value]="deletionLabel()" readonly />
 @@ -29,7 +22,3 @@
 -        <bit-select
 -          id="deletionDate"
@@ -47,7 +47,7 @@
 -        >
 -          @for (o of datePresetOptions; track o.label) {
 -            <bit-option [value]="o.value" [label]="o.label"></bit-option>
-+        <bit-select [ngModel]="value().deletionPresetHours" (ngModelChange)="valueChange.emit({ deletionPresetHours: deletionPreset($event) })" [ngModelOptions]="{ standalone: true }">
++        <bit-select class="macos-control-visible" [ngModel]="value().deletionPresetHours" (ngModelChange)="valueChange.emit({ deletionPresetHours: deletionPreset($event) })" [ngModelOptions]="{ standalone: true }">
 +          @for (option of datePresetOptions; track option.value) {
 +            <bit-option [value]="option.value" [label]="option.label"></bit-option>
 @@ -39,7 +28 @@
@@ -65,7 +65,7 @@
 -      [hidden]="(availableAuthTypes$ | async).length === 1"
 -    >
 -      <bit-label>{{ "whoCanView" | i18n }}</bit-label>
-+    <bit-form-field class="macos-send-form__field" [disableMargin]="true">
++    <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
 +      <bit-label>{{ "i18nWhoCanAccess" | i18n }}</bit-label>
 @@ -54,6 +34 @@
 -        <input
@@ -74,12 +74,12 @@
 -          [value]="sendFormService.originalSendView()?.authType | AuthTypeName"
 -          readonly
 -        />
-+        <input bitInput type="text" [value]="authTypeLabel()" readonly />
++        <input class="macos-control-visible" bitInput type="text" [value]="authTypeLabel()" readonly />
 @@ -61,3 +36,3 @@
 -        <bit-select formControlName="authType">
 -          @for (option of availableAuthTypes$ | async; track option.value) {
 -            <bit-option [value]="option.value" [label]="option.nameKey | i18n"></bit-option>
-+        <bit-select [ngModel]="value().authType" (ngModelChange)="valueChange.emit({ authType: authType($event) })" [ngModelOptions]="{ standalone: true }">
++        <bit-select class="macos-control-visible" [ngModel]="value().authType" (ngModelChange)="valueChange.emit({ authType: authType($event) })" [ngModelOptions]="{ standalone: true }">
 +          @for (option of authorizationOptions; track option.value) {
 +            <bit-option [value]="option.value" [label]="option.label"></bit-option>
 @@ -67,10 +42 @@
@@ -100,9 +100,9 @@
 -        <bit-label>{{ (passwordRemoved ? "newPassword" : "password") | i18n }}</bit-label>
 -        <input bitInput type="password" formControlName="password" [readonly]="!editing()" />
 +    @if (value().authType === 'password') {
-+      <bit-form-field class="macos-send-form__field" [disableMargin]="true">
++      <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
 +        <bit-label>{{ originalHadPassword() ? ("i18nNewPassword" | i18n) : ("password" | i18n) }}</bit-label>
-+        <input bitInput id="send-password" type="password" [value]="value().password" [readonly]="!editing() || originalHadPassword()" [attr.aria-invalid]="touched().has('password') && errors().password ? 'true' : null" [attr.aria-describedby]="touched().has('password') && errors().password ? 'send-error-password' : null" (input)="valueChange.emit({ password: inputValue($event) })" (blur)="fieldBlur.emit('password')" />
++        <input class="macos-control-visible" bitInput id="send-password" type="password" [value]="value().password" [readonly]="!editing() || originalHadPassword()" [attr.aria-invalid]="touched().has('password') && errors().password ? 'true' : null" [attr.aria-describedby]="touched().has('password') && errors().password ? 'send-error-password' : null" (input)="valueChange.emit({ password: inputValue($event) })" (blur)="fieldBlur.emit('password')" />
 @@ -84,44 +50,5 @@
 -          @if (!originalHadPassword) {
 -            <button
@@ -149,10 +149,10 @@
 -              ></button>
 -            }
 +          @if (!originalHadPassword()) {
-+            <button type="button" bitIconButton="bwi-generate" size="small" [disabled]="disabled()" (click)="generatePassword.emit()" data-testid="generate-password"></button>
-+            <button type="button" bitIconButton="bwi-clone" size="small" [disabled]="disabled() || !value().password" (click)="copyPassword.emit($event)"></button>
++            <button class="macos-hit-target macos-send-form__icon-action" type="button" bitIconButton="bwi-generate" size="small" [disabled]="disabled()" (click)="generatePassword.emit()" data-testid="generate-password"></button>
++            <button class="macos-hit-target macos-send-form__icon-action" type="button" bitIconButton="bwi-clone" size="small" [disabled]="disabled() || !value().password" (click)="copyPassword.emit($event)"></button>
 +          } @else if (editing()) {
-+            <button type="button" buttonType="dangerGhost" bitIconButton="bwi-minus-circle" size="small" [disabled]="disabled()" (click)="removePassword.emit()"></button>
++            <button class="macos-hit-target macos-send-form__icon-action" type="button" buttonType="dangerGhost" bitIconButton="bwi-minus-circle" size="small" [disabled]="disabled()" (click)="removePassword.emit()"></button>
 @@ -130,16 +57,2 @@
 -      </bit-form-field>
 -    }

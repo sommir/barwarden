@@ -189,6 +189,37 @@ const hostileGeneratorDefaultsCss = `
     animation: generator-hostile-motion 1s infinite;
     transition: background-color 1s linear;
   }
+  .macos-page--send-form .macos-send-form__group {
+    gap: 0;
+    padding-inline: 16px;
+    background: rgb(255 0 0);
+    box-shadow: 0 8px 20px rgb(0 0 0 / 20%);
+  }
+  .macos-page--send-form .macos-send-form__field {
+    min-height: 32px;
+    max-height: 44px;
+    padding: 10px 16px;
+    overflow: hidden;
+  }
+  .macos-page--send-form :is(input, bit-select, [role="combobox"]) {
+    height: 44px;
+    min-height: 44px;
+    max-height: 44px;
+    overflow: hidden;
+  }
+  .macos-page--send-form textarea {
+    min-height: 44px;
+  }
+  .macos-page--send-form .macos-send-form__icon-action {
+    min-width: 32px;
+    min-height: 32px;
+    background: rgb(255 0 0);
+    box-shadow: 0 0 0 3px red;
+  }
+  .macos-page--send-form .macos-send-form__icon-action > span {
+    animation: generator-hostile-motion 1s infinite;
+    transition: background-color 1s linear;
+  }
 `;
 
 beforeAll(() => {
@@ -233,20 +264,7 @@ function resolveCustomProperty(
 }
 
 describe("iOS 27 Generator visual contract", () => {
-  it("keeps Send form groups flat with touch-safe controls and an explicit focus ring", () => {
-    const css = readFileSync(
-      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
-      "utf8",
-    );
-    expect(css).toMatch(/\.macos-send-form__group\s*\{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
-    expect(css).toMatch(/\.macos-send-form__field\s*\{[^}]*padding-block:\s*10px[^}]*border-bottom-width:\s*1px[^}]*border-bottom-style:\s*solid/s);
-    expect(css).toMatch(/\.macos-send-form__field\s+:is\(input,\s*textarea,\s*select\)\s*\{[^}]*min-height:\s*44px[^}]*border-radius:\s*10px/s);
-    expect(css).toMatch(/\.macos-send-form__field\s+:is\(input,\s*textarea,\s*select\):focus-visible\s*\{[^}]*outline:\s*2px\s+solid\s+var\(--mac-focus\)/s);
-    expect(css).toMatch(/\.macos-page--send-form\s+:is\(button,\s*a\)\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s);
-    expect(css).toMatch(/\.macos-page--send-form\s+bit-form-control\s*>\s*label\s*\{[^}]*min-height:\s*44px/s);
-  });
-
-  it("renders real Send form rows with continuous dividers and zero default or compact gaps", async () => {
+  it("renders the real Send add form with compact painted controls and touch-safe owners", async () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [OfficialSendAddEditComponent],
@@ -258,29 +276,168 @@ describe("iOS 27 Generator visual contract", () => {
     const fixture = TestBed.createComponent(OfficialSendAddEditComponent);
     fixture.componentRef.setInput("mode", "add");
     fixture.componentRef.setInput("editing", true);
-    fixture.componentRef.setInput("value", sendFormValue());
+    fixture.componentRef.setInput("value", {
+      ...sendFormValue(),
+      authType: "password",
+      password: "generated password",
+      hideEmail: true,
+    });
+    fixture.componentRef.setInput("hideEmailAllowed", true);
     fixture.componentRef.setInput("errors", {} satisfies RetainedTextSendErrors);
     fixture.componentRef.setInput("touched", new Set<RetainedTextSendField>());
+    (fixture.nativeElement as HTMLElement).classList.add("macos-page--send-form");
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    const rows = host.querySelectorAll<HTMLElement>(
-      ".macos-send-form__group .macos-send-form__field",
+    const groups = host.querySelectorAll<HTMLElement>(".macos-send-form__group");
+    const fields = host.querySelectorAll<HTMLElement>(
+      "bit-form-field.macos-field-owner, .macos-preference-row",
     );
-    expect(rows.length).toBeGreaterThanOrEqual(8);
-    expect(Array.from(rows, (row) => cssPixels(getComputedStyle(row).marginBottom)))
-      .toEqual(Array.from(rows, () => 0));
-    expect(Array.from(rows, (row) => getComputedStyle(row).borderBottomWidth))
-      .toEqual(Array.from(rows, () => "1px"));
-    expect(Array.from(rows, (row) => getComputedStyle(row).borderBottomStyle))
-      .toEqual(Array.from(rows, () => "solid"));
+    const fieldContainers = host.querySelectorAll<HTMLElement>("[bitfieldcontainer]");
+    const controls = host.querySelectorAll<HTMLElement>(
+      "input.macos-control-visible, bit-select.macos-control-visible, [role=combobox]",
+    );
+    const textareas = host.querySelectorAll<HTMLTextAreaElement>("textarea");
+    const switches = host.querySelectorAll<HTMLButtonElement>(
+      'button.macos-switch-owner[role="switch"]',
+    );
+    const save = host.querySelector<HTMLButtonElement>('[data-testid="save-send"]')!;
+    const iconOwners = host.querySelectorAll<HTMLButtonElement>(
+      ".macos-send-form__icon-action",
+    );
+
+    expect(groups.length).toBeGreaterThanOrEqual(2);
+    expect(fields.length).toBeGreaterThanOrEqual(8);
+    expect(fieldContainers.length).toBeGreaterThanOrEqual(6);
+    expect(controls.length).toBeGreaterThanOrEqual(5);
+    expect(textareas).toHaveLength(2);
+    expect(switches).toHaveLength(2);
+    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(host.querySelector("bit-card")).toBeNull();
+    for (const group of groups) {
+      expect(getComputedStyle(group).gap).toBe("12px");
+      expect(getComputedStyle(group).paddingLeft).toBe("0px");
+      expect(getComputedStyle(group).paddingRight).toBe("0px");
+      expect(getComputedStyle(group).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(getComputedStyle(group).boxShadow).toBe("none");
+    }
+    for (const field of fields) {
+      expect(cssPixels(getComputedStyle(field).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(field).maxHeight).toBe("none");
+      expect(getComputedStyle(field).paddingLeft).toBe("0px");
+      expect(getComputedStyle(field).paddingRight).toBe("0px");
+      expect(getComputedStyle(field).overflow).toBe("visible");
+    }
+    for (const fieldContainer of fieldContainers) {
+      expect(cssPixels(getComputedStyle(fieldContainer).minHeight)).toBeGreaterThanOrEqual(44);
+    }
+    for (const control of controls) {
+      expect(cssPixels(getComputedStyle(control).minHeight)).toBeGreaterThanOrEqual(40);
+      expect(getComputedStyle(control).maxHeight).toBe("none");
+    }
+    for (const textarea of textareas) {
+      expect(cssPixels(getComputedStyle(textarea).minHeight)).toBeGreaterThanOrEqual(72);
+    }
+    expect(host.querySelectorAll(".macos-primary-action")).toHaveLength(1);
+    expect(save.classList).toContain("macos-button-owner");
+    expect(getComputedStyle(save).minHeight).toBe("44px");
+    expect(getComputedStyle(save).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(switches[0]!.getAttribute("aria-checked")).toBe("false");
+    expect(switches[1]!.getAttribute("aria-checked")).toBe("true");
+    expect(Array.from(switches, computedHitHeight)).toEqual([44, 44]);
+    expect(iconOwners.length).toBeGreaterThanOrEqual(2);
+    expect(Array.from(iconOwners, computedHitHeight).every((height) => height >= 44)).toBe(true);
+    const iconPlates = Array.from(iconOwners, (owner) =>
+      owner.querySelector<HTMLElement>(":scope > span")!,
+    );
+    expect(iconPlates.map((plate) => getComputedStyle(plate).width))
+      .toEqual(iconPlates.map(() => "32px"));
+    expect(iconPlates.map((plate) => getComputedStyle(plate).height))
+      .toEqual(iconPlates.map(() => "32px"));
+
+    const iconOwner = iconOwners[0]!;
+    const iconPlate = iconPlates[0]!;
+    const normalPlateBackground = getComputedStyle(iconPlate).backgroundColor;
+    setGeneratorInteraction(iconOwner, "hover");
+    expect(getComputedStyle(iconOwner).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(iconPlate).backgroundColor).not.toBe(normalPlateBackground);
+    setGeneratorInteraction(iconOwner, "active");
+    expect(getComputedStyle(iconOwner).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    setGeneratorInteraction(iconOwner, "focus");
+    expect(cssPixels(getComputedStyle(iconOwner).outlineWidth)).toBe(0);
+    expect(cssPixels(getComputedStyle(iconPlate).outlineWidth)).toBe(0);
+    setGeneratorInteraction(iconOwner, "focus focus-visible");
+    expect(cssPixels(getComputedStyle(iconOwner).outlineWidth)).toBe(0);
+    expect(getComputedStyle(iconPlate).outlineWidth).toBe("2px");
+    setGeneratorInteraction(iconOwner, null);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
-    expect(Array.from(rows, (row) => cssPixels(getComputedStyle(row).marginBottom)))
-      .toEqual(Array.from(rows, () => 0));
+    for (const group of groups) expect(getComputedStyle(group).gap).toBe("10px");
+    for (const control of controls) {
+      expect(cssPixels(getComputedStyle(control).minHeight)).toBeGreaterThanOrEqual(36);
+    }
+    expect(iconPlates.map((plate) => getComputedStyle(plate).width))
+      .toEqual(iconPlates.map(() => "28px"));
+    expect(iconPlates.map((plate) => getComputedStyle(plate).height))
+      .toEqual(iconPlates.map(() => "28px"));
+
+    document.documentElement.style.fontSize = "200%";
+    for (const field of fields) {
+      expect(getComputedStyle(field).height).toBe("auto");
+      expect(getComputedStyle(field).maxHeight).toBe("none");
+      expect(getComputedStyle(field).overflow).toBe("visible");
+    }
+    for (const label of host.querySelectorAll<HTMLElement>("bit-label, bit-hint")) {
+      expect(getComputedStyle(label).whiteSpace).toBe("normal");
+      expect(getComputedStyle(label).overflow).toBe("visible");
+    }
+
+    document.documentElement.setAttribute("data-generator-test-media", "reduced-motion");
+    expect(getComputedStyle(iconOwner).transitionDuration).toBe("0s");
+    expect(getComputedStyle(iconPlate).transitionDuration).toBe("0s");
+    document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
+    expect(getComputedStyle(iconPlate).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(iconPlate).borderWidth).toBe("1px");
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.removeAttribute("data-generator-test-media");
+    document.documentElement.style.removeProperty("font-size");
+  });
+
+  it("renders the real Send read-only form as growing controls without a filled primary", async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [OfficialSendAddEditComponent],
+      providers: [
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(OfficialSendAddEditComponent);
+    fixture.componentRef.setInput("mode", "edit");
+    fixture.componentRef.setInput("editing", false);
+    fixture.componentRef.setInput("value", { ...sendFormValue(), hidden: true, hideEmail: true });
+    fixture.componentRef.setInput("hideEmailAllowed", true);
+    fixture.componentRef.setInput("errors", {} satisfies RetainedTextSendErrors);
+    fixture.componentRef.setInput("touched", new Set<RetainedTextSendField>());
+    (fixture.nativeElement as HTMLElement).classList.add("macos-page--send-form");
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const controls = host.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      "input[bitinput],textarea[bitinput]",
+    );
+    expect(controls.length).toBeGreaterThanOrEqual(5);
+    expect(Array.from(controls).every((control) => control.readOnly)).toBe(true);
+    expect(host.querySelectorAll(".macos-primary-action")).toHaveLength(0);
+    expect(host.querySelector('[data-testid="edit-send"]')).not.toBeNull();
+    const switches = host.querySelectorAll<HTMLButtonElement>('button[role="switch"]');
+    expect(switches).toHaveLength(2);
+    expect(Array.from(switches).every((owner) => owner.disabled)).toBe(true);
+    expect(host.querySelector("bit-card")).toBeNull();
+
+    fixture.destroy();
   });
 
   it("renders the real Generator page with flat ordinary surfaces and touch-safe controls", async () => {

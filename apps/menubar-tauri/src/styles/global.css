@@ -8580,3 +8580,198 @@ body.tw-bit-compact
     outline-color: Highlight;
   }
 }
+
+/* iOS 27 Send forms separate 44px owners from compact visible controls. */
+.macos-page--send-form .macos-send-form__group {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send-form .macos-send-form__field {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send-form bit-form-field.macos-field-owner {
+  display: block;
+}
+
+.macos-page--send-form [bitfieldcontainer] {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  max-height: none;
+  margin: 0;
+  overflow: visible;
+}
+
+.macos-page--send-form :is(
+  input.macos-control-visible,
+  bit-select.macos-control-visible,
+  bit-select.macos-control-visible ng-select,
+  bit-select.macos-control-visible ng-select > .ng-select-container,
+  bit-select.macos-control-visible [role="combobox"]
+) {
+  box-sizing: border-box;
+  min-width: 0;
+  height: auto !important;
+  min-height: var(--mac-control-visible) !important;
+  max-height: none !important;
+  overflow: visible;
+  border-radius: var(--mac-control-radius) !important;
+}
+
+.macos-page--send-form textarea.macos-textarea-visible {
+  min-width: 0;
+  height: auto;
+  min-height: 72px;
+  max-height: none;
+  overflow: auto;
+  border-radius: var(--mac-control-radius);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send-form :is(bit-label, bit-hint, .macos-preference-row__copy) {
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send-form .macos-preference-row {
+  min-height: var(--mac-hit-size);
+  padding-inline: 0;
+  background: transparent;
+}
+
+.macos-page--send-form .macos-form-actions {
+  display: flex;
+  min-height: var(--mac-hit-size);
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.macos-page--send-form .macos-button-owner.macos-primary-action {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--send-form .macos-send-form__icon-action {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none !important;
+  outline: 0 !important;
+  transform: none;
+}
+
+.macos-page--send-form .macos-send-form__icon-action > span {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  animation: none;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--send-form .macos-send-form__icon-action:not(:disabled):not([aria-disabled="true"]):hover > span {
+  background: var(--mac-hover);
+}
+
+.macos-page--send-form .macos-send-form__icon-action:not(:disabled):not([aria-disabled="true"]):active > span {
+  background: var(--mac-pressed);
+}
+
+.macos-page--send-form .macos-send-form__icon-action:is(:disabled, [aria-disabled="true"]) > span {
+  opacity: 0.38;
+}
+
+.macos-page--send-form .macos-send-form__icon-action:focus-visible > span {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--send-form .macos-send-form__icon-action:focus:not(:focus-visible) > span {
+  outline: 0;
+  box-shadow: none;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send-form .macos-send-form__group {
+  gap: 10px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send-form :is(
+  input.macos-control-visible,
+  bit-select.macos-control-visible,
+  bit-select.macos-control-visible ng-select,
+  bit-select.macos-control-visible ng-select > .ng-select-container,
+  bit-select.macos-control-visible [role="combobox"]
+) {
+  min-height: var(--mac-control-visible-compact) !important;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form .macos-send-form__icon-action > span {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--send-form :is(
+    .macos-send-form__icon-action,
+    .macos-send-form__icon-action > span,
+    .macos-switch-owner > span,
+    .macos-switch-owner > span::after,
+    .macos-button-owner::before
+  ) {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--send-form .macos-send-form__icon-action > span {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send-form .macos-send-form__icon-action:focus-visible > span {
+    outline-color: Highlight;
+  }
+}

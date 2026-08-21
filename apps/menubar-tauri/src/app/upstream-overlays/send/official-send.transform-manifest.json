@@ -67,7 +67,7 @@
   "localRuntimes": [
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.html",
-      "sha256": "52545240d44e8ceebb35b1d33b958a083316bb74e0af918b83afbfac46641e61"
+      "sha256": "85897ae4935b34085807d6c0a5942dc914798d4cb4ece9607c34d5ab0b2a9382"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
@@ -83,7 +83,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.html",
-      "sha256": "66aaa0241556a5715dde938a6b053cc980c3b391f5abd022f22cafed9c584564"
+      "sha256": "44fa6a3249189791af77a25299f736e99a89722cc5a7c61a68b3eb82b2c75955"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
@@ -111,11 +111,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html",
-      "sha256": "16285a36376ed9dc29efe4b72f8cbebd238d3a67264315617f4908d957d49bcd"
+      "sha256": "7543b9cbef4e90538a2cfbdaecb4879c2addfa3be38e5650314b634445a13993"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
-      "sha256": "96bc5d541d1f07cfc9e5dc611675ad0d4bf3a4a2763ff198f5a96d647848c1c0"
+      "sha256": "bababcf1b1a3c39cb184ac70b6cb2ac6208fd1960765711e2c2b855eb6e24636"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-raw-template.d.ts",
@@ -123,7 +123,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html",
-      "sha256": "24e6328c58f4f941ea2e6fb26d99af5fffa04e34b73c94c358d7a115c1c76588"
+      "sha256": "5bf84f76031b17b74069449939d3b1c810d64eac1d7fceb7cbd0abe2b1e74417"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
@@ -131,7 +131,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.html.patch",
-      "sha256": "bcafaad1f136bcc27db4ce8b6af085a7d3be21ede7ba8192ae525b39a7e753eb"
+      "sha256": "4a42b29f9df441c3f1b8ee07efc9195dd9c037b75af1969b3cdf6d5b47ecdd84"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.ts.patch",
@@ -143,7 +143,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.html.patch",
-      "sha256": "c60f8b0ec4568cc0415287223e204e7b56bc74094b181070197c5ca0a37a45ed"
+      "sha256": "6b433c398005a236fac74ed55d0d27ae5969a02e107325998375a9a9274ae406"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.ts.patch",
@@ -159,15 +159,15 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.html.patch",
-      "sha256": "a2ef3d100e676c9aa26b4759961993c341a6c1090df47f1ad44a0a11698a403d"
+      "sha256": "8cda07ea5ba3ab3bdc48718228a92190bd2c953dc5c9b8d56a7a8c830685fbd8"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.ts.patch",
-      "sha256": "44a798f6388f1f5a06371556c0a6d10e50f810def873be4c81841e6c6ab7204b"
+      "sha256": "a54f29de79355315a1025fc5fb96708b76bd198c6b67a8c17581460cf22cefca"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.html.patch",
-      "sha256": "cb52c5e0665ccfd6a67a1f3f9df11bb8cfd37dd5bad9a2343df26b3e77b418fc"
+      "sha256": "bddbc6607e032f951a9ab5eec23bec6f51d83b8f0fd95671b837cb1201e8f646"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.ts.patch",

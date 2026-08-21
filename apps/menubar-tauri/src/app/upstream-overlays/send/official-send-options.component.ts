@@ -25,13 +25,5 @@ export class OfficialSendOptionsComponent {
     if (invalid) control.setAttribute("aria-invalid", "true");
     else control.removeAttribute("aria-invalid");
 
-    const hintId = this.editing()
-      ? control.closest("bit-form-field")?.querySelector<HTMLElement>("bit-hint")?.id
-      : undefined;
-    const describedBy = [hintId, invalid ? "send-error-maxAccessCount" : undefined]
-      .filter((id): id is string => Boolean(id))
-      .join(" ");
-    if (describedBy) control.setAttribute("aria-describedby", describedBy);
-    else control.removeAttribute("aria-describedby");
   }
 }

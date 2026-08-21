@@ -964,6 +964,7 @@ class RecordingSendActions implements SendActionPort {
       }
   > = [];
   failWith: Error | null = null;
+  createWait: Promise<void> | null = null;
   deleteWait: Promise<void> | null = null;
   refreshedSend: SendItem | undefined;
   createResult: SendItem = demoSend({
@@ -1034,6 +1035,7 @@ class RecordingSendActions implements SendActionPort {
     },
   ): Promise<SendItem> {
     this.calls.push({ type: "createText", session, draft });
+    await this.createWait;
     if (this.failWith) {
       throw this.failWith;
     }
@@ -1236,7 +1238,8 @@ describe("SendAddEditPageComponent", () => {
     expect(host.querySelectorAll(".macos-send-form__group").length).toBeGreaterThanOrEqual(2);
     expect(host.querySelector("bit-form-field")).not.toBeNull();
     expect(host.querySelector("input[bitinput]")).not.toBeNull();
-    expect(host.querySelector("input[bitcheckbox]")).not.toBeNull();
+    expect(host.querySelectorAll('button.macos-switch-owner[role="switch"]')).toHaveLength(2);
+    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
     expect(host.querySelector("bit-select")).not.toBeNull();
     expect(textSendDeletionPresetHours).toEqual([1, 24, 48, 72, 7 * 24, 14 * 24, 30 * 24]);
     expect(host.querySelector(".send-form-field")).toBeNull();
@@ -1310,6 +1313,37 @@ describe("SendAddEditPageComponent", () => {
     expect(host.querySelector('#send-name[aria-invalid="true"]')).toBeNull();
   });
 
+  it("keeps the max-access helper through invalid and corrected field states", async () => {
+    const fixture = await createAddEditFixture("text");
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const control = host.querySelector<HTMLInputElement>("#send-maxAccessCount")!;
+    const field = control.closest("bit-form-field")!;
+    const hint = field.querySelector<HTMLElement>("bit-hint")!;
+    expect(hint).not.toBeNull();
+    expect(control.getAttribute("aria-describedby")).toBe(hint.id);
+
+    control.value = "0";
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+    control.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(field.querySelector('[data-testid="send-error-maxAccessCount"]')).not.toBeNull();
+    expect(control.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(control.getAttribute("aria-errormessage")).toBe("send-error-maxAccessCount");
+
+    control.value = "2";
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+    control.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(field.querySelector('[data-testid="send-error-maxAccessCount"]')).toBeNull();
+    expect(control.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(control.getAttribute("aria-errormessage")).toBeNull();
+  });
+
   it("normalizes a file Send route to the text Send form", async () => {
     const fixture = await createAddEditFixture("file");
 
@@ -1370,6 +1404,36 @@ describe("SendAddEditPageComponent", () => {
     expect(store.snapshot().sends).toEqual([]);
     expect(store.snapshot().statusMessage).toBe("请先解锁密码库，再创建 Send。");
     expect(navigations).toEqual([]);
+  });
+
+  it("exposes pending ownership on Save and disables competing form actions", async () => {
+    const gate = deferred<void>();
+    const sendActions = new RecordingSendActions();
+    sendActions.createWait = gate.promise;
+    const fixture = await createAddEditFixture("text", {
+      session: sendSession(),
+      sendActions,
+    });
+    TestBed.inject(Router).navigate = async () => true;
+    fixture.componentInstance.name = "Pending secret";
+    fixture.componentInstance.text = "pending value";
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    const saving = fixture.componentInstance.save();
+    await Promise.resolve();
+    expect(fixture.componentInstance.operation.pending).toBe(true);
+    fixture.detectChanges(false);
+    const save = host.querySelector<HTMLButtonElement>('[data-testid="save-send"]')!;
+    const cancel = host.querySelector<HTMLButtonElement>('[data-testid="cancel-send-edit"]')!;
+    expect(save.getAttribute("aria-busy")).toBe("true");
+    expect(save.getAttribute("aria-disabled")).toBe("true");
+    expect(cancel.getAttribute("aria-disabled")).toBe("true");
+
+    gate.resolve(undefined);
+    await saving;
+    fixture.detectChanges(false);
+    expect(save.getAttribute("aria-busy")).toBeNull();
   });
 
   it("creates active session text Sends through Bitwarden before showing the created route", async () => {
@@ -1454,12 +1518,12 @@ describe("SendAddEditPageComponent", () => {
     TestBed.inject(Router).navigate = async () => true;
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    const hiddenInput = host.querySelector<HTMLInputElement>('bw-official-send-text-details input[bitcheckbox]')!;
-    hiddenInput.checked = true;
-    hiddenInput.dispatchEvent(new Event("change"));
-    const hideEmailInput = host.querySelector<HTMLInputElement>('bw-official-send-options input[bitcheckbox]')!;
-    hideEmailInput.checked = true;
-    hideEmailInput.dispatchEvent(new Event("change"));
+    const hiddenSwitch = host.querySelector<HTMLButtonElement>('bw-official-send-text-details button[role="switch"]')!;
+    expect(hiddenSwitch.getAttribute("aria-checked")).toBe("false");
+    hiddenSwitch.click();
+    const hideEmailSwitch = host.querySelector<HTMLButtonElement>('bw-official-send-options button[role="switch"]')!;
+    expect(hideEmailSwitch.getAttribute("aria-checked")).toBe("false");
+    hideEmailSwitch.click();
     fixture.detectChanges();
     fixture.componentInstance.setDeletionHoursValue(30 * 24);
     fixture.componentInstance.name = "Configured secret";
@@ -1844,13 +1908,13 @@ describe("SendAddEditPageComponent", () => {
     fixture.componentInstance.hideEmail = true;
     fixture.detectChanges(false);
     expect((fixture.nativeElement as HTMLElement)
-      .querySelector('bw-official-send-options input[bitcheckbox]')).not.toBeNull();
+      .querySelector('bw-official-send-options button[role="switch"]')).not.toBeNull();
 
     store.setSends([], { disabled: false, hideEmailAllowed: false });
     fixture.detectChanges(false);
     expect(fixture.componentInstance.hideEmailAllowed).toBe(false);
     expect((fixture.nativeElement as HTMLElement)
-      .querySelector('bw-official-send-options input[bitcheckbox]')).toBeNull();
+      .querySelector('bw-official-send-options button[role="switch"]')).toBeNull();
 
     await fixture.componentInstance.save();
     expect(sendActions.calls[0]).toMatchObject({ draft: { hideEmail: false } });
