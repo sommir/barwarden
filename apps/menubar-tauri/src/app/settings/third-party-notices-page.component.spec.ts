@@ -104,5 +104,9 @@ describe("ThirdPartyNoticesPageComponent", () => {
     expect(host.querySelector("pre")).toBeNull();
     expect(getComputedStyle(host.querySelector<HTMLElement>(".third-party-notices-count-card")!).padding)
       .toBe("8px 12px");
+    expect(host.querySelector<HTMLButtonElement>("[data-testid='document-search-previous']")?.disabled)
+      .toBe(true);
+    expect(host.querySelector<HTMLButtonElement>("[data-testid='document-search-next']")?.disabled)
+      .toBe(true);
   });
 });

@@ -23,7 +23,7 @@ import { I18nPipe } from "../official-ui/official-ui-common";
         class="macos-hit-target"
         data-testid="document-search-previous"
         type="button"
-        [disabled]="matchCount === 0"
+        [disabled]="navigationDisabled || matchCount === 0"
         (click)="previous.emit()"
         [attr.aria-label]="'i18nPreviousSearchResult' | i18n"
       >
@@ -33,7 +33,7 @@ import { I18nPipe } from "../official-ui/official-ui-common";
         class="macos-hit-target"
         data-testid="document-search-next"
         type="button"
-        [disabled]="matchCount === 0"
+        [disabled]="navigationDisabled || matchCount === 0"
         (click)="next.emit()"
         [attr.aria-label]="'i18nNextSearchResult' | i18n"
       >
@@ -46,6 +46,7 @@ export class DocumentSearchComponent {
   @Input() query = "";
   @Input() matchCount = 0;
   @Input() activeIndex = 0;
+  @Input() navigationDisabled = false;
   @Output() readonly queryChange = new EventEmitter<string>();
   @Output() readonly previous = new EventEmitter<void>();
   @Output() readonly next = new EventEmitter<void>();
