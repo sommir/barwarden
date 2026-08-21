@@ -154,6 +154,44 @@ const hostileGeneratorDefaultsCss = `
     from { opacity: 0.99; }
     to { opacity: 1; }
   }
+  .macos-page--send .macos-send-row {
+    background: rgb(255 0 0);
+    box-shadow: 0 8px 20px rgb(0 0 0 / 20%);
+  }
+  .macos-page--send .macos-send-row button[bit-item-content].macos-hit-target {
+    max-height: 44px;
+    padding-inline: 16px;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    overflow: hidden;
+  }
+  .macos-page--send .macos-send-row button[bit-item-content].macos-hit-target :is(
+    .tw-truncate,
+    [bitTypography="body2"] > div,
+    [bitTypography="helper"]
+  ) {
+    max-height: 20px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button
+  ) {
+    background: rgb(255 0 0);
+    box-shadow: 0 0 0 3px red;
+    animation: generator-hostile-motion 1s infinite;
+    transition: transform 1s linear;
+    transform: scale(1.1);
+  }
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button
+  ) > span {
+    animation: generator-hostile-motion 1s infinite;
+    transition: background-color 1s linear;
+  }
 `;
 
 beforeAll(() => {
@@ -1321,7 +1359,7 @@ describe("iOS 27 Generator visual contract", () => {
       id: "send-1",
       accessId: "access-token",
       type: "text",
-      name: "Payroll token",
+      name: "Payroll token with an intentionally long mounted title that must grow at two hundred percent",
       notes: "",
       revisionDate: "2026-08-17T00:00:00.000Z",
       deletionDate: "2030-08-17T00:00:00.000Z",
@@ -1363,6 +1401,14 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(row).paddingLeft).toBe("12px");
     expect(getComputedStyle(row).marginBottom).toBe("0px");
     expect(getComputedStyle(row).borderRadius).toBe("0px");
+    expect(getComputedStyle(row).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(row).boxShadow).toBe("none");
+    expect(getComputedStyle(view).paddingLeft).toBe("0px");
+    expect(getComputedStyle(view).paddingRight).toBe("0px");
+    expect(
+      cssPixels(getComputedStyle(row).paddingLeft)
+        + cssPixels(getComputedStyle(view).paddingLeft),
+    ).toBe(12);
     expect(actions).toHaveLength(2);
     expect(view.classList).toContain("macos-hit-target");
     expect(Array.from(actions, (action) => action.classList.contains("macos-hit-target")))
@@ -1397,23 +1443,56 @@ describe("iOS 27 Generator visual contract", () => {
     expect(Array.from(iconPlates, (plate) => getComputedStyle(plate).height))
       .toEqual(Array.from(iconPlates, () => "32px"));
 
-    const copy = actions[0]!.querySelector<HTMLButtonElement>("button") ?? actions[0]!;
-    const copyPlate = copy.querySelector<HTMLElement>(":scope > span")!;
-    const normalPlateBackground = getComputedStyle(copyPlate).backgroundColor;
-    setGeneratorInteraction(copy, "hover");
-    expect(getComputedStyle(copyPlate).backgroundColor).not.toBe(normalPlateBackground);
-    const hoverPlateBackground = getComputedStyle(copyPlate).backgroundColor;
-    setGeneratorInteraction(copy, "active");
-    expect(getComputedStyle(copyPlate).backgroundColor).not.toBe(hoverPlateBackground);
-    setGeneratorInteraction(copy, "focus");
-    expect(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
-    expect(cssPixels(getComputedStyle(copyPlate).outlineWidth)).toBe(0);
-    setGeneratorInteraction(copy, "focus focus-visible");
-    expect(cssPixels(getComputedStyle(copy).outlineWidth)).toBe(0);
-    expect(getComputedStyle(copyPlate).outlineWidth).toBe("2px");
-    setGeneratorInteraction(copy, null);
-
     const more = row.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+    const filterPlate = filterAction!.querySelector<HTMLElement>(":scope > span")!;
+    const morePlate = more.querySelector<HTMLElement>(":scope > span")!;
+    for (const [owner, plate] of [[filterAction!, filterPlate], [more, morePlate]] as const) {
+      const normalOwner = getComputedStyle(owner);
+      const normalPlateBackground = getComputedStyle(plate).backgroundColor;
+      expect(normalOwner.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(normalOwner.boxShadow).toBe("none");
+      expect(normalOwner.animationName).toBe("none");
+      expect(normalOwner.transitionDuration).toBe("0s");
+      expect(getComputedStyle(plate).animationName).toBe("none");
+
+      setGeneratorInteraction(owner, "hover");
+      expect(getComputedStyle(owner).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(getComputedStyle(owner).boxShadow).toBe("none");
+      expect(getComputedStyle(plate).backgroundColor).not.toBe(normalPlateBackground);
+      const hoverPlateBackground = getComputedStyle(plate).backgroundColor;
+
+      setGeneratorInteraction(owner, "active");
+      expect(getComputedStyle(owner).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(getComputedStyle(owner).boxShadow).toBe("none");
+      expect(getComputedStyle(plate).backgroundColor).not.toBe(hoverPlateBackground);
+
+      setGeneratorInteraction(owner, "focus");
+      expect(cssPixels(getComputedStyle(owner).outlineWidth)).toBe(0);
+      expect(cssPixels(getComputedStyle(plate).outlineWidth)).toBe(0);
+      setGeneratorInteraction(owner, "focus focus-visible");
+      expect(cssPixels(getComputedStyle(owner).outlineWidth)).toBe(0);
+      expect(getComputedStyle(plate).outlineWidth).toBe("2px");
+      setGeneratorInteraction(owner, null);
+    }
+
+    filterAction!.disabled = true;
+    setGeneratorInteraction(filterAction!, "hover active");
+    expect(getComputedStyle(filterAction!).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(filterAction!).boxShadow).toBe("none");
+    expect(getComputedStyle(filterPlate).opacity).toBe("0.38");
+    expect(getComputedStyle(filterPlate).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    setGeneratorInteraction(filterAction!, null);
+    filterAction!.disabled = false;
+
+    more.setAttribute("aria-disabled", "true");
+    setGeneratorInteraction(more, "hover active");
+    expect(getComputedStyle(more).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(more).boxShadow).toBe("none");
+    expect(getComputedStyle(morePlate).opacity).toBe("0.38");
+    expect(getComputedStyle(morePlate).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    setGeneratorInteraction(more, null);
+    more.removeAttribute("aria-disabled");
+
     more.click();
     await fixture.whenStable();
     const deleteAction = document.querySelector<HTMLButtonElement>(
@@ -1439,20 +1518,41 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual([44, 44, 44]);
 
     document.documentElement.style.fontSize = "200%";
-    const wrappedText = view.querySelector<HTMLElement>(".tw-truncate")!;
+    const title = view.querySelector<HTMLElement>('[bitTypography="body2"] > div')!;
+    const subtitle = view.querySelector<HTMLElement>('[bitTypography="helper"]')!;
+    title.append(document.createElement("br"), "second mounted title line");
+    subtitle.append(document.createElement("br"), "second mounted subtitle line");
     expect(getComputedStyle(row).height).toBe("auto");
     expect(getComputedStyle(view).height).toBe("auto");
-    expect(getComputedStyle(wrappedText).whiteSpace).toBe("normal");
-    expect(getComputedStyle(wrappedText).overflow).toBe("visible");
-    expect(getComputedStyle(wrappedText).textOverflow).toBe("clip");
+    expect(getComputedStyle(view).maxHeight).toBe("none");
+    expect(getComputedStyle(view).overflowX).toBe("visible");
+    expect(getComputedStyle(view).overflowY).toBe("visible");
+    for (const textLayer of [title, subtitle]) {
+      expect(getComputedStyle(textLayer).maxHeight).toBe("none");
+      expect(getComputedStyle(textLayer).whiteSpace).toBe("normal");
+      expect(getComputedStyle(textLayer).overflowX).toBe("visible");
+      expect(getComputedStyle(textLayer).overflowY).toBe("visible");
+      expect(getComputedStyle(textLayer).textOverflow).toBe("clip");
+    }
+    expect(modeledSendRowHeight(row, view, title, subtitle)).toBeGreaterThan(48);
 
     document.documentElement.setAttribute("data-generator-test-media", "reduced-motion");
-    expect(getComputedStyle(copy).transitionDuration).toBe("0s");
-    expect(getComputedStyle(copyPlate).transitionDuration).toBe("0s");
+    for (const [owner, plate] of [[filterAction!, filterPlate], [more, morePlate]] as const) {
+      expect(getComputedStyle(owner).transitionDuration).toBe("0s");
+      expect(getComputedStyle(plate).animationName).toBe("none");
+      expect(getComputedStyle(plate).transitionDuration).toBe("0s");
+    }
 
     document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
-    expect(getComputedStyle(copyPlate).forcedColorAdjust).toBe("none");
-    expect(getComputedStyle(copyPlate).borderWidth).toBe("1px");
+    for (const [owner, plate] of [[filterAction!, filterPlate], [more, morePlate]] as const) {
+      expect(getComputedStyle(owner).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(getComputedStyle(plate).forcedColorAdjust).toBe("none");
+      expect(getComputedStyle(plate).borderWidth).toBe("1px");
+      setGeneratorInteraction(owner, "focus focus-visible");
+      expect(cssPixels(getComputedStyle(owner).outlineWidth)).toBe(0);
+      expect(getComputedStyle(plate).outlineWidth).toBe("2px");
+      setGeneratorInteraction(owner, null);
+    }
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
@@ -1592,6 +1692,30 @@ function modeledHistoryRowHeight(
       + Math.max(itemHeight, copyOwnerHeight)
       + cssPixels(rowStyle.paddingBottom),
   );
+}
+
+function modeledSendRowHeight(
+  row: HTMLElement,
+  view: HTMLElement,
+  title: HTMLElement,
+  subtitle: HTMLElement,
+): number {
+  const rowStyle = getComputedStyle(row);
+  const viewStyle = getComputedStyle(view);
+  const textHeight = (1 + title.querySelectorAll("br").length)
+      * cssPixels(getComputedStyle(title).lineHeight)
+    + (1 + subtitle.querySelectorAll("br").length)
+      * cssPixels(getComputedStyle(subtitle).lineHeight);
+  const viewHeight = cssPixels(viewStyle.paddingTop)
+    + textHeight
+    + cssPixels(viewStyle.paddingBottom);
+  const actionHeight = Math.max(
+    0,
+    ...Array.from(row.querySelectorAll("button"), computedHitHeight),
+  );
+  return cssPixels(rowStyle.paddingTop)
+    + Math.max(viewHeight, actionHeight)
+    + cssPixels(rowStyle.paddingBottom);
 }
 
 function modeledStretchedModeHeights(

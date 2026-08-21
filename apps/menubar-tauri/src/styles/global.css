@@ -8416,20 +8416,29 @@ body.tw-bit-compact
   box-shadow: none;
 }
 
-.macos-page--send .macos-send-row [bit-item-content] {
-  min-width: 0;
+.macos-page--send .macos-send-row button[bit-item-content].macos-hit-target {
+  min-width: var(--mac-hit-size);
   min-height: var(--mac-hit-size);
   height: auto;
+  max-height: none;
   padding-block: 0;
-  overflow: visible;
+  padding-inline: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  overflow-x: visible;
+  overflow-y: visible;
   white-space: normal;
 }
 
-.macos-page--send .macos-send-row [bit-item-content] .tw-truncate {
-  max-height: none;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
+.macos-page--send
+  .macos-send-row
+  button[bit-item-content].macos-hit-target
+  :is(.tw-truncate, [bitTypography="body2"] > div, [bitTypography="helper"]) {
+  max-height: none !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
   overflow-wrap: anywhere;
 }
 
@@ -8467,6 +8476,7 @@ body.tw-bit-compact
   border: 1px solid transparent;
   border-radius: var(--mac-control-radius);
   background: transparent;
+  animation: none;
   outline: 0;
   transition:
     background-color var(--mac-motion-fast) ease-out,

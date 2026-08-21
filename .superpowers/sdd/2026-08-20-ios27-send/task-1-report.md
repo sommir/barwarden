@@ -51,3 +51,23 @@
 - Independent `npm run build:web`: passed. Output retained the repository's
   accepted Tailwind-at-rule, browser externalization, and chunk-size warnings.
 - `git diff --cached --check`: passed.
+
+## Review fix
+
+- Follow-up commit scope: harden the real mounted row against the retained
+  `tw-px-4` padding and older global clipping/state cascades.
+- RED proved that a 16px View-owner padding produced a modeled 28px content
+  offset and that a 44px maximum clipped two-line title/subtitle content at
+  200% text.
+- The real `button[bit-item-content].macos-hit-target` now clears inline
+  padding, retains the row's sole 12px inset, removes maximum-height limits,
+  and exposes overflow on both axes. Real title and subtitle typography layers
+  explicitly wrap and grow.
+- Mutation-sensitive mounted coverage now supplies hostile old-cascade
+  backgrounds, shadows, padding, clipping, and motion. It exercises Filter
+  and More across hover, pressed, pointer focus, keyboard focus, native
+  disabled, `aria-disabled`, Reduced Motion, and Forced Colors.
+- The updater produced zero Send runtime/manifest/patch diff because this
+  review fix changes only scoped CSS and its mounted visual regression test.
+- Focused Send behavior/visual/list/guard verification passed 111/111 tests;
+  `npm run typecheck:official-send` passed, including its production build.
