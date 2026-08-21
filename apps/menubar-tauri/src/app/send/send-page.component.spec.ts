@@ -9,7 +9,8 @@ import {
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
-import { ActivatedRoute, provideRouter, Router } from "@angular/router";
+import { Component } from "@angular/core";
+import { ActivatedRoute, NavigationEnd, provideRouter, Router } from "@angular/router";
 import { of, Subject } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,6 +45,12 @@ try {
 }
 
 const openSimpleDialog = vi.fn(async () => true);
+
+@Component({
+  standalone: true,
+  template: '<button data-popup-focus-key="send:search">Search Sends</button>',
+})
+class CreatedRouteStubComponent {}
 
 beforeEach(() => {
   openSimpleDialog.mockReset();
@@ -2121,7 +2128,11 @@ describe("SendCreatedPageComponent", () => {
     await TestBed.configureTestingModule({
       imports: [SendCreatedPageComponent],
       providers: [
-        provideRouter([]),
+        provideRouter([
+          { path: "tabs/send", component: CreatedRouteStubComponent },
+          { path: "add-send", component: CreatedRouteStubComponent },
+          { path: "send-created", component: CreatedRouteStubComponent },
+        ]),
         { provide: PopupStateStore, useValue: store },
         {
           provide: SEND_CREATED_HOST,
@@ -2207,21 +2218,19 @@ describe("SendCreatedPageComponent", () => {
     async (action) => {
       const fixture = await createCreatedFixture("send-created");
       const router = TestBed.inject(Router);
-      Object.defineProperty(router, "url", {
-        value: "/send-created?sendId=send-created",
-        configurable: true,
-      });
-      const navigateByUrl = vi.spyOn(router, "navigateByUrl").mockImplementation(async (url) => {
-        Object.defineProperty(router, "url", { value: String(url), configurable: true });
-        return true;
-      });
       const routeCache = TestBed.inject(PopupRouterCacheService);
-      (routeCache as unknown as {
-        entries: Array<{ url: string; scrollTop: number; focusKey: string | null }>;
-      }).entries = [
-        { url: "/tabs/send", scrollTop: 73, focusKey: "send:search" },
-        { url: "/add-send", scrollTop: 0, focusKey: null },
-      ];
+      const ends: string[] = [];
+      const subscription = router.events.subscribe((event) => {
+        if (event instanceof NavigationEnd) ends.push(event.urlAfterRedirects);
+      });
+      const focusOwner = document.createElement("button");
+      focusOwner.setAttribute("data-popup-focus-key", "send:search");
+      document.body.append(focusOwner);
+      await router.navigateByUrl("/tabs/send");
+      focusOwner.focus();
+      focusOwner.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      await router.navigateByUrl("/add-send");
+      await router.navigateByUrl("/send-created?sendId=send-created&type=text");
       fixture.detectChanges();
 
       if (action === "Close") {
@@ -2232,15 +2241,15 @@ describe("SendCreatedPageComponent", () => {
       } else {
         await routeCache.back();
       }
+      await new Promise((resolvePromise) => setTimeout(resolvePromise));
 
-      const sendNavigations = navigateByUrl.mock.calls.filter(
-        ([url]) => String(url) === "/tabs/send",
-      );
-      expect(sendNavigations).toEqual([["/tabs/send", { replaceUrl: true }]]);
-      expect(routeCache.history()).toEqual(["/tabs/send"]);
-      expect((routeCache as unknown as {
-        entries: Array<{ focusKey: string | null }>;
-      }).entries[0]?.focusKey).toBe("send:search");
+      expect(ends.filter((url) => url === "/tabs/send")).toHaveLength(2);
+      expect(router.url).toBe("/tabs/send");
+      expect(routeCache.history()).not.toContain("/add-send");
+      expect(routeCache.history()).not.toContain("/send-created");
+      expect(document.activeElement).toBe(focusOwner);
+      subscription.unsubscribe();
+      focusOwner.remove();
     },
   );
 
@@ -2253,7 +2262,7 @@ describe("SendCreatedPageComponent", () => {
     });
     const router = TestBed.inject(Router);
     Object.defineProperty(router, "url", {
-      value: "/send-created?sendId=send-created",
+      value: "/send-created?sendId=send-created&type=text",
       configurable: true,
     });
 
@@ -2267,7 +2276,7 @@ describe("SendCreatedPageComponent", () => {
     popOut!.click();
     await fixture.whenStable();
 
-    expect(calls).toEqual(["/send-created?sendId=send-created"]);
+    expect(calls).toEqual(["/send-created?sendId=send-created&type=text"]);
   });
 
   it("does not expose or copy a File Send through the created route", async () => {

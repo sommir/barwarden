@@ -987,7 +987,9 @@ fn sanitize_route(route: &str) -> String {
         Some(("/cipher-password-history", query)) => valid_single_id_query(query, "cipherId"),
         Some(("/add-send", "type=text")) => true,
         Some(("/edit-send", query)) => valid_send_edit_query(query),
-        Some(("/send-created", query)) => valid_single_id_query(query, "sendId"),
+        Some(("/send-created", query)) => {
+            valid_single_id_query(query, "sendId") || valid_send_created_query(query)
+        }
         _ if route.starts_with("/view-cipher/") => valid_identifier(&route[13..]),
         _ => false,
     };
@@ -1060,6 +1062,17 @@ fn valid_cipher_edit_query(query: &str) -> bool {
 }
 
 fn valid_send_edit_query(query: &str) -> bool {
+    let Some((send_id, type_query)) = query
+        .strip_prefix("sendId=")
+        .and_then(|value| value.split_once("&"))
+    else {
+        return false;
+    };
+
+    valid_identifier(send_id) && type_query == "type=text"
+}
+
+fn valid_send_created_query(query: &str) -> bool {
     let Some((send_id, type_query)) = query
         .strip_prefix("sendId=")
         .and_then(|value| value.split_once("&"))
@@ -1174,6 +1187,7 @@ mod tests {
             "/cipher-password-history?cipherId=cipher_1",
             "/edit-send?sendId=send_1&type=text",
             "/send-created?sendId=send_1",
+            "/send-created?sendId=send_1&type=text",
         ] {
             assert_eq!(
                 format!("{:?}", popout_url(route)),

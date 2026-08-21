@@ -31,7 +31,7 @@ const retainedDynamicRoutes = [
   new RegExp(`^/cipher-password-history\\?cipherId=${identifier}$`),
   new RegExp(`^/add-send\\?type=text$`),
   new RegExp(`^/edit-send\\?sendId=${identifier}&type=text$`),
-  new RegExp(`^/send-created\\?sendId=${identifier}$`),
+  new RegExp(`^/send-created\\?sendId=${identifier}(?:&type=text)?$`),
 ];
 
 /** Accepts only retained native popup routes and their explicitly required route parameters. */

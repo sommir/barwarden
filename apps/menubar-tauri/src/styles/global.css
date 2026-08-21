@@ -8960,13 +8960,15 @@ body.tw-bit-compact
   box-sizing: border-box;
   min-width: 0;
   width: 100%;
-  height: var(--mac-control-visible);
+  height: auto;
   min-height: var(--mac-control-visible);
   overflow: hidden;
   border-radius: var(--mac-control-radius);
   text-overflow: ellipsis;
   white-space: nowrap;
   user-select: text;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .macos-page--send-created popup-footer button {
@@ -8986,11 +8988,13 @@ body.tw-bit-compact
   background: var(--mac-accent);
 }
 
-.macos-page--send-created .macos-button-owner.macos-primary-action:hover::before {
+.macos-page--send-created
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):hover::before {
   background: var(--bw-primary-hover);
 }
 
-.macos-page--send-created .macos-button-owner.macos-primary-action:active::before {
+.macos-page--send-created
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):active::before {
   background: color-mix(in srgb, var(--mac-accent) 72%, black);
   transform: scale(0.98);
 }
@@ -9000,11 +9004,12 @@ body.tw-bit-compact
   border-color: var(--mac-border-subtle);
   background: var(--mac-surface-muted);
   opacity: 0.58;
+  transform: none;
 }
 
 :root[data-bw-compact-mode="true"]
   .macos-page--send-created [data-testid="created-link"] {
-  height: var(--mac-control-visible-compact);
+  height: auto;
   min-height: var(--mac-control-visible-compact);
 }
 
@@ -9022,6 +9027,11 @@ body.tw-bit-compact
 }
 
 @media (forced-colors: active) {
+  .macos-page--send-created .macos-button-owner.macos-primary-action {
+    color: HighlightText !important;
+    forced-color-adjust: none;
+  }
+
   .macos-page--send-created .macos-button-owner.macos-primary-action::before {
     border-color: Highlight;
     background: Highlight;
@@ -9034,5 +9044,10 @@ body.tw-bit-compact
     border-color: GrayText;
     background: Canvas;
     color: GrayText;
+  }
+
+  .macos-page--send-created
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"]) {
+    color: GrayText !important;
   }
 }

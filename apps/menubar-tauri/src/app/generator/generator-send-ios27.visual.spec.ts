@@ -1878,7 +1878,8 @@ describe("iOS 27 Generator visual contract", () => {
     expect(getComputedStyle(icon).width).toBe("44px");
     expect(getComputedStyle(icon).height).toBe("44px");
     expect(getComputedStyle(linkOwner).minHeight).toBe("44px");
-    expect(getComputedStyle(link).height).toBe("40px");
+    expect(getComputedStyle(link).height).toBe("auto");
+    expect(getComputedStyle(link).minHeight).toBe("40px");
     expect(getComputedStyle(link).textOverflow).toBe("ellipsis");
     expect(link.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
     expect(link.value.length).toBeGreaterThan(100);
@@ -1889,16 +1890,40 @@ describe("iOS 27 Generator visual contract", () => {
     expect(actions[1]!.classList).toContain("macos-secondary-action");
     expect(host.querySelector("popup-footer[slot='footer']")).not.toBeNull();
     expect(Array.from(actions, computedHitHeight).every((height) => height >= 44)).toBe(true);
+    const copy = actions[0]!;
+    const copyPaint = document.createElement("span");
+    copyPaint.setAttribute("data-send-form-test-paint", "");
+    copy.prepend(copyPaint);
+    const initial = getComputedStyle(copyPaint).backgroundColor;
+    setGeneratorInteraction(copy, "hover");
+    const hover = getComputedStyle(copyPaint).backgroundColor;
+    setGeneratorInteraction(copy, "active");
+    const pressed = getComputedStyle(copyPaint).backgroundColor;
+    expect(new Set([initial, hover, pressed]).size).toBe(3);
+    copy.setAttribute("aria-disabled", "true");
+    setGeneratorInteraction(copy, "hover active");
+    expect(getComputedStyle(copyPaint).backgroundColor).not.toBe(hover);
+    expect(getComputedStyle(copyPaint).transform).toBe("none");
+    copy.removeAttribute("aria-disabled");
+    setGeneratorInteraction(copy, null);
 
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
-    expect(getComputedStyle(link).height).toBe("36px");
+    expect(getComputedStyle(link).height).toBe("auto");
+    expect(getComputedStyle(link).minHeight).toBe("36px");
+    const normalFont = cssLengthPixels(getComputedStyle(link).fontSize, 16);
     document.documentElement.style.fontSize = "200%";
     expect(getComputedStyle(linkOwner).height).toBe("auto");
     expect(getComputedStyle(linkOwner).overflow).toBe("visible");
+    expect(cssLengthPixels(getComputedStyle(link).fontSize, 32)).toBeGreaterThan(normalFont);
+    document.documentElement.setAttribute("data-generator-test-media", "reduced-motion");
+    expect(getComputedStyle(copyPaint).transitionDuration).toBe("0s");
+    document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
+    expect(getComputedStyle(copyPaint).forcedColorAdjust).toBe("none");
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
     document.documentElement.style.removeProperty("font-size");
+    document.documentElement.removeAttribute("data-generator-test-media");
   });
 
   it("keeps compact rows touch-safe and removes nonessential motion", () => {

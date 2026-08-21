@@ -15,3 +15,17 @@
 - Updater ran twice and the final staged run produced zero diff.
 - Full Send/overlay/visual gate passed 185/185. Official Send typecheck and
   independent web build passed with only accepted baseline warnings.
+
+## Review fix
+
+- JS and Rust popout allowlists now retain the production
+  `/send-created?sendId=<id>&type=text` URL; the Rust window unit passed.
+- Copy paint excludes native/ARIA-disabled hover and pressed rules, clears its
+  transform while disabled, and preserves enabled/disabled system colors.
+- The link uses auto height with exact 40/36px minima, rem typography and
+  scalable padding, so a long selectable URL grows vertically at 200%.
+- Close and Escape are verified through real Angular NavigationStart/End
+  transitions for Send → Add Send → Created → Send; Add Send is absent from
+  retained history and focus returns to the real `send:search` owner.
+- Final full JS gate passed 225/225; official typecheck/build, independent web
+  build, Rust popout unit, updater stability and final zero-diff passed.
