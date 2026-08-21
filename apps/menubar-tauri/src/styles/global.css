@@ -2148,6 +2148,13 @@ bw-login-environment-selector [bitTypography="body2"] button {
   text-decoration: none;
 }
 
+[bitlink][aria-haspopup="menu"] {
+  min-height: var(--mac-hit-size);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 bw-login-environment-selector [bitTypography="body2"] button b {
   overflow: hidden;
   max-width: 220px;
@@ -2412,6 +2419,25 @@ bw-keyboard-shortcut-page .macos-form-field__suffix {
 
 .macos-auth-card .macos-primary-action {
   min-height: 44px !important;
+}
+
+bw-official-password-login bit-form-field.macos-field-owner [bitfieldcontainer] {
+  min-height: var(--mac-hit-size) !important;
+}
+
+bw-official-password-login input.macos-control-visible {
+  height: var(--mac-control-visible);
+  min-height: var(--mac-control-visible);
+  overflow: visible;
+}
+
+bw-official-password-login .macos-primary-action.macos-button-owner {
+  min-height: var(--mac-hit-size) !important;
+}
+
+:root[data-bw-compact-mode="true"] bw-official-password-login input.macos-control-visible {
+  height: var(--mac-control-visible-compact);
+  min-height: var(--mac-control-visible-compact);
 }
 
 .macos-auth-card :is(

@@ -17,7 +17,7 @@ import {
 
 const root = process.cwd();
 const transformationManifestSha256 =
-  "3145a3abbb315e440c2c5f6faa39313f3c89b56b5d414b7d347d193c3afe792a";
+  "3e7da0d61f819ce7de61258c5c54fd353e1a426d4fd0921a6f7f2dc227a1a074";
 const pinned = (path: string) => join(root, "vendor/bitwarden-clients", path);
 const overlay = (path: string) =>
   join(root, "apps/menubar-tauri/src/app/upstream-overlays/auth/login", path);
@@ -414,18 +414,29 @@ describe("official password authentication overlays", () => {
         '<form [bitSubmit]="submit" [formGroup]="formGroup">',
         '<form [bitSubmit]="submit" [formGroup]="formGroup" class="macos-auth-card">',
       )
-      .replace("    <bit-form-field>\n", "    <bit-form-field class=\"macos-field\">\n")
+      .replace(
+        "    <bit-form-field>\n",
+        '    <bit-form-field class="macos-field macos-field-owner">\n',
+      )
       .replace(
         '    <bit-form-field class="!tw-mb-1">\n',
-        '    <bit-form-field class="!tw-mb-1 macos-field">\n',
+        '    <bit-form-field class="!tw-mb-1 macos-field macos-field-owner">\n',
       )
       .replace(
         '        buttonType="primary"\n        data-testid="login-continue-button"',
-        '        buttonType="primary"\n        class="macos-primary-action"\n        data-testid="login-continue-button"',
+        '        buttonType="primary"\n        class="macos-primary-action macos-button-owner"\n        data-testid="login-continue-button"',
       )
       .replace(
         '        buttonType="primary"\n        data-testid="login-submit-button"',
-        '        buttonType="primary"\n        class="macos-primary-action"\n        [disabled]="submitting"\n        data-testid="login-submit-button"',
+        '        buttonType="primary"\n        class="macos-primary-action macos-button-owner"\n        [disabled]="submitting"\n        data-testid="login-submit-button"',
+      )
+      .replace(
+        '        bitInput\n        appAutofocus',
+        '        bitInput\n        class="macos-control-visible"\n        appAutofocus',
+      )
+      .replace(
+        '        bitInput\n        data-testid="login-master-password-input"',
+        '        bitInput\n        class="macos-control-visible"\n        data-testid="login-master-password-input"',
       )
       .replace(
         '          buttonType="secondary"\n          data-testid="login-back-button"',

@@ -177,6 +177,55 @@ describe("LoginPageComponent", () => {
     expect(host.querySelector("form [data-testid=login-email-input]")).not.toBeNull();
   });
 
+  it("mounts the active login stage with 44px owners, scalable visible paint, and one primary action", async () => {
+    const visualCss = installLoginVisualCss();
+    const { fixture, official } = await createPage();
+    const host = fixture.nativeElement as HTMLElement;
+
+    const assertActiveStage = (visiblePaint: "40px" | "36px") => {
+      const activeStage = Array.from(
+        host.querySelectorAll<HTMLElement>("form.macos-auth-card > div"),
+      ).find((stage) => !stage.classList.contains("tw-hidden"))!;
+      const field = activeStage.querySelector<HTMLElement>("bit-form-field")!;
+      const owner = field.querySelector<HTMLElement>("[bitfieldcontainer]")!;
+      const input = field.querySelector<HTMLInputElement>("input[bitinput]")!;
+      const primary = activeStage.querySelector<HTMLButtonElement>(".macos-primary-action")!;
+
+      expect(field.classList).toContain("macos-field-owner");
+      expect(input.classList).toContain("macos-control-visible");
+      expect(parseFloat(getComputedStyle(owner).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(input).height).toBe(visiblePaint);
+      expect(primary.classList).toContain("macos-button-owner");
+      expect(parseFloat(getComputedStyle(primary).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(activeStage.querySelectorAll(".macos-primary-action")).toHaveLength(1);
+    };
+
+    try {
+      assertActiveStage("40px");
+
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      assertActiveStage("36px");
+
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+      official.formGroup.controls.email.setValue("person@example.com");
+      await official.continuePressed();
+      fixture.detectChanges();
+      assertActiveStage("40px");
+
+      document.documentElement.style.fontSize = "200%";
+      const scaledInput = host.querySelector<HTMLInputElement>(
+        '[data-testid="login-master-password-input"]',
+      )!;
+      expect(parseFloat(getComputedStyle(scaledInput).minHeight)).toBeGreaterThanOrEqual(40);
+      expect(getComputedStyle(scaledInput).overflow).not.toBe("hidden");
+    } finally {
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+      document.documentElement.style.removeProperty("font-size");
+      fixture.destroy();
+      visualCss.cleanup();
+    }
+  });
+
   it("renders a 2px production focus outline on the focused login action", async () => {
     const visualCss = installLoginVisualCss();
     const { fixture } = await createPage();

@@ -49,6 +49,10 @@ function installEnvironmentVisualCss(): () => void {
   }
   style.textContent = productionCascade.toString();
   document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
+    rootStyle.getPropertyValue(name).trim() || value,
+  );
   return () => style.remove();
 }
 
@@ -77,7 +81,7 @@ async function openSelfHostedDialog(
 }
 
 describe("OfficialEnvironmentSelectorComponent", () => {
-  it("renders every official environment menu item with a 44px minimum hit target", async () => {
+  it("renders the real environment trigger and every official menu item with a 44px minimum hit target", async () => {
     const cleanupCss = installEnvironmentVisualCss();
     await TestBed.configureTestingModule({
       imports: [OfficialEnvironmentSelectorComponent],
@@ -86,6 +90,9 @@ describe("OfficialEnvironmentSelectorComponent", () => {
     fixture.detectChanges();
 
     try {
+      const trigger = menuTrigger(fixture.nativeElement);
+      expect(parseFloat(getComputedStyle(trigger).minHeight), trigger.outerHTML)
+        .toBeGreaterThanOrEqual(44);
       menuTrigger(fixture.nativeElement as HTMLElement).click();
       fixture.detectChanges();
       const items = menuItems();
