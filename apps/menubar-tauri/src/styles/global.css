@@ -427,6 +427,21 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select >
 .macos-preference-row__copy > :first-child { font-size:14px; line-height:18px; font-weight:600; }
 .macos-preference-row__copy > :not(:first-child) { margin-top:2px; color:var(--mac-text-secondary); font-size:12px; line-height:16px; }
 .macos-preference-row__value { min-width:0; margin-inline-start:auto; justify-self:end; color:var(--mac-text-secondary); text-align:end; overflow-wrap:anywhere; }
+.macos-page--settings button.macos-preference-row[data-settings-route] > :first-child,
+.macos-page--settings button.macos-preference-row[data-settings-route] > :first-child > :nth-child(2),
+.macos-page--settings button.macos-preference-row[data-settings-route] > :first-child > :nth-child(2) > :first-child {
+  min-width:0;
+  overflow:visible;
+}
+.macos-page--settings button.macos-preference-row[data-settings-route] .tw-text-wrap.tw-overflow-auto.tw-break-words,
+.macos-page--settings button.macos-preference-row[data-settings-route] .macos-preference-row__copy {
+  justify-self:start;
+  white-space:nowrap;
+  overflow-wrap:normal;
+  word-break:keep-all;
+  overflow:visible;
+  max-height:none;
+}
 .macos-switch-owner { display:grid; min-width:var(--mac-hit-size); min-height:var(--mac-hit-size); padding:0; place-items:center; border:0; background:transparent; }
 .macos-switch-owner > span { position:relative; width:34px; height:20px; border:1px solid var(--mac-border); border-radius:999px; background:var(--mac-surface-contextual); transition:background-color var(--mac-motion-fast) ease; }
 .macos-switch-owner > span::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--mac-surface-solid); box-shadow:0 1px 2px rgb(0 0 0 / 18%); transition:transform var(--mac-motion-fast) ease; }

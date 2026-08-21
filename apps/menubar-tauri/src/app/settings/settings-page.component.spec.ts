@@ -139,6 +139,43 @@ describe("SettingsPageComponent", () => {
     expect(getComputedStyle(values[0]!).justifySelf).toBe("end");
     expect(host.querySelectorAll("bit-card")).toHaveLength(0);
 
+    const routeLayout = getComputedStyle(routeRows[0]!);
+    const routeColumns = routeLayout.gridTemplateColumns.replace(/\s+/g, "").replace(/\s*,\s*/g, ",");
+    expect(routeColumns).toBe("minmax(0,1fr)auto");
+    expect(routeRows[0]!.children).toHaveLength(2);
+    const routeMain = routeRows[0]!.firstElementChild as HTMLElement;
+    expect(routeMain.querySelector(".bwi-brush")).not.toBeNull();
+    expect(getComputedStyle(routeMain).minWidth).toBe("0px");
+    expect(getComputedStyle(routeMain).overflow).toBe("visible");
+    const routeLabels = routeRows.map((routeRow) =>
+      routeRow.querySelector<HTMLElement>(".macos-preference-row__copy")!,
+    );
+    expect(routeLabels.map((label) => label.textContent?.trim())).toEqual([
+      "外观", "账户安全", "填充", "快捷键", "密码库选项", "关于",
+    ]);
+    const routeTextWrappers = routeRows.map((routeRow) =>
+      routeRow.querySelector<HTMLElement>(".tw-text-wrap.tw-overflow-auto.tw-break-words")!,
+    );
+    expect(routeTextWrappers).toHaveLength(routeRows.length);
+    for (const textWrapper of routeTextWrappers) {
+      const wrapperStyle = getComputedStyle(textWrapper);
+      expect(wrapperStyle.whiteSpace).toBe("nowrap");
+      expect(wrapperStyle.overflowWrap).toBe("normal");
+      expect(wrapperStyle.wordBreak).toBe("keep-all");
+      expect(wrapperStyle.overflowY).toBe("visible");
+      expect(wrapperStyle.overflowX).toBe("visible");
+      expect(wrapperStyle.maxHeight).toBe("none");
+    }
+    for (const label of routeLabels) {
+      const labelStyle = getComputedStyle(label);
+      expect(labelStyle.justifySelf).toBe("start");
+      expect(labelStyle.whiteSpace).toBe("nowrap");
+      expect(labelStyle.overflowWrap).toBe("normal");
+      expect(labelStyle.wordBreak).toBe("keep-all");
+      expect(labelStyle.overflowY).not.toBe("auto");
+      expect(labelStyle.maxHeight).toBe("none");
+    }
+
     activateNativeButton(routeRows[0]!, "Enter");
     activateNativeButton(routeRows[1]!, " ");
     routeRows.slice(2).forEach((routeRow) => routeRow.click());
@@ -149,11 +186,13 @@ describe("SettingsPageComponent", () => {
 
     document.documentElement.style.fontSize = "200%";
     const launchContent = host.querySelector<HTMLElement>('[data-testid="launch-at-login-row"]')!;
-    for (const content of [launchContent, routeRows[0]!]) {
-      expect(content.querySelector(".tw-text-wrap.tw-break-words")).not.toBeNull();
-      const copy = content.querySelector<HTMLElement>(".macos-preference-row__copy")!;
-      expect(getComputedStyle(copy).whiteSpace).toBe("normal");
-      expect(getComputedStyle(copy).overflowWrap).toBe("anywhere");
+    expect(launchContent.querySelector(".tw-text-wrap.tw-break-words")).not.toBeNull();
+    const launchCopy = launchContent.querySelector<HTMLElement>(".macos-preference-row__copy")!;
+    expect(getComputedStyle(launchCopy).whiteSpace).toBe("normal");
+    expect(getComputedStyle(launchCopy).overflowWrap).toBe("anywhere");
+    for (const label of routeLabels) {
+      expect(getComputedStyle(label).whiteSpace).toBe("nowrap");
+      expect(getComputedStyle(label).overflowWrap).toBe("normal");
     }
 
     document.documentElement.dataset["testReducedMotion"] = "true";
