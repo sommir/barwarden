@@ -619,7 +619,7 @@ popup-page {
   height: var(--mac-tabbar-height);
   min-height: var(--mac-tabbar-height);
   padding: 4px 8px;
-  border-radius: 12px 12px 0 0;
+  border-radius: 12px;
   /* Floating chrome sits above a canvas occlusion strip, so routed rows never
    * show as clipped content through the translucent material. */
   isolation: isolate;

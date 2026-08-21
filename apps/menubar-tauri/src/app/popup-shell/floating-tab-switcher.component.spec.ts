@@ -103,6 +103,13 @@ describe("FloatingTabSwitcherComponent", () => {
         );
 
         expect(nav.height).toBe("52px");
+        const navRule =
+          readFileSync(
+            join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+            "utf8",
+          ).match(/\.floating-tab-switcher\s*{[\s\S]*?}/)?.[0] ?? "";
+        expect(navRule).toMatch(/border-radius:\s*12px;/);
+        expect(navRule).not.toMatch(/border-radius:\s*12px\s+12px\s+0\s+0;/);
         expect(segment.minWidth).toBe("44px");
         expect(segment.minHeight).toBe("44px");
         expect(icon.fontSize).toBe("18px");
