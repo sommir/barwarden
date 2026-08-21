@@ -11,6 +11,7 @@
         bitButton
         buttonType="secondary"
         type="button"
+        class="macos-hit-target"
         data-testid="check-for-updates"
         (click)="checkForUpdates.emit()"
       >
@@ -18,23 +19,26 @@
       </button>
     }
   </header>
+  <output class="tw-sr-only app-update-card__announcement" [attr.role]="announcementRole" aria-live="polite">
+    {{ statusAnnouncement }}
+  </output>
 
   @if (view.status === "checking") {
-    <div class="app-update-card__status" role="status" aria-live="polite">
+    <div class="app-update-card__status">
       <progress [attr.aria-label]="'i18nCheckingUpdates' | i18n"></progress>
       <span>{{ "i18nCheckingUpdates" | i18n }}</span>
     </div>
   }
 
   @if (view.status === "up-to-date") {
-    <p class="app-update-card__status app-update-card__status--success" role="status">
+    <p class="app-update-card__status app-update-card__status--success">
       <i class="bwi bwi-check-circle" aria-hidden="true"></i>
       <span>{{ view.message }}</span>
     </p>
   }
 
   @if (view.status === "available") {
-    <div class="app-update-card__release" role="status" aria-live="polite">
+    <div class="app-update-card__release">
       <strong>{{ "i18nNewVersionAvailable" | i18n: (view.version || "") }}</strong>
       <p>{{ view.notes || ("i18nUpdateReadyToDownload" | i18n) }}</p>
     </div>
@@ -43,6 +47,7 @@
         bitButton
         buttonType="secondary"
         type="button"
+        class="macos-hit-target"
         (click)="deferUpdate.emit()"
       >
         {{ "i18nLater" | i18n }}
@@ -51,6 +56,7 @@
         bitButton
         buttonType="primary"
         type="button"
+        class="macos-primary-action macos-button-owner"
         data-testid="install-update"
         (click)="downloadAndRestart.emit()"
       >
@@ -60,7 +66,7 @@
   }
 
   @if (view.status === "downloading") {
-    <div class="app-update-card__status app-update-card__status--progress" role="status">
+    <div class="app-update-card__status app-update-card__status--progress">
       <span>{{ progressLabel }}</span>
       <progress
         max="1"
@@ -71,12 +77,13 @@
   }
 
   @if (view.status === "error") {
-    <div class="app-update-card__error" role="alert">
+    <div class="app-update-card__error">
       <p>{{ view.message }}</p>
       <button
         bitButton
         buttonType="secondary"
         type="button"
+        class="macos-hit-target"
         data-testid="retry-update"
         (click)="retry.emit()"
       >

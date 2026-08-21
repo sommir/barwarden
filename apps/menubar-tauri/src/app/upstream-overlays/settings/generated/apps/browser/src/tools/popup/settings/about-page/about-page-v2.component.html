@@ -6,25 +6,25 @@
     </ng-container>
   </popup-header>
 
-  <bit-item-group class="about-continuous-list macos-continuous-group">
+  <bit-item-group class="about-continuous-list macos-preference-group">
     <bit-item>
-      <button type="button" bit-item-content class="macos-continuous-row" (click)="troubleshoot()">
+      <button type="button" bit-item-content class="about-metadata-row macos-preference-row macos-hit-target" (click)="troubleshoot()">
         {{ "troubleshooting" | i18n }}
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content class="macos-continuous-row" (click)="about()">
+      <button type="button" bit-item-content class="about-metadata-row macos-preference-row macos-hit-target" (click)="about()">
         {{ "aboutBitwarden" | i18n }}
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content class="macos-continuous-row" (click)="launchHelp()">
+      <button type="button" bit-item-content class="about-metadata-row macos-preference-row macos-hit-target" (click)="launchHelp()">
         {{ "helpCenter" | i18n }}
         <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
       </button>
     </bit-item>
     <bit-item>
-      <button type="button" bit-item-content class="macos-continuous-row" (click)="openWebVault()">
+      <button type="button" bit-item-content class="about-metadata-row macos-preference-row macos-hit-target" (click)="openWebVault()">
         {{ "bitWebVaultApp" | i18n }}
         <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
       </button>

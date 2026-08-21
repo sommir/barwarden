@@ -3092,7 +3092,8 @@ body.tw-bit-compact .macos-page--account-switcher auth-account bit-item {
 }
 
 .about-version-summary {
-  margin: var(--mac-space-3) var(--mac-space-3) 0;
+  margin: 0;
+  padding: 8px 12px 12px;
   color: var(--mac-text-secondary);
   font-size: 13px;
   font-weight: 500;
@@ -3108,15 +3109,32 @@ body.tw-bit-compact .macos-page--account-switcher auth-account bit-item {
   box-shadow: none;
 }
 
+.macos-page--about .about-metadata-row {
+  min-height: var(--mac-row-single);
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.macos-page--about .about-continuous-list bit-item:last-child .about-metadata-row {
+  border-bottom-width: 0;
+}
+
+.macos-page--about :is(button, a) {
+  min-height: var(--mac-hit-size);
+}
+
 .app-update-card {
   display: grid;
   gap: var(--mac-space-3);
-  margin: var(--mac-space-2) var(--mac-space-3) var(--mac-space-3);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
-  padding: var(--mac-space-3);
-  background: var(--mac-surface-solid);
+  margin: 0;
+  border: 0;
+  border-block: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  padding: 10px 12px;
+  background: transparent;
   color: var(--mac-text-primary);
+  box-shadow: none;
 }
 
 .app-update-card__header {

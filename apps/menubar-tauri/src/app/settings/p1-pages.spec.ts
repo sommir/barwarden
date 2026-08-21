@@ -534,21 +534,36 @@ describe("P1 settings pages", () => {
       ],
     }).compileComponents();
 
+    installAppearancePreferenceCss();
     const fixture = TestBed.createComponent(AboutPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const continuousGroup = host.querySelector<HTMLElement>(
-      ".about-continuous-list.macos-continuous-group",
+      ".about-continuous-list.macos-preference-group",
     );
     const itemHosts = Array.from(
       continuousGroup?.querySelectorAll<HTMLElement>(":scope > bit-item") ?? [],
     );
     expect(itemHosts).toHaveLength(6);
     for (const itemHost of itemHosts) {
-      expect(
-        itemHost.querySelector(":scope > bit-item-action > .macos-continuous-row"),
-      ).not.toBeNull();
+      const row = itemHost.querySelector<HTMLElement>(
+        ":scope > bit-item-action > .about-metadata-row.macos-preference-row",
+      );
+      expect(row).not.toBeNull();
+      const rowStyles = getComputedStyle(row!);
+      expect(rowStyles.minHeight).toBe("44px");
+      expect(rowStyles.borderRadius).toBe("0px");
+      expect(rowStyles.boxShadow).toBe("none");
+      expect(row!.classList).toContain("macos-hit-target");
     }
+    const updateCard = host.querySelector<HTMLElement>(".app-update-card")!;
+    const updateCardStyles = getComputedStyle(updateCard);
+    expect(updateCardStyles.margin).toBe("0px");
+    expect(updateCardStyles.borderRadius).toBe("0px");
+    expect(updateCardStyles.boxShadow).toBe("none");
+    expect(updateCard.querySelectorAll('[aria-live],[role="status"],[role="alert"]')).toHaveLength(1);
+    expect(getComputedStyle(host.querySelector<HTMLElement>("[data-testid='check-for-updates']")!).minHeight)
+      .toBe("44px");
     expect(
       Array.from(
         host.querySelectorAll<HTMLButtonElement>(
@@ -1542,23 +1557,28 @@ function splitSelectorList(selectorList: string): string[] {
 
 function extractMediaBody(source: string, query: string): string {
   const marker = `@media (${query})`;
-  const markerIndex = source.indexOf(marker);
-  if (markerIndex < 0) {
-    return "";
-  }
-  const openIndex = source.indexOf("{", markerIndex);
-  let depth = 1;
-  for (let index = openIndex + 1; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openIndex + 1, index);
+  const bodies: string[] = [];
+  for (let cursor = 0;;) {
+    const markerIndex = source.indexOf(marker, cursor);
+    if (markerIndex < 0) {
+      break;
+    }
+    const openIndex = source.indexOf("{", markerIndex);
+    let depth = 1;
+    for (let index = openIndex + 1; index < source.length; index += 1) {
+      if (source[index] === "{") {
+        depth += 1;
+      } else if (source[index] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          bodies.push(source.slice(openIndex + 1, index));
+          cursor = index + 1;
+          break;
+        }
       }
     }
   }
-  return "";
+  return bodies.join("\n");
 }
 
 function scopeMediaRules(body: string, attribute: string): string {
