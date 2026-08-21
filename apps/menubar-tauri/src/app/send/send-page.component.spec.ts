@@ -2202,6 +2202,48 @@ describe("SendCreatedPageComponent", () => {
     expect(navigateByUrl).toHaveBeenCalledWith("/tabs/send", { replaceUrl: true });
   });
 
+  it.each(["Close", "Escape"] as const)(
+    "%s consumes the add-Send predecessor without polluting retained history",
+    async (action) => {
+      const fixture = await createCreatedFixture("send-created");
+      const router = TestBed.inject(Router);
+      Object.defineProperty(router, "url", {
+        value: "/send-created?sendId=send-created",
+        configurable: true,
+      });
+      const navigateByUrl = vi.spyOn(router, "navigateByUrl").mockImplementation(async (url) => {
+        Object.defineProperty(router, "url", { value: String(url), configurable: true });
+        return true;
+      });
+      const routeCache = TestBed.inject(PopupRouterCacheService);
+      (routeCache as unknown as {
+        entries: Array<{ url: string; scrollTop: number; focusKey: string | null }>;
+      }).entries = [
+        { url: "/tabs/send", scrollTop: 73, focusKey: "send:search" },
+        { url: "/add-send", scrollTop: 0, focusKey: null },
+      ];
+      fixture.detectChanges();
+
+      if (action === "Close") {
+        (fixture.nativeElement as HTMLElement)
+          .querySelector<HTMLButtonElement>('[data-testid="created-close"]')!
+          .click();
+        await fixture.whenStable();
+      } else {
+        await routeCache.back();
+      }
+
+      const sendNavigations = navigateByUrl.mock.calls.filter(
+        ([url]) => String(url) === "/tabs/send",
+      );
+      expect(sendNavigations).toEqual([["/tabs/send", { replaceUrl: true }]]);
+      expect(routeCache.history()).toEqual(["/tabs/send"]);
+      expect((routeCache as unknown as {
+        entries: Array<{ focusKey: string | null }>;
+      }).entries[0]?.focusKey).toBe("send:search");
+    },
+  );
+
   it("maps the official Send created pop-out action to the native menubar window command", async () => {
     const calls: string[] = [];
     const fixture = await createCreatedFixture("send-created", [], {

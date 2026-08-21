@@ -88,14 +88,13 @@ describe("OfficialSendAddEditComponent", () => {
       .toEqual(["true", "true", "true", "true"]);
     expect(ids.slice(0, 3).map((field) => host.querySelector(`#send-${field}`)?.getAttribute("aria-describedby")))
       .toEqual(ids.slice(0, 3).map((field) => `send-error-${field}`));
-    expect(host.querySelector("#send-maxAccessCount")?.getAttribute("aria-describedby")?.split(" "))
-      .toEqual([
-        host.querySelector("#send-maxAccessCount")
-          ?.closest("bit-form-field")
-          ?.querySelector("bit-hint")
-          ?.id,
-        "send-error-maxAccessCount",
-      ]);
+    expect(host.querySelector("#send-maxAccessCount")?.getAttribute("aria-describedby"))
+      .toBe(host.querySelector("#send-maxAccessCount")
+        ?.closest("bit-form-field")
+        ?.querySelector("bit-hint")
+        ?.id);
+    expect(host.querySelector("#send-maxAccessCount")?.getAttribute("aria-errormessage"))
+      .toBe("send-error-maxAccessCount");
     expect(ids.map((field) => host.querySelector(`#send-error-${field}`)?.getAttribute("role")))
       .toEqual(["alert", "alert", "alert", "alert"]);
     const maximum = host.querySelector<HTMLInputElement>("#send-maxAccessCount")!;
@@ -151,10 +150,8 @@ describe("OfficialSendAddEditComponent", () => {
     );
     fixture.detectChanges();
 
-    expect(maximum.getAttribute("aria-describedby")?.split(" ")).toEqual([
-      hint.id,
-      "send-error-maxAccessCount",
-    ]);
+    expect(maximum.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(maximum.getAttribute("aria-errormessage")).toBe("send-error-maxAccessCount");
     expect(host.querySelector('[data-testid="send-error-maxAccessCount"][role="alert"]'))
       .not.toBeNull();
 
@@ -163,6 +160,7 @@ describe("OfficialSendAddEditComponent", () => {
     fixture.detectChanges();
 
     expect(maximum.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(maximum.getAttribute("aria-errormessage")).toBeNull();
     expect(host.querySelector('[data-testid="send-error-maxAccessCount"]')).toBeNull();
   });
 

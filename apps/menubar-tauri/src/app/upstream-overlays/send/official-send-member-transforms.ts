@@ -406,15 +406,10 @@ const sendCreatedTemplateTransforms = [
         {{ "i18nSendExpires" | i18n: formattedExpiration() }}
       }
     </p>
-    <label for="send-created-link">{{ "i18nCopySendLink" | i18n }}</label>
-    <input
-      id="send-created-link"
-      data-testid="created-link"
-      type="text"
-      readonly
-      [value]="link()"
-      [attr.aria-label]="'i18nCopySendLink' | i18n"
-    />`,
+    <label class="macos-field-owner macos-send-created__link-owner" for="send-created-link">
+      <span>{{ "i18nCopySendLink" | i18n }}</span>
+      <input id="send-created-link" data-testid="created-link" class="macos-control-visible" type="text" readonly [value]="link()" [attr.aria-label]="'i18nCopySendLink' | i18n" />
+    </label>`,
   },
   {
     search: `  </div>
@@ -429,10 +424,10 @@ const sendCreatedTemplateTransforms = [
     <button bitButton type="button" buttonType="secondary" (click)="goBack()">
       {{ "close" | i18n }}
     </button>`,
-    replacement: `    <button data-testid="created-copy" bitButton type="button" buttonType="primary" (click)="copyLink.emit($event)">
+    replacement: `    <button data-testid="created-copy" class="macos-primary-action macos-button-owner" bitButton type="button" buttonType="primary" (click)="copyLink.emit($event)">
       {{ "i18nCopySendLink" | i18n }}
     </button>
-    <button data-testid="created-close" bitButton type="button" buttonType="secondary" (click)="close.emit()">
+    <button data-testid="created-close" class="macos-secondary-action macos-hit-target" bitButton type="button" buttonType="secondary" (click)="close.emit()">
       {{ "close" | i18n }}
     </button>`,
   },

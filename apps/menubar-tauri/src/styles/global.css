@@ -8934,3 +8934,105 @@ body.tw-bit-compact
     forced-color-adjust: none;
   }
 }
+
+/* iOS 27 Send Created keeps one compact readable link and one primary action. */
+.macos-page--send-created .macos-send-created__summary {
+  margin: 0;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send-created .macos-send-created__link-owner {
+  display: grid;
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  gap: 6px;
+  align-items: start;
+  overflow: visible;
+}
+
+.macos-page--send-created [data-testid="created-link"] {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  height: var(--mac-control-visible);
+  min-height: var(--mac-control-visible);
+  overflow: hidden;
+  border-radius: var(--mac-control-radius);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+
+.macos-page--send-created popup-footer button {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--send-created .macos-button-owner.macos-primary-action {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--send-created .macos-button-owner.macos-primary-action::before {
+  inset-block: 2px;
+  border: 1px solid var(--mac-accent);
+  background: var(--mac-accent);
+}
+
+.macos-page--send-created .macos-button-owner.macos-primary-action:hover::before {
+  background: var(--bw-primary-hover);
+}
+
+.macos-page--send-created .macos-button-owner.macos-primary-action:active::before {
+  background: color-mix(in srgb, var(--mac-accent) 72%, black);
+  transform: scale(0.98);
+}
+
+.macos-page--send-created
+  .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-surface-muted);
+  opacity: 0.58;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-created [data-testid="created-link"] {
+  height: var(--mac-control-visible-compact);
+  min-height: var(--mac-control-visible-compact);
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-created .macos-button-owner.macos-primary-action::before {
+  inset-block: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--send-created .macos-button-owner.macos-primary-action::before {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--send-created .macos-button-owner.macos-primary-action::before {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send-created
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
+  }
+}

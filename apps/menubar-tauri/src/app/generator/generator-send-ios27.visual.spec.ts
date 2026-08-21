@@ -17,13 +17,14 @@ import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.servic
 import { DialogService, FormFieldModule } from "@bitwarden/components";
 
 import { PopupStateStore } from "../popup-state";
+import { buildSelfHostedEnvironmentFromServerUrl } from "../../bitwarden-api/bitwarden-api";
 import { PopupPageComponent } from "../layout/popup-page.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { officialCurrentAccountTestProviders } from "../official-ui/official-current-account.test-support";
 import { ClipboardPolicyService } from "../settings/clipboard-policy.service";
 import { SendAddEditPageComponent } from "../send/send-add-edit-page.component";
+import { SEND_CREATED_HOST, SendCreatedPageComponent } from "../send/send-created-page.component";
 import { SendPageComponent } from "../send/send-page.component";
-import { OfficialSendCreatedComponent } from "../upstream-overlays/send/official-send-created.component";
 import {
   GENERATOR_HISTORY_CLIPBOARD_HOST,
   GeneratorHistoryPageComponent,
@@ -1860,42 +1861,44 @@ describe("iOS 27 Generator visual contract", () => {
   });
 
   it("renders the real Send created summary flat with touch-safe link and actions", async () => {
-    TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
-      imports: [OfficialSendCreatedComponent],
-      providers: [
-        OfficialI18nService,
-        { provide: I18nService, useExisting: OfficialI18nService },
-      ],
-    }).compileComponents();
-    const fixture = TestBed.createComponent(OfficialSendCreatedComponent);
-    fixture.componentRef.setInput("send", {
-      id: "send-created",
-      name: "One time secret",
-      deletionDate: "2026-08-19T00:00:00.000Z",
-      hasPassword: false,
-    });
-    fixture.componentRef.setInput("formattedExpiration", "1 天");
-    fixture.componentRef.setInput("link", "https://vault.example.test/#/send/access/key");
-    (fixture.nativeElement as HTMLElement).classList.add("macos-page--send-created");
+    const fixture = await createRealSendCreatedFixture();
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
     const summary = host.querySelector<HTMLElement>(".macos-send-created__summary")!;
     const icon = host.querySelector<HTMLElement>(".macos-send-created__icon")!;
     const link = host.querySelector<HTMLInputElement>('[data-testid="created-link"]')!;
+    const linkOwner = link.closest<HTMLElement>(".macos-field-owner")!;
     const actions = host.querySelectorAll<HTMLElement>("popup-footer button");
 
+    expect(host.classList).toContain("macos-page--send-created");
+    expect(getComputedStyle(summary).padding).toBe("12px");
     expect(getComputedStyle(summary).borderRadius).toBe("0px");
     expect(getComputedStyle(summary).boxShadow).toBe("none");
     expect(getComputedStyle(icon).width).toBe("44px");
     expect(getComputedStyle(icon).height).toBe("44px");
-    expect(getComputedStyle(link).minHeight).toBe("44px");
-    expect(getComputedStyle(link).borderRadius).toBe("10px");
+    expect(getComputedStyle(linkOwner).minHeight).toBe("44px");
+    expect(getComputedStyle(link).height).toBe("40px");
+    expect(getComputedStyle(link).textOverflow).toBe("ellipsis");
+    expect(link.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
+    expect(link.value.length).toBeGreaterThan(100);
+    expect(getComputedStyle(link).borderRadius).toBe("9px");
     expect(actions).toHaveLength(2);
+    expect(host.querySelectorAll(".macos-primary-action")).toHaveLength(1);
+    expect(actions[0]!.classList).toContain("macos-button-owner");
+    expect(actions[1]!.classList).toContain("macos-secondary-action");
+    expect(host.querySelector("popup-footer[slot='footer']")).not.toBeNull();
     expect(Array.from(actions, computedHitHeight).every((height) => height >= 44)).toBe(true);
 
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(getComputedStyle(link).height).toBe("36px");
+    document.documentElement.style.fontSize = "200%";
+    expect(getComputedStyle(linkOwner).height).toBe("auto");
+    expect(getComputedStyle(linkOwner).overflow).toBe("visible");
+
     fixture.destroy();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.style.removeProperty("font-size");
   });
 
   it("keeps compact rows touch-safe and removes nonessential motion", () => {
@@ -2334,4 +2337,45 @@ async function createRealSendFormFixture(readOnly = false) {
     ],
   }).compileComponents();
   return TestBed.createComponent(SendAddEditPageComponent);
+}
+
+async function createRealSendCreatedFixture() {
+  TestBed.resetTestingModule();
+  const store = new PopupStateStore();
+  const environment = buildSelfHostedEnvironmentFromServerUrl("https://vault.example.test");
+  store.setServerUrl("https://vault.example.test");
+  store.setUnlocked("person@example.test");
+  store.setActiveSession({
+    environment,
+    token: { accessToken: "token", refreshToken: "refresh", tokenType: "Bearer", expiresIn: 3600 },
+  });
+  store.setSends([{
+    id: "send-created",
+    accessId: "access-token-with-a-very-long-readable-created-link-segment",
+    urlB64Key: "url-key-with-another-very-long-readable-created-link-segment-for-selection",
+    type: "text",
+    name: "Created Send",
+    text: "secret",
+    notes: "",
+    revisionDate: "2026-08-20T00:00:00.000Z",
+    deletionDate: "2030-08-20T00:00:00.000Z",
+    disabled: false,
+    accessCount: 0,
+  }]);
+  await TestBed.configureTestingModule({
+    imports: [SendCreatedPageComponent],
+    providers: [
+      provideRouter([]),
+      OfficialI18nService,
+      { provide: I18nService, useExisting: OfficialI18nService },
+      { provide: PopupStateStore, useValue: store },
+      { provide: SEND_CREATED_HOST, useValue: { copyText: vi.fn(async () => undefined) } },
+      { provide: ClipboardPolicyService, useValue: { copy: vi.fn(async () => undefined) } },
+      {
+        provide: ActivatedRoute,
+        useValue: { snapshot: { queryParamMap: { get: (key: string) => key === "sendId" ? "send-created" : null } } },
+      },
+    ],
+  }).compileComponents();
+  return TestBed.createComponent(SendCreatedPageComponent);
 }
