@@ -56,3 +56,21 @@
   upstream/local typechecks, and its production web build.
 - Independent `npm run build:web` passed with only the repository's accepted
   Tailwind-at-rule, browser externalization, and chunk-size warnings.
+
+## Scoped review fix
+
+- Replaced the visual test's manually assigned page class with the real
+  `SendAddEditPageComponent` route host and retained wrapper for add and
+  read-only states.
+- Save's real inset paint is mutation-protected at 40/36px across default,
+  hover, pressed, native/ARIA disabled, keyboard focus, and Forced Colors;
+  the owner remains transparent and the visible paint owns the only ring.
+- Generate, Copy Password, Delete, and Remove Password retain exact commands
+  and now expose localized BitIconButton labels. Delete and Remove use a
+  danger plate that resolves to the Forced Colors `Mark` system color.
+- The nested Text Details section now owns the required 12/10px rhythm.
+- Read-only mode has an explicit retained page marker and renders real
+  field wrappers as compact label/value rows with zero group gap, preserved
+  readonly values, 44px minimum owners, and growing unclipped 200% content.
+- Final scoped gate passed 129/129; official Send typecheck and independent
+  web build passed. The updater was rerun twice after all retained changes.

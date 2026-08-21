@@ -9,23 +9,20 @@ import {
 } from "@angular/platform-browser/testing";
 import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
-import { provideRouter } from "@angular/router";
+import { ActivatedRoute, provideRouter } from "@angular/router";
+import { of } from "rxjs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
-import { FormFieldModule } from "@bitwarden/components";
+import { DialogService, FormFieldModule } from "@bitwarden/components";
 
 import { PopupStateStore } from "../popup-state";
 import { PopupPageComponent } from "../layout/popup-page.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { officialCurrentAccountTestProviders } from "../official-ui/official-current-account.test-support";
 import { ClipboardPolicyService } from "../settings/clipboard-policy.service";
+import { SendAddEditPageComponent } from "../send/send-add-edit-page.component";
 import { SendPageComponent } from "../send/send-page.component";
-import type {
-  RetainedTextSendErrors,
-  RetainedTextSendField,
-} from "../send/retained-text-send-form.service";
-import { OfficialSendAddEditComponent } from "../upstream-overlays/send/official-send-add-edit.component";
 import { OfficialSendCreatedComponent } from "../upstream-overlays/send/official-send-created.component";
 import {
   GENERATOR_HISTORY_CLIPBOARD_HOST,
@@ -239,6 +236,7 @@ beforeAll(() => {
       || value,
   );
   style.textContent += projectGeneratorInteractionAndMediaRules(style.sheet!);
+  style.textContent += projectSendFormPseudoRules(style.sheet!);
   normalizeImportantMotionShorthandsForJSDOM(style.sheet!);
 });
 
@@ -265,27 +263,12 @@ function resolveCustomProperty(
 
 describe("iOS 27 Generator visual contract", () => {
   it("renders the real Send add form with compact painted controls and touch-safe owners", async () => {
-    TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
-      imports: [OfficialSendAddEditComponent],
-      providers: [
-        OfficialI18nService,
-        { provide: I18nService, useExisting: OfficialI18nService },
-      ],
-    }).compileComponents();
-    const fixture = TestBed.createComponent(OfficialSendAddEditComponent);
-    fixture.componentRef.setInput("mode", "add");
-    fixture.componentRef.setInput("editing", true);
-    fixture.componentRef.setInput("value", {
-      ...sendFormValue(),
+    const fixture = await createRealSendFormFixture();
+    fixture.componentInstance.form.patch({
       authType: "password",
       password: "generated password",
       hideEmail: true,
     });
-    fixture.componentRef.setInput("hideEmailAllowed", true);
-    fixture.componentRef.setInput("errors", {} satisfies RetainedTextSendErrors);
-    fixture.componentRef.setInput("touched", new Set<RetainedTextSendField>());
-    (fixture.nativeElement as HTMLElement).classList.add("macos-page--send-form");
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
@@ -342,6 +325,32 @@ describe("iOS 27 Generator visual contract", () => {
     expect(save.classList).toContain("macos-button-owner");
     expect(getComputedStyle(save).minHeight).toBe("44px");
     expect(getComputedStyle(save).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    const savePaint = document.createElement("span");
+    savePaint.setAttribute("data-send-form-test-paint", "");
+    savePaint.setAttribute("aria-hidden", "true");
+    save.prepend(savePaint);
+    expect(modeledSendPrimaryPaintHeight(save, savePaint)).toBe(40);
+    const saveInitial = getComputedStyle(savePaint).backgroundColor;
+    setGeneratorInteraction(save, "hover");
+    const saveHover = getComputedStyle(savePaint).backgroundColor;
+    setGeneratorInteraction(save, "active");
+    const savePressed = getComputedStyle(savePaint).backgroundColor;
+    expect(new Set([saveInitial, saveHover, savePressed]).size).toBe(3);
+    setGeneratorInteraction(save, "focus");
+    expect(cssPixels(getComputedStyle(save).outlineWidth)).toBe(0);
+    expect(cssPixels(getComputedStyle(savePaint).outlineWidth)).toBe(0);
+    setGeneratorInteraction(save, "focus focus-visible");
+    expect(cssPixels(getComputedStyle(save).outlineWidth)).toBe(0);
+    expect(getComputedStyle(savePaint).outlineWidth).toBe("2px");
+    setGeneratorInteraction(save, null);
+    save.disabled = true;
+    expect(getComputedStyle(savePaint).backgroundColor).not.toBe(saveInitial);
+    expect(Number.parseFloat(getComputedStyle(savePaint).opacity)).toBeLessThan(1);
+    save.disabled = false;
+    save.setAttribute("aria-disabled", "true");
+    expect(getComputedStyle(savePaint).backgroundColor).not.toBe(saveInitial);
+    expect(Number.parseFloat(getComputedStyle(savePaint).opacity)).toBeLessThan(1);
+    save.removeAttribute("aria-disabled");
     expect(switches[0]!.getAttribute("aria-checked")).toBe("false");
     expect(switches[1]!.getAttribute("aria-checked")).toBe("true");
     expect(Array.from(switches, computedHitHeight)).toEqual([44, 44]);
@@ -354,6 +363,11 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual(iconPlates.map(() => "32px"));
     expect(iconPlates.map((plate) => getComputedStyle(plate).height))
       .toEqual(iconPlates.map(() => "32px"));
+    const nestedTextSection = host.querySelector<HTMLElement>(
+      "bw-official-send-text-details > bit-section > section",
+    )!;
+    expect(getComputedStyle(nestedTextSection).display).toBe("grid");
+    expect(getComputedStyle(nestedTextSection).gap).toBe("12px");
 
     const iconOwner = iconOwners[0]!;
     const iconPlate = iconPlates[0]!;
@@ -380,6 +394,8 @@ describe("iOS 27 Generator visual contract", () => {
       .toEqual(iconPlates.map(() => "28px"));
     expect(iconPlates.map((plate) => getComputedStyle(plate).height))
       .toEqual(iconPlates.map(() => "28px"));
+    expect(modeledSendPrimaryPaintHeight(save, savePaint)).toBe(36);
+    expect(getComputedStyle(nestedTextSection).gap).toBe("10px");
 
     document.documentElement.style.fontSize = "200%";
     for (const field of fields) {
@@ -398,6 +414,8 @@ describe("iOS 27 Generator visual contract", () => {
     document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
     expect(getComputedStyle(iconPlate).forcedColorAdjust).toBe("none");
     expect(getComputedStyle(iconPlate).borderWidth).toBe("1px");
+    expect(getComputedStyle(savePaint).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(savePaint).backgroundColor).not.toBe(saveInitial);
 
     fixture.destroy();
     document.documentElement.removeAttribute("data-bw-compact-mode");
@@ -406,25 +424,12 @@ describe("iOS 27 Generator visual contract", () => {
   });
 
   it("renders the real Send read-only form as growing controls without a filled primary", async () => {
-    TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
-      imports: [OfficialSendAddEditComponent],
-      providers: [
-        OfficialI18nService,
-        { provide: I18nService, useExisting: OfficialI18nService },
-      ],
-    }).compileComponents();
-    const fixture = TestBed.createComponent(OfficialSendAddEditComponent);
-    fixture.componentRef.setInput("mode", "edit");
-    fixture.componentRef.setInput("editing", false);
-    fixture.componentRef.setInput("value", { ...sendFormValue(), hidden: true, hideEmail: true });
-    fixture.componentRef.setInput("hideEmailAllowed", true);
-    fixture.componentRef.setInput("errors", {} satisfies RetainedTextSendErrors);
-    fixture.componentRef.setInput("touched", new Set<RetainedTextSendField>());
-    (fixture.nativeElement as HTMLElement).classList.add("macos-page--send-form");
+    const fixture = await createRealSendFormFixture(true);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    expect(host.classList).toContain("macos-page--send-form");
+    expect(host.querySelector("bw-official-send-add-edit > popup-page")).not.toBeNull();
     const controls = host.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
       "input[bitinput],textarea[bitinput]",
     );
@@ -436,8 +441,60 @@ describe("iOS 27 Generator visual contract", () => {
     expect(switches).toHaveLength(2);
     expect(Array.from(switches).every((owner) => owner.disabled)).toBe(true);
     expect(host.querySelector("bit-card")).toBeNull();
+    const page = host.querySelector<HTMLElement>("popup-page")!;
+    expect(page.classList).toContain("macos-send-form--readonly");
+    const groups = host.querySelectorAll<HTMLElement>(".macos-send-form__group");
+    expect(Array.from(groups, (group) => getComputedStyle(group).gap))
+      .toEqual(Array.from(groups, () => "0px"));
+    const rows = host.querySelectorAll<HTMLElement>(
+      "bit-form-field.macos-field-owner:has([readonly]) > div",
+    );
+    expect(rows.length).toBeGreaterThanOrEqual(5);
+    for (const row of rows) {
+      expect(getComputedStyle(row).display).toBe("grid");
+      expect(getComputedStyle(row).gridTemplateColumns).not.toBe("none");
+      expect(cssPixels(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(row).overflow).toBe("visible");
+    }
+
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(Array.from(groups, (group) => getComputedStyle(group).gap))
+      .toEqual(Array.from(groups, () => "0px"));
+    for (const row of rows) {
+      expect(cssPixels(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
+    }
+
+    document.documentElement.style.fontSize = "200%";
+    for (const control of controls) {
+      expect(getComputedStyle(control).maxHeight).toBe("none");
+      expect(getComputedStyle(control).overflow).not.toBe("hidden");
+    }
+    expect(host.querySelector<HTMLTextAreaElement>("#send-text")?.value)
+      .toBe("Mounted multi-line secret value");
+
+    host.querySelector<HTMLButtonElement>('[data-testid="edit-send"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges(false);
+    const dangerOwners = [
+      host.querySelector<HTMLButtonElement>('button[biticonbutton="bwi-trash"]'),
+      host.querySelector<HTMLButtonElement>('button[biticonbutton="bwi-minus-circle"]'),
+    ];
+    expect(dangerOwners.every((owner) => owner?.classList.contains("macos-send-form__danger-action")))
+      .toBe(true);
+    document.documentElement.setAttribute("data-generator-test-media", "forced-colors");
+    const dangerColor = resolvedTestSystemColor("Mark");
+    for (const owner of dangerOwners) {
+      expect(owner).not.toBeNull();
+      const plate = owner!.querySelector<HTMLElement>(":scope > span")!;
+      expect(getComputedStyle(plate).forcedColorAdjust).toBe("none");
+      expect(getComputedStyle(plate).color).toBe(dangerColor);
+      expect(getComputedStyle(plate).borderColor).toBe(dangerColor);
+    }
 
     fixture.destroy();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.removeAttribute("data-generator-test-media");
+    document.documentElement.style.removeProperty("font-size");
   });
 
   it("renders the real Generator page with flat ordinary surfaces and touch-safe controls", async () => {
@@ -1879,6 +1936,17 @@ function modeledSendRowHeight(
     + cssPixels(rowStyle.paddingBottom);
 }
 
+function modeledSendPrimaryPaintHeight(owner: HTMLElement, paint: HTMLElement): number {
+  const ownerHeight = cssPixels(getComputedStyle(owner).minHeight);
+  const paintStyle = getComputedStyle(paint);
+  const inset = cssPixels(
+    paintStyle.insetBlock && paintStyle.insetBlock !== "auto"
+      ? paintStyle.insetBlock
+      : paintStyle.inset.split(" ")[0] ?? "0px",
+  );
+  return ownerHeight - 2 * inset;
+}
+
 function modeledStretchedModeHeights(
   group: HTMLElement,
   toggles: NodeListOf<HTMLElement>,
@@ -1973,6 +2041,15 @@ function forcedColorSignature(target: HTMLElement) {
   };
 }
 
+function resolvedTestSystemColor(color: string): string {
+  const probe = document.createElement("span");
+  probe.style.color = color;
+  document.body.append(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  return resolved;
+}
+
 function setGeneratorInteraction(target: HTMLElement, interaction: string | null) {
   if (interaction) {
     target.setAttribute("data-generator-test-interaction", interaction);
@@ -2017,6 +2094,39 @@ function normalizeImportantMotionShorthandsForJSDOM(sheet: CSSStyleSheet): void 
       }
     }
   }
+}
+
+function projectSendFormPseudoRules(sheet: CSSStyleSheet): string {
+  const projected: string[] = [];
+  const project = (rule: CSSStyleRule, media?: "reduced-motion" | "forced-colors") => {
+    if (!rule.selectorText.includes(".macos-button-owner") || !rule.selectorText.includes("::before")) {
+      return;
+    }
+    const selector = projectGeneratorInteractionSelector(
+      rule.selectorText.replaceAll("::before", ' > [data-send-form-test-paint]'),
+    );
+    projected.push(media
+      ? `:root[data-generator-test-media="${media}"] :is(${selector}) { ${rule.style.cssText} }`
+      : `${selector} { ${rule.style.cssText} }`);
+  };
+  for (const rule of Array.from(sheet.cssRules)) {
+    if (rule.type === CSSRule.STYLE_RULE) {
+      project(rule as CSSStyleRule);
+      continue;
+    }
+    if (rule.type !== CSSRule.MEDIA_RULE) continue;
+    const mediaRule = rule as CSSMediaRule;
+    const media = mediaRule.conditionText.includes("prefers-reduced-motion")
+      ? "reduced-motion"
+      : mediaRule.conditionText.includes("forced-colors")
+        ? "forced-colors"
+        : null;
+    if (!media) continue;
+    for (const nested of Array.from(mediaRule.cssRules)) {
+      if (nested.type === CSSRule.STYLE_RULE) project(nested as CSSStyleRule, media);
+    }
+  }
+  return projected.join("\n");
 }
 
 function projectGeneratorInteractionAndMediaRules(sheet: CSSStyleSheet): string {
@@ -2117,16 +2227,49 @@ function generatorSettings(): GeneratorSettingsSnapshot {
   };
 }
 
-function sendFormValue() {
-  return {
-    name: "Text Send",
-    text: "message",
-    hidden: false,
-    deletionPresetHours: 24 as const,
-    authType: "none" as const,
-    password: "",
-    maxAccessCount: "",
-    hideEmail: false,
-    notes: "",
+async function createRealSendFormFixture(readOnly = false) {
+  TestBed.resetTestingModule();
+  const store = new PopupStateStore();
+  const send = {
+    id: "send-form-1",
+    accessId: "send-form-access",
+    type: "text" as const,
+    name: "Mounted Send value",
+    text: "Mounted multi-line secret value",
+    notes: "Mounted private note",
+    revisionDate: "2026-08-20T00:00:00.000Z",
+    deletionDate: "2030-08-20T00:00:00.000Z",
+    disabled: false,
+    accessCount: 0,
+    maxAccessCount: 3,
+    hidden: true,
+    hideEmail: true,
+    hasPassword: true,
   };
+  if (readOnly) store.setSends([send]);
+  await TestBed.configureTestingModule({
+    imports: [SendAddEditPageComponent],
+    providers: [
+      provideRouter([]),
+      OfficialI18nService,
+      { provide: I18nService, useExisting: OfficialI18nService },
+      { provide: PopupStateStore, useValue: store },
+      { provide: GeneratorService, useValue: { generate: vi.fn() } },
+      { provide: ClipboardPolicyService, useValue: { copy: vi.fn(async () => undefined) } },
+      { provide: DialogService, useValue: { openSimpleDialog: vi.fn(async () => true) } },
+      {
+        provide: ActivatedRoute,
+        useValue: {
+          queryParamMap: of({
+            get: (key: string) => key === "type"
+              ? "text"
+              : key === "sendId" && readOnly
+                ? send.id
+                : null,
+          }),
+        },
+      },
+    ],
+  }).compileComponents();
+  return TestBed.createComponent(SendAddEditPageComponent);
 }

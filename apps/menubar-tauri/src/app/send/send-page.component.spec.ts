@@ -1606,6 +1606,30 @@ describe("SendAddEditPageComponent", () => {
     expect(store.snapshot().statusMessage).toBe("请先解锁密码库，再创建 Send。");
   });
 
+  it("gives every mounted Send form icon action a localized accessible name", async () => {
+    const addFixture = await createAddEditFixture("text");
+    addFixture.componentInstance.form.patch({ authType: "password", password: "copy me" });
+    addFixture.detectChanges();
+    const addHost = addFixture.nativeElement as HTMLElement;
+    for (const action of addHost.querySelectorAll<HTMLButtonElement>(
+      '[data-testid="generate-password"], button[biticonbutton="bwi-clone"]',
+    )) {
+      expect(action.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
+    }
+
+    const editFixture = await createAddEditFixture("text", {
+      send: demoSend({ id: "send-1", text: "value", hasPassword: true }),
+    });
+    editFixture.componentInstance.beginEditing();
+    editFixture.detectChanges();
+    const editHost = editFixture.nativeElement as HTMLElement;
+    for (const action of editHost.querySelectorAll<HTMLButtonElement>(
+      'button[biticonbutton="bwi-minus-circle"], button[biticonbutton="bwi-trash"]',
+    )) {
+      expect(action.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
+    }
+  });
+
   it("reports Send password generation failures without leaking generated values", async () => {
     const generator = generatorService();
     generator.generate.mockRejectedValueOnce(new Error("SDK failed near leaked-secret"));

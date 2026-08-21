@@ -48,10 +48,10 @@
         <input class="macos-control-visible" bitInput id="send-password" type="password" [value]="value().password" [readonly]="!editing() || originalHadPassword()" [attr.aria-invalid]="touched().has('password') && errors().password ? 'true' : null" [attr.aria-describedby]="touched().has('password') && errors().password ? 'send-error-password' : null" (input)="valueChange.emit({ password: inputValue($event) })" (blur)="fieldBlur.emit('password')" />
         <div bitSuffix ngProjectAs="[bitSuffix]" class="tw-flex tw-items-center">
           @if (!originalHadPassword()) {
-            <button class="macos-hit-target macos-send-form__icon-action" type="button" bitIconButton="bwi-generate" size="small" [disabled]="disabled()" (click)="generatePassword.emit()" data-testid="generate-password"></button>
-            <button class="macos-hit-target macos-send-form__icon-action" type="button" bitIconButton="bwi-clone" size="small" [disabled]="disabled() || !value().password" (click)="copyPassword.emit($event)"></button>
+            <button class="macos-hit-target macos-send-form__icon-action" type="button" bitIconButton="bwi-generate" size="small" [label]="'generatePassword' | i18n" [disabled]="disabled()" (click)="generatePassword.emit()" data-testid="generate-password"></button>
+            <button class="macos-hit-target macos-send-form__icon-action" type="button" bitIconButton="bwi-clone" size="small" [label]="'copyPassword' | i18n" [disabled]="disabled() || !value().password" (click)="copyPassword.emit($event)"></button>
           } @else if (editing()) {
-            <button class="macos-hit-target macos-send-form__icon-action" type="button" buttonType="dangerGhost" bitIconButton="bwi-minus-circle" size="small" [disabled]="disabled()" (click)="removePassword.emit()"></button>
+            <button class="macos-hit-target macos-send-form__icon-action macos-send-form__danger-action" type="button" buttonType="dangerGhost" bitIconButton="bwi-minus-circle" size="small" [label]="'i18nRemoveSendPassword' | i18n" [disabled]="disabled()" (click)="removePassword.emit()"></button>
           }
         </div>
         @if (touched().has("password") && errors().password) {

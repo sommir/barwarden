@@ -67,11 +67,11 @@
   "localRuntimes": [
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.html",
-      "sha256": "85897ae4935b34085807d6c0a5942dc914798d4cb4ece9607c34d5ab0b2a9382"
+      "sha256": "026c1aed0328505039f73733434bfe11a5f312fa909f56bf85733e93eafe7f02"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
-      "sha256": "14387fc5f8ab6f4b84e7227bd71e603a9b8073f878f6038d7c16e85543c5a339"
+      "sha256": "19740b3ff24c2306a5664ebb44ef6863282f33beb1b2c0f91a91a3584551a454"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.html",
@@ -83,7 +83,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.html",
-      "sha256": "44fa6a3249189791af77a25299f736e99a89722cc5a7c61a68b3eb82b2c75955"
+      "sha256": "937480f9ff49665ff79aea9cf0fcc89ad74883d00b63a124ca396254ec6842ba"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
@@ -131,11 +131,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.html.patch",
-      "sha256": "4a42b29f9df441c3f1b8ee07efc9195dd9c037b75af1969b3cdf6d5b47ecdd84"
+      "sha256": "ec8506b728bd7bbcab5643e461eb51ee845a303848c01bf1752f78e06d5d0452"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.ts.patch",
-      "sha256": "06225ed7cf8e844289e132d0a40d05e4107096798134472dd50e4e8552d7878c"
+      "sha256": "49e61a7a7911ebcc9da7fad91b311fbea91a276b2b1674eeaa8f1905c7960a1f"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-created.component.ts.patch",
@@ -143,7 +143,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.html.patch",
-      "sha256": "6b433c398005a236fac74ed55d0d27ae5969a02e107325998375a9a9274ae406"
+      "sha256": "36858804b1c4dd40e84ff7b47edf1166e002e4f3ac8bd7ae1cae8e476f053be3"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.ts.patch",
@@ -878,6 +878,12 @@
         "kind": "export",
         "specifier": "@bitwarden/components/form-field/suffix.directive",
         "target": "vendor/bitwarden-clients/libs/components/src/form-field/suffix.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/icon-button/icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
       },
       {
         "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
@@ -3364,6 +3370,6 @@
         "target": null
       }
     ],
-    "sha256": "91178733ee7d5e251a3ee91d5d6a42deadab96b16c79e642740d6db1e3b1615f"
+    "sha256": "cee0a32d48e62a45bd1a0f29fe3df550a8b2d946d71e635979aaebeb7fe59fc4"
   }
 }

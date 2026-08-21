@@ -8775,3 +8775,134 @@ body.tw-bit-compact
     outline-color: Highlight;
   }
 }
+
+/* Send form review: stateful primary paint, nested rhythm, and read-only rows. */
+.macos-page--send-form .macos-button-owner.macos-primary-action::before {
+  inset-block: 2px;
+  border: 1px solid var(--mac-accent);
+  background: var(--mac-accent);
+  opacity: 1;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out,
+    transform var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--send-form
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):hover::before {
+  border-color: var(--bw-primary-hover);
+  background: var(--bw-primary-hover);
+}
+
+.macos-page--send-form
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):active::before {
+  border-color: color-mix(in srgb, var(--mac-accent) 72%, black);
+  background: color-mix(in srgb, var(--mac-accent) 72%, black);
+  transform: scale(0.98);
+}
+
+.macos-page--send-form
+  .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-surface-muted);
+  opacity: 0.58;
+  transform: none;
+}
+
+.macos-page--send-form bw-official-send-text-details > bit-section > section {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin: 0;
+  overflow: visible;
+}
+
+.macos-page--send-form .macos-send-form--readonly .macos-send-form__group {
+  gap: 0 !important;
+}
+
+.macos-page--send-form
+  .macos-send-form--readonly
+  bit-form-field.macos-field-owner:has([readonly]) {
+  min-height: var(--mac-hit-size);
+  padding: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+}
+
+.macos-page--send-form
+  .macos-send-form--readonly
+  bit-form-field.macos-field-owner:has([readonly])
+  > div {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.42fr) minmax(0, 1fr);
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  max-height: none;
+  align-items: center;
+  gap: 12px;
+  overflow: visible;
+}
+
+.macos-page--send-form
+  .macos-send-form--readonly
+  bit-form-field.macos-field-owner:has([readonly])
+  > div
+  > :is(label, div) {
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send-form
+  .macos-send-form--readonly
+  bit-form-field.macos-field-owner
+  :is(input[readonly], textarea[readonly]) {
+  min-width: 0;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form .macos-button-owner.macos-primary-action::before {
+  inset-block: 4px;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form bw-official-send-text-details > bit-section > section {
+  gap: 10px;
+}
+
+@media (forced-colors: active) {
+  .macos-page--send-form .macos-button-owner.macos-primary-action::before {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send-form
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
+  }
+
+  .macos-page--send-form .macos-send-form__danger-action > span {
+    border-color: Mark;
+    background: Canvas;
+    color: Mark;
+    forced-color-adjust: none;
+  }
+}

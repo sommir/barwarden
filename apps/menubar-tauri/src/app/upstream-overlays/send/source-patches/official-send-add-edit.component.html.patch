@@ -1,12 +1,14 @@
 --- authority
 +++ runtime
-@@ -2,6 +2 @@
+@@ -1,7 +1,2 @@
+-<popup-page>
 -  <popup-header
 -    slot="header"
 -    [pageTitle]="headerText"
 -    showBackButton
 -    [backAction]="onBackClick.bind(this)"
 -  ></popup-header>
++<popup-page [class.macos-send-form--readonly]="!editing()">
 +  <popup-header slot="header" [pageTitle]="title" showBackButton [backAction]="backAction"></popup-header>
 @@ -9,9 +4,5 @@
 -  @if (disabledSendConfig()) {
@@ -69,7 +71,7 @@
 +        <button class="macos-secondary-action macos-hit-target" bitButton type="button" buttonType="secondary" data-testid="edit-send" (click)="edit.emit(); editingChange.emit(true)">{{ "i18nEdit" | i18n }}</button>
 @@ -58,0 +19,3 @@
 +      @if (mode() === 'edit') {
-+        <button class="tw-ml-auto macos-hit-target macos-send-form__icon-action" type="button" buttonType="dangerGhost" slot="end" bitIconButton="bwi-trash" [disabled]="pending()" (click)="delete.emit()"></button>
++        <button class="tw-ml-auto macos-hit-target macos-send-form__icon-action macos-send-form__danger-action" type="button" buttonType="dangerGhost" slot="end" bitIconButton="bwi-trash" [label]="'i18nDelete' | i18n" [disabled]="pending()" (click)="delete.emit()"></button>
 +      }
 @@ -60,13 +22,0 @@
 -    @if (
