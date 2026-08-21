@@ -3445,7 +3445,7 @@ body.tw-bit-compact .macos-page--account-switcher auth-account bit-item {
   display: flex;
   min-height: var(--mac-hit-size);
   align-items: center;
-  margin: 0 0 20px;
+  margin: 0 0 12px;
 }
 
 .macos-generator__mode bit-toggle-group {
@@ -3672,6 +3672,16 @@ body.tw-bit-compact .macos-page--account-switcher auth-account bit-item {
   gap: 12px;
   margin: 0;
   overflow: visible;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  :is(tools-password-settings, tools-passphrase-settings, tools-username-settings) {
+  margin-top: 0 !important;
+}
+
+.macos-page--generator .macos-generator__settings bit-section-header h2 {
+  margin-top: 0 !important;
 }
 
 .macos-page--generator .macos-generator__settings bit-form-field {

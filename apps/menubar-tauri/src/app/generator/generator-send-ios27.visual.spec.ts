@@ -61,6 +61,7 @@ const officialUtilityHitTargetCss = `
   .tw-mr-4 { margin-right: 16px; }
   .tw-min-h-10 { min-height: 40px; }
   .tw-mb-4 { margin-bottom: 16px; }
+  .tw-mt-6 { margin-top: 24px; }
   :root[data-bw-compact-mode="true"] .bit-compact\\:tw-mb-3 { margin-bottom: 12px; }
   .tw-h-6 { height: 24px; }
   .tw-leading-5 { line-height: 1.25rem; }
@@ -71,6 +72,7 @@ const officialUtilityHitTargetCss = `
   .tw-py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
   .tw-mb-1\\.5 { margin-bottom: 6px; }
   .tw-border-y { border-top-width: 1px; border-bottom-width: 1px; }
+  .macos-generator__settings bit-section-header h2 { margin-top: 0.83em; }
   :root[data-bw-compact-mode="true"] [class~="bit-compact:tw-py-1.5"] {
     padding-top: 6px;
     padding-bottom: 6px;
@@ -643,6 +645,8 @@ describe("iOS 27 Generator visual contract", () => {
     const modeGroup = mode.querySelector<HTMLElement>("bit-toggle-group")!;
     const modeToggles = mode.querySelectorAll<HTMLElement>("bit-toggle");
     const settings = official.querySelector<HTMLElement>(".macos-generator__settings")!;
+    const passwordSettings = settings.querySelector<HTMLElement>("tools-password-settings")!;
+    const optionsHeading = settings.querySelector<HTMLElement>("bit-section-header h2")!;
     const settingSurfaces = settings.querySelectorAll<HTMLElement>("bit-card, bit-section");
     const copy = official.querySelector<HTMLButtonElement>('[data-testid="generator-copy"]')!;
     const regenerate = official.querySelector<HTMLButtonElement>('[data-testid="generator-regenerate"]')!;
@@ -698,6 +702,9 @@ describe("iOS 27 Generator visual contract", () => {
     expect.soft(getComputedStyle(result).marginRight).toBe("0px");
     expect.soft(getComputedStyle(mode).marginLeft).toBe("0px");
     expect.soft(getComputedStyle(mode).marginRight).toBe("0px");
+    expect.soft(getComputedStyle(mode).marginBottom).toBe("12px");
+    expect.soft(getComputedStyle(passwordSettings).marginTop).toBe("0px");
+    expect.soft(getComputedStyle(optionsHeading).marginTop).toBe("0px");
     expect(getComputedStyle(historyRow).borderRadius).toBe("0px");
     expect(getComputedStyle(historyRow).boxShadow).toBe("none");
     expect(Array.from(settingSurfaces, (surface) => getComputedStyle(surface).borderRadius))
