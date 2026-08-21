@@ -89,6 +89,11 @@ function resolveCustomProperty(
   });
 }
 
+function visualCssHasRule(selector: string): boolean {
+  return [...document.querySelectorAll<HTMLStyleElement>("style")]
+    .some((style) => style.textContent?.includes(selector));
+}
+
 describe("LoginPageComponent", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -226,7 +231,7 @@ describe("LoginPageComponent", () => {
     }
   });
 
-  it("renders a 2px production focus outline on the focused login action", async () => {
+  it("keeps the focused login action owner ringless so the visible fill owns the single ring", async () => {
     const visualCss = installLoginVisualCss();
     const { fixture } = await createPage();
     const action = fixture.nativeElement.querySelector<HTMLButtonElement>(
@@ -239,9 +244,11 @@ describe("LoginPageComponent", () => {
       expect(document.activeElement).toBe(action);
       visualCss.exposeFocusVisible(action!);
       const styles = getComputedStyle(action!);
-      expect(styles.outlineWidth).toBe("2px");
-      expect(styles.outlineStyle).toBe("solid");
-      expect(styles.outlineOffset).toBe("2px");
+      expect(styles.outlineWidth).toBe("0px");
+      expect(styles.outlineStyle).toBe("none");
+      expect(styles.boxShadow).toBe("none");
+      expect(visualCssHasRule(".macos-auth-card .macos-button-owner[data-production-focus-visible=\"true\"]")).toBe(true);
+      expect(visualCssHasRule(".macos-button-owner[data-production-focus-visible=\"true\"]::before")).toBe(true);
     } finally {
       fixture.destroy();
       visualCss.cleanup();

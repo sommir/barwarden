@@ -2396,6 +2396,12 @@ bw-keyboard-shortcut-page .macos-form-field__suffix {
   outline-offset: 2px;
 }
 
+.macos-auth-card .macos-button-owner:focus-visible {
+  outline-width: 0 !important;
+  outline-style: none !important;
+  box-shadow: none !important;
+}
+
 .macos-auth-card :is(button, [role="button"], a) {
   min-height: var(--mac-control-min-size);
 }
