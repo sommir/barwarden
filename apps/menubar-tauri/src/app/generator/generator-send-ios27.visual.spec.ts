@@ -278,9 +278,8 @@ describe("iOS 27 Generator visual contract", () => {
       "bit-form-field.macos-field-owner, .macos-preference-row",
     );
     const fieldContainers = host.querySelectorAll<HTMLElement>("[bitfieldcontainer]");
-    const controls = host.querySelectorAll<HTMLElement>(
-      "input.macos-control-visible, bit-select.macos-control-visible, [role=combobox]",
-    );
+    const controls = host.querySelectorAll<HTMLElement>("input.macos-control-visible");
+    const customSelects = host.querySelectorAll<HTMLElement>("bit-select.macos-control-visible");
     const textareas = host.querySelectorAll<HTMLTextAreaElement>("textarea");
     const switches = host.querySelectorAll<HTMLButtonElement>(
       'button.macos-switch-owner[role="switch"]',
@@ -293,7 +292,8 @@ describe("iOS 27 Generator visual contract", () => {
     expect(groups.length).toBeGreaterThanOrEqual(2);
     expect(fields.length).toBeGreaterThanOrEqual(8);
     expect(fieldContainers.length).toBeGreaterThanOrEqual(6);
-    expect(controls.length).toBeGreaterThanOrEqual(5);
+    expect(controls.length).toBeGreaterThanOrEqual(3);
+    expect(customSelects).toHaveLength(2);
     expect(textareas).toHaveLength(2);
     expect(switches).toHaveLength(2);
     expect(host.querySelector('input[type="checkbox"]')).toBeNull();
@@ -321,6 +321,24 @@ describe("iOS 27 Generator visual contract", () => {
       expect(computed.minHeight).toBe("40px");
       expect(modeledSingleLineControlPaintHeight(control, 16)).toBe(40);
       expect(computed.maxHeight).toBe("none");
+    }
+    for (const owner of customSelects) {
+      const wrapper = owner.querySelector<HTMLElement>("ng-select")!;
+      const paint = wrapper.querySelector<HTMLElement>(":scope > .ng-select-container")!;
+      const combobox = paint.querySelector<HTMLInputElement>('[role="combobox"]')!;
+      expect(getComputedStyle(owner).minHeight).toBe("44px");
+      expect([getComputedStyle(owner).paddingTop, getComputedStyle(owner).paddingBottom])
+        .toEqual(["0px", "0px"]);
+      expect(getComputedStyle(owner).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect([getComputedStyle(wrapper).paddingTop, getComputedStyle(wrapper).paddingBottom])
+        .toEqual(["0px", "0px"]);
+      expect(getComputedStyle(paint).height).toBe("auto");
+      expect(getComputedStyle(paint).minHeight).toBe("40px");
+      expect(modeledSingleLineControlPaintHeight(paint, 16)).toBe(40);
+      expect([getComputedStyle(combobox).paddingTop, getComputedStyle(combobox).paddingBottom])
+        .toEqual(["0px", "0px"]);
+      expect(getComputedStyle(combobox).minHeight).toBe("0px");
+      expect(modeledCompositeCustomSelectHeight(owner, paint, 16)).toBeGreaterThanOrEqual(44);
     }
     for (const textarea of textareas) {
       expect(cssPixels(getComputedStyle(textarea).minHeight)).toBeGreaterThanOrEqual(72);
@@ -394,6 +412,20 @@ describe("iOS 27 Generator visual contract", () => {
       expect(getComputedStyle(control).height).toBe("auto");
       expect(modeledSingleLineControlPaintHeight(control, 16)).toBe(36);
     }
+    for (const owner of customSelects) {
+      const paint = owner.querySelector<HTMLElement>(".ng-select-container")!;
+      const combobox = paint.querySelector<HTMLInputElement>('[role="combobox"]')!;
+      expect(getComputedStyle(owner).minHeight).toBe("44px");
+      expect(getComputedStyle(paint).minHeight).toBe("36px");
+      expect(getComputedStyle(paint).fontSize).toBe("0.875rem");
+      expect(getComputedStyle(paint).lineHeight).toBe("1.25rem");
+      expect(getComputedStyle(paint).paddingTop).toBe("0.4375rem");
+      expect(getComputedStyle(paint).paddingBottom).toBe("0.4375rem");
+      expect(modeledSingleLineControlPaintHeight(paint, 16)).toBe(36);
+      expect([getComputedStyle(combobox).paddingTop, getComputedStyle(combobox).paddingBottom])
+        .toEqual(["0px", "0px"]);
+      expect(modeledCompositeCustomSelectHeight(owner, paint, 16)).toBeGreaterThanOrEqual(44);
+    }
     for (const group of groups) expect(getComputedStyle(group).gap).toBe("10px");
     for (const control of controls) {
       expect(getComputedStyle(control).minHeight).toBe("36px");
@@ -419,6 +451,18 @@ describe("iOS 27 Generator visual contract", () => {
       expect(scaledHeight).toBeGreaterThan(36);
       expect(computed.overflow).not.toBe("hidden");
       expect(control.scrollHeight).toBeLessThanOrEqual(scaledHeight);
+    }
+    for (const owner of customSelects) {
+      const paint = owner.querySelector<HTMLElement>(".ng-select-container")!;
+      const combobox = paint.querySelector<HTMLInputElement>('[role="combobox"]')!;
+      const scaledPaint = modeledSingleLineControlPaintHeight(paint, 32);
+      expect(scaledPaint).toBeGreaterThan(36);
+      expect(modeledCompositeCustomSelectHeight(owner, paint, 32)).toBeGreaterThan(44);
+      expect(getComputedStyle(owner).overflow).not.toBe("hidden");
+      expect(getComputedStyle(paint).overflow).not.toBe("hidden");
+      expect([getComputedStyle(combobox).paddingTop, getComputedStyle(combobox).paddingBottom])
+        .toEqual(["0px", "0px"]);
+      expect(paint.scrollHeight).toBeLessThanOrEqual(scaledPaint);
     }
     for (const field of fields) {
       expect(getComputedStyle(field).height).toBe("auto");
@@ -2104,6 +2148,22 @@ function modeledSingleLineControlPaintHeight(control: HTMLElement, rootFontSize:
       + cssLengthPixels(style.paddingBottom, rootFontSize)
       + cssLengthPixels(style.borderTopWidth, rootFontSize)
       + cssLengthPixels(style.borderBottomWidth, rootFontSize),
+  );
+}
+
+function modeledCompositeCustomSelectHeight(
+  owner: HTMLElement,
+  paint: HTMLElement,
+  rootFontSize: number,
+): number {
+  const ownerStyle = getComputedStyle(owner);
+  return Math.max(
+    cssLengthPixels(ownerStyle.minHeight, rootFontSize),
+    modeledSingleLineControlPaintHeight(paint, rootFontSize)
+      + cssLengthPixels(ownerStyle.paddingTop, rootFontSize)
+      + cssLengthPixels(ownerStyle.paddingBottom, rootFontSize)
+      + cssLengthPixels(ownerStyle.borderTopWidth, rootFontSize)
+      + cssLengthPixels(ownerStyle.borderBottomWidth, rootFontSize),
   );
 }
 

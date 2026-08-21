@@ -8658,23 +8658,48 @@ body.tw-bit-compact
   overflow: visible;
 }
 
-.macos-page--send-form :is(
-  input.macos-control-visible,
-  bit-select.macos-control-visible,
-  bit-select.macos-control-visible ng-select,
-  bit-select.macos-control-visible ng-select > .ng-select-container,
-  bit-select.macos-control-visible [role="combobox"]
-) {
+.macos-page--send-form input.macos-control-visible,
+.macos-page--send-form bit-select.macos-control-visible ng-select > .ng-select-container {
   box-sizing: border-box;
   min-width: 0;
   height: auto !important;
   min-height: var(--mac-control-visible) !important;
   max-height: none !important;
-  padding-block: 0.5625rem !important;
+  padding-top: 0.5625rem !important;
+  padding-bottom: 0.5625rem !important;
   overflow: visible;
   border-radius: var(--mac-control-radius) !important;
   font-size: 0.875rem !important;
   line-height: 1.25rem !important;
+}
+
+.macos-page--send-form bit-select.macos-control-visible {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--mac-hit-size) !important;
+  height: auto !important;
+  max-height: none !important;
+  padding: 0 !important;
+  overflow: visible;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--send-form bit-select.macos-control-visible :is(
+  ng-select,
+  [role="combobox"]
+) {
+  min-width: 0;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  padding: 0 !important;
+  overflow: visible;
+  border: 0 !important;
+  background: transparent;
+  font: inherit !important;
+  line-height: inherit !important;
 }
 
 .macos-page--send-form textarea.macos-textarea-visible {
@@ -8774,16 +8799,13 @@ body.tw-bit-compact
   gap: 10px;
 }
 
-:root[data-bw-compact-mode="true"] .macos-page--send-form :is(
-  input.macos-control-visible,
-  bit-select.macos-control-visible,
-  bit-select.macos-control-visible ng-select,
-  bit-select.macos-control-visible ng-select > .ng-select-container,
-  bit-select.macos-control-visible [role="combobox"]
-) {
+:root[data-bw-compact-mode="true"] .macos-page--send-form input.macos-control-visible,
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form bit-select.macos-control-visible ng-select > .ng-select-container {
   height: auto !important;
   min-height: var(--mac-control-visible-compact) !important;
-  padding-block: 0.4375rem !important;
+  padding-top: 0.4375rem !important;
+  padding-bottom: 0.4375rem !important;
 }
 
 :root[data-bw-compact-mode="true"]
