@@ -74,3 +74,22 @@
   readonly values, 44px minimum owners, and growing unclipped 200% content.
 - Final scoped gate passed 129/129; official Send typecheck and independent
   web build passed. The updater was rerun twice after all retained changes.
+
+## Final read-only value fix
+
+- Read-only fields now paint a dedicated wrapping semantic value owner with
+  `role="textbox"`, `aria-readonly="true"`, and one keyboard stop instead of
+  exposing the single-line native control as the visible value.
+- The real BitFormField-required source control is reduced to a 1px clipped,
+  `aria-hidden`, `tabindex=-1` implementation source. It is not a second AT
+  owner; the password source is always empty and the visible value says only
+  that the Send is password protected.
+- Long Send names, text, notes, and other values use auto height, visible
+  overflow, normal/preformatted wrapping, and no maximum height in normal,
+  compact, and 200% states. A real two-line value model exceeds 44px without
+  clipping.
+- Editing controls remain real inputs/selects and are mutation-protected at
+  exact 40px normal / 36px compact minimum paint.
+- Final focused gate passed 129/129; official typecheck and both production
+  build invocations passed. The updater was rerun twice after retained output
+  changed.

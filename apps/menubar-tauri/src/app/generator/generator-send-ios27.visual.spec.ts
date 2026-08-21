@@ -315,7 +315,7 @@ describe("iOS 27 Generator visual contract", () => {
       expect(cssPixels(getComputedStyle(fieldContainer).minHeight)).toBeGreaterThanOrEqual(44);
     }
     for (const control of controls) {
-      expect(cssPixels(getComputedStyle(control).minHeight)).toBeGreaterThanOrEqual(40);
+      expect(getComputedStyle(control).minHeight).toBe("40px");
       expect(getComputedStyle(control).maxHeight).toBe("none");
     }
     for (const textarea of textareas) {
@@ -388,7 +388,7 @@ describe("iOS 27 Generator visual contract", () => {
     document.documentElement.setAttribute("data-bw-compact-mode", "true");
     for (const group of groups) expect(getComputedStyle(group).gap).toBe("10px");
     for (const control of controls) {
-      expect(cssPixels(getComputedStyle(control).minHeight)).toBeGreaterThanOrEqual(36);
+      expect(getComputedStyle(control).minHeight).toBe("36px");
     }
     expect(iconPlates.map((plate) => getComputedStyle(plate).width))
       .toEqual(iconPlates.map(() => "28px"));
@@ -430,11 +430,21 @@ describe("iOS 27 Generator visual contract", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.classList).toContain("macos-page--send-form");
     expect(host.querySelector("bw-official-send-add-edit > popup-page")).not.toBeNull();
-    const controls = host.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-      "input[bitinput],textarea[bitinput]",
+    const readonlyInputs = host.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      "input[bitinput][readonly],textarea[bitinput][readonly]",
     );
-    expect(controls.length).toBeGreaterThanOrEqual(5);
-    expect(Array.from(controls).every((control) => control.readOnly)).toBe(true);
+    const values = host.querySelectorAll<HTMLElement>(
+      '.macos-send-readonly-value[role="textbox"][aria-readonly="true"]',
+    );
+    expect(readonlyInputs).toHaveLength(values.length);
+    for (const source of readonlyInputs) {
+      expect(source.classList).toContain("macos-send-readonly-source");
+      expect(source.getAttribute("aria-hidden")).toBe("true");
+      expect(source.tabIndex).toBe(-1);
+    }
+    expect(host.querySelector<HTMLInputElement>('.macos-send-readonly-source[type="password"]')?.value)
+      .toBe("");
+    expect(values.length).toBeGreaterThanOrEqual(5);
     expect(host.querySelectorAll(".macos-primary-action")).toHaveLength(0);
     expect(host.querySelector('[data-testid="edit-send"]')).not.toBeNull();
     const switches = host.querySelectorAll<HTMLButtonElement>('button[role="switch"]');
@@ -447,7 +457,7 @@ describe("iOS 27 Generator visual contract", () => {
     expect(Array.from(groups, (group) => getComputedStyle(group).gap))
       .toEqual(Array.from(groups, () => "0px"));
     const rows = host.querySelectorAll<HTMLElement>(
-      "bit-form-field.macos-field-owner:has([readonly]) > div",
+      "bit-form-field.macos-field-owner:has(.macos-send-readonly-value) > div",
     );
     expect(rows.length).toBeGreaterThanOrEqual(5);
     for (const row of rows) {
@@ -465,12 +475,18 @@ describe("iOS 27 Generator visual contract", () => {
     }
 
     document.documentElement.style.fontSize = "200%";
-    for (const control of controls) {
-      expect(getComputedStyle(control).maxHeight).toBe("none");
-      expect(getComputedStyle(control).overflow).not.toBe("hidden");
+    for (const value of values) {
+      expect(getComputedStyle(value).height).toBe("auto");
+      expect(getComputedStyle(value).maxHeight).toBe("none");
+      expect(getComputedStyle(value).overflow).toBe("visible");
+      expect(["normal", "pre-wrap"]).toContain(getComputedStyle(value).whiteSpace);
     }
-    expect(host.querySelector<HTMLTextAreaElement>("#send-text")?.value)
-      .toBe("Mounted multi-line secret value");
+    expect(Array.from(values, (value) => value.textContent)).toContain(
+      "Mounted multi-line secret value",
+    );
+    const nameValue = values[0]!;
+    nameValue.append(document.createElement("br"), "second visible name line");
+    expect(modeledReadonlyValueHeight(nameValue)).toBeGreaterThan(44);
 
     host.querySelector<HTMLButtonElement>('[data-testid="edit-send"]')!.click();
     await fixture.whenStable();
@@ -1947,6 +1963,13 @@ function modeledSendPrimaryPaintHeight(owner: HTMLElement, paint: HTMLElement): 
   return ownerHeight - 2 * inset;
 }
 
+function modeledReadonlyValueHeight(value: HTMLElement): number {
+  const computed = getComputedStyle(value);
+  return cssPixels(computed.paddingTop)
+    + (1 + value.querySelectorAll("br").length) * cssPixels(computed.lineHeight)
+    + cssPixels(computed.paddingBottom);
+}
+
 function modeledStretchedModeHeights(
   group: HTMLElement,
   toggles: NodeListOf<HTMLElement>,
@@ -2234,7 +2257,7 @@ async function createRealSendFormFixture(readOnly = false) {
     id: "send-form-1",
     accessId: "send-form-access",
     type: "text" as const,
-    name: "Mounted Send value",
+    name: "Mounted Send value with a long readable name that must wrap without clipping",
     text: "Mounted multi-line secret value",
     notes: "Mounted private note",
     revisionDate: "2026-08-20T00:00:00.000Z",

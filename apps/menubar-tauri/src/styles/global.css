@@ -8824,7 +8824,7 @@ body.tw-bit-compact
 
 .macos-page--send-form
   .macos-send-form--readonly
-  bit-form-field.macos-field-owner:has([readonly]) {
+  bit-form-field.macos-field-owner:has(.macos-send-readonly-value) {
   min-height: var(--mac-hit-size);
   padding: 0;
   border-bottom: 1px solid var(--mac-border-subtle);
@@ -8832,7 +8832,7 @@ body.tw-bit-compact
 
 .macos-page--send-form
   .macos-send-form--readonly
-  bit-form-field.macos-field-owner:has([readonly])
+  bit-form-field.macos-field-owner:has(.macos-send-readonly-value)
   > div {
   display: grid;
   grid-template-columns: minmax(112px, 0.42fr) minmax(0, 1fr);
@@ -8847,7 +8847,7 @@ body.tw-bit-compact
 
 .macos-page--send-form
   .macos-send-form--readonly
-  bit-form-field.macos-field-owner:has([readonly])
+  bit-form-field.macos-field-owner:has(.macos-send-readonly-value)
   > div
   > :is(label, div) {
   min-width: 0;
@@ -8857,21 +8857,44 @@ body.tw-bit-compact
   overflow-wrap: anywhere;
 }
 
-.macos-page--send-form
-  .macos-send-form--readonly
-  bit-form-field.macos-field-owner
-  :is(input[readonly], textarea[readonly]) {
+.macos-page--send-form .macos-send-readonly-source {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.macos-page--send-form .macos-send-readonly-value {
+  display: flex;
   min-width: 0;
-  height: auto !important;
-  max-height: none !important;
+  min-height: var(--mac-control-visible);
+  height: auto;
+  max-height: none;
+  align-items: center;
+  padding: 4px 0;
   overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  font-size: 14px;
+  line-height: 20px;
   white-space: normal;
   text-overflow: clip;
   overflow-wrap: anywhere;
+}
+
+.macos-page--send-form .macos-send-readonly-value--multiline {
+  min-height: 72px;
+  align-items: flex-start;
+  white-space: pre-wrap;
 }
 
 :root[data-bw-compact-mode="true"]
@@ -8882,6 +8905,11 @@ body.tw-bit-compact
 :root[data-bw-compact-mode="true"]
   .macos-page--send-form bw-official-send-text-details > bit-section > section {
   gap: 10px;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form .macos-send-readonly-value {
+  min-height: var(--mac-control-visible-compact);
 }
 
 @media (forced-colors: active) {

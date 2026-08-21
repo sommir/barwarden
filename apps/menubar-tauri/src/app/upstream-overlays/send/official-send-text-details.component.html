@@ -1,7 +1,12 @@
 <bit-section disableMargin>
   <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
     <bit-label>{{ "i18nTextToShare" | i18n }}</bit-label>
-    <textarea class="macos-textarea-visible" bitInput id="send-text" rows="3" [value]="value().text" [readonly]="!editing()" [attr.aria-invalid]="touched().has('text') && errors().text ? 'true' : null" [attr.aria-describedby]="touched().has('text') && errors().text ? 'send-error-text' : null" (input)="valueChange.emit({ text: inputValue($event) })" (blur)="fieldBlur.emit('text')"></textarea>
+    @if (!editing()) {
+      <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" [value]="value().text" />
+      <span class="macos-send-readonly-value macos-send-readonly-value--multiline" role="textbox" aria-readonly="true" tabindex="0">{{ value().text }}</span>
+    } @else {
+      <textarea class="macos-textarea-visible" bitInput id="send-text" rows="3" [value]="value().text" [attr.aria-invalid]="touched().has('text') && errors().text ? 'true' : null" [attr.aria-describedby]="touched().has('text') && errors().text ? 'send-error-text' : null" (input)="valueChange.emit({ text: inputValue($event) })" (blur)="fieldBlur.emit('text')"></textarea>
+    }
     @if (touched().has("text") && errors().text) {
       <p id="send-error-text" data-testid="send-error-text" role="alert" class="macos-send-form__error">{{ "inputRequired" | i18n }}</p>
     }

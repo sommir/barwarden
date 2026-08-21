@@ -1752,14 +1752,16 @@ describe("SendAddEditPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(fixture.componentInstance.editing).toBe(false);
     expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("查看文本 Send");
-    expect((host.querySelector('input[bitinput][type="text"]') as HTMLInputElement).value).toBe("Old secret");
-    expect((host.querySelector('textarea[bitinput]') as HTMLTextAreaElement).value).toBe("old value");
+    expect(Array.from(
+      host.querySelectorAll<HTMLElement>('.macos-send-readonly-value[role="textbox"]'),
+      (value) => value.textContent?.trim(),
+    )).toEqual(expect.arrayContaining(["Old secret", "old value"]));
 
     host.querySelector<HTMLButtonElement>('[data-testid="edit-send"]')?.click();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.editing).toBe(true);
-    expect((host.querySelector('input[bitinput][type="text"]') as HTMLInputElement).value).toBe("Old secret");
+    expect((host.querySelector('#send-name') as HTMLInputElement).value).toBe("Old secret");
     expect((host.querySelector('textarea[bitinput]') as HTMLTextAreaElement).value).toBe("old value");
     expect((host.querySelector('input[type="password"]') as HTMLInputElement).value).toBe("");
 
@@ -1767,7 +1769,8 @@ describe("SendAddEditPageComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.editing).toBe(false);
-    expect((host.querySelector('input[bitinput][type="text"]') as HTMLInputElement).readOnly).toBe(true);
+    expect(host.querySelector('#send-name')).toBeNull();
+    expect(host.querySelector('.macos-send-readonly-value')?.textContent?.trim()).toBe("Old secret");
     expect(TestBed.inject(PopupStateStore).snapshot().sends[0]).toEqual(existing);
   });
 

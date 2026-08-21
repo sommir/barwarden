@@ -83,7 +83,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.html",
-      "sha256": "937480f9ff49665ff79aea9cf0fcc89ad74883d00b63a124ca396254ec6842ba"
+      "sha256": "c2ee9289d89b27816802bc1de7c799511b1d39f569af9bbb4c8f228f2faf7448"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
@@ -111,7 +111,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html",
-      "sha256": "7543b9cbef4e90538a2cfbdaecb4879c2addfa3be38e5650314b634445a13993"
+      "sha256": "072c9f1e0f4e26cf0b7cda9553e1a7a1ccd9885f42f56037c1c921b0a455bc41"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
@@ -123,7 +123,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html",
-      "sha256": "5bf84f76031b17b74069449939d3b1c810d64eac1d7fceb7cbd0abe2b1e74417"
+      "sha256": "79573f11dfbfdb88393afe9116abec18147581284db8396fb42b10972a9665c5"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
@@ -143,7 +143,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.html.patch",
-      "sha256": "36858804b1c4dd40e84ff7b47edf1166e002e4f3ac8bd7ae1cae8e476f053be3"
+      "sha256": "b4a323008a0819d9d5a1968a95169df36cdf137d8a1c5be2c1a0291c2b38e9fe"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.ts.patch",
@@ -159,7 +159,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.html.patch",
-      "sha256": "8cda07ea5ba3ab3bdc48718228a92190bd2c953dc5c9b8d56a7a8c830685fbd8"
+      "sha256": "29fdb5dc84804e8db046624ac621a18a72e3c2819ca403c1cca398a60aefeed2"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.ts.patch",
@@ -167,7 +167,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.html.patch",
-      "sha256": "bddbc6607e032f951a9ab5eec23bec6f51d83b8f0fd95671b837cb1201e8f646"
+      "sha256": "09e6c4b60674147e8b6f4c0e72c9605fce7be74132148556f7df30df2c855034"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.ts.patch",
