@@ -248,6 +248,58 @@ describe("VaultListPageComponent", () => {
     expect(host.querySelector("popup-page > popup-header h1")?.textContent).toContain("密码库");
   });
 
+  it("keeps the Vault header actions peer-sized and separates the header and root groups", async () => {
+    const cleanupVisualCss = installVaultVisualCss();
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems(demoVaultItems, demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    try {
+      const fixture = TestBed.createComponent(VaultListPageComponent);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const header = host.querySelector<HTMLElement>(
+        "popup-page.macos-page--vault-list > popup-header > header",
+      )!;
+      const addButton = header.querySelector<HTMLButtonElement>(
+        "bw-retained-new-item-dropdown app-new-item-dropdown button[bitbutton]",
+      )!;
+      const accountButton = header.querySelector<HTMLButtonElement>("app-current-account button")!;
+      const rootGroups = host.querySelectorAll<HTMLElement>(
+        ".vault-hierarchy > bw-vault-disclosure-group",
+      );
+      const secondRootGroup = rootGroups[1]!;
+
+      expect(addButton).not.toBeNull();
+      expect(accountButton).not.toBeNull();
+      expect(rootGroups.length).toBeGreaterThan(1);
+
+      const addStyle = getComputedStyle(addButton);
+      const accountStyle = getComputedStyle(accountButton);
+      expect(addStyle.width).toBe(accountStyle.width);
+      expect(addStyle.height).toBe(accountStyle.height);
+      expect(addStyle.width).toBe("44px");
+      expect(addStyle.borderRadius).toBe("999px");
+      expect(getComputedStyle(header).borderBottomWidth).toBe("1px");
+      expect(getComputedStyle(secondRootGroup).borderTopWidth).toBe("1px");
+
+      fixture.destroy();
+    } finally {
+      cleanupVisualCss();
+    }
+  });
+
   it("shows contextual suggestions only while the Vault search is empty", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");

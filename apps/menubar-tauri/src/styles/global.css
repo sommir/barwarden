@@ -6204,6 +6204,10 @@ body.tw-bit-compact .new-item-option {
   min-width: 0;
 }
 
+popup-page.macos-page--vault-list > popup-header > header {
+  border-bottom: 1px solid var(--mac-border-subtle) !important;
+}
+
 .vault-root-header {
   display: grid;
   min-height: 54px;
@@ -6304,6 +6308,10 @@ popup-page > main > div:has(bit-search) + [data-testid="popup-layout-scroll-regi
   flex-direction: column;
   align-items: stretch;
   padding: 0 var(--mac-space-4) var(--mac-space-4);
+}
+
+.macos-page--vault-list .vault-hierarchy > bw-vault-disclosure-group + bw-vault-disclosure-group {
+  border-top: 1px solid var(--mac-border-subtle);
 }
 
 /* Angular component hosts are inline by default.  In the native WebKit
