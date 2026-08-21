@@ -8360,3 +8360,40 @@ body.tw-bit-compact .macos-page--vault-form .macos-custom-field-action .bwi {
     outline-color: Highlight;
   }
 }
+
+/* Task 4 review wave 2: preserve compact paint geometry, one readable value,
+ * exact custom-field rhythm, and system-color label contrast. */
+:root[data-bw-compact-mode="true"]
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action::before,
+body.tw-bit-compact
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action::before {
+  inset-block: 4px;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--vault-detail .macos-readonly-value,
+body.tw-bit-compact
+  .macos-page--vault-detail .macos-readonly-value {
+  height: auto !important;
+  min-height: var(--mac-control-visible-compact) !important;
+}
+
+.macos-page--vault-form .macos-custom-field-row
+  > :is(bit-form-field, bit-form-control) {
+  margin: 0 !important;
+}
+
+@media (forced-colors: active) {
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action {
+    color: ButtonText !important;
+    forced-color-adjust: none;
+  }
+
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"]) {
+    color: GrayText !important;
+  }
+}

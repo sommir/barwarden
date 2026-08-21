@@ -627,11 +627,12 @@ async function createRealVaultAddEditFixture(
   return fixture;
 }
 
-async function createRealVaultDetailFixture() {
+async function createRealVaultDetailFixture(location: "active" | "deleted" = "active") {
   TestBed.resetTestingModule();
   const store = new PopupStateStore();
   store.setUnlocked("visual@example.test");
-  store.setItems([visualLoginItem()], demoFolders);
+  store.setItems(location === "active" ? [visualLoginItem()] : [], demoFolders);
+  store.setDeletedItems(location === "deleted" ? [visualLoginItem()] : []);
   await TestBed.configureTestingModule({
     imports: [VaultItemDetailPageComponent],
     providers: [
@@ -678,6 +679,43 @@ async function createRealVaultDetailFixture() {
   await fixture.whenStable();
   fixture.detectChanges(false);
   return fixture;
+}
+
+function appendProjectedPrimaryPaint(owner: HTMLElement): HTMLElement {
+  const paint = document.createElement("span");
+  paint.dataset["vaultTestPaint"] = "true";
+  paint.setAttribute("aria-hidden", "true");
+  owner.prepend(paint);
+  return paint;
+}
+
+function modeledPrimaryPaintHeight(owner: HTMLElement, paint: HTMLElement): number {
+  const ownerHeight = cssTestPixels(getComputedStyle(owner).minHeight, effectiveTestRootSize());
+  const paintStyle = getComputedStyle(paint);
+  const logicalInset = paintStyle.insetBlock !== "" && paintStyle.insetBlock !== "auto"
+    ? paintStyle.insetBlock
+    : paintStyle.inset.split(" ")[0];
+  const inset = cssTestPixels(logicalInset, effectiveTestRootSize());
+  return ownerHeight - 2 * inset;
+}
+
+function accessibilityHidden(node: Element): boolean {
+  for (let current: Element | null = node; current; current = current.parentElement) {
+    if (current.getAttribute("aria-hidden") === "true") return true;
+  }
+  return false;
+}
+
+function modeledCustomFieldDistance(group: HTMLElement, row: HTMLElement): number {
+  const rootSize = effectiveTestRootSize();
+  const rowStyle = getComputedStyle(row);
+  const childMargins = Array.from(
+    row.querySelectorAll<HTMLElement>(":scope > bit-form-field, :scope > bit-form-control"),
+    (field) => cssTestPixels(getComputedStyle(field).marginBottom, rootSize),
+  );
+  const rowGap = rowStyle.rowGap === "normal" ? rowStyle.gap : rowStyle.rowGap;
+  return cssTestPixels(rowGap, rootSize)
+    + Math.max(0, ...childMargins);
 }
 
 function modeledOtpRowLayout(row: HTMLElement, containerWidth: number) {
@@ -1492,6 +1530,44 @@ describe("iOS 27 Vault workflows", () => {
     detailFixture.destroy();
   });
 
+  it("keeps real Save, Edit, and Restore paint at 40/36px with forced-color label contrast", async () => {
+    const assertPrimaryGeometry = (owner: HTMLElement) => {
+      const paint = appendProjectedPrimaryPaint(owner);
+      expect(modeledPrimaryPaintHeight(owner, paint)).toBe(40);
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      expect(getComputedStyle(paint).insetBlock).toBe("4px");
+      expect(modeledPrimaryPaintHeight(owner, paint)).toBe(36);
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+
+      document.documentElement.setAttribute("data-vault-test-media", "forced-colors");
+      expect(getComputedStyle(owner).color).toBe("rgb(0, 0, 0)");
+      expect(getComputedStyle(paint).backgroundColor).toBe("rgb(204, 204, 204)");
+      owner.setAttribute("aria-disabled", "true");
+      expect(getComputedStyle(owner).color).toBe("rgb(102, 102, 102)");
+      expect(getComputedStyle(paint).color).toBe("rgb(102, 102, 102)");
+      owner.removeAttribute("aria-disabled");
+      document.documentElement.removeAttribute("data-vault-test-media");
+    };
+
+    const saveFixture = await createRealVaultAddEditFixture("edit-cipher", "1", "github");
+    assertPrimaryGeometry((saveFixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      'popup-footer button[type="submit"]',
+    )!);
+    saveFixture.destroy();
+
+    const editFixture = await createRealVaultDetailFixture();
+    assertPrimaryGeometry((editFixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      'popup-footer a.macos-primary-action',
+    )!);
+    editFixture.destroy();
+
+    const restoreFixture = await createRealVaultDetailFixture("deleted");
+    assertPrimaryGeometry((restoreFixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      'popup-footer button.macos-primary-action',
+    )!);
+    restoreFixture.destroy();
+  });
+
   it("flattens real nonempty Login and Personal custom-field rows and action plates", async () => {
     for (const route of [
       { type: "1", id: "github" },
@@ -1512,6 +1588,14 @@ describe("iOS 27 Vault workflows", () => {
         expect(computed.flexWrap).toBe("wrap");
         expect(computed.backgroundColor).toBe("rgba(0, 0, 0, 0)");
         expect(computed.borderRadius).toBe("0px");
+        expect(modeledCustomFieldDistance(group, row)).toBe(12);
+        expect(Array.from(
+          row.querySelectorAll<HTMLElement>(":scope > bit-form-field, :scope > bit-form-control"),
+          (field) => getComputedStyle(field).marginBottom,
+        )).toEqual(Array.from(
+          row.querySelectorAll(":scope > bit-form-field, :scope > bit-form-control"),
+          () => "0px",
+        ));
       }
       const actions = Array.from(group.querySelectorAll<HTMLElement>(
         '[data-testid="edit-custom-field-button"], [data-testid="reorder-toggle-button"]',
@@ -1527,6 +1611,7 @@ describe("iOS 27 Vault workflows", () => {
       }
       document.documentElement.setAttribute("data-bw-compact-mode", "true");
       expect(getComputedStyle(rows[0]!).gap).toBe("10px");
+      expect(modeledCustomFieldDistance(group, rows[0]!)).toBe(10);
       expect(getComputedStyle(actions[0]!.querySelector<HTMLElement>(".bwi")!).width).toBe("28px");
       document.documentElement.style.fontSize = "200%";
       expect(getComputedStyle(rows[0]!).height).toBe("auto");
@@ -1558,6 +1643,10 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(usernameDisplay).whiteSpace).toBe("normal");
     expect(getComputedStyle(usernameDisplay).overflow).toBe("visible");
     expect(getComputedStyle(usernameDisplay).overflowWrap).toBe("anywhere");
+    document.documentElement.setAttribute("data-bw-compact-mode", "true");
+    expect(getComputedStyle(usernameDisplay).height).toBe("auto");
+    expect(getComputedStyle(usernameDisplay).minHeight).toBe("36px");
+    expect(usernameDisplay.textContent!.length).toBeGreaterThan(48);
 
     const passwordInput = host.querySelector<HTMLInputElement>('[data-testid="login-password"]')!;
     const secret = passwordInput.value;
@@ -1576,6 +1665,34 @@ describe("iOS 27 Vault workflows", () => {
     expect(host.querySelector<HTMLElement>('[data-testid="login-password-value"]')!.textContent)
       .toContain(secret);
     expect(host.querySelectorAll('[data-testid="login-password-value"]').length).toBe(1);
+    host.querySelector<HTMLButtonElement>('[data-testid="toggle-password-count"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges(false);
+    const coloredPassword = host.querySelector<HTMLElement>("bit-color-password")!;
+    const coloredSecret = Array.from(
+      coloredPassword.querySelectorAll<HTMLElement>("[data-password-character] > span:first-child"),
+      (character) => character.textContent ?? "",
+    ).join("");
+    const secretOwners = [
+      {
+        node: host.querySelector<HTMLElement>('[data-testid="login-password-value"]')!,
+        value: host.querySelector<HTMLElement>('[data-testid="login-password-value"]')!.textContent ?? "",
+      },
+      { node: coloredPassword, value: coloredSecret },
+    ].filter(({ node, value }) => value.includes(secret) && !accessibilityHidden(node));
+    expect(secretOwners).toHaveLength(1);
+    expect(secretOwners[0]?.node.dataset["testid"]).toBe("login-password-value");
+    expect(coloredSecret).toBe(secret);
+    expect(accessibilityHidden(coloredPassword)).toBe(true);
+
+    const totpInput = host.querySelector<HTMLInputElement>('[data-testid="login-totp"]')!;
+    const totpDisplay = host.querySelector<HTMLElement>('[data-testid="login-totp-value"]')!;
+    expect(totpInput.getAttribute("aria-hidden")).toBe("true");
+    expect(totpDisplay.getAttribute("role")).toBe("textbox");
+    expect([totpInput, totpDisplay].filter((node) => !accessibilityHidden(node))).toEqual([
+      totpDisplay,
+    ]);
     fixture.destroy();
   });
 });

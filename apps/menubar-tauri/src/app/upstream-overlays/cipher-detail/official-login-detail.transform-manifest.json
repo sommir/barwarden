@@ -230,7 +230,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-credentials.component.html",
-      "sha256": "2079d39c17b5f490cdce3a5630174c75af40392903e18c9f9baac641d0a28205"
+      "sha256": "512919743848a9f6fde2437537d6865a8248f6fd1b654fa69e025bbe01f2bc73"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-totp-countdown.component.ts",
