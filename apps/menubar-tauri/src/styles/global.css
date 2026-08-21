@@ -2440,6 +2440,43 @@ bw-official-password-login .macos-primary-action.macos-button-owner {
   min-height: var(--mac-control-visible-compact);
 }
 
+.macos-auth-card bit-form-field.macos-field-owner [bitfieldcontainer] {
+  min-height: var(--mac-hit-size) !important;
+}
+
+.macos-auth-card input.macos-control-visible {
+  height: var(--mac-control-visible) !important;
+  min-height: var(--mac-control-visible) !important;
+  overflow: visible;
+}
+
+.macos-auth-alternatives {
+  display: grid;
+  gap: 0;
+  border-block: 1px solid var(--mac-border-subtle);
+}
+
+.macos-auth-alternative {
+  min-height: var(--mac-hit-size) !important;
+  height: auto;
+  border: 0 !important;
+  border-bottom: 1px solid var(--mac-border-subtle) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--mac-accent) !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+.macos-auth-alternative:last-child {
+  border-bottom: 0 !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-auth-card input.macos-control-visible {
+  height: var(--mac-control-visible-compact) !important;
+  min-height: var(--mac-control-visible-compact) !important;
+}
+
 .macos-auth-card :is(
   [data-testid="two-factor-other-method"],
   [data-testid="two-factor-back"],

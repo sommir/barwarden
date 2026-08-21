@@ -85,7 +85,15 @@ describe("PasswordHintPageComponent", () => {
     const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
 
     expect(host.querySelectorAll("popup-page")).toHaveLength(1);
+    expect(host.querySelectorAll("popup-header")).toHaveLength(1);
+    expect(host.querySelector('[data-testid$="-back"]')).toBeNull();
     expect(host.querySelector("popup-page h1")?.textContent?.trim()).toBe("请求密码提示");
+    expect(host.querySelector(
+      'button[type="submit"].macos-primary-action.macos-button-owner',
+    )).not.toBeNull();
+    expect(host.querySelector(
+      'button[type="button"].macos-auth-alternative.macos-hit-target.macos-pressable',
+    )).not.toBeNull();
     const headerBack = host.querySelector<HTMLButtonElement>(
       'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
     );

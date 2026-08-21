@@ -17,7 +17,7 @@ import {
 
 const root = process.cwd();
 const transformationManifestSha256 =
-  "3e7da0d61f819ce7de61258c5c54fd353e1a426d4fd0921a6f7f2dc227a1a074";
+  "d9e940cd513ed2cc820718810c0e6e0040c117c4b952805b29a10b2836e41512";
 const pinned = (path: string) => join(root, "vendor/bitwarden-clients", path);
 const overlay = (path: string) =>
   join(root, "apps/menubar-tauri/src/app/upstream-overlays/auth/login", path);
@@ -516,6 +516,17 @@ describe("official password authentication overlays", () => {
       "utf8",
     );
     const expected = authority
+      .replace(
+        '<form [bitSubmit]="submit" [formGroup]="formGroup">',
+        '<form [bitSubmit]="submit" [formGroup]="formGroup" class="macos-auth-card">',
+      )
+      .replace("    <bit-form-field>\n", '    <bit-form-field class="macos-field-owner">\n')
+      .replace("        bitInput\n", '        bitInput\n        class="macos-control-visible"\n')
+      .replace('      class="tw-mb-2"', '      class="tw-mb-2 macos-primary-action macos-button-owner"')
+      .replace(
+        '    <button type="button" bitButton buttonType="secondary" (click)="cancel()" [block]="true">\n      {{ "cancel" | i18n }}\n    </button>',
+        '    <div class="macos-auth-alternatives">\n      <button\n        type="button"\n        bitButton\n        buttonType="secondary"\n        class="macos-auth-alternative macos-hit-target macos-pressable"\n        (click)="cancel()"\n        [block]="true"\n      >\n        {{ "cancel" | i18n }}\n      </button>\n    </div>',
+      )
       .replace('        appInputVerbatim="false"\n', "")
       .replace(
         /\n  <!-- Browser -->[\s\S]*?<ng-container \*ngIf=\"clientType !== 'browser'\">\n    <ng-container \*ngTemplateOutlet=\"formContentTemplate\"><\/ng-container>\n  <\/ng-container>/,

@@ -1,8 +1,9 @@
 <form [formGroup]="formGroup" [bitSubmit]="submit" class="macos-auth-card">
-  <bit-form-field class="!tw-mb-1 macos-field">
+  <bit-form-field class="!tw-mb-1 macos-field macos-field-owner">
     <bit-label>{{ "verificationCode" | i18n }}</bit-label>
     <input
       bitInput
+      class="macos-control-visible"
       type="text"
       id="verificationCode"
       name="verificationCode"
@@ -18,24 +19,26 @@
     </bit-callout>
   </div>
 
-  <button
-    bitLink
-    type="button"
-    linkType="primary"
-    data-testid="new-device-resend"
-    (click)="resendOTP()"
-    [disabled]="disableRequestOTP"
-    class="tw-text-sm"
-  >
-    {{ "resendCode" | i18n }}
-  </button>
+  <div class="macos-auth-alternatives">
+    <button
+      bitLink
+      type="button"
+      linkType="primary"
+      data-testid="new-device-resend"
+      (click)="resendOTP()"
+      [disabled]="disableRequestOTP"
+      class="tw-text-sm macos-auth-alternative macos-hit-target macos-pressable"
+    >
+      {{ "resendCode" | i18n }}
+    </button>
+  </div>
 
   <div class="tw-grid tw-gap-3 tw-mt-4">
     <button
       bitButton
       bitFormButton
       buttonType="primary"
-      class="macos-primary-action"
+      class="macos-primary-action macos-button-owner"
       type="submit"
       [block]="true"
       data-testid="new-device-continue"
@@ -43,20 +46,5 @@
     >
       {{ "continueLoggingIn" | i18n }}
     </button>
-
-    @if (showBackButton) {
-      <div class="tw-text-center">{{ "or" | i18n }}</div>
-
-      <button
-        type="button"
-        bitButton
-        block
-        buttonType="secondary"
-        data-testid="new-device-back"
-        (click)="goBack()"
-      >
-        {{ "back" | i18n }}
-      </button>
-    }
   </div>
 </form>

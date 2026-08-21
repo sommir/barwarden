@@ -9,8 +9,14 @@ export function reconstructNewDeviceTemplate(authority: string): string {
   result = replaceExact(
     result,
     '<bit-form-field class="!tw-mb-1">',
-    '<bit-form-field class="!tw-mb-1 macos-field">',
+    '<bit-form-field class="!tw-mb-1 macos-field macos-field-owner">',
     "semantic verification field",
+  );
+  result = replaceExact(
+    result,
+    "      bitInput\n",
+    '      bitInput\n      class="macos-control-visible"\n',
+    "visible verification control",
   );
   result = replaceExact(
     result,
@@ -34,16 +40,26 @@ export function reconstructNewDeviceTemplate(authority: string): string {
     [disabled]="disableRequestOTP"
     class="tw-text-sm"
   >`,
-    `  <button
-    bitLink
-    type="button"
-    linkType="primary"
-    data-testid="new-device-resend"
-    (click)="resendOTP()"
-    [disabled]="disableRequestOTP"
-    class="tw-text-sm"
-  >`,
+    `  <div class="macos-auth-alternatives">
+    <button
+      bitLink
+      type="button"
+      linkType="primary"
+      data-testid="new-device-resend"
+      (click)="resendOTP()"
+      [disabled]="disableRequestOTP"
+      class="tw-text-sm macos-auth-alternative macos-hit-target macos-pressable"
+    >`,
     "resend disabled input",
+  );
+  result = replaceExact(
+    result,
+    `    {{ "resendCode" | i18n }}
+  </button>`,
+    `      {{ "resendCode" | i18n }}
+    </button>
+  </div>`,
+    "resend alternative group",
   );
   result = replaceExact(
     result,
@@ -59,7 +75,7 @@ export function reconstructNewDeviceTemplate(authority: string): string {
       bitButton
       bitFormButton
       buttonType="primary"
-      class="macos-primary-action"
+      class="macos-primary-action macos-button-owner"
       type="submit"
       [block]="true"
       data-testid="new-device-continue"
@@ -69,28 +85,17 @@ export function reconstructNewDeviceTemplate(authority: string): string {
   );
   return replaceExact(
     result,
-    `    @if (showBackButton) {
+    `
+
+    @if (showBackButton) {
       <div class="tw-text-center">{{ "or" | i18n }}</div>
 
       <button type="button" bitButton block buttonType="secondary" (click)="goBack()">
         {{ "back" | i18n }}
       </button>
     }`,
-    `    @if (showBackButton) {
-      <div class="tw-text-center">{{ "or" | i18n }}</div>
-
-      <button
-        type="button"
-        bitButton
-        block
-        buttonType="secondary"
-        data-testid="new-device-back"
-        (click)="goBack()"
-      >
-        {{ "back" | i18n }}
-      </button>
-    }`,
-    "native popup back command",
+    "",
+    "shared header back ownership",
   );
 }
 

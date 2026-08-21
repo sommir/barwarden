@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const pinned = (path: string) => join(root, "vendor/bitwarden-clients", path);
 const overlay = (path: string) => join(root, "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor", path);
-const manifestDigest = "f44207f9dd9190d550f60494d00ccbabc3577413fe9b9a087ac61e7c2e1137f7";
+const manifestDigest = "0025ba8bf8ccd4b3e2466552fd0ee6b0efba352759ca2d705a0e0fdd2702528f";
 
 type ExactPartition = {
   readonly authority: string;
@@ -118,9 +118,15 @@ describe("official retained two-factor source overlays", () => {
       "utf8",
     );
     expect(readFileSync(overlay("official-two-factor-authenticator.component.html"), "utf8"))
-      .toBe(authenticator);
+      .toBe(authenticator
+        .replace("  <bit-form-field>\n", '  <bit-form-field class="macos-field-owner">\n')
+        .replace("      bitInput\n", '      bitInput\n      class="macos-control-visible"\n'));
     expect(readFileSync(overlay("official-two-factor-email.component.html"), "utf8"))
-      .toBe(email.replace("    (click)=\"sendEmail(true)\"\n", "    data-testid=\"two-factor-email-resend\"\n    (click)=\"sendEmail(true)\"\n"));
+      .toBe(email
+        .replace('class="!tw-mb-0"', 'class="!tw-mb-0 macos-field-owner"')
+        .replace("    bitInput\n", '    bitInput\n    class="macos-control-visible"\n')
+        .replace('    class="tw-text-main"', '    class="tw-text-main macos-auth-alternative macos-hit-target macos-pressable"')
+        .replace("    (click)=\"sendEmail(true)\"\n", "    data-testid=\"two-factor-email-resend\"\n    (click)=\"sendEmail(true)\"\n"));
   });
 
   it("retains official parent/options structures while statically deleting excluded providers", () => {
