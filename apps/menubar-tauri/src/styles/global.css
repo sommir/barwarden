@@ -57,7 +57,7 @@ popup-page {
 }
 
 .popup-shell popup-page {
-  --mac-page-bottom-safe: calc(var(--mac-tabbar-height) + 12px);
+  --mac-page-bottom-safe: calc(var(--mac-tabbar-height) + 13px + 16px);
 }
 
 popup-page [data-testid="popup-layout-scroll-region"] {
