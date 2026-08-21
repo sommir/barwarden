@@ -569,13 +569,13 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select >
 
 .popup-tab-scroll-host {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 calc(100% - var(--mac-tabbar-height) - 13px);
+  height: calc(100% - var(--mac-tabbar-height) - 13px);
   min-height: 0;
   flex-direction: column;
   overflow-y: hidden;
   overflow-x: hidden;
   padding: 0;
-  padding-bottom: calc(var(--mac-tabbar-height) + 13px);
   scrollbar-width: thin;
 }
 
