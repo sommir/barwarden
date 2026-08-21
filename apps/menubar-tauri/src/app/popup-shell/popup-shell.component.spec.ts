@@ -186,6 +186,9 @@ describe("PopupShellComponent", () => {
     expect(css).toMatch(/\.popup-shell\s*{[^}]*height:\s*var\(--bw-popup-height\);/s);
     expect(css).toMatch(/body\s*{[^}]*overflow:\s*hidden;/s);
     expect(css).toMatch(/\.popup-tab-scroll-host\s*{[^}]*overflow-y:\s*hidden;/s);
+    expect(css).toMatch(
+      /\.popup-tab-scroll-host\s*{[^}]*padding-bottom:\s*calc\(var\(--mac-tabbar-height\)\s*\+\s*13px\);/s,
+    );
     expect(css).toMatch(/popup-page\s*{[^}]*height:\s*100%;/s);
     expect(css).not.toContain(".popup-page-scroll");
   });

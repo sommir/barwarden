@@ -144,7 +144,7 @@ describe("official popup layout primitives", () => {
     const host = fixture.nativeElement as HTMLElement;
     const css = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
     expect(css).toMatch(
-      /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*calc\(var\(--mac-tabbar-height\)\s*\+\s*13px\s*\+\s*16px\);/s,
+      /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*16px;/s,
     );
     const header = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header")!);
     const action = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header button")!);
@@ -161,8 +161,8 @@ describe("official popup layout primitives", () => {
     expect(title.fontWeight).toBe("650");
     expect(scroller.paddingInlineStart).toBe("16px");
     expect(scroller.paddingInlineEnd).toBe("16px");
-    expect(scroller.paddingBottom).toBe("81px");
-    expect(scroller.scrollPaddingBottom).toBe("81px");
+    expect(scroller.paddingBottom).toBe("16px");
+    expect(scroller.scrollPaddingBottom).toBe("16px");
 
     host.classList.remove("popup-shell");
     const secondaryScroller = getComputedStyle(scrollOwner);
@@ -198,7 +198,7 @@ describe("official popup layout primitives", () => {
     );
     expect(css).toMatch(/popup-page\s*{[^}]*--mac-page-bottom-safe:\s*16px;/s);
     expect(css).toMatch(
-      /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*calc\(var\(--mac-tabbar-height\)\s*\+\s*13px\s*\+\s*16px\);/s,
+      /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*16px;/s,
     );
     expect(css).toMatch(
       /popup-page\s+\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-inline:\s*var\(--mac-page-inset\);[^}]*padding-bottom:\s*var\(--mac-page-bottom-safe\);/s,

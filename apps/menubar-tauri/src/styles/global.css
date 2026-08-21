@@ -57,7 +57,7 @@ popup-page {
 }
 
 .popup-shell popup-page {
-  --mac-page-bottom-safe: calc(var(--mac-tabbar-height) + 13px + 16px);
+  --mac-page-bottom-safe: 16px;
 }
 
 popup-page [data-testid="popup-layout-scroll-region"] {
@@ -575,6 +575,7 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select >
   overflow-y: hidden;
   overflow-x: hidden;
   padding: 0;
+  padding-bottom: calc(var(--mac-tabbar-height) + 13px);
   scrollbar-width: thin;
 }
 
