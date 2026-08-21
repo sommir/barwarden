@@ -596,6 +596,18 @@ popup-page {
   height: 100%;
 }
 
+.popup-shell::after {
+  content: "";
+  position: absolute;
+  z-index: 19;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(var(--mac-tabbar-height) + 13px);
+  background: var(--mac-canvas);
+  pointer-events: none;
+}
+
 .floating-tab-switcher {
   position: absolute;
   z-index: 20;
@@ -608,8 +620,8 @@ popup-page {
   min-height: var(--mac-tabbar-height);
   padding: 4px 8px;
   border-radius: 12px 12px 0 0;
-  /* This is chrome laid over the same canvas as the content, not a footer.
-   * Routed pages deliberately scroll beneath its translucent material. */
+  /* Floating chrome sits above a canvas occlusion strip, so routed rows never
+   * show as clipped content through the translucent material. */
   isolation: isolate;
 }
 
