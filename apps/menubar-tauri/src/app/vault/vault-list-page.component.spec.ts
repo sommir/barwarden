@@ -250,6 +250,21 @@ describe("VaultListPageComponent", () => {
 
   it("keeps the Vault header actions peer-sized and separates the header and root groups", async () => {
     const cleanupVisualCss = installVaultVisualCss();
+    const hostileFabCss = document.createElement("style");
+    hostileFabCss.textContent = `
+      popup-page.macos-page--vault-list
+        > popup-header
+        bw-retained-new-item-dropdown
+        app-new-item-dropdown
+        button[bitbutton] {
+          width: 86px;
+          min-width: 86px;
+          height: 86px;
+          min-height: 86px;
+          border-radius: 999px;
+        }
+    `;
+    document.head.append(hostileFabCss);
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
     store.setItems(demoVaultItems, demoFolders);
@@ -296,6 +311,7 @@ describe("VaultListPageComponent", () => {
 
       fixture.destroy();
     } finally {
+      hostileFabCss.remove();
       cleanupVisualCss();
     }
   });

@@ -9287,3 +9287,64 @@ body.tw-bit-compact
     color: GrayText !important;
   }
 }
+
+/* Vault header add action: keep the real New Item button visually peer-sized
+ * with the account avatar even when legacy FAB rules are loaded later in a
+ * dirty/local bundle. */
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton] {
+  display: grid !important;
+  box-sizing: border-box !important;
+  width: var(--mac-control-min-size) !important;
+  min-width: var(--mac-control-min-size) !important;
+  max-width: var(--mac-control-min-size) !important;
+  height: var(--mac-control-min-size) !important;
+  min-height: var(--mac-control-min-size) !important;
+  max-height: var(--mac-control-min-size) !important;
+  border-radius: 999px !important;
+  padding: 0 !important;
+  place-items: center !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton]
+  > span
+  > span {
+  gap: 0 !important;
+}
+
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton]
+  > span
+  > span
+  > div {
+  display: none !important;
+}
+
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton]
+  .bwi {
+  display: grid !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0 !important;
+  place-items: center !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 20px !important;
+  transform: translateY(1px);
+}
