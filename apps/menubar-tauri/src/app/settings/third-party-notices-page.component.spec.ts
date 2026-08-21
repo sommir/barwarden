@@ -74,4 +74,35 @@ describe("ThirdPartyNoticesPageComponent", () => {
     await fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe("/third-party-licenses");
   });
+
+  it("filters license categories through the shared document search without rendering license HTML", async () => {
+    await TestBed.configureTestingModule({
+      imports: [ThirdPartyNoticesPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ThirdPartyNoticesPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const search = host.querySelector<HTMLInputElement>("[data-testid='document-search-input']");
+    expect(search).not.toBeNull();
+
+    search!.value = "Apache";
+    search!.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.query).toBe("Apache");
+    expect(fixture.componentInstance.filteredLicenseGroups.length).toBeGreaterThan(0);
+    for (const item of host.querySelectorAll<HTMLElement>(".third-party-license-groups li")) {
+      expect(item.textContent?.toLocaleLowerCase()).toContain("apache");
+      expect(item.innerHTML).not.toContain("<script");
+    }
+    expect(host.querySelector("pre")).toBeNull();
+    expect(getComputedStyle(host.querySelector<HTMLElement>(".third-party-notices-count-card")!).padding)
+      .toBe("8px 12px");
+  });
 });

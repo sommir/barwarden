@@ -14,8 +14,8 @@
 
 .third-party-notices-counts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
   margin-bottom: 16px;
   border-block: 1px solid var(--mac-border-subtle);
   border-radius: 0;
@@ -27,7 +27,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 16px;
+  padding: 8px 12px;
   border: 0;
   border-radius: 0;
   background: transparent;

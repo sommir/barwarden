@@ -29,10 +29,17 @@
       </div>
     </div>
 
+    <bw-document-search
+      [query]="query"
+      [matchCount]="filteredLicenseGroups.length"
+      [activeIndex]="0"
+      (queryChange)="setQuery($event)"
+    />
+
     <section class="third-party-license-groups">
       <h2>{{ "i18nLicenseCategories" | i18n }}</h2>
       <ul>
-        @for (group of licenseGroups; track group.expression) {
+        @for (group of filteredLicenseGroups; track group.expression) {
           <li>
             <span>{{ group.expression }}</span>
             <span class="third-party-license-group-count">{{ group.count }}</span>

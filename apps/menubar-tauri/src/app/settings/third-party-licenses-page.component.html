@@ -6,9 +6,18 @@
     [backAction]="backAction"
   />
 
+  <bw-document-search
+    [query]="query"
+    [matchCount]="matches.length"
+    [activeIndex]="activeIndex"
+    (queryChange)="setQuery($event)"
+    (previous)="previousMatch()"
+    (next)="nextMatch()"
+  />
+
   <pre
     class="third-party-license-text"
     data-testid="third-party-license-text"
     tabindex="0"
-  >{{ licenseText }}</pre>
+  >@for (segment of segments; track $index) {@if (segment.matchIndex === null) {<ng-container>{{ segment.text }}</ng-container>} @else {<mark [attr.data-document-match]="segment.matchIndex" [attr.tabindex]="segment.matchIndex === activeIndex ? 0 : -1">{{ segment.text }}</mark>}}</pre>
 </popup-page>
