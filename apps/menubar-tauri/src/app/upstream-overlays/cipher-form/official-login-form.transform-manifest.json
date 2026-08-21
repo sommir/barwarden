@@ -91,7 +91,7 @@
     },
     {
       "path": "official-login-cipher-form.component.html",
-      "sha256": "b04b0f1513213ed3df19b29f605676c763ae43379567139960fcb2eafec2197a"
+      "sha256": "4a4cb234bacf2ec23635eb65ffec04e72e0b8dcec57bb6e102a726337e5f0026"
     },
     {
       "path": "official-login-form-container.ts",
@@ -103,7 +103,7 @@
     },
     {
       "path": "official-login-item-details.component.html",
-      "sha256": "85f9a150975ba7cd4afaac6522b4f4ddafdcfd706b197d5ddaffa237438d9b70"
+      "sha256": "f450fcbf8518da6a177db7cfa5d76bcb2252b992021f23a28066de2a8922bf2d"
     },
     {
       "path": "official-login-details.component.ts",

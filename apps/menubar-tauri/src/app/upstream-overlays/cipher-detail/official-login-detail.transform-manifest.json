@@ -210,7 +210,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-detail.component.html",
-      "sha256": "09a2453483b0d7c3dd9fc3bf1f359391eef3de0b0b4999c6cd8c8b739f48da64"
+      "sha256": "b1a74687690b67c16018806a05a0ce2ce37970669df318809991b3b2ec49b745"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
@@ -230,7 +230,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-credentials.component.html",
-      "sha256": "c30184e70c0a6691ab1f6a68b3eba80f9fcc7b74b00dbfa61e4e719415e9795a"
+      "sha256": "68a010b4830c1ef0cb29a4e2c9295362d6daf2be174f66f9c7708cba70d152ec"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-totp-countdown.component.ts",

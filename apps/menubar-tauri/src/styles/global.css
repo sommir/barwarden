@@ -7861,3 +7861,284 @@ body.tw-bit-compact .macos-page--vault-recovery button.macos-recovery-action .bw
     outline: 0 !important;
   }
 }
+
+/* iOS 27 Vault detail and edit workflows keep layout/hit geometry separate
+ * from the painted field and icon layers. Retained Bitwarden components stay
+ * authoritative; these rules only normalize their mounted route boundaries. */
+.macos-page--vault-detail .official-read-only-field {
+  display: grid;
+  min-width: 0;
+  min-height: var(--mac-row-single);
+  height: auto;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.macos-page--vault-detail .official-read-only-field:last-child {
+  border-bottom: 0;
+}
+
+.macos-page--vault-detail .official-read-only-field > label,
+.macos-page--vault-detail bit-form-field bit-label {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-detail .official-read-only-control,
+.macos-page--vault-detail bit-form-field,
+.macos-page--vault-detail bit-form-field [bitfieldcontainer] {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  overflow: visible;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.macos-page--vault-detail bit-form-field {
+  display: block;
+  margin: 0;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+}
+
+.macos-page--vault-detail bit-form-field:last-child {
+  border-bottom: 0;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field [bitfieldcontainer]) {
+  border: 0;
+  background: transparent;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field [bitfieldcontainer]) input {
+  min-width: 0;
+  height: auto;
+  min-height: var(--mac-control-visible);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) :is(button, a) {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:has(.bwi),
+.macos-page--vault-form button[bitsuffix] {
+  padding: 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+.macos-page--vault-form button[bitsuffix] .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out,
+    transform var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:not(:disabled):not([aria-disabled="true"]):hover .bwi,
+.macos-page--vault-form button[bitsuffix]:not(:disabled):not([aria-disabled="true"]):hover .bwi {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:not(:disabled):not([aria-disabled="true"]):active .bwi,
+.macos-page--vault-form button[bitsuffix]:not(:disabled):not([aria-disabled="true"]):active .bwi {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+  transform: scale(0.96);
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:is(:disabled, [aria-disabled="true"]) .bwi,
+.macos-page--vault-form button[bitsuffix]:is(:disabled, [aria-disabled="true"]) .bwi {
+  opacity: 0.38;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus,
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus-visible,
+.macos-page--vault-form button[bitsuffix]:focus,
+.macos-page--vault-form button[bitsuffix]:focus-visible {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus-visible .bwi,
+.macos-page--vault-form button[bitsuffix]:focus-visible .bwi {
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus:not(:focus-visible) .bwi,
+.macos-page--vault-form button[bitsuffix]:focus:not(:focus-visible) .bwi {
+  outline: 0;
+}
+
+.macos-page--vault-form .cipher-form-scroll {
+  display: grid;
+  min-width: 0;
+  gap: 0;
+  padding: 0 0 var(--mac-space-6);
+  overflow-x: visible;
+}
+
+.macos-page--vault-form .cipher-form-scroll form {
+  display: grid;
+  min-width: 0;
+  gap: var(--mac-group-gap);
+}
+
+.macos-page--vault-form .cipher-form-scroll section {
+  min-width: 0;
+  margin: 0 !important;
+}
+
+.macos-page--vault-form .cipher-form-scroll bit-card,
+.macos-page--vault-form .cipher-form-scroll .cipher-form-card,
+.macos-page--vault-form .cipher-form-scroll .official-form-section {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.macos-page--vault-form .cipher-form-scroll bit-form-field,
+.macos-page--vault-form .cipher-form-field {
+  display: block;
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  margin: 0 0 12px;
+  overflow: visible;
+}
+
+.macos-page--vault-form .cipher-form-scroll bit-form-field:last-child,
+.macos-page--vault-form .cipher-form-field:last-child {
+  margin-bottom: 0;
+}
+
+.macos-page--vault-form .cipher-form-scroll :is([bitfieldcontainer], .cipher-form-control) {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  margin: 0;
+  border-radius: var(--mac-control-radius) !important;
+  overflow: visible;
+}
+
+.macos-page--vault-form .cipher-form-scroll :is(input:not([type="checkbox"]):not([type="radio"]), select, [role="combobox"]),
+.macos-page--vault-form .cipher-form-scroll ng-select > .ng-select-container {
+  min-width: 0;
+  height: auto !important;
+  min-height: var(--mac-control-visible) !important;
+  border-radius: var(--mac-control-radius) !important;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.macos-page--vault-form .cipher-form-scroll textarea {
+  min-width: 0;
+  height: auto;
+  min-height: 72px !important;
+  border-radius: var(--mac-control-radius) !important;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-form .cipher-form-scroll :is(bit-label, label, bit-hint, small) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-form .cipher-form-scroll button[bitsuffix] {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-detail :is(.official-read-only-control, bit-form-field [bitfieldcontainer]) input,
+body.tw-bit-compact .macos-page--vault-detail :is(.official-read-only-control, bit-form-field [bitfieldcontainer]) input,
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-scroll :is(input:not([type="checkbox"]):not([type="radio"]), select, [role="combobox"]),
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll :is(input:not([type="checkbox"]):not([type="radio"]), select, [role="combobox"]),
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-scroll ng-select > .ng-select-container,
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll ng-select > .ng-select-container {
+  min-height: var(--mac-control-visible-compact) !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-scroll form,
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll form {
+  gap: 16px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-scroll bit-form-field,
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll bit-form-field,
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-field,
+body.tw-bit-compact .macos-page--vault-form .cipher-form-field {
+  margin-bottom: 10px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+body.tw-bit-compact .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+:root[data-bw-compact-mode="true"] .macos-page--vault-form button[bitsuffix] .bwi,
+body.tw-bit-compact .macos-page--vault-form button[bitsuffix] .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+  .macos-page--vault-form button[bitsuffix] .bwi,
+  .macos-page--vault-form .macos-button-owner::before {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+  .macos-page--vault-form button[bitsuffix] .bwi,
+  .macos-page--vault-form .macos-button-owner::before {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus-visible .bwi,
+  .macos-page--vault-form button[bitsuffix]:focus-visible .bwi,
+  .macos-page--vault-form .macos-button-owner:focus-visible::before {
+    outline-width: var(--mac-focus-ring-width);
+    outline-style: solid;
+    outline-color: Highlight;
+  }
+}

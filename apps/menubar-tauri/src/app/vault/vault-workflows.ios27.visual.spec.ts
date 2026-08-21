@@ -40,6 +40,7 @@ import {
 import { TOTP_CLOCK, TOTP_CODE_SOURCE } from "./vault-totp-code.component";
 import type { VaultItem } from "./vault-item.model";
 import { TrashPageComponent } from "./trash-page.component";
+import { VaultDetailFieldComponent } from "./vault-detail-field.component";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -50,7 +51,7 @@ try {
 }
 
 @Component({
-  imports: [NgSelectModule, OfficialPersonalCipherFormComponent],
+  imports: [NgSelectModule, OfficialPersonalCipherFormComponent, VaultDetailFieldComponent],
   template: `
     <main class="macos-page--vault-form">
       <div class="cipher-form-scroll">
@@ -74,6 +75,14 @@ try {
         [multiple]="true"
       ></ng-select>
     </aside>
+    <section class="macos-page--vault-detail">
+      <bw-vault-detail-field
+        [field]="detailField"
+        [value]="detailField.value"
+        conceal
+        canFill
+      />
+    </section>
   `,
 })
 class VaultFormVisualHostComponent {
@@ -89,6 +98,13 @@ class VaultFormVisualHostComponent {
       canViewSecrets: true,
     });
   readonly beforeSubmit = async () => false;
+  readonly detailField = {
+    id: "hostile-read-only-password",
+    label: "Password with a label that must wrap at two hundred percent text",
+    value: "correct horse battery staple",
+    type: "hidden" as const,
+    concealed: true,
+  };
 }
 
 @Component({
@@ -222,6 +238,8 @@ function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
     ".otp-code-row",
     ".new-item-option",
     ".macos-page--vault-recovery",
+    ".macos-page--vault-detail",
+    ".macos-page--vault-form",
   ];
   const projected: string[] = [];
   for (const rule of Array.from(sheet.cssRules)) {
@@ -1120,7 +1138,7 @@ describe("iOS 27 Vault workflows", () => {
     fixture.destroy();
   });
 
-  it("renders real retained form groups flat with 44px rounded controls and compact spacing", async () => {
+  it("renders real retained Vault fields with separate hit and painted geometry", async () => {
     TestBed.resetTestingModule();
     const store = new PopupStateStore();
     await TestBed.configureTestingModule({
@@ -1150,17 +1168,52 @@ describe("iOS 27 Vault workflows", () => {
     const outsideNgSelectShell = host.querySelector<HTMLElement>(
       '[data-testid="outside-sheet"] .ng-select-container',
     )!;
+    const textarea = host.querySelector<HTMLTextAreaElement>(
+      '.cipher-form-scroll textarea[formcontrolname="notes"]',
+    )!;
+    const suffix = host.querySelector<HTMLButtonElement>(
+      ".cipher-form-scroll button[bitsuffix]",
+    )!;
+    const suffixPlate = suffix.querySelector<HTMLElement>(".bwi")!;
+    const detailField = host.querySelector<HTMLElement>(".official-read-only-field")!;
+    const detailControl = host.querySelector<HTMLElement>(".official-read-only-control")!;
     expect(card).not.toBeNull();
     expect(input).not.toBeNull();
     expect(fieldShell).not.toBeNull();
     expect(ngSelectShell).not.toBeNull();
     expect(getComputedStyle(card).borderRadius).toBe("0px");
     expect(getComputedStyle(card).boxShadow).toBe("none");
-    expect(getComputedStyle(fieldShell).borderRadius).toBe("10px");
-    expect(getComputedStyle(fieldShell).minHeight).toBe("44px");
-    expect(getComputedStyle(ngSelectShell).borderRadius).toBe("10px");
-    expect(getComputedStyle(ngSelectShell).minHeight).toBe("44px");
+    expect(textarea).not.toBeNull();
+    expect(suffix).not.toBeNull();
+    expect(suffixPlate).not.toBeNull();
+    expect(detailField).not.toBeNull();
+    expect(detailControl).not.toBeNull();
+    expect(parseFloat(getComputedStyle(detailField).minHeight)).toBeGreaterThanOrEqual(44);
+    expect(getComputedStyle(detailField).height).toBe("auto");
+    expect(getComputedStyle(detailField).boxShadow).toBe("none");
+    expect(parseFloat(getComputedStyle(detailControl).minHeight)).toBeGreaterThanOrEqual(44);
+    expect(getComputedStyle(fieldShell).borderRadius).toBe("9px");
+    expect(parseFloat(getComputedStyle(fieldShell).minHeight)).toBeGreaterThanOrEqual(44);
+    expect(getComputedStyle(input).height).toBe("auto");
+    expect(getComputedStyle(input).minHeight).toBe("40px");
+    expect(getComputedStyle(ngSelectShell).borderRadius).toBe("9px");
+    expect(getComputedStyle(ngSelectShell).minHeight).toBe("40px");
+    expect(getComputedStyle(textarea).minHeight).toBe("72px");
+    expect(parseFloat(getComputedStyle(suffix).minWidth)).toBeGreaterThanOrEqual(44);
+    expect(parseFloat(getComputedStyle(suffix).minHeight)).toBeGreaterThanOrEqual(44);
+    expect(getComputedStyle(suffixPlate).width).toBe("32px");
+    expect(getComputedStyle(suffixPlate).height).toBe("32px");
     expect(getComputedStyle(outsideNgSelectShell).borderRadius).toBe("11px");
+
+    suffix.dataset["vaultTestInteraction"] = "hover";
+    expect(getComputedStyle(suffix).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(suffixPlate).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    suffix.dataset["vaultTestInteraction"] = "active";
+    expect(getComputedStyle(suffixPlate).transform).toContain("0.96");
+    suffix.disabled = true;
+    expect(Number.parseFloat(getComputedStyle(suffixPlate).opacity)).toBeLessThan(1);
+    suffix.disabled = false;
+    suffix.removeAttribute("data-vault-test-interaction");
 
     input.focus();
     input.dataset["testFocusVisible"] = "true";
@@ -1172,9 +1225,27 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(input).outlineStyle).toBe("none");
 
     document.body.classList.add("tw-bit-compact");
+    expect(getComputedStyle(input).minHeight).toBe("36px");
+    expect(getComputedStyle(ngSelectShell).minHeight).toBe("36px");
+    expect(getComputedStyle(host.querySelector<HTMLElement>(".cipher-form-scroll form")!)
+      .gap).toBe("16px");
     expect(getComputedStyle(host.querySelector<HTMLElement>(".cipher-form-scroll section")!)
-      .marginBottom).toBe("16px");
+      .marginBottom).toBe("0px");
     document.body.classList.remove("tw-bit-compact");
+
+    document.documentElement.style.fontSize = "200%";
+    expect(getComputedStyle(input).height).toBe("auto");
+    expect(parseFloat(getComputedStyle(input).minHeight)).toBeGreaterThanOrEqual(40);
+    expect(getComputedStyle(detailField).height).toBe("auto");
+    expect(getComputedStyle(detailControl).overflow).not.toBe("hidden");
+
+    document.documentElement.setAttribute("data-vault-test-media", "reduced-motion");
+    expect(getComputedStyle(suffixPlate).transitionDuration).toBe("0s");
+    document.documentElement.setAttribute("data-vault-test-media", "forced-colors");
+    suffix.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(suffix).outlineStyle).toBe("none");
+    expect(getComputedStyle(suffixPlate).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(suffixPlate).outlineWidth).toBe("2px");
     fixture.destroy();
   });
 });

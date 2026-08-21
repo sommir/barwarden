@@ -143,11 +143,11 @@ interface LoginSaveOwnership {
 
       <popup-footer slot="footer">
         @if (cipherType.type === 'login') {
-          <button bitButton buttonType="primary" type="submit" form="official-login-cipher-form" [disabled]="!canSubmitOfficialLogin" [loading]="savePending" [attr.aria-busy]="savePending">{{ "save" | i18n }}</button>
+          <button class="macos-button-owner macos-primary-action" bitButton buttonType="primary" type="submit" form="official-login-cipher-form" [disabled]="!canSubmitOfficialLogin" [loading]="savePending" [attr.aria-busy]="savePending">{{ "save" | i18n }}</button>
         } @else {
-          <button bitButton buttonType="primary" type="submit" form="official-personal-cipher-form" [disabled]="!canSubmitOfficialPersonal" [loading]="savePending" [attr.aria-busy]="savePending">{{ "save" | i18n }}</button>
+          <button class="macos-button-owner macos-primary-action" bitButton buttonType="primary" type="submit" form="official-personal-cipher-form" [disabled]="!canSubmitOfficialPersonal" [loading]="savePending" [attr.aria-busy]="savePending">{{ "save" | i18n }}</button>
         }
-        <button bitButton buttonType="secondary" type="button" (click)="cancel($event)">{{ "cancel" | i18n }}</button>
+        <button class="macos-hit-target" bitButton buttonType="secondary" type="button" (click)="cancel($event)">{{ "cancel" | i18n }}</button>
         <span class="tw-sr-only" data-testid="vault-save-status" role="status" aria-live="polite" aria-atomic="true">
           {{ savePending ? ("i18nSaving" | i18n) : "" }}
         </span>

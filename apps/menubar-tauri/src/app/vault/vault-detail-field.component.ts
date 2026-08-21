@@ -16,10 +16,11 @@ import { I18nPipe } from "../official-ui/official-ui-common";
   standalone: true,
   imports: [I18nPipe],
   template: `
-    <div class="official-read-only-field">
+    <div class="official-read-only-field macos-detail-field">
       <label [attr.for]="controlId">{{ fieldLabel }}</label>
-      <div class="official-read-only-control">
+      <div class="official-read-only-control macos-field-owner">
         <input
+          class="macos-control-visible"
           [id]="controlId"
           readonly
           aria-readonly="true"
@@ -29,12 +30,12 @@ import { I18nPipe } from "../official-ui/official-ui-common";
         @if (conceal && displayValue) {
           <button
             type="button"
-            class="icon-action"
+            class="icon-action macos-hit-target"
             [attr.aria-label]="revealed ? ('i18nHideField' | i18n: fieldLabel) : ('i18nShowField' | i18n: fieldLabel)"
             (click)="revealed = !revealed"
           >
             <i
-              class="bwi"
+              class="bwi macos-icon-plate"
               [class.bwi-eye]="!revealed"
               [class.bwi-eye-slash]="revealed"
               aria-hidden="true"
@@ -44,27 +45,27 @@ import { I18nPipe } from "../official-ui/official-ui-common";
         @if (launchable && displayValue) {
           <button
             type="button"
-            class="icon-action"
+            class="icon-action macos-hit-target"
             [attr.aria-label]="'i18nOpenField' | i18n: fieldLabel"
             (click)="launch.emit(displayValue)"
           >
-            <i class="bwi bwi-external-link" aria-hidden="true"></i>
+            <i class="bwi bwi-external-link macos-icon-plate" aria-hidden="true"></i>
           </button>
         }
         @if (displayValue) {
           <button
             type="button"
-            class="icon-action"
+            class="icon-action macos-hit-target"
             [attr.aria-label]="'i18nCopyField' | i18n: fieldLabel"
             (click)="copy.emit(field)"
           >
-            <i class="bwi bwi-clone" aria-hidden="true"></i>
+            <i class="bwi bwi-clone macos-icon-plate" aria-hidden="true"></i>
           </button>
         }
         @if (canFill && displayValue) {
           <button
             type="button"
-            class="field-action"
+            class="field-action macos-hit-target"
             [attr.aria-label]="'i18nFillField' | i18n: fieldLabel"
             (click)="fill.emit(field)"
           >

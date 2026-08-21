@@ -150,7 +150,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-personal-cipher-detail.component.html",
-      "sha256": "cd25c06acc1ec17923ec8903d3b9ee333453de9cf3f9959334e923f9e4986d12"
+      "sha256": "fd1f7d6b2b52244a3627f7b9a54c63c2d2b9c1bd2b7e6a967f3a0e73a9765e6c"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-card-details.component.ts",
@@ -174,7 +174,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-read-only-cipher-card.component.html",
-      "sha256": "71f3d6df47cf48f681fface525a62944e77be0ca644cc31496bb482ac26e2026"
+      "sha256": "388f1c81d6bc5dfb78c3001858da520b8579982ac0f1e314a50f6ba0ba90c34c"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-credit-card-number.pipe.ts",

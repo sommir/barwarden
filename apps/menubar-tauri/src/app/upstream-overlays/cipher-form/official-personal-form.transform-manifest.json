@@ -103,7 +103,7 @@
     },
     {
       "path": "official-personal-cipher-form.component.html",
-      "sha256": "5cc67ef21a797e05c1368f929faaa0f51fa823e163674d6e81a56d4a768336ec"
+      "sha256": "7ef5a58babb1bc8f8e2da87a48080a0680c99bb8ddb8717ba45358431748a4eb"
     },
     {
       "path": "official-personal-form-container.ts",
@@ -115,7 +115,7 @@
     },
     {
       "path": "official-personal-item-details.component.html",
-      "sha256": "85f9a150975ba7cd4afaac6522b4f4ddafdcfd706b197d5ddaffa237438d9b70"
+      "sha256": "f450fcbf8518da6a177db7cfa5d76bcb2252b992021f23a28066de2a8922bf2d"
     },
     {
       "path": "official-card-details-section.component.ts",
@@ -990,15 +990,15 @@
       "kind": "template",
       "authority": "libs/vault/src/cipher-form/components/cipher-form.component.html",
       "runtime": "official-personal-cipher-form.component.html",
-      "runtimeSha256": "5cc67ef21a797e05c1368f929faaa0f51fa823e163674d6e81a56d4a768336ec",
-      "operationsSha256": "58bb95aa44ca078cf6004480cd22b3259bc6dd6c0e81437a603aeef1789f2627"
+      "runtimeSha256": "7ef5a58babb1bc8f8e2da87a48080a0680c99bb8ddb8717ba45358431748a4eb",
+      "operationsSha256": "d0dda0d4b80a830c50b8eda83e2402406ff360cb2f043b3539937833a9b5d587"
     },
     {
       "kind": "template",
       "authority": "libs/vault/src/cipher-form/components/item-details/item-details-section.component.html",
       "runtime": "official-personal-item-details.component.html",
-      "runtimeSha256": "85f9a150975ba7cd4afaac6522b4f4ddafdcfd706b197d5ddaffa237438d9b70",
-      "operationsSha256": "72636186621912b40fb1eb954eceedb29744bf193f2ecb391ea9a6bc9fd8c385"
+      "runtimeSha256": "f450fcbf8518da6a177db7cfa5d76bcb2252b992021f23a28066de2a8922bf2d",
+      "operationsSha256": "0b54a29a4668257a0531a2931633956d5a844b48d44f20ad607f54dd04be658d"
     },
     {
       "kind": "template",

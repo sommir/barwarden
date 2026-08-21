@@ -175,21 +175,23 @@ import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component"
             <a
               bitButton
               buttonType="primary"
+              class="macos-button-owner macos-primary-action"
               [attr.href]="editCipherHref"
               [attr.data-popup-focus-key]="'detail-edit:' + item.id"
               (click)="openEdit($event, item.id)"
             >{{ "i18nEdit" | i18n }}</a>
           } @else {
-            <button bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nRestore' | i18n" (click)="restore()">{{ "i18nRestore" | i18n }}</button>
+            <button class="macos-button-owner macos-primary-action" bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nRestore' | i18n" (click)="restore()">{{ "i18nRestore" | i18n }}</button>
           }
           <span slot="end" class="official-popup-footer-end">
             @if (isArchived) {
-              <button bitIconButton="bwi-unarchive" type="button" [label]="'i18nUnarchive' | i18n" (click)="unarchive()"></button>
+              <button class="macos-hit-target" bitIconButton="bwi-unarchive" type="button" [label]="'i18nUnarchive' | i18n" (click)="unarchive()"></button>
             } @else if (!isDeleted) {
-              <button bitIconButton="bwi-archive" type="button" [label]="'archive' | i18n" (click)="requestArchive($event)"></button>
+              <button class="macos-hit-target" bitIconButton="bwi-archive" type="button" [label]="'archive' | i18n" (click)="requestArchive($event)"></button>
             }
             <button
               bitIconButton="bwi-trash"
+              class="macos-hit-target"
               buttonType="dangerGhost"
               type="button"
               [label]="isDeleted ? ('i18nPermanentDelete' | i18n) : ('i18nDelete' | i18n)"
