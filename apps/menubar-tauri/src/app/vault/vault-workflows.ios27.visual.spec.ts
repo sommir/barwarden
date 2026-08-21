@@ -11,23 +11,29 @@ import {
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { provideNoopAnimations } from "@angular/platform-browser/animations";
-import { provideRouter } from "@angular/router";
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from "@angular/router";
+import { BehaviorSubject } from "rxjs";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
-import { CipherType } from "@bitwarden/common/vault/enums";
+import { CipherType, FieldType } from "@bitwarden/common/vault/enums";
 import { CipherView } from "@bitwarden/common/vault/models/view/cipher.view";
 import { DialogModule } from "@bitwarden/components/dialog/dialog.module";
 
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
+import { GeneratorService } from "../generator/generator.service";
 import { PopupStateStore } from "../popup-state";
+import { POP_OUT_HOST } from "../popup-header-actions.component";
 import { SettingsService } from "../settings/settings.service";
 import { OfficialPersonalCipherFormComponent } from "../upstream-overlays/cipher-form/official-personal-cipher-form.component";
 import { OfficialPasswordHistoryViewComponent } from "../upstream-overlays/recovery/password-history/official-password-history-view.component";
 import { RetainedVaultListItemComponent } from "../upstream-overlays/vault-main/retained-vault-list-item.component";
-import { demoVaultItems } from "../vault-demo";
+import { demoFolders, demoVaultItems } from "../vault-demo";
 import { ArchivePageComponent } from "./archive-page.component";
-import { RETAINED_LOGIN_FORM_STATUS_STORE } from "./retained-login-form.adapter";
+import {
+  RETAINED_LOGIN_FORM_GENERATOR,
+  RETAINED_LOGIN_FORM_STATUS_STORE,
+} from "./retained-login-form.adapter";
 import { NewItemPageComponent } from "./new-item-page.component";
 import { FoldersPageComponent } from "./folders-page.component";
 import { projectLoginDetail } from "./login-cipher-view.adapter";
@@ -41,6 +47,14 @@ import { TOTP_CLOCK, TOTP_CODE_SOURCE } from "./vault-totp-code.component";
 import type { VaultItem } from "./vault-item.model";
 import { TrashPageComponent } from "./trash-page.component";
 import { VaultDetailFieldComponent } from "./vault-detail-field.component";
+import { VaultAddEditPageComponent } from "./vault-add-edit-page.component";
+import { VaultFacade } from "./vault.facade";
+import { VaultItemDetailPageComponent } from "./vault-item-detail-page.component";
+import { VaultActionsService } from "./vault-actions.service";
+import { VaultRepromptService } from "./vault-reprompt.service";
+import { AUTOFILL_NATIVE_HOST } from "../autofill/autofill-native.host";
+import { AUTOFILL_CONTEXT_CLOCK } from "../autofill/autofill-context-session.service";
+import { OFFICIAL_TOTP_CLOCK } from "./official-totp.service.adapter";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -178,6 +192,11 @@ const officialItemUtilityCss = `
   .tw-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tw-py-2 { padding-top: 8px; padding-bottom: 8px; }
   .tw-py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
+  .tw-p-3 { padding: 12px; }
+  .-tw-mx-3 { margin-left: -12px; margin-right: -12px; }
+  .tw-gap-4 { gap: 16px; }
+  .tw-bg-background { background: rgb(248, 249, 251); }
+  .tw-rounded-lg { border-radius: 8px; }
   .tw-text-base { font-size: 1rem; line-height: 1.5rem; }
   .tw-text-sm { font-size: 0.875rem; line-height: 1.25rem; }
   :root[data-bw-compact-mode="true"] [class~="bit-compact:tw-py-1.5"] {
@@ -249,7 +268,8 @@ function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
         routeSelectors.some((selector) =>
           styleRule.selectorText.includes(selector)
         )
-        && /:(?:hover|active|focus)/.test(styleRule.selectorText)
+        && (/:(?:hover|active|focus)/.test(styleRule.selectorText)
+          || styleRule.selectorText.includes("::before"))
       ) {
         projected.push(`${projectVaultSelector(styleRule.selectorText)} { ${styleRule.style.cssText} }`);
       }
@@ -279,6 +299,7 @@ function projectVaultInteractionAndMediaRules(sheet: CSSStyleSheet): string {
 
 function projectVaultSelector(selector: string): string {
   return selector
+    .replaceAll("::before", " > [data-vault-test-paint]")
     .replaceAll(":focus-visible", '[data-vault-test-interaction~="focus-visible"]')
     .replaceAll(":focus", '[data-vault-test-interaction~="focus"]')
     .replaceAll(":hover", '[data-vault-test-interaction~="hover"]')
@@ -492,6 +513,171 @@ function passwordHistoryItem(): VaultItem {
     canFill: false,
     uri: "",
   };
+}
+
+function visualLoginItem(): VaultItem {
+  const base = demoVaultItems.find((item) => item.id === "github")!;
+  return {
+    ...base,
+    name: "Production Login With A Deliberately Hostile Long Name",
+    fields: [
+      ...base.fields
+        .filter((field) => !field.id.startsWith("custom:"))
+        .map((field) => field.id === "username"
+          ? {
+              ...field,
+              value: "operations-team-with-a-deliberately-long-address@example.enterprise.test",
+            }
+          : field),
+      {
+        id: "custom:Environment",
+        label: "Environment With A Deliberately Hostile Label That Must Wrap",
+        value: "Production value that must remain readable at two hundred percent text",
+      },
+      {
+        id: "custom:PIN",
+        label: "Emergency PIN With Another Long Label",
+        value: "1234567890",
+        type: "hidden",
+        concealed: true,
+      },
+    ],
+  };
+}
+
+function visualPersonalItem(): VaultItem {
+  const base = demoVaultItems.find((item) => item.id === "card")!;
+  return {
+    ...base,
+    fields: [
+      ...base.fields,
+      {
+        id: "custom:Environment",
+        label: "Card Environment With A Deliberately Hostile Label That Must Wrap",
+        value: "Production value that remains readable at two hundred percent text",
+      },
+      {
+        id: "custom:Enabled",
+        label: "Enabled For Emergency Travel",
+        value: "true",
+        type: "boolean",
+      },
+    ],
+  };
+}
+
+async function createRealVaultAddEditFixture(
+  routePath: "add-cipher" | "edit-cipher" | "clone-cipher",
+  type: "1" | "3",
+  cipherId = "",
+) {
+  TestBed.resetTestingModule();
+  const store = new PopupStateStore();
+  store.setItems(
+    [
+      ...demoVaultItems.filter((item) => !["github", "card"].includes(item.id)),
+      visualLoginItem(),
+      visualPersonalItem(),
+    ],
+    demoFolders,
+  );
+  store.setUnlocked("visual@example.test");
+  store.setActiveSession({ crypto: { userKeyB64: "visual-user-key" } } as never);
+  const queryParamMap = convertToParamMap({ type, ...(cipherId ? { cipherId } : {}) });
+  const queryParamMap$ = new BehaviorSubject(queryParamMap);
+  await TestBed.configureTestingModule({
+    imports: [VaultAddEditPageComponent],
+    providers: [
+      OfficialI18nService,
+      importProvidersFrom(DialogModule),
+      provideZoneChangeDetection(),
+      provideNoopAnimations(),
+      provideRouter([{ path: routePath, component: VaultAddEditPageComponent }]),
+      { provide: I18nService, useExisting: OfficialI18nService },
+      { provide: PopupStateStore, useValue: store },
+      { provide: VaultFacade, useFactory: () => new VaultFacade(store) },
+      { provide: RETAINED_LOGIN_FORM_GENERATOR, useExisting: GeneratorService },
+      { provide: RETAINED_LOGIN_FORM_STATUS_STORE, useValue: store },
+      { provide: POP_OUT_HOST, useValue: null },
+      {
+        provide: ActivatedRoute,
+        useValue: {
+          snapshot: { routeConfig: { path: routePath }, queryParamMap },
+          queryParamMap: queryParamMap$.asObservable(),
+        },
+      },
+    ],
+  }).compileComponents();
+  const router = TestBed.inject(Router);
+  Object.defineProperty(router, "url", {
+    configurable: true,
+    value: `/${routePath}?type=${type}${cipherId ? `&cipherId=${cipherId}` : ""}`,
+  });
+  vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+  const fixture = TestBed.createComponent(VaultAddEditPageComponent);
+  fixture.detectChanges();
+  await vi.waitFor(() => {
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('input[formcontrolname="name"]'),
+    ).not.toBeNull();
+  });
+  await fixture.whenStable();
+  fixture.detectChanges(false);
+  return fixture;
+}
+
+async function createRealVaultDetailFixture() {
+  TestBed.resetTestingModule();
+  const store = new PopupStateStore();
+  store.setUnlocked("visual@example.test");
+  store.setItems([visualLoginItem()], demoFolders);
+  await TestBed.configureTestingModule({
+    imports: [VaultItemDetailPageComponent],
+    providers: [
+      provideRouter([]),
+      OfficialI18nService,
+      { provide: I18nService, useExisting: OfficialI18nService },
+      { provide: PopupStateStore, useValue: store },
+      { provide: VaultFacade, useFactory: () => new VaultFacade(store) },
+      {
+        provide: VaultActionsService,
+        useValue: {
+          copyFieldWithOutcome: vi.fn(),
+          fillFieldWithOutcome: vi.fn(),
+          launchUriWithOutcome: vi.fn(),
+          archiveItemWithOutcome: vi.fn(),
+          deleteItemWithOutcome: vi.fn(),
+          unarchiveItemWithOutcome: vi.fn(),
+          deleteArchivedItemWithOutcome: vi.fn(),
+          restoreDeletedItemWithOutcome: vi.fn(),
+          permanentlyDeleteItemWithOutcome: vi.fn(),
+        },
+      },
+      { provide: POP_OUT_HOST, useValue: null },
+      {
+        provide: AUTOFILL_NATIVE_HOST,
+        useValue: {
+          entryContext: vi.fn(async () => ({ status: "unavailable" })),
+          agentSession: vi.fn(async () => ({ status: "unavailable" })),
+          cancelReprompt: vi.fn(async () => undefined),
+          cancelRepromptBatch: vi.fn(async () => undefined),
+        },
+      },
+      { provide: AUTOFILL_CONTEXT_CLOCK, useValue: () => 1_700_000_000 },
+      { provide: VaultRepromptService, useValue: { verify: vi.fn(async () => true) } },
+      { provide: OFFICIAL_TOTP_CLOCK, useValue: () => 1_700_000_000 },
+    ],
+  }).compileComponents();
+  const router = TestBed.inject(Router);
+  Object.defineProperty(router, "url", { configurable: true, value: "/view-cipher/github" });
+  vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+  const fixture = TestBed.createComponent(VaultItemDetailPageComponent);
+  fixture.componentRef.setInput("id", "github");
+  fixture.detectChanges();
+  await fixture.whenStable();
+  fixture.detectChanges(false);
+  return fixture;
 }
 
 function modeledOtpRowLayout(row: HTMLElement, containerWidth: number) {
@@ -1246,6 +1432,150 @@ describe("iOS 27 Vault workflows", () => {
     expect(getComputedStyle(suffix).outlineStyle).toBe("none");
     expect(getComputedStyle(suffixPlate).forcedColorAdjust).toBe("none");
     expect(getComputedStyle(suffixPlate).outlineWidth).toBe("2px");
+    fixture.destroy();
+  });
+
+  it("mounts the real Login add/edit/clone routes with their production form and footer owners", async () => {
+    for (const route of [
+      { path: "add-cipher", id: "", mode: "add" },
+      { path: "edit-cipher", id: "github", mode: "edit" },
+      { path: "clone-cipher", id: "github", mode: "clone" },
+    ] as const) {
+      const fixture = await createRealVaultAddEditFixture(route.path, "1", route.id);
+      const host = fixture.nativeElement as HTMLElement;
+      const save = host.querySelector<HTMLButtonElement>('popup-footer button[type="submit"]')!;
+      expect(fixture.componentInstance.officialLoginConfig.mode).toBe(route.mode);
+      expect(host.classList).toContain("macos-page--vault-form");
+      expect(host.querySelector("popup-page.macos-page--vault-form")).not.toBeNull();
+      expect(host.querySelector("form.macos-cipher-form")).not.toBeNull();
+      expect(save.classList).toContain("macos-button-owner");
+      expect(save.classList).toContain("macos-primary-action");
+      expect(getComputedStyle(save).minHeight).toBe("44px");
+      expect(getComputedStyle(save).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      fixture.destroy();
+    }
+  });
+
+  it("paints real Save and Edit primary feedback on a distinct stateful layer", async () => {
+    const formFixture = await createRealVaultAddEditFixture("edit-cipher", "1", "github");
+    const save = (formFixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'popup-footer button[type="submit"]',
+    )!;
+    const savePaint = document.createElement("span");
+    savePaint.dataset["vaultTestPaint"] = "true";
+    save.prepend(savePaint);
+    expect(getComputedStyle(save).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    const initial = getComputedStyle(savePaint).backgroundColor;
+    save.dataset["vaultTestInteraction"] = "hover";
+    const hover = getComputedStyle(savePaint).backgroundColor;
+    save.dataset["vaultTestInteraction"] = "active";
+    const pressed = getComputedStyle(savePaint).backgroundColor;
+    expect(new Set([initial, hover, pressed]).size).toBe(3);
+    save.disabled = true;
+    save.dataset["vaultTestInteraction"] = "hover active";
+    expect(getComputedStyle(savePaint).backgroundColor).not.toBe(hover);
+    expect(Number.parseFloat(getComputedStyle(savePaint).opacity)).toBeLessThan(1);
+    document.documentElement.dataset["vaultTestMedia"] = "forced-colors";
+    expect(getComputedStyle(savePaint).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(savePaint).backgroundColor).toBe("rgb(204, 204, 204)");
+    formFixture.destroy();
+
+    const detailFixture = await createRealVaultDetailFixture();
+    const edit = (detailFixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      'popup-footer a.macos-primary-action',
+    )!;
+    const editPaint = document.createElement("span");
+    editPaint.dataset["vaultTestPaint"] = "true";
+    edit.prepend(editPaint);
+    expect(getComputedStyle(edit).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(editPaint).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    detailFixture.destroy();
+  });
+
+  it("flattens real nonempty Login and Personal custom-field rows and action plates", async () => {
+    for (const route of [
+      { type: "1", id: "github" },
+      { type: "3", id: "card" },
+    ] as const) {
+      const fixture = await createRealVaultAddEditFixture("edit-cipher", route.type, route.id);
+      const host = fixture.nativeElement as HTMLElement;
+      const group = host.querySelector<HTMLElement>('[data-testid="custom-fields"]')!;
+      const rows = Array.from(group.querySelectorAll<HTMLElement>(":scope > [data-testid$='-entry']"));
+      expect(rows.length).toBeGreaterThanOrEqual(2);
+      for (const row of rows) {
+        const computed = getComputedStyle(row);
+        expect(row.classList).toContain("macos-custom-field-row");
+        expect(computed.padding).toBe("0px");
+        expect(computed.marginLeft).toBe("0px");
+        expect(computed.marginRight).toBe("0px");
+        expect(computed.gap).toBe("12px");
+        expect(computed.flexWrap).toBe("wrap");
+        expect(computed.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+        expect(computed.borderRadius).toBe("0px");
+      }
+      const actions = Array.from(group.querySelectorAll<HTMLElement>(
+        '[data-testid="edit-custom-field-button"], [data-testid="reorder-toggle-button"]',
+      ));
+      expect(actions.length).toBeGreaterThanOrEqual(4);
+      for (const action of actions) {
+        const plate = action.querySelector<HTMLElement>(".bwi")!;
+        expect(action.classList).toContain("macos-hit-target");
+        expect(getComputedStyle(action).minWidth).toBe("44px");
+        expect(getComputedStyle(action).minHeight).toBe("44px");
+        expect(getComputedStyle(plate).width).toBe("32px");
+        expect(getComputedStyle(plate).height).toBe("32px");
+      }
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      expect(getComputedStyle(rows[0]!).gap).toBe("10px");
+      expect(getComputedStyle(actions[0]!.querySelector<HTMLElement>(".bwi")!).width).toBe("28px");
+      document.documentElement.style.fontSize = "200%";
+      expect(getComputedStyle(rows[0]!).height).toBe("auto");
+      expect(getComputedStyle(rows[0]!).overflow).toBe("visible");
+      const label = rows[0]!.querySelector<HTMLElement>("bit-label")!;
+      expect(getComputedStyle(label).whiteSpace).toBe("normal");
+      expect(getComputedStyle(label).overflowWrap).toBe("anywhere");
+      fixture.destroy();
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+      document.documentElement.style.removeProperty("font-size");
+    }
+  });
+
+  it("grows the real Login detail value at 200% without exposing duplicate accessible secrets", async () => {
+    const fixture = await createRealVaultDetailFixture();
+    const host = fixture.nativeElement as HTMLElement;
+    const usernameInput = host.querySelector<HTMLInputElement>('[data-testid="login-username"]')!;
+    const usernameValue = usernameInput.value;
+    const usernameDisplay = host.querySelector<HTMLElement>(
+      '[data-testid="login-username-value"]',
+    )!;
+    expect(usernameInput.getAttribute("aria-hidden")).toBe("true");
+    expect(usernameInput.tabIndex).toBe(-1);
+    expect(usernameDisplay.textContent?.trim()).toBe(usernameValue);
+    expect(usernameDisplay.getAttribute("role")).toBe("textbox");
+    expect(usernameDisplay.getAttribute("aria-readonly")).toBe("true");
+    document.documentElement.style.fontSize = "200%";
+    expect(getComputedStyle(usernameDisplay).height).toBe("auto");
+    expect(getComputedStyle(usernameDisplay).whiteSpace).toBe("normal");
+    expect(getComputedStyle(usernameDisplay).overflow).toBe("visible");
+    expect(getComputedStyle(usernameDisplay).overflowWrap).toBe("anywhere");
+
+    const passwordInput = host.querySelector<HTMLInputElement>('[data-testid="login-password"]')!;
+    const secret = passwordInput.value;
+    const passwordDisplay = host.querySelector<HTMLElement>(
+      '[data-testid="login-password-value"]',
+    )!;
+    expect(passwordInput.getAttribute("aria-hidden")).toBe("true");
+    expect(passwordDisplay.textContent).not.toContain(secret);
+    expect(host.querySelectorAll('[data-testid="login-password-value"]').length).toBe(1);
+    expect(Array.from(host.querySelectorAll<HTMLElement>("[aria-live], [role='status'], [role='alert']"))
+      .every((node) => !node.textContent?.includes(secret))).toBe(true);
+    host.querySelector<HTMLButtonElement>('[data-testid="toggle-password"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges(false);
+    expect(host.querySelector<HTMLElement>('[data-testid="login-password-value"]')!.textContent)
+      .toContain(secret);
+    expect(host.querySelectorAll('[data-testid="login-password-value"]').length).toBe(1);
     fixture.destroy();
   });
 });

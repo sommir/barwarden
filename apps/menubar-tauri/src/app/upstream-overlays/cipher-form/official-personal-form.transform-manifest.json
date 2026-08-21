@@ -147,7 +147,7 @@
     },
     {
       "path": "official-personal-custom-fields.component.html",
-      "sha256": "8b5a69790d76567c53765d1639fbded1896fb1e37765539e44564438e1d47a64"
+      "sha256": "376a085cac935c7a7edd5616f7c670920f3d76c8d3770c117da7bb178703d977"
     },
     {
       "path": "official-personal-add-edit-custom-field-dialog.component.ts",
@@ -1025,8 +1025,8 @@
       "kind": "template",
       "authority": "libs/vault/src/cipher-form/components/custom-fields/custom-fields.component.html",
       "runtime": "official-personal-custom-fields.component.html",
-      "runtimeSha256": "8b5a69790d76567c53765d1639fbded1896fb1e37765539e44564438e1d47a64",
-      "operationsSha256": "b5d9ec488825bb207ab589bfaf64b5a5cbf6b2e707900c84a21e994190e9f40c"
+      "runtimeSha256": "376a085cac935c7a7edd5616f7c670920f3d76c8d3770c117da7bb178703d977",
+      "operationsSha256": "4ca8cde1442af0b50c11a7445c25279a7230b2b920e2e570c101e86908d6286d"
     },
     {
       "kind": "template",

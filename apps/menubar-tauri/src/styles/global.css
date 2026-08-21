@@ -8142,3 +8142,221 @@ body.tw-bit-compact .macos-page--vault-form button[bitsuffix] .bwi {
     outline-color: Highlight;
   }
 }
+
+/* Task 4 review: retained Vault primary, readable-value, and custom-field
+ * layers keep real route owners while completing their physical states. */
+.macos-page--vault-detail input.macos-readonly-source {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.macos-page--vault-detail .macos-readonly-value {
+  display: flex;
+  min-width: 0;
+  min-height: var(--mac-control-visible);
+  height: auto;
+  align-items: center;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action {
+  position: relative;
+  isolation: isolate;
+  min-height: var(--mac-hit-size) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action::before {
+  inset: 2px 0;
+  z-index: -1;
+  border: 1px solid var(--mac-accent);
+  background: var(--mac-accent);
+  opacity: 1;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out,
+    transform var(--mac-motion-fast) ease-out;
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):hover::before {
+  border-color: var(--bw-primary-hover);
+  background: var(--bw-primary-hover);
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):active::before {
+  border-color: color-mix(in srgb, var(--mac-accent) 72%, black);
+  background: color-mix(in srgb, var(--mac-accent) 72%, black);
+  transform: scale(0.98);
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-surface-muted);
+  opacity: 0.58;
+  transform: none;
+}
+
+.macos-page--vault-form .macos-custom-fields {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.macos-page--vault-form .macos-custom-field-row {
+  display: flex;
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.macos-page--vault-form .macos-custom-field-row > :is(bit-form-field, bit-form-control) {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.macos-page--vault-form .macos-custom-field-action {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  margin: 0 !important;
+  padding: 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-form .macos-custom-field-action .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out,
+    transform var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-form .macos-custom-field-action:not(:disabled):not([aria-disabled="true"]):hover .bwi {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--vault-form .macos-custom-field-action:not(:disabled):not([aria-disabled="true"]):active .bwi {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+  transform: scale(0.96);
+}
+
+.macos-page--vault-form .macos-custom-field-action:is(:disabled, [aria-disabled="true"]) .bwi {
+  opacity: 0.38;
+}
+
+.macos-page--vault-form .macos-custom-field-action:focus,
+.macos-page--vault-form .macos-custom-field-action:focus-visible {
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-form .macos-custom-field-action:focus-visible .bwi {
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--vault-form .macos-custom-field-action:focus:not(:focus-visible) .bwi {
+  outline: 0;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .macos-custom-fields,
+body.tw-bit-compact .macos-page--vault-form .macos-custom-fields,
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .macos-custom-field-row,
+body.tw-bit-compact .macos-page--vault-form .macos-custom-field-row {
+  gap: 10px !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .macos-custom-field-action .bwi,
+body.tw-bit-compact .macos-page--vault-form .macos-custom-field-action .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--vault-form .macos-custom-field-action .bwi,
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action::before {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action::before {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+    opacity: 1;
+    forced-color-adjust: none;
+  }
+
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+    border-color: GrayText;
+    background: ButtonFace;
+    color: GrayText;
+  }
+
+  .macos-page--vault-form .macos-custom-field-action .bwi {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--vault-form .macos-custom-field-action:focus-visible .bwi {
+    outline-color: Highlight;
+  }
+}

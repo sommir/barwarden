@@ -1889,6 +1889,46 @@ export const loginFormTemplateContracts: readonly TemplateContract[] = [
         replacement:
           '></button>\n                }\n              </bit-form-field>\n            }\n\n            <!-- Boolean Field -->\n            @if (field.value.type === FieldType.Boolean) {\n              <bit-form-control class="tw-flex-1" disableMargin>\n                <input\n                  bitCheckbox\n                  formControlName="value"\n                  type="checkbox"\n                  data-testid="custom-boolean-field"\n                />\n                <bit-label>{{ field.value.name }}</bit-label>\n              </bit-form-control',
       },
+      {
+        search: '<section class="tw-mb-5 bit-compact:tw-mb-4" [ngClass]="{ \'tw-mb-0\': disableSectionMargin }">',
+        replacement: '<section class="tw-mb-5 bit-compact:tw-mb-4 macos-form-section" [ngClass]="{ \'tw-mb-0\': disableSectionMargin }">',
+      },
+      {
+        search: '<bit-card\n        formArrayName="fields"',
+        replacement: '<bit-card\n        class="macos-form-group macos-custom-fields"\n        formArrayName="fields"',
+      },
+      {
+        search: 'class="tw-flex tw-p-3 -tw-mx-3 tw-gap-4 tw-bg-background tw-rounded-lg first:-tw-mt-3 last-of-type:tw-mb-0"',
+        replacement: 'class="tw-flex tw-p-3 -tw-mx-3 tw-gap-4 tw-bg-background tw-rounded-lg first:-tw-mt-3 last-of-type:tw-mb-0 macos-custom-field-row"',
+      },
+      {
+        search: '<!-- Text Field -->\n            @if (field.value.type === FieldType.Text) {\n              <bit-form-field class="tw-flex-1" disableMargin>',
+        replacement: '<!-- Text Field -->\n            @if (field.value.type === FieldType.Text) {\n              <bit-form-field class="tw-flex-1 macos-field-owner" disableMargin>',
+      },
+      {
+        search: '<input bitInput formControlName="value" data-testid="custom-text-field" />',
+        replacement: '<input class="macos-control-visible" bitInput formControlName="value" data-testid="custom-text-field" />',
+      },
+      {
+        search: '<!-- Hidden Field -->\n            @if (field.value.type === FieldType.Hidden) {\n              <bit-form-field class="tw-flex-1" disableMargin>',
+        replacement: '<!-- Hidden Field -->\n            @if (field.value.type === FieldType.Hidden) {\n              <bit-form-field class="tw-flex-1 macos-field-owner" disableMargin>',
+      },
+      {
+        search: 'data-testid="custom-hidden-field"\n                  class="tw-font-mono"',
+        replacement: 'data-testid="custom-hidden-field"\n                  class="tw-font-mono macos-control-visible"',
+      },
+      {
+        search: '<!-- Boolean Field -->\n            @if (field.value.type === FieldType.Boolean) {\n              <bit-form-control class="tw-flex-1" disableMargin>',
+        replacement: '<!-- Boolean Field -->\n            @if (field.value.type === FieldType.Boolean) {\n              <bit-form-control class="tw-flex-1 macos-field-owner" disableMargin>',
+      },
+      {
+        search: 'class="tw-self-center tw-mt-2"\n                data-testid="edit-custom-field-button"',
+        replacement: 'class="tw-self-center tw-mt-2 macos-hit-target macos-custom-field-action"\n                data-testid="edit-custom-field-button"',
+      },
+      {
+        search: 'class="tw-self-center tw-mt-2"\n                cdkDragHandle',
+        replacement: 'class="tw-self-center tw-mt-2 macos-hit-target macos-custom-field-action"\n                cdkDragHandle',
+      },
     ],
   },
   {
