@@ -3207,6 +3207,20 @@ body.tw-bit-compact .macos-page--account-switcher auth-account bit-item {
   gap: var(--mac-space-2);
 }
 
+.document-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 44px 44px;
+  align-items: center;
+  gap: 4px;
+}
+
+.document-search output {
+  min-width: 44px;
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
 .app-update-notice {
   position: absolute;
   z-index: 65;

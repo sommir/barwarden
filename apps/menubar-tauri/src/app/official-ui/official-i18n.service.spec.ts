@@ -41,6 +41,11 @@ describe("OfficialI18nService", () => {
 
     expect(i18n.t("add")).toBe("Add");
     expect(i18n.t("inputRequired")).toBe("Input is required.");
+    expect(i18n.t("i18nPreviousSearchResult")).toBe("Previous search result");
+    expect(i18n.t("i18nNextSearchResult")).toBe("Next search result");
+    await i18n.setLocale("zh-CN");
+    expect(i18n.t("i18nPreviousSearchResult")).toBe("上一个搜索结果");
+    expect(i18n.t("i18nNextSearchResult")).toBe("下一个搜索结果");
   });
 
   it("shares an explicit locale across component-scoped service instances", async () => {
