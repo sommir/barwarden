@@ -425,11 +425,28 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
 }
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { width:100% !important; max-width:100% !important; }
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
   width:100% !important;
   max-width:100% !important;
   height:var(--mac-control-visible);
   min-height:var(--mac-control-visible);
+  padding-block:0 !important;
   background:var(--mac-surface-solid);
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container .ng-value-container,
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container .ng-input {
+  box-sizing:border-box;
+  height:100% !important;
+  min-height:0 !important;
+  padding-block:0 !important;
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container input[role="combobox"] {
+  box-sizing:border-box;
+  height:100% !important;
+  min-height:0 !important;
+  padding-block:0 !important;
 }
 .macos-preference-row__copy { min-width:0; height:auto; min-height:0; overflow:visible; padding-block:7px; white-space:normal; overflow-wrap:anywhere; }
 .macos-preference-row__copy > :first-child { font-size:14px; line-height:18px; font-weight:600; }

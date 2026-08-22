@@ -1503,9 +1503,17 @@ function expectRealSelectGeometry(
       "ng-select > .ng-select-container",
     );
     const focusOwner = selectHost.querySelector<HTMLElement>('input[role="combobox"]');
+    const valueContainer = selectHost.querySelector<HTMLElement>(
+      "ng-select > .ng-select-container .ng-value-container",
+    );
+    const inputContainer = selectHost.querySelector<HTMLElement>(
+      "ng-select > .ng-select-container .ng-input",
+    );
     expect(ngSelect).not.toBeNull();
     expect(paintedContainer).not.toBeNull();
     expect(focusOwner).not.toBeNull();
+    expect(valueContainer).not.toBeNull();
+    expect(inputContainer).not.toBeNull();
 
     for (const owner of [selectHost, ngSelect!]) {
       const ownerStyle = getComputedStyle(owner);
@@ -1514,9 +1522,22 @@ function expectRealSelectGeometry(
       expect(ownerStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
     }
     const paintedStyle = getComputedStyle(paintedContainer!);
+    expect(paintedStyle.boxSizing).toBe("border-box");
     expect(paintedStyle.height).toBe(visibleHeight);
     expect(paintedStyle.minHeight).toBe(visibleHeight);
+    expect(cssPixels(paintedStyle.paddingTop)).toBe(0);
+    expect(cssPixels(paintedStyle.paddingBottom)).toBe(0);
     expect(paintedStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(valueContainer!).height).toBe("100%");
+    expect(getComputedStyle(valueContainer!).minHeight).toBe("0px");
+    expect(cssPixels(getComputedStyle(valueContainer!).paddingTop)).toBe(0);
+    expect(cssPixels(getComputedStyle(valueContainer!).paddingBottom)).toBe(0);
+    expect(getComputedStyle(inputContainer!).height).toBe("100%");
+    expect(cssPixels(getComputedStyle(inputContainer!).paddingTop)).toBe(0);
+    expect(cssPixels(getComputedStyle(inputContainer!).paddingBottom)).toBe(0);
+    expect(getComputedStyle(focusOwner!).height).toBe("100%");
+    expect(cssPixels(getComputedStyle(focusOwner!).paddingTop)).toBe(0);
+    expect(cssPixels(getComputedStyle(focusOwner!).paddingBottom)).toBe(0);
 
     focusOwner!.dataset["testFocusVisible"] = "true";
     const fieldContainer = focusOwner!.closest<HTMLElement>("[bitfieldcontainer]");
@@ -1527,6 +1548,11 @@ function expectRealSelectGeometry(
     expect(resolvedMatchedProperty(paintedContainer!, "outline-width")).toBe("2px");
     delete focusOwner!.dataset["testFocusVisible"];
   }
+}
+
+function cssPixels(value: string): number {
+  if (value.trim() === "0") return 0;
+  return Number.parseFloat(value);
 }
 
 function resolvedMatchedProperty(element: Element, property: string): string {
