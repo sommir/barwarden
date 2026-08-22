@@ -36,8 +36,20 @@ describe("AutoFillContextualCandidatesService", () => {
       new AutoFillCandidateService(candidateHost),
       liveHost(),
     );
-    const resultPromise = service.queryAll(application, session, "term");
+    const resultPromise = service.queryAll(
+      application,
+      session,
+      "term",
+      ["https://login.example.test/account"],
+    );
     expect([...pending.keys()]).toEqual(["username", "password", "totp"]);
+    expect(vi.mocked(candidateHost.queryCandidates).mock.calls.map(([request]) => (
+      request.context.serviceIdentifiers
+    ))).toEqual([
+      ["https://login.example.test/account"],
+      ["https://login.example.test/account"],
+      ["https://login.example.test/account"],
+    ]);
     pending.get("password")?.(response("password-token", [candidate("login-a", "relevant")]));
     pending.get("username")?.(response("username-token", [candidate("login-a", "other")]));
     pending.get("totp")?.(response("totp-token", [candidate("login-a", "exact")]));

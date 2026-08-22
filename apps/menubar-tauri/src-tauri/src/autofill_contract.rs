@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
-pub const AGENT_PROTOCOL_VERSION: u16 = 1;
+// Version 2 requires the browser-only matching policy. An older Agent may
+// still be alive after an in-place app replacement, so the wire boundary is
+// also the authoritative way to force Service Management reconciliation.
+pub const AGENT_PROTOCOL_VERSION: u16 = 2;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -377,6 +380,11 @@ impl AgentCommandOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn current_protocol_version_invalidates_agents_built_before_browser_only_matching() {
+        assert_eq!(AGENT_PROTOCOL_VERSION, 2);
+    }
 
     #[test]
     fn request_wire_shape_matches_swift_contract() {

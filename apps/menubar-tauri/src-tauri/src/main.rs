@@ -25,6 +25,9 @@ mod login_item;
 mod opener;
 mod paste;
 mod session_broker;
+mod suggestion_count;
+#[cfg(target_os = "macos")]
+mod suggestion_count_macos;
 mod tray;
 mod window;
 
@@ -125,6 +128,18 @@ fn main() {
                 .clone();
             autofill_floating::start_native_observer(app.handle().clone(), floating);
             tray::setup_tray(app.handle())?;
+            let title_app = app.handle().clone();
+            let context_app = app.handle().clone();
+            let suggestion_monitor = suggestion_count::SuggestionCountMonitor::with_sinks(
+                move |title| {
+                    let count = title.parse::<usize>().ok();
+                    let _ = suggestion_count::apply_tray_title(&title_app, count);
+                },
+                move |revision| window::refresh_popup_suggestions(&context_app, revision),
+            );
+            app.manage(suggestion_monitor.clone());
+            #[cfg(target_os = "macos")]
+            suggestion_count_macos::start(app.handle().clone(), suggestion_monitor);
             Ok(())
         })
         .on_window_event(window::handle_window_event)

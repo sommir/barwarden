@@ -71,6 +71,71 @@ describe("AutoFillVaultContextService", () => {
     expect(harness.native.entryContext).toHaveBeenCalled();
   });
 
+  it("keeps ready suggestions visible but non-actionable during a passive refresh", async () => {
+    const next = deferred<readonly ContextualCandidate[]>();
+    const harness = createHarness();
+    await harness.service.beginFromVaultOpen();
+    vi.mocked(harness.contextual.queryAll).mockImplementationOnce(() => next.promise);
+
+    const refresh = harness.service.beginFromVaultOpen();
+    await vi.waitFor(() => expect(harness.contextual.queryAll).toHaveBeenCalledTimes(2));
+
+    expect(harness.service.snapshot()).toMatchObject({
+      status: "ready",
+      candidates: [CANDIDATE],
+    });
+    expect(harness.service.select("login-a")).toBeNull();
+
+    next.resolve([CANDIDATE]);
+    await refresh;
+  });
+
+  it("silently refreshes authoritative candidate data when the visible presentation is unchanged", async () => {
+    const refreshedCandidate: ContextualCandidate = Object.freeze({
+      ...CANDIDATE,
+      authorizations: immutableAuthorizationMap([
+        ["username", { contextToken: "refreshed-username-token", requiresMismatchConfirmation: false }],
+        ["password", { contextToken: "refreshed-password-token", requiresMismatchConfirmation: false }],
+      ]),
+    });
+    const harness = createHarness();
+    await harness.service.beginFromVaultOpen();
+    const initial = harness.service.snapshot();
+    const states: string[] = [];
+    harness.service.subscribe(() => states.push(harness.service.snapshot().status));
+    vi.mocked(harness.contextual.queryAll).mockResolvedValueOnce([refreshedCandidate]);
+
+    await harness.service.beginFromVaultOpen();
+
+    const refreshed = harness.service.snapshot();
+    expect(states).toEqual([]);
+    expect(refreshed).not.toBe(initial);
+    expect(refreshed.status === "ready"
+      ? refreshed.candidates[0]?.authorizations.get("username")?.contextToken
+      : null).toBe("refreshed-username-token");
+  });
+
+  it("publishes a changed passive refresh exactly once without an intermediate loading state", async () => {
+    const changedCandidate: ContextualCandidate = Object.freeze({
+      ...CANDIDATE,
+      cipherId: "login-b",
+      displayName: "Other Terminal",
+    });
+    const harness = createHarness();
+    await harness.service.beginFromVaultOpen();
+    const states: string[] = [];
+    harness.service.subscribe(() => states.push(harness.service.snapshot().status));
+    vi.mocked(harness.contextual.queryAll).mockResolvedValueOnce([changedCandidate]);
+
+    await harness.service.beginFromVaultOpen();
+
+    expect(states).toEqual(["ready"]);
+    expect(harness.service.snapshot()).toMatchObject({
+      status: "ready",
+      candidates: [{ cipherId: "login-b" }],
+    });
+  });
+
   it("keeps an ordinary vault open idle when AutoFill setup is not already ready", async () => {
     const harness = createHarness({ setupState: "disabled" });
 
@@ -205,7 +270,30 @@ describe("AutoFillVaultContextService", () => {
       context: null,
       candidates: [CANDIDATE],
     });
-    expect(harness.contextual.queryAll).toHaveBeenCalledWith(APPLICATION, SESSION, "");
+    expect(harness.contextual.queryAll).toHaveBeenCalledWith(APPLICATION, SESSION, "", []);
+  });
+
+  it("merges the captured browser URL into the same application candidate query", async () => {
+    const browser = Object.freeze({ bundleId: "com.google.Chrome", appName: "Google Chrome" });
+    const harness = createHarness({
+      application: browser,
+      fillContext: null,
+      websiteUrl: "https://chatgpt.com/c/123",
+    });
+
+    await expect(harness.service.beginFromVaultOpen()).resolves.toMatchObject({
+      status: "ready",
+      application: browser,
+      serviceIdentifiers: ["https://chatgpt.com/c/123"],
+      candidates: [CANDIDATE],
+    });
+
+    expect(harness.contextual.queryAll).toHaveBeenCalledWith(
+      browser,
+      SESSION,
+      "",
+      ["https://chatgpt.com/c/123"],
+    );
   });
 });
 
@@ -214,11 +302,13 @@ function createHarness(options: {
   queryAll?: () => Promise<readonly ContextualCandidate[]>;
   setupState?: "disabled" | "ready" | "requiresApproval" | "requiresAccessibility" | "unavailable";
   fillContext?: LiveAutoFillContext | null;
+  application?: AutoFillApplicationContext;
+  websiteUrl?: string;
 } = {}) {
   const native: AutoFillNativeHost = {
     entryContext: vi.fn(async () => ({
       status: "available",
-      application: APPLICATION,
+      application: options.application ?? APPLICATION,
       fillContext: options.fillContext === undefined ? CONTEXT : options.fillContext,
     })),
     agentSession: vi.fn(async () => ({ status: "success", ...SESSION })),
@@ -248,6 +338,11 @@ function createHarness(options: {
     contextual as unknown as AutoFillContextualCandidatesService,
     store,
     contextSession,
+    {
+      url: () => options.websiteUrl ?? null,
+      refresh: vi.fn(async () => undefined),
+      clear: vi.fn(),
+    } as never,
   );
   return { service, native, contextual, setup, store, contextSession };
 }

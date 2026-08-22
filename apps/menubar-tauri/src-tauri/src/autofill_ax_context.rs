@@ -84,7 +84,7 @@ impl OpaqueAxIdentity {
     }
 }
 
-const MAX_ANCESTORS: usize = 3;
+const MAX_ANCESTORS: usize = 5;
 const MAX_DESCENDANTS: usize = 256;
 const MAX_WINDOWS: usize = 16;
 const MAX_FIELDS: usize = 20;
@@ -2274,8 +2274,8 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
     if observations.is_empty() {
         return Err(AxContextError::NoWritableField);
     }
-    let detected = classify_fields(&observations);
-    let action = if form_discovery_failed {
+    let mut detected = classify_fields(&observations);
+    let mut action = if form_discovery_failed {
         detected
             .first()
             .filter(|field| {
@@ -2290,6 +2290,13 @@ fn capture_with_port_and_elements<P: AxMetadataPort>(
     } else {
         detect_action(&detected)
     };
+    if !form_discovery_failed
+        && !matches!(action, DetectedAction::Form { .. })
+        && coalesce_unique_component_wrapped_form(&mut observations, &detected, &observation_paths)
+    {
+        detected = classify_fields(&observations);
+        action = detect_action(&detected);
+    }
     let window_identity = port.logical_identity(&window);
     let fields = observations
         .iter()
@@ -2446,6 +2453,109 @@ fn container_path(path: &[u16]) -> Vec<u16> {
     }
 }
 
+fn coalesce_unique_component_wrapped_form(
+    observations: &mut [SemanticFieldObservation],
+    detected: &[crate::autofill_field_context::DetectedField],
+    traversal_paths: &[Vec<u16>],
+) -> bool {
+    if observations.len() != detected.len() || detected.len() != traversal_paths.len() {
+        return false;
+    }
+    let mut focused = detected
+        .iter()
+        .enumerate()
+        .filter(|(_, field)| field.focused);
+    let Some((focused_index, focused_field)) = focused.next() else {
+        return false;
+    };
+    if focused.next().is_some()
+        || focused_field.secret_field.is_none()
+        || focused_field.confidence == FieldConfidence::Low
+        || !valid_frame(&focused_field.frame)
+    {
+        return false;
+    }
+
+    let candidates = detected
+        .iter()
+        .enumerate()
+        .filter(|(_, field)| {
+            field.secret_field.is_some()
+                && field.confidence != FieldConfidence::Low
+                && valid_frame(&field.frame)
+        })
+        .collect::<Vec<_>>();
+    if !(2..=3).contains(&candidates.len())
+        || !candidates.iter().any(|(index, _)| *index == focused_index)
+        || candidates
+            .iter()
+            .any(|(_, field)| !frames_share_form_column(focused_field.frame, field.frame))
+    {
+        return false;
+    }
+
+    let usernames = candidates
+        .iter()
+        .filter(|(_, field)| field.secret_field == Some(AutoFillSecretField::Username))
+        .count();
+    let passwords = candidates
+        .iter()
+        .filter(|(_, field)| field.secret_field == Some(AutoFillSecretField::Password))
+        .count();
+    let totps = candidates
+        .iter()
+        .filter(|(_, field)| field.secret_field == Some(AutoFillSecretField::Totp))
+        .count();
+    if usernames > 1 || passwords != 1 || totps > 1 {
+        return false;
+    }
+
+    let min_y = candidates
+        .iter()
+        .map(|(_, field)| field.frame.y)
+        .fold(f64::INFINITY, f64::min);
+    let max_bottom = candidates
+        .iter()
+        .map(|(_, field)| field.frame.y + field.frame.height)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let max_height = candidates
+        .iter()
+        .map(|(_, field)| field.frame.height)
+        .fold(0.0_f64, f64::max);
+    if max_bottom - min_y > (max_height * 8.0).max(240.0) {
+        return false;
+    }
+
+    let first_path = &traversal_paths[candidates[0].0];
+    let common_len = (0..first_path.len())
+        .take_while(|index| {
+            candidates.iter().all(|(candidate_index, _)| {
+                traversal_paths[*candidate_index].get(*index) == first_path.get(*index)
+            })
+        })
+        .count();
+    if common_len == 0 {
+        return false;
+    }
+    let common_path = first_path[..common_len].to_vec();
+    let changed = candidates
+        .iter()
+        .any(|(index, _)| observations[*index].container_path.as_slice() != common_path.as_slice());
+    for (index, _) in candidates {
+        observations[index].container_path.clone_from(&common_path);
+    }
+    changed
+}
+
+fn frames_share_form_column(left: AxFrame, right: AxFrame) -> bool {
+    if !valid_frame(&left) || !valid_frame(&right) {
+        return false;
+    }
+    let widest = left.width.max(right.width);
+    let narrowest = left.width.min(right.width);
+    (left.x - right.x).abs() <= (widest * 0.12).max(8.0) && narrowest / widest >= 0.6
+}
+
 fn is_text_role(role: Option<&str>, _subrole: Option<&str>) -> bool {
     matches!(role, Some(AX_TEXT_FIELD | AX_SECURE_TEXT_FIELD))
 }
@@ -2469,6 +2579,7 @@ fn valid_caret_frame(frame: &AxFrame) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::accessibility_focus::{AxFrame, ScreenFrame};
     use crate::autofill_contract::AutoFillSecretField;
     use crate::autofill_field_context::{DetectedAction, DetectedFieldKind, FieldConfidence};
@@ -2866,6 +2977,80 @@ mod tests {
     }
 
     #[test]
+    fn reader_groups_unique_aligned_login_fields_wrapped_by_different_ax_containers() {
+        let mut port = FakePort::login_form();
+        port.children.insert(10, vec![Element(1)]);
+        port.children.insert(11, vec![Element(10), Element(13)]);
+        port.children.insert(13, vec![Element(2)]);
+        port.frames.insert(
+            2,
+            AxFrame {
+                x: 100.0,
+                y: 148.0,
+                width: 168.0,
+                height: 24.0,
+            },
+        );
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.google.Chrome", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("component-wrapped login form");
+
+        assert_eq!(
+            capture.action,
+            DetectedAction::Form {
+                fields: vec![AutoFillSecretField::Username, AutoFillSecretField::Password],
+            }
+        );
+        assert_eq!(capture.fields[0].container_path, vec![0, 0]);
+        assert_eq!(capture.fields[1].container_path, vec![0, 0]);
+    }
+
+    #[test]
+    fn reader_discovers_a_login_peer_beyond_three_component_wrappers() {
+        let mut port = FakePort::login_form();
+        port.elements.insert((12, "AXParent"), Element(13));
+        port.elements.insert((13, "AXParent"), Element(14));
+        port.children.insert(14, vec![Element(13), Element(21)]);
+        port.children.insert(13, vec![Element(12)]);
+        port.children.insert(12, vec![Element(11)]);
+        port.children.insert(11, vec![Element(10)]);
+        port.children.insert(10, vec![Element(1)]);
+        port.children.insert(21, vec![Element(2)]);
+        port.frames.insert(
+            2,
+            AxFrame {
+                x: 100.0,
+                y: 148.0,
+                width: 168.0,
+                height: 24.0,
+            },
+        );
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.google.Chrome", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("deep component-wrapped login form");
+
+        assert_eq!(
+            capture.action,
+            DetectedAction::Form {
+                fields: vec![AutoFillSecretField::Username, AutoFillSecretField::Password],
+            }
+        );
+        assert_eq!(capture.fields.len(), 2);
+    }
+
+    #[test]
     fn reader_still_rejects_an_explicitly_disabled_editable_field() {
         let mut port = FakePort::login_form();
         port.strings.insert((1, "AXEnabled"), "false".into());
@@ -2995,7 +3180,7 @@ mod tests {
         assert_eq!(capture.anchor_frame(), capture.focused.frame);
         assert!(port.child_visits <= 256);
         assert!(capture.fields.len() <= 20);
-        assert_eq!(port.parent_requests, 3);
+        assert!(port.parent_requests <= 5);
     }
 
     #[test]

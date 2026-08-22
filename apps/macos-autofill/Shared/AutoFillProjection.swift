@@ -23,6 +23,7 @@ struct AutoFillURI: Codable, Equatable {
 struct AutoFillLogin: Codable, Equatable {
     let cipherID: String
     let name: String
+    let notes: String?
     let username: String
     let password: String
     let uris: [AutoFillURI]
@@ -34,6 +35,7 @@ struct AutoFillLogin: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case cipherID = "cipherId"
         case name
+        case notes
         case username
         case password
         case uris
@@ -46,6 +48,7 @@ struct AutoFillLogin: Codable, Equatable {
     init(
         cipherID: String,
         name: String,
+        notes: String? = nil,
         username: String,
         password: String,
         uris: [AutoFillURI],
@@ -56,6 +59,7 @@ struct AutoFillLogin: Codable, Equatable {
     ) {
         self.cipherID = cipherID
         self.name = name
+        self.notes = notes
         self.username = username
         self.password = password
         self.uris = uris
@@ -149,6 +153,7 @@ struct AutoFillProjection: Codable, Equatable {
               normalizedHistory.count == Set(normalizedHistory).count,
               logins.allSatisfy({ login in
                   !login.cipherID.isEmpty
+                      && (login.notes?.count ?? 0) <= 4_096
                       && login.lastUsedAt.map { $0 > 0 } ?? true
                       && login.uris.allSatisfy { !$0.uri.isEmpty }
               }),

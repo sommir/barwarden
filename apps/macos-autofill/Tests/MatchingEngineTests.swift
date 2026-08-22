@@ -69,8 +69,8 @@ final class MatchingEngineTests: XCTestCase {
         let engine = MatchingEngine(
             presets: [AppPreset(bundleID: "com.example.target", services: ["preset.example"])],
             domainRules: DomainMatchRules(
-                allowedRegistrableDomains: ["service.example"],
-                privateSuffixes: []
+                publicSuffixRules: ["example"],
+                exceptionRules: []
             )
         )
         let context = NativeAutoFillContext(
@@ -111,7 +111,7 @@ final class MatchingEngineTests: XCTestCase {
             .exact, .exact, .exact, .exact, .relevant, .other,
         ])
         XCTAssertEqual(ranked.map(\.requiresMismatchConfirmation), [
-            false, false, false, false, false, true,
+            false, false, false, false, false, false,
         ])
     }
 
@@ -138,7 +138,7 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, false)
     }
 
-    func testApplicationNameSimilarityRanksByDegreeAndAlwaysConfirmsApproximateMatches() throws {
+    func testApplicationNameSimilarityRanksByDegreeWithoutMismatchConfirmation() throws {
         let ranked = MatchingEngine(presets: [], domainRules: .empty).rank(
             accountID: "account-a",
             logins: [
@@ -161,7 +161,7 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertEqual(ranked.prefix(2).map(\.reason), [
             "application_name_similar", "application_name_similar",
         ])
-        XCTAssertTrue(ranked.prefix(2).allSatisfy(\.requiresMismatchConfirmation))
+        XCTAssertTrue(ranked.allSatisfy { !$0.requiresMismatchConfirmation })
     }
 
     func testHardServiceEvidenceAlwaysOutranksApproximateApplicationName() throws {
@@ -184,7 +184,131 @@ final class MatchingEngineTests: XCTestCase {
         XCTAssertEqual(ranked.map(\.cipherID), ["service", "typo"])
         XCTAssertEqual(ranked.map(\.group), [.exact, .relevant])
         XCTAssertFalse(ranked[0].requiresMismatchConfirmation)
-        XCTAssertTrue(ranked[1].requiresMismatchConfirmation)
+        XCTAssertFalse(ranked[1].requiresMismatchConfirmation)
+    }
+
+    func testBrowserContextUsesCapturedHostWithoutFallingBackToTheBrowserApp() throws {
+        let ranked = MatchingEngine(
+            presets: [AppPreset(bundleID: "com.google.Chrome", services: ["google.com"])],
+            domainRules: DomainMatchRules(
+                publicSuffixRules: ["test"],
+                exceptionRules: []
+            )
+        ).rank(
+            accountID: "account-a",
+            logins: [
+                login("chrome-binding", name: "Google Chrome"),
+                login("exact-host", name: "Accounts", uris: [("https://accounts.example.test/other", .host)]),
+                login("parent-domain", name: "Parent", uris: [("https://example.test", .domain)]),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.google.Chrome",
+                appName: "Google Chrome",
+                serviceIdentifiers: ["https://accounts.example.test/login"],
+                query: ""
+            ),
+            bindings: [UserAppBinding(
+                accountID: "account-a",
+                bundleID: "com.google.Chrome",
+                cipherID: "chrome-binding"
+            )],
+            history: []
+        )
+
+        let byID = Dictionary(uniqueKeysWithValues: ranked.map { ($0.cipherID, $0) })
+        XCTAssertEqual(byID["exact-host"]?.reason, "vault_uri_rule")
+        XCTAssertEqual(byID["exact-host"]?.group, .exact)
+        XCTAssertEqual(byID["chrome-binding"]?.reason, "other")
+        XCTAssertEqual(byID["chrome-binding"]?.group, .other)
+        XCTAssertEqual(byID["parent-domain"]?.reason, "host_or_domain")
+        XCTAssertEqual(byID["parent-domain"]?.group, .relevant)
+    }
+
+    func testBrowserDomainRankingPrefersFullHostThenKeepsSameRegistrableDomainRelevant() {
+        let ranked = MatchingEngine(
+            presets: [],
+            domainRules: DomainMatchRules(
+                publicSuffixRules: ["com"],
+                exceptionRules: []
+            )
+        ).rank(
+            accountID: "account-a",
+            logins: [
+                login("parent", name: "Tencent Cloud", uris: [("https://cloud.tencent.com", .domain)]),
+                login("exact", name: "Tencent Console", uris: [("https://console.cloud.tencent.com/other", .domain)]),
+                login("unrelated", name: "Unrelated", uris: [("https://tencent.example", .domain)]),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.google.Chrome",
+                appName: "Google Chrome",
+                serviceIdentifiers: ["https://console.cloud.tencent.com/cns/detail/example"],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.map(\.cipherID), ["exact", "parent", "unrelated"])
+        XCTAssertEqual(ranked.map(\.group), [.relevant, .relevant, .other])
+        XCTAssertEqual(ranked.prefix(2).map(\.reason), ["host_or_domain", "host_or_domain"])
+    }
+
+    func testBundledDomainRulesCoverReportedSitesAndIsolatePrivateSuffixTenants() throws {
+        let source = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Agent/DomainMatchRules.json")
+        let rules = try DomainMatchRules.decode(Data(contentsOf: source))
+
+        XCTAssertEqual(rules.registrableDomain(for: "console.cloud.tencent.com"), "tencent.com")
+        XCTAssertEqual(rules.registrableDomain(for: "www.baidu.com"), "baidu.com")
+        XCTAssertEqual(rules.registrableDomain(for: "ogtd9v.yuque.com"), "yuque.com")
+        XCTAssertEqual(rules.registrableDomain(for: "foo.example.co.uk"), "example.co.uk")
+        XCTAssertEqual(rules.registrableDomain(for: "alice.github.io"), "alice.github.io")
+        XCTAssertEqual(rules.registrableDomain(for: "bob.github.io"), "bob.github.io")
+        XCTAssertNil(rules.registrableDomain(for: "alice.unknown-delegation"))
+    }
+
+    func testBrowserTextSignalsRankNameAboveNotesButBelowReliableDomain() {
+        let ranked = MatchingEngine(
+            presets: [],
+            domainRules: DomainMatchRules(publicSuffixRules: ["com"], exceptionRules: [])
+        ).rank(
+            accountID: "account-a",
+            logins: [
+                login("weak", name: "Generic Cloud Admin"),
+                login("notes", name: "Operations", notes: "Tencent production account"),
+                login("name", name: "Tencent Cloud"),
+                login("domain", name: "Production", uris: [("https://cloud.tencent.com", .domain)]),
+            ],
+            context: NativeAutoFillContext(
+                bundleID: "com.google.Chrome",
+                appName: "Google Chrome",
+                serviceIdentifiers: ["https://console.cloud.tencent.com/cns/detail/example"],
+                query: ""
+            ),
+            bindings: [],
+            history: []
+        )
+
+        XCTAssertEqual(ranked.map(\.cipherID), ["domain", "name", "notes", "weak"])
+        XCTAssertEqual(ranked.map(\.group), [.relevant, .relevant, .relevant, .other])
+        XCTAssertEqual(
+            ranked.map(\.reason),
+            ["host_or_domain", "browser_name", "browser_description", "other"]
+        )
+        XCTAssertTrue(ranked.allSatisfy { !$0.requiresMismatchConfirmation })
+    }
+
+    func testBrowserHistoryIsScopedToTheCapturedFullHostInsteadOfTheBrowserBundle() {
+        let browser = NativeAutoFillContext(
+            bundleID: "com.apple.Safari",
+            appName: "Safari",
+            serviceIdentifiers: ["https://login.example.test/account"],
+            query: ""
+        )
+
+        XCTAssertEqual(MatchingEngine.contextKey(browser), "service:login.example.test")
     }
 
     func testApplicationNameSimilarityScoreStaysAgentInternal() throws {
@@ -227,7 +351,7 @@ final class MatchingEngineTests: XCTestCase {
 
         XCTAssertEqual(ranked.first?.cipherID, "related")
         XCTAssertEqual(ranked.first?.reason, "application_name_similar")
-        XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, true)
+        XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, false)
         XCTAssertEqual(ranked.dropFirst().map(\.reason), ["other", "other"])
     }
 
@@ -254,7 +378,7 @@ final class MatchingEngineTests: XCTestCase {
 
         XCTAssertEqual(ranked.map(\.cipherID), ["unrelated"])
         XCTAssertEqual(ranked.first?.group, .other)
-        XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, true)
+        XCTAssertEqual(ranked.first?.requiresMismatchConfirmation, false)
     }
 
     func testWhitespaceQueryUsesContextRankingInsteadOfAllLoginFiltering() {
@@ -285,8 +409,8 @@ final class MatchingEngineTests: XCTestCase {
         let ranked = MatchingEngine(
             presets: [],
             domainRules: DomainMatchRules(
-                allowedRegistrableDomains: ["example.co.uk"],
-                privateSuffixes: []
+                publicSuffixRules: ["co.uk"],
+                exceptionRules: []
             )
         ).rank(
             accountID: "account-a",
@@ -335,8 +459,8 @@ final class MatchingEngineTests: XCTestCase {
 
     func testPrivateSuffixTenantsAndUnknownDelegationsNeverCrossMatch() throws {
         let rules = DomainMatchRules(
-            allowedRegistrableDomains: [],
-            privateSuffixes: ["github.io", "pages.dev", "vercel.app", "appspot.com"]
+            publicSuffixRules: ["github.io", "pages.dev", "vercel.app", "appspot.com"],
+            exceptionRules: []
         )
         let engine = MatchingEngine(presets: [], domainRules: rules)
         for suffix in ["github.io", "pages.dev", "vercel.app", "appspot.com"] {
@@ -378,24 +502,18 @@ final class MatchingEngineTests: XCTestCase {
     }
 
     func testDomainRulesRequireTheReviewedPSLRevisionAndLicense() throws {
-        let reviewed = Data("""
-        {
-          "sourceRevision":"e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20",
-          "license":"MPL-2.0",
-          "allowedRegistrableDomains":["github.com"],
-          "privateSuffixes":["github.io"]
-        }
-        """.utf8)
+        let source = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Agent/DomainMatchRules.json")
+        let reviewed = try Data(contentsOf: source)
         XCTAssertNoThrow(try DomainMatchRules.decode(reviewed))
 
-        let unreviewedRevision = Data("""
-        {
-          "sourceRevision":"0000000000000000000000000000000000000000",
-          "license":"MPL-2.0",
-          "allowedRegistrableDomains":["github.com"],
-          "privateSuffixes":["github.io"]
-        }
-        """.utf8)
+        let reviewedText = try XCTUnwrap(String(data: reviewed, encoding: .utf8))
+        let unreviewedRevision = Data(reviewedText.replacingOccurrences(
+            of: DomainMatchRules.reviewedSourceRevision,
+            with: "0000000000000000000000000000000000000000"
+        ).utf8)
         XCTAssertThrowsError(try DomainMatchRules.decode(unreviewedRevision))
     }
 
@@ -478,7 +596,7 @@ final class MatchingEngineTests: XCTestCase {
 
         XCTAssertEqual(ranked.map(\.cipherID), ["idna", "confusable"])
         XCTAssertEqual(ranked.map(\.group), [.exact, .other])
-        XCTAssertEqual(ranked.last?.requiresMismatchConfirmation, true)
+        XCTAssertEqual(ranked.last?.requiresMismatchConfirmation, false)
     }
 
     func testStartsWithRuleCannotCrossAHostBoundary() {
@@ -498,7 +616,7 @@ final class MatchingEngineTests: XCTestCase {
         )
 
         XCTAssertEqual(ranked.first?.group, .other)
-        XCTAssertTrue(ranked.first?.requiresMismatchConfirmation == true)
+        XCTAssertTrue(ranked.first?.requiresMismatchConfirmation == false)
     }
 
     func testHistoryIsAccountAndContextScopedAndThenFavoriteRecentAndStableTieBreak() {
@@ -550,7 +668,7 @@ final class MatchingEngineTests: XCTestCase {
 
         XCTAssertEqual(forward.map(\.cipherID), ["history", "favorite", "recent", "a", "z"])
         XCTAssertEqual(reversed.map(\.cipherID), forward.map(\.cipherID))
-        XCTAssertTrue(forward.allSatisfy(\.requiresMismatchConfirmation))
+        XCTAssertTrue(forward.allSatisfy { !$0.requiresMismatchConfirmation })
     }
 
     func testRecentCandidatesUseDescendingEpochBeforeStableTextAndInvalidValuesAreLowest() {
@@ -716,8 +834,8 @@ final class MatchingEngineTests: XCTestCase {
         let rules = DomainMatchRules.bundled(bundleResourceURL: nil, executableURL: executable)
 
         XCTAssertTrue(presets.contains { $0.bundleID == "com.bitwarden.desktop" })
-        XCTAssertFalse(rules.allowedRegistrableDomains.isEmpty)
-        XCTAssertFalse(rules.privateSuffixes.isEmpty)
+        XCTAssertGreaterThan(rules.publicSuffixRules.count, 9_000)
+        XCTAssertFalse(rules.exceptionRules.isEmpty)
     }
 
     func testProjectionDecodesAccountScopedBindingsHistoryAndRecentMetadata() throws {
@@ -993,6 +1111,7 @@ final class MatchingEngineTests: XCTestCase {
     private func login(
         _ cipherID: String,
         name: String,
+        notes: String? = nil,
         uris: [(String, AutoFillURIMatch)] = [],
         favorite: Bool = false,
         lastUsedAt: Int64? = nil,
@@ -1001,6 +1120,7 @@ final class MatchingEngineTests: XCTestCase {
         AutoFillLogin(
             cipherID: cipherID,
             name: name,
+            notes: notes,
             username: "\(cipherID)@example.test",
             password: "secret-\(cipherID)",
             uris: uris.map { AutoFillURI(uri: $0.0, matchType: $0.1) },

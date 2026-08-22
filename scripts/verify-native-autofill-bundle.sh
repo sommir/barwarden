@@ -220,6 +220,7 @@ entitlement_summary() {
           appGroups:e["com.apple.security.application-groups"] ?? [],
           keychainGroups:e["keychain-access-groups"] ?? [],
           entitlementKeys:Object.keys(e).sort(),
+          browserAutomation:e["com.apple.security.automation.apple-events"] === true,
           credentialProvider:e["com.apple.developer.authentication-services.autofill-credential-provider"] === true,
           appSandbox:e["com.apple.security.app-sandbox"] === true,
           applicationIdentifier:e["com.apple.application-identifier"] ?? null,

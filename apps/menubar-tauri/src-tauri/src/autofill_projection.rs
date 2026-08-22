@@ -37,6 +37,8 @@ pub struct AutoFillUri {
 pub struct AutoFillLogin {
     pub cipher_id: String,
     pub name: String,
+    #[serde(default)]
+    pub notes: Option<String>,
     pub username: String,
     pub password: String,
     pub uris: Vec<AutoFillUri>,
@@ -1250,17 +1252,22 @@ pub fn autofill_replace_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
     broker: tauri::State<'_, SessionBroker>,
     receipts: tauri::State<'_, std::sync::Arc<AutoFillRepromptReceiptStore>>,
+    suggestion_monitor: tauri::State<'_, crate::suggestion_count::SuggestionCountMonitor>,
     input: AutoFillProjectionInput,
     binding_token: String,
 ) -> Result<u64, &'static str> {
-    run_projection_lifecycle_with_receipt_clear(&receipts, || {
+    let result = run_projection_lifecycle_with_receipt_clear(&receipts, || {
         let context = broker.projection_context().map_err(|_| "stale_binding")?;
         let owner = ProjectionOwner::from_context(&context).map_err(command_error)?;
         manager
             .replace_bound(input, &binding_token, &owner)
             .map(|receipt| receipt.vault_revision)
             .map_err(command_error)
-    })
+    });
+    if result.is_ok() {
+        suggestion_monitor.invalidate();
+    }
+    result
 }
 
 #[tauri::command]
@@ -1268,8 +1275,10 @@ pub fn autofill_clear_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
     broker: tauri::State<'_, SessionBroker>,
     receipts: tauri::State<'_, std::sync::Arc<AutoFillRepromptReceiptStore>>,
+    suggestion_monitor: tauri::State<'_, crate::suggestion_count::SuggestionCountMonitor>,
     account_id: String,
 ) -> Result<(), &'static str> {
+    suggestion_monitor.clear();
     run_projection_lifecycle_with_receipt_clear(&receipts, || {
         let context = broker.projection_context().map_err(|_| "stale_binding")?;
         if context.active_account_id.as_deref() == Some(account_id.as_str()) {
@@ -1290,7 +1299,9 @@ pub fn autofill_lock_projection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
     broker: tauri::State<'_, SessionBroker>,
     receipts: tauri::State<'_, std::sync::Arc<AutoFillRepromptReceiptStore>>,
+    suggestion_monitor: tauri::State<'_, crate::suggestion_count::SuggestionCountMonitor>,
 ) -> Result<(), &'static str> {
+    suggestion_monitor.clear();
     run_projection_lifecycle_with_receipt_clear(&receipts, || {
         let context = broker.projection_context().map_err(|_| "stale_binding")?;
         let owner = ProjectionOwner {
@@ -1307,7 +1318,9 @@ pub fn autofill_reset_projection_for_reprojection(
     manager: tauri::State<'_, std::sync::Arc<SystemProjectionManager>>,
     broker: tauri::State<'_, SessionBroker>,
     receipts: tauri::State<'_, std::sync::Arc<AutoFillRepromptReceiptStore>>,
+    suggestion_monitor: tauri::State<'_, crate::suggestion_count::SuggestionCountMonitor>,
 ) -> Result<(), &'static str> {
+    suggestion_monitor.clear();
     run_projection_lifecycle_with_receipt_clear(&receipts, || {
         let context = broker.projection_context().map_err(|_| "stale_binding")?;
         let owner = ProjectionOwner {
@@ -1354,6 +1367,10 @@ fn validate_input(input: &AutoFillProjectionInput) -> Result<(), ProjectionError
         || !unique_history
         || input.logins.iter().any(|login| {
             login.cipher_id.is_empty()
+                || login
+                    .notes
+                    .as_ref()
+                    .is_some_and(|notes| notes.chars().count() > 4_096)
                 || login
                     .uris
                     .iter()
@@ -1521,6 +1538,7 @@ mod tests {
             logins: vec![AutoFillLogin {
                 cipher_id: "login-1".to_owned(),
                 name: "Example".to_owned(),
+                notes: Some("Production account".to_owned()),
                 username: "fixture-user@example.test".to_owned(),
                 password: "fixture-password-value".to_owned(),
                 uris: vec![AutoFillUri {

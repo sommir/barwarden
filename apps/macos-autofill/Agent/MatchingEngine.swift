@@ -51,44 +51,53 @@ struct DomainMatchRules: Equatable {
     static let reviewedSourceRevision = "e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20"
     static let sourceLicense = "MPL-2.0"
 
-    let allowedRegistrableDomains: Set<String>
-    let privateSuffixes: Set<String>
+    let publicSuffixRules: Set<String>
+    let exceptionRules: Set<String>
+    private let exactSuffixes: Set<String>
+    private let wildcardSuffixes: Set<String>
 
     private struct Document: Codable {
         let sourceRevision: String
         let license: String
-        let allowedRegistrableDomains: [String]
-        let privateSuffixes: [String]
+        let publicSuffixRules: [String]
+        let exceptionRules: [String]
     }
 
-    static let empty = DomainMatchRules(allowedRegistrableDomains: [], privateSuffixes: [])
+    static let empty = DomainMatchRules(publicSuffixRules: [], exceptionRules: [])
 
-    init(allowedRegistrableDomains: [String], privateSuffixes: [String]) {
-        self.allowedRegistrableDomains = Set(allowedRegistrableDomains.map(Self.normalizeRule))
-        self.privateSuffixes = Set(privateSuffixes.map(Self.normalizeRule))
+    init(publicSuffixRules: [String], exceptionRules: [String]) {
+        let normalizedRules = Set(publicSuffixRules.map(Self.normalizeRule))
+        self.publicSuffixRules = normalizedRules
+        self.exceptionRules = Set(exceptionRules.map(Self.normalizeRule))
+        exactSuffixes = Set(normalizedRules.filter { !$0.hasPrefix("*.") })
+        wildcardSuffixes = Set(normalizedRules.compactMap { rule in
+            rule.hasPrefix("*.") ? String(rule.dropFirst(2)) : nil
+        })
     }
 
     static func decode(_ data: Data) throws -> DomainMatchRules {
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               Set(object.keys) == [
-                "sourceRevision", "license", "allowedRegistrableDomains", "privateSuffixes",
+                "sourceRevision", "license", "publicSuffixRules", "exceptionRules",
               ] else {
             throw AgentProtocolError.malformedMessage
         }
         let document = try JSONDecoder().decode(Document.self, from: data)
         guard document.sourceRevision == reviewedSourceRevision,
               document.license == sourceLicense,
-              !document.allowedRegistrableDomains.isEmpty,
-              !document.privateSuffixes.isEmpty,
-              document.allowedRegistrableDomains.count <= 128,
-              document.privateSuffixes.count <= 128,
-              document.allowedRegistrableDomains.allSatisfy(Self.isValidRule),
-              document.privateSuffixes.allSatisfy(Self.isValidRule) else {
+              document.publicSuffixRules.count >= 9_000,
+              document.publicSuffixRules.count <= 20_000,
+              !document.exceptionRules.isEmpty,
+              document.exceptionRules.count <= 512,
+              Set(document.publicSuffixRules).count == document.publicSuffixRules.count,
+              Set(document.exceptionRules).count == document.exceptionRules.count,
+              document.publicSuffixRules.allSatisfy(Self.isValidPublicSuffixRule),
+              document.exceptionRules.allSatisfy(Self.isValidExceptionRule) else {
             throw AgentProtocolError.malformedMessage
         }
         return DomainMatchRules(
-            allowedRegistrableDomains: document.allowedRegistrableDomains,
-            privateSuffixes: document.privateSuffixes
+            publicSuffixRules: document.publicSuffixRules,
+            exceptionRules: document.exceptionRules
         )
     }
 
@@ -109,18 +118,28 @@ struct DomainMatchRules: Equatable {
 
     func registrableDomain(for host: String) -> String? {
         let normalized = Self.normalizeRule(host)
-        let matchingPrivate = privateSuffixes
-            .filter { normalized == $0 || normalized.hasSuffix(".\($0)") }
-            .max { $0.count < $1.count }
-        if let suffix = matchingPrivate {
-            let labels = normalized.split(separator: ".")
-            let suffixLabels = suffix.split(separator: ".").count
-            guard labels.count > suffixLabels else { return nil }
-            return labels.suffix(suffixLabels + 1).joined(separator: ".")
+        let labels = normalized.split(separator: ".").map(String.init)
+        guard labels.count >= 2,
+              labels.allSatisfy(Self.isValidHostLabel) else { return nil }
+
+        var publicSuffixLabelCount: Int?
+        for suffixLabelCount in 1...labels.count {
+            let suffix = labels.suffix(suffixLabelCount).joined(separator: ".")
+            if exceptionRules.contains(suffix) {
+                let exceptionSuffixLabels = suffixLabelCount - 1
+                guard labels.count > exceptionSuffixLabels else { return nil }
+                return labels.suffix(exceptionSuffixLabels + 1).joined(separator: ".")
+            }
+            if exactSuffixes.contains(suffix) {
+                publicSuffixLabelCount = max(publicSuffixLabelCount ?? 0, suffixLabelCount)
+            }
+            if labels.count > suffixLabelCount, wildcardSuffixes.contains(suffix) {
+                publicSuffixLabelCount = max(publicSuffixLabelCount ?? 0, suffixLabelCount + 1)
+            }
         }
-        return allowedRegistrableDomains
-            .filter { normalized == $0 || normalized.hasSuffix(".\($0)") }
-            .max { $0.count < $1.count }
+        guard let suffixLabels = publicSuffixLabelCount,
+              labels.count > suffixLabels else { return nil }
+        return labels.suffix(suffixLabels + 1).joined(separator: ".")
     }
 
     private static func normalizeRule(_ value: String) -> String {
@@ -128,14 +147,29 @@ struct DomainMatchRules: Equatable {
             .lowercased(with: Locale(identifier: "en_US_POSIX"))
     }
 
-    private static func isValidRule(_ value: String) -> Bool {
+    private static func isValidPublicSuffixRule(_ value: String) -> Bool {
         let normalized = normalizeRule(value)
+        let suffix = normalized.hasPrefix("*.") ? String(normalized.dropFirst(2)) : normalized
         return !normalized.isEmpty
             && normalized.count <= 255
+            && !suffix.isEmpty
+            && suffix.split(separator: ".").allSatisfy { isValidHostLabel(String($0)) }
+    }
+
+    private static func isValidExceptionRule(_ value: String) -> Bool {
+        let normalized = normalizeRule(value)
+        return normalized.count <= 255
             && normalized.split(separator: ".").count >= 2
-            && normalized.unicodeScalars.allSatisfy {
-                CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-.")
-                    .contains($0)
+            && normalized.split(separator: ".").allSatisfy { isValidHostLabel(String($0)) }
+    }
+
+    private static func isValidHostLabel(_ value: String) -> Bool {
+        !value.isEmpty
+            && value.count <= 63
+            && value.first != "-"
+            && value.last != "-"
+            && value.unicodeScalars.allSatisfy {
+                CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-").contains($0)
             }
     }
 }
@@ -187,7 +221,10 @@ struct MatchingEngine {
         case serviceIdentifier
         case preset
         case uriRule
+        case domainHost
         case domain
+        case browserName
+        case browserDescription
         case applicationName
         case applicationNameSimilarRelevant
         case applicationNameSimilarOther
@@ -200,7 +237,8 @@ struct MatchingEngine {
         var group: CandidateGroup {
             switch self {
             case .binding, .serviceIdentifier, .preset, .uriRule: .exact
-            case .domain, .applicationName, .applicationNameSimilarRelevant: .relevant
+            case .domainHost, .domain, .browserName, .browserDescription,
+                 .applicationName, .applicationNameSimilarRelevant: .relevant
             default: .other
             }
         }
@@ -211,7 +249,9 @@ struct MatchingEngine {
             case .serviceIdentifier: "service_identifier"
             case .preset: "app_preset"
             case .uriRule: "vault_uri_rule"
-            case .domain: "host_or_domain"
+            case .domainHost, .domain: "host_or_domain"
+            case .browserName: "browser_name"
+            case .browserDescription: "browser_description"
             case .applicationName: "application_name"
             case .applicationNameSimilarRelevant, .applicationNameSimilarOther:
                 "application_name_similar"
@@ -229,7 +269,10 @@ struct MatchingEngine {
             case .serviceIdentifier: 980_000
             case .preset: 960_000
             case .uriRule: 940_000
+            case .domainHost: 930_000
             case .domain: 920_000
+            case .browserName: 800_000
+            case .browserDescription: 780_000
             case .applicationName: 900_000
             case .applicationNameSimilarRelevant, .applicationNameSimilarOther: 650_000
             case .fuzzy: 640_000
@@ -241,12 +284,7 @@ struct MatchingEngine {
         }
 
         var requiresMismatchConfirmation: Bool {
-            switch self {
-            case .binding, .serviceIdentifier, .preset, .uriRule, .domain, .applicationName:
-                false
-            default:
-                true
-            }
+            false
         }
     }
 
@@ -276,10 +314,11 @@ struct MatchingEngine {
         history: [MatchingHistoryEntry]
     ) -> [RankedCandidate] {
         let normalizedBundleID = Self.normalizeText(context.bundleID)
-        let scopedBindings = bindings.filter {
+        let browserContext = Self.isBrowserContext(context)
+        let scopedBindings = browserContext ? [] : bindings.filter {
             $0.accountID == accountID && Self.normalizeText($0.bundleID) == normalizedBundleID
         }
-        let presetServices = presets
+        let presetServices = browserContext ? [] : presets
             .filter { Self.normalizeText($0.bundleID) == normalizedBundleID }
             .flatMap(\.services)
         let contextKey = Self.contextKey(context)
@@ -299,6 +338,7 @@ struct MatchingEngine {
                     context: context,
                     bindings: scopedBindings,
                     presetServices: presetServices,
+                    browserContext: browserContext,
                     hasHistory: matchingHistory != nil
                 ),
                 historyCount: matchingHistory?.successfulSelectionCount ?? 0,
@@ -342,6 +382,7 @@ struct MatchingEngine {
         context: NativeAutoFillContext,
         bindings: [UserAppBinding],
         presetServices: [String],
+        browserContext: Bool,
         hasHistory: Bool
     ) -> ScoredSignal {
         if bindings.contains(where: { $0.cipherID == login.cipherID }) {
@@ -362,10 +403,17 @@ struct MatchingEngine {
             return context.serviceIdentifiers.contains { uriRuleMatches(uri, service: $0) }
         }) { return ScoredSignal(.uriRule) }
         if login.uris.contains(where: { uri in
+            guard uri.matchType == .domain, let storedHost = Self.host(uri.uri) else { return false }
+            return context.serviceIdentifiers.contains { Self.host($0) == storedHost }
+        }) { return ScoredSignal(.domainHost) }
+        if login.uris.contains(where: { uri in
             guard uri.matchType == .domain else { return false }
             return context.serviceIdentifiers.contains { hostOrDomainMatches($0, uri.uri) }
         }) { return ScoredSignal(.domain) }
-        if let nameMatch = ApplicationNameSimilarity.compare(
+        if browserContext, let textSignal = browserTextSignal(for: login, context: context) {
+            return ScoredSignal(textSignal)
+        }
+        if !browserContext, let nameMatch = ApplicationNameSimilarity.compare(
             applicationName: context.appName,
             itemName: login.name
         ) {
@@ -383,8 +431,10 @@ struct MatchingEngine {
                 )
             }
         }
-        if Self.fuzzyMatches(login: login, context: context) { return ScoredSignal(.fuzzy) }
-        if hasHistory { return ScoredSignal(.history) }
+        if !browserContext, Self.fuzzyMatches(login: login, context: context) {
+            return ScoredSignal(.fuzzy)
+        }
+        if !browserContext, hasHistory { return ScoredSignal(.history) }
         if login.favorite { return ScoredSignal(.favorite) }
         if let lastUsedAt = login.lastUsedAt, lastUsedAt > 0 { return ScoredSignal(.recent) }
         return ScoredSignal(.other)
@@ -392,11 +442,41 @@ struct MatchingEngine {
 
     static func contextKey(_ context: NativeAutoFillContext) -> String {
         let bundle = normalizeText(context.bundleID)
+        if isBrowserContext(context),
+           let firstHost = context.serviceIdentifiers.compactMap(host).sorted().first {
+            return "service:\(firstHost)"
+        }
         if !bundle.isEmpty { return "app:\(bundle)" }
         if let firstHost = context.serviceIdentifiers.compactMap(host).sorted().first {
             return "service:\(firstHost)"
         }
         return "unknown"
+    }
+
+    private static let browserBundleIDs: Set<String> = [
+        "com.apple.Safari",
+        "com.apple.SafariTechnologyPreview",
+        "com.google.Chrome",
+        "com.google.Chrome.beta",
+        "com.google.Chrome.canary",
+        "com.microsoft.edgemac",
+        "com.microsoft.edgemac.Beta",
+        "com.microsoft.edgemac.Dev",
+        "com.microsoft.edgemac.Canary",
+        "com.brave.Browser",
+        "com.brave.Browser.beta",
+        "com.brave.Browser.nightly",
+        "company.thebrowser.Browser",
+        "org.chromium.Chromium",
+        "com.vivaldi.Vivaldi",
+        "com.operasoftware.Opera",
+        "com.operasoftware.OperaGX",
+    ].reduce(into: Set<String>()) { result, bundleID in
+        result.insert(normalizeText(bundleID))
+    }
+
+    private static func isBrowserContext(_ context: NativeAutoFillContext) -> Bool {
+        browserBundleIDs.contains(normalizeText(context.bundleID))
     }
 
     func authorizationContextDigest(_ context: NativeAutoFillContext) -> Data {
@@ -435,14 +515,15 @@ struct MatchingEngine {
             Self.append(UInt64(services.count), to: &digest)
             services.forEach { Self.append($0, to: &digest) }
         }
-        Self.append(UInt64(domainRules.allowedRegistrableDomains.count), to: &digest)
-        domainRules.allowedRegistrableDomains.sorted().forEach { Self.append($0, to: &digest) }
-        Self.append(UInt64(domainRules.privateSuffixes.count), to: &digest)
-        domainRules.privateSuffixes.sorted().forEach { Self.append($0, to: &digest) }
+        Self.append(UInt64(domainRules.publicSuffixRules.count), to: &digest)
+        domainRules.publicSuffixRules.sorted().forEach { Self.append($0, to: &digest) }
+        Self.append(UInt64(domainRules.exceptionRules.count), to: &digest)
+        domainRules.exceptionRules.sorted().forEach { Self.append($0, to: &digest) }
         Self.append(UInt64(projection.logins.count), to: &digest)
         for login in projection.logins.sorted(by: { $0.cipherID < $1.cipherID }) {
             Self.append(login.cipherID, to: &digest)
             Self.append(login.name, to: &digest)
+            Self.append(login.notes ?? "", to: &digest)
             Self.append(login.username, to: &digest)
             // These values never leave the Agent; hashing them makes an already-issued
             // authorization stale if the encrypted projection changes a requested secret.
@@ -510,7 +591,8 @@ struct MatchingEngine {
 
     private static func queryMatches(_ query: String, login: AutoFillLogin) -> Bool {
         let searchable = normalizeText(
-            ([login.name, login.username] + login.uris.filter(isContextMatchable).map(\.uri))
+            ([login.name, login.notes ?? "", login.username]
+                + login.uris.filter(isContextMatchable).map(\.uri))
                 .joined(separator: " ")
         )
         let queryTokens = tokens(query)
@@ -523,6 +605,50 @@ struct MatchingEngine {
         guard let leftDomain = domainRules.registrableDomain(for: leftHost),
               let rightDomain = domainRules.registrableDomain(for: rightHost) else { return false }
         return leftDomain == rightDomain
+    }
+
+    private func browserTextSignal(
+        for login: AutoFillLogin,
+        context: NativeAutoFillContext
+    ) -> Signal? {
+        let brands = context.serviceIdentifiers.compactMap { service -> String? in
+            guard let contextHost = Self.host(service),
+                  let registrable = domainRules.registrableDomain(for: contextHost),
+                  let brand = registrable.split(separator: ".").first.map(String.init),
+                  Self.isMeaningfulBrowserBrand(brand) else { return nil }
+            return brand
+        }
+        guard !brands.isEmpty else { return nil }
+
+        let nameTokens = Set(Self.tokens(login.name))
+        if brands.contains(where: nameTokens.contains) {
+            return .browserName
+        }
+        if brands.contains(where: { brand in
+            ApplicationNameSimilarity.compare(
+                applicationName: brand,
+                itemName: login.name
+            )?.isHighConfidence == true
+        }) {
+            return .browserName
+        }
+
+        let descriptionTokens = Set(Self.tokens(login.notes ?? ""))
+        if brands.contains(where: descriptionTokens.contains) {
+            return .browserDescription
+        }
+        return nil
+    }
+
+    private static let genericBrowserBrands: Set<String> = [
+        "account", "accounts", "admin", "app", "auth", "cloud", "home", "login",
+        "online", "portal", "secure", "service", "services", "web", "www",
+    ]
+
+    private static func isMeaningfulBrowserBrand(_ value: String) -> Bool {
+        value.count >= 4
+            && !value.hasPrefix("xn--")
+            && !genericBrowserBrands.contains(value)
     }
 
     private static func fuzzyMatches(login: AutoFillLogin, context: NativeAutoFillContext) -> Bool {

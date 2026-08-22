@@ -52,17 +52,27 @@ impl PopupEntrySource {
     }
 }
 
-fn popup_render_recovery_script(reset: bool, entry_source: PopupEntrySource) -> String {
+fn popup_render_recovery_script(
+    reset: bool,
+    entry_source: PopupEntrySource,
+    suggestion_revision: u64,
+) -> String {
     let entry_source = entry_source.as_str();
     format!(
         r#"
 (() => {{
-  const detail = {{ reset: {reset}, entrySource: "{entry_source}" }};
+  const detail = {{ reset: {reset}, entrySource: "{entry_source}", suggestionRevision: "{suggestion_revision}" }};
   window.dispatchEvent(new CustomEvent("barwarden:popup-entry", {{ detail }}));
   const restore = () => window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {{ detail }}));
   requestAnimationFrame(() => requestAnimationFrame(restore));
 }})();
 "#,
+    )
+}
+
+fn suggestion_context_changed_script(suggestion_revision: u64) -> String {
+    format!(
+        r#"window.dispatchEvent(new CustomEvent("barwarden:suggestion-context-changed", {{ detail: {{ suggestionRevision: "{suggestion_revision}" }} }}));"#,
     )
 }
 
@@ -321,6 +331,21 @@ pub fn show_popup_window(
     show_popup_window_for_entry(app, event_tray_rect, PopupEntrySource::Vault)
 }
 
+/// Keeps the hidden or visible vault WebView aligned with the native suggestion monitor.
+pub(crate) fn refresh_popup_suggestions(app: &tauri::AppHandle, revision: u64) {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        return;
+    };
+
+    if let Ok(Some(target)) = frontmost::current_frontmost_app() {
+        if target.bundle_id != frontmost::APP_BUNDLE_ID {
+            frontmost::replace_target_app(target);
+        }
+    }
+
+    let _ = window.eval(suggestion_context_changed_script(revision));
+}
+
 pub fn show_autofill_picker_window(
     app: &tauri::AppHandle,
     source: PopupEntrySource,
@@ -449,9 +474,16 @@ fn present_popup_window(
         let _ = window.set_always_on_top(false);
     }
     let reset_required = app.state::<PopupPresentationState>().take_reset_required();
+    let suggestion_revision = app
+        .state::<crate::suggestion_count::SuggestionCountMonitor>()
+        .current_revision();
     // A repaint failure must not prevent users from opening the popup; the
     // frontend treats this event as a best-effort compositor recovery.
-    let _ = window.eval(popup_render_recovery_script(reset_required, entry_source));
+    let _ = window.eval(popup_render_recovery_script(
+        reset_required,
+        entry_source,
+        suggestion_revision,
+    ));
     Ok(())
 }
 
@@ -1101,10 +1133,10 @@ mod tests {
         popout_url, popup_lifecycle_action, popup_origin, popup_position_for_monitor,
         popup_render_recovery_script, popup_size_and_position, popup_target_height,
         popup_toggle_action, safe_existing_popup_position, sanitize_route,
-        should_hide_after_popup_blur, AutoFillPopupShowStrategy, MonitorGeometry,
-        PopoutDockVisibilityAction, PopupEntrySource, PopupLifecycleAction, PopupLifecycleEvent,
-        PopupPresentationState, PopupToggleAction, PopupVisibilityHold, POPOUT_HEIGHT,
-        POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH, POPOUT_WIDTH, POPUP_WINDOW_ERROR,
+        should_hide_after_popup_blur, suggestion_context_changed_script, AutoFillPopupShowStrategy,
+        MonitorGeometry, PopoutDockVisibilityAction, PopupEntrySource, PopupLifecycleAction,
+        PopupLifecycleEvent, PopupPresentationState, PopupToggleAction, PopupVisibilityHold,
+        POPOUT_HEIGHT, POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH, POPOUT_WIDTH, POPUP_WINDOW_ERROR,
     };
     use tauri::{LogicalPosition, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Url};
 
@@ -1593,12 +1625,13 @@ mod tests {
 
     #[test]
     fn popup_show_reports_reset_intent_after_two_render_recovery_frames() {
-        let script = popup_render_recovery_script(true, PopupEntrySource::Vault);
+        let script = popup_render_recovery_script(true, PopupEntrySource::Vault, 42);
 
         assert!(script.contains("barwarden:popup-entry"));
         assert!(script.contains("barwarden:popup-shown"));
         assert!(script.contains("reset: true"));
         assert!(script.contains("entrySource: \"vault\""));
+        assert!(script.contains("suggestionRevision: \"42\""));
         assert_eq!(script.matches("requestAnimationFrame").count(), 2);
         assert!(
             script.find("barwarden:popup-entry").unwrap()
@@ -1609,13 +1642,21 @@ mod tests {
 
     #[test]
     fn autofill_entry_reports_the_exact_menu_or_shortcut_source() {
-        let menu = popup_render_recovery_script(false, PopupEntrySource::AutoFillMenu);
-        let shortcut = popup_render_recovery_script(false, PopupEntrySource::AutoFillShortcut);
+        let menu = popup_render_recovery_script(false, PopupEntrySource::AutoFillMenu, 7);
+        let shortcut = popup_render_recovery_script(false, PopupEntrySource::AutoFillShortcut, 7);
 
         assert!(menu.contains("entrySource: \"autofill-menu\""));
         assert!(shortcut.contains("entrySource: \"autofill-shortcut\""));
-        let floating = popup_render_recovery_script(false, PopupEntrySource::AutoFillFloating);
+        let floating = popup_render_recovery_script(false, PopupEntrySource::AutoFillFloating, 7);
         assert!(floating.contains("entrySource: \"autofill-floating\""));
+    }
+
+    #[test]
+    fn background_suggestion_event_carries_the_revision_as_a_decimal_string() {
+        let script = suggestion_context_changed_script(18_446_744_073_709_551_615);
+
+        assert!(script.contains("barwarden:suggestion-context-changed"));
+        assert!(script.contains("suggestionRevision: \"18446744073709551615\""));
     }
 
     #[test]

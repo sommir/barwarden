@@ -22,7 +22,11 @@
       "minimumMacOS": "13.0",
       "appGroups": ["K7LY92JY96.com.sommir.barwarden.autofill"],
       "keychainGroups": [],
-      "entitlementKeys": ["com.apple.security.application-groups"],
+      "entitlementKeys": [
+        "com.apple.security.application-groups",
+        "com.apple.security.automation.apple-events"
+      ],
+      "browserAutomation": true,
       "credentialProvider": false,
       "appSandbox": false,
       "profileApplicationIdentifierKey": null,
@@ -51,6 +55,7 @@
         "com.apple.security.application-groups"
       ],
       "credentialProvider": true,
+      "browserAutomation": false,
       "appSandbox": true,
       "profileApplicationIdentifierKey": "com.apple.application-identifier",
       "applicationIdentifier": "K7LY92JY96.com.sommir.barwarden.credential-provider",
@@ -78,6 +83,7 @@
       "keychainGroups": [],
       "entitlementKeys": ["com.apple.security.application-groups"],
       "credentialProvider": false,
+      "browserAutomation": false,
       "appSandbox": false,
       "profileApplicationIdentifierKey": null,
       "applicationIdentifier": null,

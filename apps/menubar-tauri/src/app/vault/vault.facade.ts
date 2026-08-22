@@ -10,7 +10,6 @@ import {
   translateOfficialMessage,
   type OfficialLocale,
 } from "../official-ui/official-i18n.service";
-import { rankWebsiteSuggestions } from "./website-suggestion-matcher";
 
 export interface VaultSectionView {
   readonly id: "autofill-suggestions" | "favorites" | "all-items" | "search-results";
@@ -43,13 +42,6 @@ export class VaultFacade {
     readonly type: VaultItemType | "";
     readonly locale: OfficialLocale;
     readonly result: readonly VaultSectionView[];
-  };
-  private websiteSuggestionCache?: {
-    readonly matchingItems: readonly VaultItem[];
-    readonly query: string;
-    readonly url: string | null;
-    readonly locale: OfficialLocale;
-    readonly result: VaultSectionView | null;
   };
   private hierarchyCache?: {
     readonly items: readonly VaultItem[];
@@ -212,46 +204,6 @@ export class VaultFacade {
       result,
     };
 
-    return result;
-  }
-
-  websiteSuggestionSection(url: string | null): VaultSectionView | null {
-    const matchingItems = this.filteredItems();
-    const query = this.query();
-    const locale = activeOfficialLocale();
-    const cached = this.websiteSuggestionCache;
-    if (
-      cached?.matchingItems === matchingItems &&
-      cached.query === query &&
-      cached.url === url &&
-      cached.locale === locale
-    ) {
-      return cached.result;
-    }
-
-    let result: VaultSectionView | null = null;
-    if (url !== null && query.trim().length === 0) {
-      const items = rankWebsiteSuggestions(matchingItems, url);
-      if (items.length > 0) {
-        result = {
-          id: "autofill-suggestions",
-          title: translateOfficialMessage("autofillSuggestions"),
-          description: "",
-          items,
-          count: items.length,
-          showFill: false,
-          collapsible: true,
-          forcedOpen: false,
-        };
-      }
-    }
-    this.websiteSuggestionCache = {
-      matchingItems,
-      query,
-      url,
-      locale,
-      result,
-    };
     return result;
   }
 

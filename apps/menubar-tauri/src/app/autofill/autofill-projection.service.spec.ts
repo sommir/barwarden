@@ -22,12 +22,12 @@ const session = {
 } satisfies AuthSession;
 
 describe("AutoFillProjectionService", () => {
-  it("projects only necessary fields from active Login records after unlocked fresh sync", async () => {
+  it("projects only matching-safe Login fields from active records after unlocked fresh sync", async () => {
     const fixture = createFixture();
     const login = {
       ...demoVaultItems[0],
       opaqueServerPayload: { forbidden: "MASTER-PASSWORD-PIN-DEVICE-KEY" },
-      notes: "SECURE-NOTES-MUST-NOT-LEAVE-ANGULAR",
+      notes: "Tencent production account",
       fields: [
         ...demoVaultItems[0].fields,
         { id: "custom-secret", label: "Master password", value: "MASTER-PASSWORD-MUST-NOT-LEAVE" },
@@ -46,6 +46,7 @@ describe("AutoFillProjectionService", () => {
       logins: [{
         cipherId: "github",
         name: "GitHub",
+        notes: "Tencent production account",
         username: "ops@example.com",
         password: "correct-horse-demo",
         uris: [
@@ -64,7 +65,6 @@ describe("AutoFillProjectionService", () => {
       "ACCESS-TOKEN-MUST-NOT-LEAVE-ANGULAR",
       "REFRESH-TOKEN-MUST-NOT-LEAVE-ANGULAR",
       "DEVICE-OR-USER-KEY-MUST-NOT-LEAVE-ANGULAR",
-      "SECURE-NOTES-MUST-NOT-LEAVE-ANGULAR",
       "MASTER-PASSWORD-MUST-NOT-LEAVE",
       "4111111111111111",
       "Deploy key",

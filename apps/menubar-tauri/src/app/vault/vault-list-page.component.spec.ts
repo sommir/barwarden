@@ -306,7 +306,18 @@ describe("VaultListPageComponent", () => {
       expect(addStyle.height).toBe(accountStyle.height);
       expect(addStyle.width).toBe("44px");
       expect(addStyle.borderRadius).toBe("999px");
-      expect(getComputedStyle(header).borderBottomWidth).toBe("1px");
+      expect(addStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      const addPaintLayer = addButton.querySelector<HTMLElement>(":scope > span > span")!;
+      const addPaint = getComputedStyle(addPaintLayer);
+      expect(addPaint.width).toBe("32px");
+      expect(addPaint.height).toBe("32px");
+      expect(addPaint.borderRadius).toBe("999px");
+      const headerDivider = host.querySelector<HTMLElement>(
+        'popup-page.macos-page--vault-list > popup-header > [data-testid="popup-header-divider"]',
+      )!;
+      expect(headerDivider).not.toBeNull();
+      expect(getComputedStyle(header).borderBottomWidth).toBe("0px");
+      expect(getComputedStyle(headerDivider).height).toBe("1px");
       expect(getComputedStyle(secondRootGroup).borderTopWidth).toBe("1px");
 
       fixture.destroy();
@@ -344,7 +355,7 @@ describe("VaultListPageComponent", () => {
     expect(host.querySelector("bw-vault-contextual-section-outlet")).not.toBeNull();
   });
 
-  it("reuses the existing vault section and rows for current website suggestions", async () => {
+  it("does not render a second vault-list suggestion section for the current website", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
     store.setItems(demoVaultItems, demoFolders);
@@ -370,22 +381,10 @@ describe("VaultListPageComponent", () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
 
-    expect(website.refresh).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("自动填充建议");
-    const suggestions = host.querySelector("app-vault-list-items-container");
-    const hierarchy = host.querySelector("bw-vault-hierarchy");
-    expect(suggestions).not.toBeNull();
-    expect(suggestions?.compareDocumentPosition(hierarchy!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-    window.dispatchEvent(new Event("barwarden:popup-shown"));
-    expect(website.refresh).toHaveBeenCalledTimes(2);
-
-    fixture.componentInstance.setSearch("git");
-    fixture.detectChanges();
+    expect(host.querySelector("[data-testid='autofill-suggestions']")).toBeNull();
     expect(host.textContent).not.toContain("自动填充建议");
 
     fixture.destroy();
-    expect(website.clear).toHaveBeenCalledOnce();
   });
 
   it("keeps the title-bar add control available when the unlocked vault is empty", async () => {

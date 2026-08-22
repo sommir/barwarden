@@ -59,6 +59,7 @@ assert_rejected "$(mutate missing_group 'fixture.inventory[0].appGroups = [];')"
 assert_rejected "$(mutate unexpected_group 'fixture.inventory[1].appGroups.push("group.com.example.shared");')" NATIVE_AUTOFILL_APP_GROUP_UNEXPECTED
 assert_rejected "$(mutate keychain_group 'fixture.inventory[2].keychainGroups = ["K7LY92JY96.shared"];')" NATIVE_AUTOFILL_KEYCHAIN_GROUP_FORBIDDEN
 assert_rejected "$(mutate extra_entitlement 'fixture.inventory[0].entitlementKeys.push("com.apple.security.network.client");')" NATIVE_AUTOFILL_ENTITLEMENT_INVENTORY_INVALID
+assert_rejected "$(mutate browser_automation 'fixture.inventory[0].browserAutomation = false;')" NATIVE_AUTOFILL_ENTITLEMENT_INVENTORY_INVALID
 assert_rejected "$(mutate unsigned 'fixture.inventory[2].signatureKind = "unsigned"; fixture.inventory[2].signatureValid = false;')" NATIVE_AUTOFILL_INNER_UNSIGNED
 assert_rejected "$(mutate sign_order 'fixture.insideOutSigning = false;')" NATIVE_AUTOFILL_SIGN_ORDER_INVALID
 assert_rejected "$(mutate deep_sign 'fixture.signingUsedDeep = true;')" NATIVE_AUTOFILL_SIGN_DEEP_FORBIDDEN

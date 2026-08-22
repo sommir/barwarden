@@ -244,6 +244,22 @@ fn select_kind(
         );
     }
 
+    // Login pages commonly describe a single identity field as “username or email” (and often
+    // phone as well). Username and email both bind to the same vault secret, so an equal score
+    // between only those two kinds is not an unsafe ambiguity. Collapse it to Username while
+    // keeping password/OTP ties fail-closed.
+    if scores[USERNAME] > 0 && scores[USERNAME] == scores[EMAIL] {
+        let competing_score = scores[PASSWORD].max(scores[ONE_TIME_CODE]);
+        if scores[USERNAME] > competing_score {
+            let score = scores[USERNAME];
+            return (
+                DetectedFieldKind::Username,
+                score,
+                confidence_for(score, score - competing_score),
+            );
+        }
+    }
+
     let mut ranked = scores
         .into_iter()
         .enumerate()
@@ -259,14 +275,18 @@ fn select_kind(
         return (DetectedFieldKind::Unknown, top_score, FieldConfidence::Low);
     }
     let margin = top_score - second_score;
-    let confidence = if top_score >= HIGH_SCORE && margin >= HIGH_MARGIN {
+    let confidence = confidence_for(top_score, margin);
+    (kind_for_index(top_kind), top_score, confidence)
+}
+
+fn confidence_for(score: u16, margin: u16) -> FieldConfidence {
+    if score >= HIGH_SCORE && margin >= HIGH_MARGIN {
         FieldConfidence::High
-    } else if top_score >= MEDIUM_SCORE && margin >= MEDIUM_MARGIN {
+    } else if score >= MEDIUM_SCORE && margin >= MEDIUM_MARGIN {
         FieldConfidence::Medium
     } else {
         FieldConfidence::Low
-    };
-    (kind_for_index(top_kind), top_score, confidence)
+    }
 }
 
 fn safe_form_action(group: &[&DetectedField]) -> Option<DetectedAction> {
@@ -456,6 +476,16 @@ fn classify_text(text: &str) -> [bool; KIND_COUNT] {
                 "使用者名称",
                 "帳號",
                 "账号",
+                "phone",
+                "phone number",
+                "mobile",
+                "mobile number",
+                "手机号",
+                "手机号码",
+                "電話號",
+                "電話號碼",
+                "手機號",
+                "手機號碼",
             ],
         ),
         matches_phrase(
@@ -806,6 +836,45 @@ mod tests {
                 DetectedFieldKind::OneTimeCode,
             ]
         );
+    }
+
+    #[test]
+    fn recognizes_combined_login_identifiers_as_one_username_secret() {
+        let observations = [
+            field("AXTextField")
+                .placeholder("手机号/用户名/邮箱")
+                .focused()
+                .container(2)
+                .build(),
+            field("AXSecureTextField")
+                .placeholder("密码")
+                .container(3)
+                .build(),
+        ];
+        let detected = classify_fields(&observations);
+
+        assert_eq!(detected[0].kind, DetectedFieldKind::Username);
+        assert_eq!(
+            detected[0].secret_field,
+            Some(AutoFillSecretField::Username)
+        );
+        assert_ne!(detected[0].confidence, FieldConfidence::Low);
+        assert_eq!(detect_action(&detected), DetectedAction::Choose);
+    }
+
+    #[test]
+    fn recognizes_phone_only_login_identifiers_in_supported_languages() {
+        let detected = classify_fields(&[
+            field("AXTextField").placeholder("Phone number").build(),
+            field("AXTextField").placeholder("手机号").build(),
+            field("AXTextField").placeholder("手機號碼").build(),
+        ]);
+
+        assert!(detected.iter().all(|field| {
+            field.kind == DetectedFieldKind::Username
+                && field.secret_field == Some(AutoFillSecretField::Username)
+                && field.confidence != FieldConfidence::Low
+        }));
     }
 
     #[test]

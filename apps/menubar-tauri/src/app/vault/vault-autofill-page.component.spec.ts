@@ -63,6 +63,7 @@ describe("vault AutoFill composition", () => {
         status: "ready" as const,
         epoch: 1,
         application: { bundleId: "com.example.Terminal", appName: "Terminal" },
+        serviceIdentifiers: ["https://github.com/login"],
         context: {
           bundleId: "com.example.Terminal",
           appName: "Terminal",
@@ -104,6 +105,8 @@ describe("vault AutoFill composition", () => {
     const hierarchy = host.querySelector("bw-vault-hierarchy");
 
     expect(suggestions).not.toBeNull();
+    expect(host.querySelectorAll("[data-testid='vault-autofill-suggestions']")).toHaveLength(1);
+    expect(host.querySelector("[data-testid='autofill-suggestions']")).toBeNull();
     expect(suggestions?.compareDocumentPosition(hierarchy!) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(host.textContent).toContain("自动填充建议");
     expect(host.textContent).toContain("收藏夹");

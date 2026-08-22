@@ -43,7 +43,13 @@ function exactStringArray(value, expected) {
 }
 
 const EXPECTED_ENTITLEMENT_KEYS = new Map([
-  ["app", ["com.apple.security.application-groups"]],
+  [
+    "app",
+    [
+      "com.apple.security.application-groups",
+      "com.apple.security.automation.apple-events",
+    ],
+  ],
   [
     "credential-provider",
     [
@@ -159,6 +165,12 @@ export function verifyNativeAutoFillInspection(inspection) {
   const app = byRole.get("app");
   const provider = byRole.get("credential-provider");
   const agent = byRole.get("agent");
+  if (app.browserAutomation !== true) {
+    reject("NATIVE_AUTOFILL_ENTITLEMENT_INVENTORY_INVALID");
+  }
+  if (provider.browserAutomation !== false || agent.browserAutomation !== false) {
+    reject("NATIVE_AUTOFILL_ENTITLEMENT_INVENTORY_INVALID");
+  }
   if (provider.credentialProvider !== true) {
     reject("NATIVE_AUTOFILL_PROVIDER_ENTITLEMENT_INVALID");
   }

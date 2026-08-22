@@ -435,9 +435,15 @@ pub async fn session_broker_mutate(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
     broker: tauri::State<'_, SessionBroker>,
+    suggestion_monitor: tauri::State<'_, crate::suggestion_count::SuggestionCountMonitor>,
     mutation: SessionBrokerMutation,
 ) -> Result<SessionBrokerSnapshot, BrokerFailure> {
     let snapshot = broker.mutate(window.label(), mutation)?;
+    if crate::suggestion_count::lifecycle_decision(snapshot.authorization, false)
+        == crate::suggestion_count::LifecycleDecision::Clear
+    {
+        suggestion_monitor.clear();
+    }
     app.emit(SESSION_BROKER_EVENT, SessionBrokerEvent::from(&snapshot))
         .map_err(|_| failure(BrokerFailureCode::Unavailable))?;
     Ok(snapshot)

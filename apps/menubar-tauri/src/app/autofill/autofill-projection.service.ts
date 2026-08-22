@@ -286,6 +286,7 @@ function projectLogin(item: VaultItem, lastUsedAt?: number): AutoFillProjectionL
   return [{
     cipherId: item.id,
     name: item.name,
+    notes: item.notes.slice(0, 4_096),
     username: value("username"),
     password: value("password"),
     uris: item.uris.flatMap(({ uri, matchType }) => {

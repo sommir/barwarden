@@ -68,6 +68,28 @@ struct CandidateCommandCandidate {
     requires_mismatch_confirmation: bool,
 }
 
+fn validate_suggestion_candidate_payload(
+    payload: CandidateResponsePayload,
+) -> Result<CandidateResponsePayload, AgentErrorCode> {
+    let context_token = payload.context_token.clone();
+    let validated = validate_candidate_payload(payload)?;
+    Ok(CandidateResponsePayload {
+        context_token,
+        candidates: validated
+            .candidates
+            .into_iter()
+            .map(|candidate| crate::autofill_contract::RankedCandidate {
+                cipher_id: candidate.cipher_id,
+                display_name: candidate.display_name,
+                username: candidate.username,
+                group: candidate.group,
+                reason: candidate.reason,
+                requires_mismatch_confirmation: candidate.requires_mismatch_confirmation,
+            })
+            .collect(),
+    })
+}
+
 #[derive(Debug, Serialize)]
 #[serde(tag = "status", rename_all = "kebab-case")]
 pub enum CandidateCommandOutcome {
@@ -189,6 +211,19 @@ impl AgentClient {
 impl AgentRequestPort for AgentClient {
     fn perform_request(&self, request: AgentRequest) -> Result<AgentResponse, AgentErrorCode> {
         AgentClient::perform_request(self, request)
+    }
+}
+
+impl crate::suggestion_count::SuggestionAgentPort for AgentClient {
+    fn session(&self) -> Result<AgentSessionPayload, AgentErrorCode> {
+        perform_session(self)
+    }
+
+    fn candidates(
+        &self,
+        payload: CandidateQueryPayload,
+    ) -> Result<CandidateResponsePayload, AgentErrorCode> {
+        perform_candidate_payload(self, payload)
     }
 }
 
@@ -398,23 +433,7 @@ fn decode_session_response(
 fn validate_candidate_request(
     request: CandidateCommandRequest,
 ) -> Result<CandidateQueryPayload, AgentErrorCode> {
-    if request.account_id.trim().is_empty()
-        || request.account_id.len() > 512
-        || uuid::Uuid::parse_str(&request.lock_generation).is_err()
-        || request.context.bundle_id.is_empty()
-        || request.context.bundle_id.len() > 255
-        || request.context.app_name.len() > 255
-        || request.context.service_identifiers.len() > 32
-        || request
-            .context
-            .service_identifiers
-            .iter()
-            .any(|value| value.len() > 2_048)
-        || request.context.query.len() > 512
-    {
-        return Err(AgentErrorCode::MalformedRequest);
-    }
-    Ok(CandidateQueryPayload {
+    let payload = CandidateQueryPayload {
         generation: request.lock_generation,
         account_id: request.account_id,
         field: request.field,
@@ -424,7 +443,29 @@ fn validate_candidate_request(
             service_identifiers: request.context.service_identifiers,
             query: request.context.query,
         },
-    })
+    };
+    validate_candidate_query_payload(&payload)?;
+    Ok(payload)
+}
+
+fn validate_candidate_query_payload(payload: &CandidateQueryPayload) -> Result<(), AgentErrorCode> {
+    if payload.account_id.trim().is_empty()
+        || payload.account_id.len() > 512
+        || uuid::Uuid::parse_str(&payload.generation).is_err()
+        || payload.context.bundle_id.is_empty()
+        || payload.context.bundle_id.len() > 255
+        || payload.context.app_name.len() > 255
+        || payload.context.service_identifiers.len() > 32
+        || payload
+            .context
+            .service_identifiers
+            .iter()
+            .any(|value| value.len() > 2_048)
+        || payload.context.query.len() > 512
+    {
+        return Err(AgentErrorCode::MalformedRequest);
+    }
+    Ok(())
 }
 
 fn validate_secret_request(request: &SecretCommandRequest) -> Result<(), AgentErrorCode> {
@@ -452,6 +493,25 @@ fn perform_candidates(
 ) -> Result<CandidateCommandResponse, AgentErrorCode> {
     let payload = validate_candidate_request(request)?;
     decode_candidate_response(client.perform_request(AgentRequest::candidate_query(payload))?)
+}
+
+fn perform_candidate_payload(
+    client: &AgentClient,
+    payload: CandidateQueryPayload,
+) -> Result<CandidateResponsePayload, AgentErrorCode> {
+    validate_candidate_query_payload(&payload)?;
+    let mut response = client.perform_request(AgentRequest::candidate_query(payload))?;
+    if response.session.is_some()
+        || response.secret_response.is_some()
+        || response.reprompt_grant.is_some()
+    {
+        return Err(AgentErrorCode::MalformedRequest);
+    }
+    let payload = response
+        .candidate_response
+        .take()
+        .ok_or(AgentErrorCode::MalformedRequest)?;
+    validate_suggestion_candidate_payload(payload)
 }
 
 fn perform_session(client: &AgentClient) -> Result<AgentSessionPayload, AgentErrorCode> {
@@ -619,8 +679,10 @@ pub fn autofill_release_secret(
 #[tauri::command]
 pub fn autofill_agent_lock(
     receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
+    suggestion_monitor: tauri::State<'_, crate::suggestion_count::SuggestionCountMonitor>,
 ) -> AgentCommandOutcome {
     receipts.clear();
+    suggestion_monitor.clear();
     perform_command(AgentOperation::Lock)
 }
 
@@ -637,6 +699,61 @@ mod tests {
     use std::sync::Mutex;
     use std::thread;
     use std::time::Duration;
+
+    #[test]
+    fn suggestion_count_port_uses_the_strict_session_and_candidate_decoders() {
+        fn assert_port<T: crate::suggestion_count::SuggestionAgentPort>() {}
+
+        assert_port::<AgentClient>();
+    }
+
+    #[test]
+    fn suggestion_count_candidate_payload_reuses_picker_bounds() {
+        let oversized = CandidateResponsePayload {
+            context_token: "x".repeat(513),
+            candidates: Vec::new(),
+        };
+        assert_eq!(
+            validate_suggestion_candidate_payload(oversized),
+            Err(AgentErrorCode::MalformedRequest),
+        );
+
+        let invalid_candidate = CandidateResponsePayload {
+            context_token: "token".to_owned(),
+            candidates: vec![crate::autofill_contract::RankedCandidate {
+                cipher_id: String::new(),
+                display_name: "Item".to_owned(),
+                username: String::new(),
+                group: CandidateGroup::Exact,
+                reason: "uri_exact".to_owned(),
+                requires_mismatch_confirmation: false,
+            }],
+        };
+        assert_eq!(
+            validate_suggestion_candidate_payload(invalid_candidate),
+            Err(AgentErrorCode::MalformedRequest),
+        );
+    }
+
+    #[test]
+    fn suggestion_count_query_reuses_picker_context_bounds() {
+        let oversized_url = CandidateQueryPayload {
+            generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            account_id: "account-a".to_owned(),
+            field: AutoFillSecretField::Username,
+            context: NativeAutoFillContext {
+                bundle_id: "com.google.Chrome".to_owned(),
+                app_name: "Google Chrome".to_owned(),
+                service_identifiers: vec![format!("https://example.com/{}", "x".repeat(2_049))],
+                query: String::new(),
+            },
+        };
+
+        assert_eq!(
+            validate_candidate_query_payload(&oversized_url),
+            Err(AgentErrorCode::MalformedRequest),
+        );
+    }
 
     #[derive(Default)]
     struct RecordingAgentPort {
@@ -794,7 +911,7 @@ mod tests {
                 let mut stream = stream.unwrap();
                 let request: AgentRequest = read_json_frame(&mut stream);
                 let response = AgentResponse {
-                    version: 1,
+                    version: AGENT_PROTOCOL_VERSION,
                     request_id: Some(request.request_id.clone()),
                     nonce: request.nonce.clone(),
                     status: AgentResponseStatus::Ok,
@@ -832,7 +949,7 @@ mod tests {
             let (mut stream, _) = listener.accept().unwrap();
             let request: AgentRequest = read_json_frame(&mut stream);
             let response = AgentResponse {
-                version: 1,
+                version: AGENT_PROTOCOL_VERSION,
                 request_id: Some("00000000-0000-4000-8000-000000000001".to_owned()),
                 nonce: request.nonce.clone(),
                 status: AgentResponseStatus::Ok,

@@ -156,7 +156,7 @@ final class PeerIdentityVerifierTests: XCTestCase {
     func testProtocolVersionMismatchIsRejected() {
         let gate = AgentRequestGate()
         let request = AgentRequest(
-            version: 2,
+            version: AgentProtocol.currentVersion - 1,
             requestID: UUID(),
             operation: .probe,
             nonce: Data([1, 2, 3])
@@ -170,7 +170,7 @@ final class PeerIdentityVerifierTests: XCTestCase {
     func testRequestIDReplayIsRejected() throws {
         let gate = AgentRequestGate()
         let request = AgentRequest(
-            version: 1,
+            version: AgentProtocol.currentVersion,
             requestID: UUID(),
             operation: .probe,
             nonce: Data([1, 2, 3])

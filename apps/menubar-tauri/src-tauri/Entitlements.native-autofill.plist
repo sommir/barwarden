@@ -6,5 +6,7 @@
   <array>
     <string>K7LY92JY96.com.sommir.barwarden.autofill</string>
   </array>
+  <key>com.apple.security.automation.apple-events</key>
+  <true/>
 </dict>
 </plist>

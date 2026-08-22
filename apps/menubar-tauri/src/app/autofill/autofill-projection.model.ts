@@ -6,6 +6,7 @@ export interface AutoFillProjectionUri {
 export interface AutoFillProjectionLogin {
   readonly cipherId: string;
   readonly name: string;
+  readonly notes: string;
   readonly username: string;
   readonly password: string;
   readonly uris: readonly AutoFillProjectionUri[];

@@ -22,6 +22,12 @@ pub struct FrontmostApp {
     captured_at: Instant,
 }
 
+impl FrontmostApp {
+    pub(crate) fn app_name(&self) -> &str {
+        &self.app_name
+    }
+}
+
 #[derive(Clone, Debug)]
 enum ApplicationInstance {
     #[cfg(target_os = "macos")]

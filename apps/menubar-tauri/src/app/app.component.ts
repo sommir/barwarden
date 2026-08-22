@@ -81,6 +81,18 @@ const STARTUP_DESTINATION: Record<AuthStartupResult, string> = {
   unlocked: "/tabs/vault",
 };
 
+const MAX_SUGGESTION_REVISION = 18_446_744_073_709_551_615n;
+
+function decodeSuggestionRevision(value: unknown): bigint | null {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value)) return null;
+  try {
+    const revision = BigInt(value);
+    return revision <= MAX_SUGGESTION_REVISION ? revision : null;
+  } catch {
+    return null;
+  }
+}
+
 interface PopupLifecycleHost {
   hidePopup(): Promise<void>;
 }
@@ -189,6 +201,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private applyingProcessSnapshot = false;
   private lastProcessProjection: string | null = null;
   private lastProcessProjectionState: PopupState | null = null;
+  private pendingSuggestionRevision = 0n;
+  private consumedSuggestionRevision = 0n;
+  private suggestionRefreshRunning = false;
+  private suggestionInitialRefreshPending = false;
+  private suggestionContextInitialized = false;
   protected readonly startupPending = signal(true);
   protected readonly startupFailure = signal<StartupFailurePresentation | null>(null);
   protected readonly popupRenderRecoveryActive = signal(false);
@@ -256,6 +273,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       );
       this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
       this.autoFillVaultContext?.navigationChanged(this.router.url);
+      const path = this.router.url.split(/[?#]/, 1)[0];
+      if (path === "/tabs/vault") {
+        this.drainSuggestionRefresh();
+      } else if (!path.startsWith("/view-cipher/")) {
+        this.suggestionContextInitialized = false;
+      }
       const activeTab = mainTabFromUrl(this.router.url);
       if (activeTab) {
         this.store.setActiveTab(activeTab);
@@ -284,12 +307,18 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         this.router.url !== "/lock";
       if (wasUnlocked && !state.isUnlocked) {
         this.autoFillVaultContext?.invalidate("lock");
+        this.suggestionContextInitialized = false;
+        this.suggestionInitialRefreshPending = false;
       }
       wasUnlocked = state.isUnlocked;
       if (becameUnlocked) {
+        this.suggestionInitialRefreshPending = true;
+        this.drainSuggestionRefresh();
         const recoverAutoFill = this.autoFillSetup?.recoverAtStartup;
         if (typeof recoverAutoFill === "function") {
-          void recoverAutoFill.call(this.autoFillSetup).catch(() => undefined);
+          void recoverAutoFill.call(this.autoFillSetup)
+            .then(() => this.drainSuggestionRefresh())
+            .catch(() => undefined);
         }
       }
       if (shouldNavigateToUnlock) {
@@ -631,15 +660,17 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     const detail = (event as CustomEvent<{
       reset?: boolean;
       entrySource?: "vault" | "autofill-menu" | "autofill-shortcut" | "autofill-floating";
+      suggestionRevision?: string;
     }>).detail;
+    const suggestionRevision = decodeSuggestionRevision(detail?.suggestionRevision);
     if (detail?.entrySource === "autofill-menu"
         || detail?.entrySource === "autofill-shortcut"
         || detail?.entrySource === "autofill-floating") {
-      void this.openAutoFillInVault();
+      void this.openAutoFillInVault(suggestionRevision);
       return;
     }
     if (detail?.reset === true) {
-      void this.resetPopupToInitialState();
+      void this.resetPopupToInitialState(suggestionRevision);
       return;
     }
     if (
@@ -648,8 +679,72 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       && this.router.url.split(/[?#]/, 1)[0] === "/tabs/vault"
       && resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popout"
     ) {
-      void this.autoFillVaultContext?.beginFromVaultOpen();
+      this.requestSuggestionRefresh(suggestionRevision, true);
     }
+  }
+
+  @HostListener("window:barwarden:suggestion-context-changed", ["$event"])
+  handleSuggestionContextChanged(event: Event): void {
+    const revision = decodeSuggestionRevision((event as CustomEvent<{
+      suggestionRevision?: string;
+    }>).detail?.suggestionRevision);
+    if (revision === null) return;
+    this.requestSuggestionRefresh(revision, false);
+  }
+
+  private requestSuggestionRefresh(revision: bigint | null, allowInitial: boolean): void {
+    if (revision !== null && revision > this.pendingSuggestionRevision) {
+      this.pendingSuggestionRevision = revision;
+    }
+    if (allowInitial && !this.suggestionContextInitialized) {
+      this.suggestionInitialRefreshPending = true;
+    }
+    this.drainSuggestionRefresh();
+  }
+
+  private drainSuggestionRefresh(): void {
+    if (this.suggestionRefreshRunning || !this.canRefreshSuggestions()) return;
+    const forceInitial = this.suggestionInitialRefreshPending
+      && !this.suggestionContextInitialized;
+    if (!forceInitial && this.pendingSuggestionRevision <= this.consumedSuggestionRevision) {
+      return;
+    }
+    const service = this.autoFillVaultContext;
+    if (!service) return;
+    const targetRevision = this.pendingSuggestionRevision;
+    this.suggestionRefreshRunning = true;
+    let refreshed = false;
+    void service.beginFromVaultOpen().then((state) => {
+      if (state.status !== "ready") {
+        this.suggestionContextInitialized = false;
+        this.suggestionInitialRefreshPending = true;
+        return;
+      }
+      refreshed = true;
+      this.suggestionContextInitialized = true;
+      this.suggestionInitialRefreshPending = false;
+      if (targetRevision > this.consumedSuggestionRevision) {
+        this.consumedSuggestionRevision = targetRevision;
+      }
+    }).catch(() => {
+      this.suggestionContextInitialized = false;
+      this.suggestionInitialRefreshPending = true;
+    }).finally(() => {
+      this.suggestionRefreshRunning = false;
+      if (
+        (refreshed && this.pendingSuggestionRevision > this.consumedSuggestionRevision)
+        || (!refreshed && this.pendingSuggestionRevision > targetRevision)
+      ) {
+        this.drainSuggestionRefresh();
+      }
+    });
+  }
+
+  private canRefreshSuggestions(): boolean {
+    return this.autoFillVaultContext !== null
+      && this.store.snapshot().isUnlocked
+      && this.router.url.split(/[?#]/, 1)[0] === "/tabs/vault"
+      && resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popout";
   }
 
   /**
@@ -673,7 +768,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private async openAutoFillInVault(): Promise<void> {
+  private async openAutoFillInVault(suggestionRevision: bigint | null): Promise<void> {
     if (
       this.evidenceMode
       || resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout"
@@ -683,20 +778,39 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.routeCache?.clear();
     try {
       const contextState = await this.autoFillVaultContext?.beginFromEntry();
-      if (contextState?.status !== "ready") {
-        this.store.setStatus(translateOfficialMessage("i18nAutofillTargetUnavailable"));
-        return;
+      const contextReady = contextState?.status === "ready";
+      this.suggestionContextInitialized = contextReady;
+      this.suggestionInitialRefreshPending = !contextReady;
+      if (suggestionRevision !== null && suggestionRevision > this.pendingSuggestionRevision) {
+        this.pendingSuggestionRevision = suggestionRevision;
       }
-      if (contextState.candidates?.length === 0) {
+      if (
+        contextReady
+        && suggestionRevision !== null
+        && suggestionRevision > this.consumedSuggestionRevision
+      ) {
+        this.consumedSuggestionRevision = suggestionRevision;
+      }
+      if (contextState?.status === "ready" && contextState.candidates?.length === 0) {
         this.store.setStatus(translateOfficialMessage("i18nAutofillNoMatches"));
       }
       await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
+      if (!contextReady) {
+        this.requestSuggestionRefresh(suggestionRevision, true);
+      }
     } catch {
       // Keep the existing popup route usable when contextual AutoFill cannot settle.
+      this.suggestionContextInitialized = false;
+      try {
+        await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
+      } catch {
+        return;
+      }
+      this.requestSuggestionRefresh(suggestionRevision, true);
     }
   }
 
-  private async resetPopupToInitialState(): Promise<void> {
+  private async resetPopupToInitialState(suggestionRevision: bigint | null): Promise<void> {
     if (
       this.evidenceMode
       || !this.store.snapshot().isUnlocked
@@ -713,7 +827,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch {
       return;
     }
-    void this.autoFillVaultContext?.beginFromVaultOpen();
+    this.requestSuggestionRefresh(suggestionRevision, true);
     globalThis.requestAnimationFrame(() => {
       globalThis.document
         ?.querySelector<HTMLInputElement>('bw-root-search input[type="search"]')

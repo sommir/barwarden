@@ -2,6 +2,10 @@ import Foundation
 import XCTest
 
 final class AgentProtocolTests: XCTestCase {
+    func testCurrentProtocolVersionInvalidatesAgentsBuiltBeforeBrowserOnlyMatching() {
+        XCTAssertEqual(AgentProtocol.currentVersion, 2)
+    }
+
     func testFrameRejectsPayloadOver64KiB() throws {
         XCTAssertThrowsError(try AgentFrame.encode(Data(repeating: 0, count: 65_537))) { error in
             XCTAssertEqual(error as? AgentProtocolError, .messageTooLarge)

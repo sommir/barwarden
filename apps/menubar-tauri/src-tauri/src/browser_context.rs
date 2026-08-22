@@ -94,7 +94,7 @@ fn unavailable(generation: u64, reason: WebsiteContextUnavailableReason) -> Capt
     CapturedWebsiteContext::Unavailable { generation, reason }
 }
 
-fn normalized_website_url(value: &str) -> Option<String> {
+pub(crate) fn normalized_website_url(value: &str) -> Option<String> {
     let parsed = url::Url::parse(value).ok()?;
     match parsed.scheme() {
         "http" | "https" if parsed.host_str().is_some() => Some(parsed.into()),

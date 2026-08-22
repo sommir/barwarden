@@ -203,4 +203,12 @@ mod tests {
         assert!(alpha.contains(&0));
         assert!(alpha.iter().any(|value| *value > 0));
     }
+
+    #[test]
+    fn title_clear_uses_an_empty_string_for_the_macos_status_button() {
+        let source = include_str!("suggestion_count.rs");
+
+        assert!(source.contains("set_title(Some(title))"));
+        assert!(!source.contains("set_title::<&str>(None)"));
+    }
 }

@@ -63,15 +63,26 @@ export class AutoFillContextualCandidatesService {
     context: AutoFillApplicationContext,
     session: AutoFillAgentSession,
     query: string,
+    serviceIdentifiers: readonly string[] = [],
   ): Promise<readonly ContextualCandidate[]> {
     let requestContext: AutoFillApplicationContext;
     let requestSession: AutoFillAgentSession;
     let requestQuery: string;
+    let requestServiceIdentifiers: readonly string[];
     try {
       requestContext = decodeAutoFillApplicationContext(context);
       requestSession = projectAutoFillAgentSession(session);
       if (typeof query !== "string" || query.length > 512) throw new Error("invalid query");
       requestQuery = query.normalize("NFC");
+      if (!Array.isArray(serviceIdentifiers) || serviceIdentifiers.length > 32) {
+        throw new Error("invalid service identifiers");
+      }
+      requestServiceIdentifiers = Object.freeze(serviceIdentifiers.map((value) => {
+        if (typeof value !== "string" || value.length > 2_048) {
+          throw new Error("invalid service identifier");
+        }
+        return value.normalize("NFC");
+      }));
     } catch {
       throw new AutoFillCandidatesUnavailableError();
     }
@@ -82,7 +93,7 @@ export class AutoFillContextualCandidatesService {
       context: Object.freeze({
         bundleId: requestContext.bundleId,
         appName: requestContext.appName,
-        serviceIdentifiers: Object.freeze([]),
+        serviceIdentifiers: requestServiceIdentifiers,
         query: requestQuery,
       }),
     }));

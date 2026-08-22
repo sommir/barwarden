@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -59,10 +60,15 @@ test("rejects overwriting either production input", () => {
   );
 });
 
-test("native app entitlements expose only the exact App Group", () => {
-  const entitlements = readFileSync(nativeEntitlements, "utf8");
-  assert.match(entitlements, /K7LY92JY96\.com\.sommir\.barwarden\.autofill/);
-  assert.doesNotMatch(entitlements, /keychain-access-groups/);
-  assert.doesNotMatch(entitlements, /autofill-credential-provider/);
-  assert.doesNotMatch(entitlements, /app-sandbox/);
+test("native app entitlements retain browser URL capture alongside the exact App Group", () => {
+  const entitlements = JSON.parse(
+    execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", nativeEntitlements], {
+      encoding: "utf8",
+    }),
+  );
+
+  assert.deepEqual(entitlements, {
+    "com.apple.security.application-groups": ["K7LY92JY96.com.sommir.barwarden.autofill"],
+    "com.apple.security.automation.apple-events": true,
+  });
 });
