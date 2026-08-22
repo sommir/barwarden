@@ -1112,6 +1112,19 @@ describe("P1 settings pages", () => {
     expect(selectRowLayouts.every((layout) => layout !== null)).toBe(true);
     expect(selectRowLayouts.map((layout) => getComputedStyle(layout!).display))
       .toEqual(["grid", "grid"]);
+    expect(selectRowLayouts.map((layout) =>
+      getComputedStyle(layout!).gridTemplateColumns.replace(/\s+/g, ""),
+    )).toEqual(["minmax(0,1fr)160px", "minmax(0,1fr)160px"]);
+    for (const selectHost of selectHosts) {
+      const selectStyle = getComputedStyle(selectHost);
+      const ngSelect = selectHost.querySelector<HTMLElement>("ng-select")!;
+      expect(selectStyle.justifySelf).toBe("end");
+      expect(selectStyle.width).toBe("160px");
+      expect(selectStyle.maxWidth).toBe("160px");
+      expect(selectStyle.minWidth).toBe("0px");
+      expect(getComputedStyle(ngSelect).width).toBe("100%");
+      expect(getComputedStyle(ngSelect).maxWidth).toBe("100%");
+    }
     expectRealSelectGeometry(Array.from(selectHosts), "40px");
     expect(host.matches(".macos-page--settings-detail")).toBe(true);
     expectSharedSettingsPageInset(host);

@@ -411,12 +411,15 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible,
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
   display:flex;
   width:160px;
+  max-width:160px;
+  min-width:0;
   height:var(--mac-hit-size);
   min-height:var(--mac-hit-size);
   align-items:center;
+  justify-self:end;
   background:transparent;
 }
-bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { width:100%; }
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { width:100%; max-width:100%; }
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
   width:100%;
   height:var(--mac-control-visible);
@@ -442,7 +445,38 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select >
   overflow:visible;
   max-height:none;
 }
+[data-testid="launch-at-login-row"] > .tw-text-wrap.tw-overflow-auto.tw-break-words { display:contents; }
+[data-testid="launch-at-login-row"].tw-text-wrap.tw-overflow-auto.tw-break-words {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  overflow:visible;
+}
+.macos-page--settings [data-testid="launch-at-login-row"].macos-preference-row {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto !important;
+  min-height:var(--mac-row-single) !important;
+  padding-block:0 !important;
+  padding-inline:12px !important;
+  align-items:center !important;
+  gap:12px !important;
+  overflow:visible !important;
+}
+.macos-page--settings [data-testid="launch-at-login-row"] > :first-child,
+.macos-page--settings [data-testid="launch-at-login-row"] > :first-child > :first-child,
+.macos-page--settings [data-testid="launch-at-login-row"] > :first-child > :first-child > :first-child,
+.macos-page--settings [data-testid="launch-at-login-row"] .tw-text-wrap.tw-overflow-auto.tw-break-words {
+  display:contents !important;
+}
+.macos-page--settings [data-testid="launch-at-login-row"] > :nth-child(2),
+.macos-page--settings [data-testid="launch-at-login-row"] .tw-flex-grow,
+.macos-page--settings [data-testid="launch-at-login-row"] .tw-text-muted {
+  display:none !important;
+}
 .macos-switch-owner { display:grid; min-width:var(--mac-hit-size); min-height:var(--mac-hit-size); padding:0; place-items:center; border:0; background:transparent; }
+.macos-preference-row > .macos-switch-owner,
+[data-testid="launch-at-login-row"] .macos-switch-owner { grid-column-start:2; grid-column-end:auto; grid-row-start:1; grid-row-end:auto; justify-self:end; }
 .macos-switch-owner > span { position:relative; width:34px; height:20px; border:1px solid var(--mac-border); border-radius:999px; background:var(--mac-surface-contextual); transition:background-color var(--mac-motion-fast) ease; }
 .macos-switch-owner > span::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--mac-surface-solid); box-shadow:0 1px 2px rgb(0 0 0 / 18%); transition:transform var(--mac-motion-fast) ease; }
 .macos-switch-owner[aria-checked="true"] > span { border-color:var(--mac-accent); background:var(--mac-accent); }

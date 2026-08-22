@@ -103,6 +103,14 @@ describe("SettingsPageComponent", () => {
     expect(getComputedStyle(items.at(-1)!).borderBottomWidth).toBe("0px");
 
     const switchOwner = row.querySelector<HTMLButtonElement>(".macos-hit-target")!;
+    const launchColumns = getComputedStyle(row).gridTemplateColumns
+      .replace(/\s+/g, "")
+      .replace(/\s*,\s*/g, ",");
+    expect(launchColumns).toBe("minmax(0,1fr)auto");
+    expect(row.children).toHaveLength(2);
+    expect(getComputedStyle(switchOwner).justifySelf).toBe("end");
+    expect(getComputedStyle(switchOwner).gridColumnStart).toBe("2");
+    expect(getComputedStyle(switchOwner).gridRowStart).toBe("1");
     expect(getComputedStyle(switchOwner).minWidth).toBe("44px");
     expect(getComputedStyle(switchOwner).minHeight).toBe("44px");
     document.documentElement.dataset["bwCompactMode"] = "true";
@@ -186,7 +194,10 @@ describe("SettingsPageComponent", () => {
 
     document.documentElement.style.fontSize = "200%";
     const launchContent = host.querySelector<HTMLElement>('[data-testid="launch-at-login-row"]')!;
-    expect(launchContent.querySelector(".tw-text-wrap.tw-break-words")).not.toBeNull();
+    const launchContentStyle = getComputedStyle(launchContent);
+    expect(launchContentStyle.display).toBe("grid");
+    expect(launchContentStyle.gridTemplateColumns.replace(/\s+/g, ""))
+      .toBe("minmax(0,1fr)auto");
     const launchCopy = launchContent.querySelector<HTMLElement>(".macos-preference-row__copy")!;
     expect(getComputedStyle(launchCopy).whiteSpace).toBe("normal");
     expect(getComputedStyle(launchCopy).overflowWrap).toBe("anywhere");
