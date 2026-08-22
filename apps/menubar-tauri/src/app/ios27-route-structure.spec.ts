@@ -39,6 +39,120 @@ describe("mounted iOS 27 production route structure", () => {
   });
 
   it.each([
+    ["/tabs/vault", "app-new-item-dropdown button[bitbutton]", ":scope > span > span"],
+    ["/folders", "[data-testid='new-folder-button']", ":scope > span > span"],
+    ["/tabs/send", "[data-testid='send-new-action']", ".macos-header-action-disc"],
+  ] as const)(
+    "keeps the real %s header create action avatar-sized",
+    async (route, actionSelector, paintSelector) => {
+      const testCase = productionRouteStructuralCases.find((entry) => entry.route === route)!;
+      const { fixture, host } = await mountProductionRoute(testCase);
+      const routeHost = host.querySelector<HTMLElement>(testCase.routeHostSelector)!;
+      const action = routeHost.querySelector<HTMLElement>(actionSelector);
+
+      expect(action).not.toBeNull();
+      const actionStyle = getComputedStyle(action!);
+      expect(actionStyle.width).toBe("44px");
+      expect(actionStyle.minWidth).toBe("44px");
+      expect(actionStyle.maxWidth).toBe("44px");
+      expect(actionStyle.height).toBe("44px");
+      expect(actionStyle.minHeight).toBe("44px");
+      expect(actionStyle.maxHeight).toBe("44px");
+      expect(actionStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(actionStyle.borderRadius).toBe("999px");
+
+      const paint = action!.querySelector<HTMLElement>(paintSelector);
+      expect(paint).not.toBeNull();
+      const paintStyle = getComputedStyle(paint!);
+      expect(paintStyle.width).toBe("32px");
+      expect(paintStyle.height).toBe("32px");
+
+      fixture.destroy();
+    },
+  );
+
+  it.each([
+    "/tabs/vault",
+    "/tabs/generator",
+    "/tabs/send",
+    "/tabs/settings",
+  ] as const)(
+    "reserves bottom safe area below real %s content for the floating tab bar",
+    async (route) => {
+      const testCase = productionRouteStructuralCases.find((entry) => entry.route === route)!;
+      const { fixture, host } = await mountProductionRoute(testCase);
+      const routeHost = host.querySelector<HTMLElement>(testCase.routeHostSelector)!;
+      const scroll = routeHost.querySelector<HTMLElement>(
+        '[data-testid="popup-layout-scroll-region"]',
+      )!;
+      const page = routeHost.querySelector<HTMLElement>("popup-page")!;
+      const nav = host.querySelector<HTMLElement>(".floating-tab-switcher")!;
+
+      expect(nav).not.toBeNull();
+      expect(getComputedStyle(page).getPropertyValue("--mac-page-bottom-safe").trim())
+        .toBe("88px");
+      expect(getComputedStyle(scroll).paddingBottom).toBe("var(--mac-page-bottom-safe)");
+      expect(getComputedStyle(scroll).scrollPaddingBottom).toBe("var(--mac-page-bottom-safe)");
+
+      fixture.destroy();
+    },
+  );
+
+  it("keeps the real Appearance selects compact when focused", async () => {
+    const testCase = productionRouteStructuralCases.find((entry) => entry.route === "/appearance")!;
+    const { fixture, host } = await mountProductionRoute(testCase);
+    const routeHost = host.querySelector<HTMLElement>(testCase.routeHostSelector)!;
+    const selects = Array.from(
+      routeHost.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
+    );
+
+    expect(selects).toHaveLength(2);
+    for (const select of selects) {
+      const ngSelect = select.querySelector<HTMLElement>("ng-select")!;
+      const paint = select.querySelector<HTMLElement>("ng-select > .ng-select-container")!;
+      const combobox = select.querySelector<HTMLElement>('input[role="combobox"]')!;
+      expect(getComputedStyle(select).width).toBe("160px");
+      expect(getComputedStyle(ngSelect).width).toBe("100%");
+      expect(getComputedStyle(paint).width).toBe("100%");
+      combobox.focus();
+      fixture.detectChanges();
+      expect(getComputedStyle(select).width).toBe("160px");
+      expect(getComputedStyle(ngSelect).width).toBe("100%");
+      expect(getComputedStyle(paint).width).toBe("100%");
+      expect(getComputedStyle(select).outlineWidth).toBe("0px");
+      expect(getComputedStyle(ngSelect).outlineWidth).toBe("0px");
+      expect(getComputedStyle(paint).outlineWidth).toBe("2px");
+      expect(Number.parseFloat(getComputedStyle(select).height)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(paint).height).toBe("40px");
+    }
+
+    fixture.destroy();
+  });
+
+  it.each([
+    ["/tabs/vault", ".vault-hierarchy__items bit-item-group"],
+    ["/folders", "bit-item-group"],
+    ["/tabs/send", ".macos-send-list"],
+    ["/tabs/settings", ".macos-preference-group"],
+    ["/appearance", ".macos-preference-group"],
+  ] as const)(
+    "clips the first real %s content group with rounded corners",
+    async (route, groupSelector) => {
+      const testCase = productionRouteStructuralCases.find((entry) => entry.route === route)!;
+      const { fixture, host } = await mountProductionRoute(testCase);
+      const routeHost = host.querySelector<HTMLElement>(testCase.routeHostSelector)!;
+      const group = routeHost.querySelector<HTMLElement>(groupSelector);
+
+      expect(group).not.toBeNull();
+      const groupStyle = getComputedStyle(group!);
+      expect(groupStyle.borderRadius).toBe("12px");
+      expect(groupStyle.overflow).toBe("hidden");
+
+      fixture.destroy();
+    },
+  );
+
+  it.each([
     ["/2fa", "/2fa"],
     ["/archive", "/archive"],
     ["/send-created?sendId=m12-text-send&type=text", "/send-created?sendId=m12-text-send&type=text"],

@@ -104,7 +104,7 @@ export async function mountProductionRoute(
     : createEvidenceProviders(testCase.evidenceSearch, true);
   const style = document.createElement("style");
   style.dataset.testOwner = "ios27-route-structure";
-  style.textContent = [
+  const cssSource = [
     "macos-tokens.css",
     "macos-materials.css",
     "macos-motion.css",
@@ -113,6 +113,17 @@ export async function mountProductionRoute(
     join(process.cwd(), "apps/menubar-tauri/src/styles", file),
     "utf8",
   )).join("\n").replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = Array.from(
+    cssSource.matchAll(/^:root\s*{([\s\S]*?)^}/gm),
+    (match) => match[1] ?? "",
+  ).join("\n");
+  const tokens = new Map(
+    [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]),
+  );
+  style.textContent = cssSource.replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (reference, token) =>
+    tokens.get(token) ?? reference,
+  );
   document.head.append(style);
   document.documentElement.style.width = "480px";
   document.documentElement.style.height = "600px";

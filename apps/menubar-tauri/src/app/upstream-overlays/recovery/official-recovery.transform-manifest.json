@@ -234,7 +234,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
-      "sha256": "8cd7b0c06512584260f6d24d9c221db953906bbc81b443f2eb73f212f22ed292"
+      "sha256": "933fad52472a949fe2aace0d4154e0068765e8bb2b224ba0c8d4317917f10d38"
     },
     {
       "path": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
@@ -290,7 +290,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.html",
-      "sha256": "28533cff03390553d23ec5956b5d2556ee327cedeccbfbbbe09bcab6a3645615"
+      "sha256": "c8a3469b5cc46ae0cce02d6c7b05619381b0650f7eb1aa840eb126886dd55681"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/recovery/folders/official-folders.component.ts",

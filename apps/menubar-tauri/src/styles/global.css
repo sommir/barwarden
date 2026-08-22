@@ -60,6 +60,10 @@ popup-page {
   --mac-page-bottom-safe: 16px;
 }
 
+.popup-shell:has(.floating-tab-switcher) popup-page {
+  --mac-page-bottom-safe: 88px;
+}
+
 popup-page [data-testid="popup-layout-scroll-region"] {
   flex: 1 1 auto;
   overflow-x: hidden;
@@ -6427,9 +6431,19 @@ bw-retained-new-item-dropdown {
 .vault-hierarchy__children {
   overflow: hidden;
   border: 0;
-  border-radius: 0;
+  border-radius: 12px;
   background: var(--mac-surface-solid);
   box-shadow: none;
+}
+
+.vault-hierarchy__items bit-item-group,
+.macos-page--send .macos-send-list,
+.macos-page--vault-recovery bw-official-folders bit-item-group,
+.macos-page--settings .macos-preference-group,
+.macos-page--appearance .macos-preference-group {
+  overflow: hidden !important;
+  border-radius: 12px !important;
+  background: var(--mac-surface-solid);
 }
 
 /* A menu-bar window has a single native material field. Route shells must be
@@ -6757,6 +6771,60 @@ body.tw-bit-compact .vault-hierarchy__items .vault-list-row .vault-autofill-sugg
   font-weight: 700;
   line-height: 20px;
   transform: translateY(1px);
+}
+
+.macos-page--vault-recovery [data-testid="new-folder-button"].macos-header-primary-action[bitbutton] {
+  display: grid !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  padding: 0 !important;
+  place-items: center;
+  font-size: 0;
+  line-height: 0;
+}
+
+.macos-page--vault-recovery [data-testid="new-folder-button"].macos-header-primary-action[bitbutton] > span > span {
+  display: grid !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 999px !important;
+  background: var(--mac-accent) !important;
+  gap: 0 !important;
+  place-items: center !important;
+}
+
+.macos-page--vault-recovery
+  [data-testid="new-folder-button"].macos-header-primary-action[bitbutton]:focus-visible
+  > span
+  > span {
+  outline: 2px solid var(--mac-focus) !important;
+  outline-offset: 2px !important;
+}
+
+.macos-page--vault-recovery [data-testid="new-folder-button"].macos-header-primary-action[bitbutton] > span > span > div {
+  display: none;
+}
+
+.macos-page--vault-recovery [data-testid="new-folder-button"].macos-header-primary-action[bitbutton] .bwi {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  margin: 0 !important;
+  place-items: center;
+  color: var(--mac-surface-solid);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 20px;
 }
 
 .macos-page--otp {
@@ -8688,6 +8756,46 @@ body.tw-bit-compact
   min-height: var(--mac-hit-size);
 }
 
+.macos-page--send [data-testid="send-new-action"].macos-header-primary-action {
+  display: inline-grid !important;
+  width: var(--mac-hit-size) !important;
+  min-width: var(--mac-hit-size) !important;
+  max-width: var(--mac-hit-size) !important;
+  height: var(--mac-hit-size) !important;
+  min-height: var(--mac-hit-size) !important;
+  max-height: var(--mac-hit-size) !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  padding: 0 !important;
+  place-items: center;
+  border-radius: 999px !important;
+}
+
+.macos-page--send [data-testid="send-new-action"].macos-header-primary-action .macos-header-action-disc {
+  display: grid !important;
+  width: 32px !important;
+  height: 32px !important;
+  place-items: center !important;
+  border-radius: 999px !important;
+  background: var(--mac-accent) !important;
+  color: var(--mac-surface-solid) !important;
+}
+
+.macos-page--send [data-testid="send-new-action"].macos-header-primary-action:focus-visible
+  .macos-header-action-disc {
+  outline: 2px solid var(--mac-focus) !important;
+  outline-offset: 2px !important;
+}
+
+.macos-page--send [data-testid="send-new-action"].macos-header-primary-action .bwi {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 .macos-page--send :is(
   [data-testid="send-filter-action"],
   .macos-send-row__actions button
@@ -9340,6 +9448,12 @@ popup-page.macos-page--vault-list
   min-height: var(--mac-control-min-size) !important;
   max-height: var(--mac-control-min-size) !important;
   border-radius: 999px !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
   padding: 0 !important;
   place-items: center !important;
   font-size: 0 !important;
@@ -9353,7 +9467,24 @@ popup-page.macos-page--vault-list
   button[bitbutton]
   > span
   > span {
+  display: grid !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 999px !important;
+  background: var(--mac-accent) !important;
   gap: 0 !important;
+  place-items: center !important;
+}
+
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton]:focus-visible
+  > span
+  > span {
+  outline: 2px solid var(--mac-focus) !important;
+  outline-offset: 2px !important;
 }
 
 popup-page.macos-page--vault-list
