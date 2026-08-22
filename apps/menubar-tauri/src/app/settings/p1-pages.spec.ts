@@ -1453,6 +1453,11 @@ bit-form-control.macos-preference-row > label {
 }
 bit-form-field.macos-preference-row bit-select.macos-control-visible,
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
+  box-shadow: 0 0 0 4px rgb(222, 0, 0);
+  border: 4px solid rgb(222, 0, 0);
+  padding: 12px;
+  width: 320px;
+  max-width: 320px;
   height: 20px;
   min-height: 20px;
   background: rgb(222, 0, 0);
@@ -1520,6 +1525,17 @@ function expectRealSelectGeometry(
       expect(Number.parseFloat(ownerStyle.minHeight)).toBeGreaterThanOrEqual(44);
       expect(Number.parseFloat(ownerStyle.height)).toBeGreaterThanOrEqual(44);
       expect(ownerStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(cssPixels(ownerStyle.borderTopWidth)).toBe(0);
+      expect(cssPixels(ownerStyle.paddingTop)).toBe(0);
+      expect(cssPixels(ownerStyle.paddingBottom)).toBe(0);
+      expect(ownerStyle.boxShadow).toBe("none");
+    }
+    const selectHostStyle = getComputedStyle(selectHost);
+    expect(selectHostStyle.width).toBe("160px");
+    expect(selectHostStyle.maxWidth).toBe("160px");
+    const ngSelectStyle = getComputedStyle(ngSelect!);
+    for (const value of [ngSelectStyle.width, ngSelectStyle.maxWidth]) {
+      expect(value).toMatch(/^(100%|160px)$/);
     }
     const paintedStyle = getComputedStyle(paintedContainer!);
     expect(paintedStyle.boxSizing).toBe("border-box");

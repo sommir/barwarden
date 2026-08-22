@@ -421,7 +421,10 @@ bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
   min-height:var(--mac-hit-size);
   align-items:center;
   justify-self:end !important;
+  padding:0 !important;
+  border:0 !important;
   background:transparent;
+  box-shadow:none !important;
 }
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { width:100% !important; max-width:100% !important; }
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
