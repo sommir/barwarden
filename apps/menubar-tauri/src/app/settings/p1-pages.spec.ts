@@ -1118,12 +1118,19 @@ describe("P1 settings pages", () => {
     for (const selectHost of selectHosts) {
       const selectStyle = getComputedStyle(selectHost);
       const ngSelect = selectHost.querySelector<HTMLElement>("ng-select")!;
+      const paintedContainer = selectHost.querySelector<HTMLElement>(".ng-select-container")!;
       expect(selectStyle.justifySelf).toBe("end");
       expect(selectStyle.width).toBe("160px");
       expect(selectStyle.maxWidth).toBe("160px");
       expect(selectStyle.minWidth).toBe("0px");
+      expect(resolvedMatchedPriority(selectHost, "width")).toBe("important");
+      expect(resolvedMatchedPriority(selectHost, "max-width")).toBe("important");
       expect(getComputedStyle(ngSelect).width).toBe("100%");
       expect(getComputedStyle(ngSelect).maxWidth).toBe("100%");
+      expect(resolvedMatchedPriority(ngSelect, "width")).toBe("important");
+      expect(getComputedStyle(paintedContainer).width).toBe("100%");
+      expect(getComputedStyle(paintedContainer).maxWidth).toBe("100%");
+      expect(resolvedMatchedPriority(paintedContainer, "width")).toBe("important");
     }
     expectRealSelectGeometry(Array.from(selectHosts), "40px");
     expect(host.matches(".macos-page--settings-detail")).toBe(true);
@@ -1537,6 +1544,26 @@ function resolvedMatchedProperty(element: Element, property: string): string {
         }
       });
       if (matches) resolved = value;
+    }
+  }
+  return resolved;
+}
+
+function resolvedMatchedPriority(element: Element, property: string): string {
+  let resolved = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const value = resolvedRuleProperty(rule.style, property);
+      if (!value) continue;
+      const matches = splitSelectorList(rule.selectorText).some((selector) => {
+        try {
+          return element.matches(selector.trim());
+        } catch {
+          return false;
+        }
+      });
+      if (matches) resolved = rule.style.getPropertyPriority(property).trim();
     }
   }
   return resolved;

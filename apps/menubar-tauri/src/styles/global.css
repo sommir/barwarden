@@ -410,18 +410,19 @@ bit-form-field.macos-preference-row > div > :is(label, div) { min-width:0; }
 bit-form-field.macos-preference-row bit-select.macos-control-visible,
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
   display:flex;
-  width:160px;
-  max-width:160px;
-  min-width:0;
+  width:160px !important;
+  max-width:160px !important;
+  min-width:0 !important;
   height:var(--mac-hit-size);
   min-height:var(--mac-hit-size);
   align-items:center;
-  justify-self:end;
+  justify-self:end !important;
   background:transparent;
 }
-bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { width:100%; max-width:100%; }
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { width:100% !important; max-width:100% !important; }
 bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
-  width:100%;
+  width:100% !important;
+  max-width:100% !important;
   height:var(--mac-control-visible);
   min-height:var(--mac-control-visible);
   background:var(--mac-surface-solid);
