@@ -8,7 +8,8 @@ use std::sync::{
 use std::time::{Duration, Instant};
 use tauri::{
     LogicalPosition, Manager, Monitor, PhysicalPosition, PhysicalRect, PhysicalSize, Position,
-    Rect, Size, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent,
+    Rect, Size, Url, UserAttentionType, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window,
+    WindowEvent,
 };
 
 const MAIN_WINDOW_LABEL: &str = "main";
@@ -443,8 +444,9 @@ fn present_popup_window(
 ) -> Result<(), String> {
     window.show().map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
     if window.set_focus().is_err() {
-        let _ = window.hide();
-        return Err(POPUP_WINDOW_ERROR.to_owned());
+        let _ = window.set_always_on_top(true);
+        let _ = window.request_user_attention(Some(UserAttentionType::Informational));
+        let _ = window.set_always_on_top(false);
     }
     let reset_required = app.state::<PopupPresentationState>().take_reset_required();
     // A repaint failure must not prevent users from opening the popup; the
@@ -1494,6 +1496,19 @@ mod tests {
             Some(PhysicalPosition::new(960, 100)),
             "a one-pixel sliver is not an operable fallback window",
         );
+    }
+
+    #[test]
+    fn focus_failure_keeps_popup_visible_for_secure_input_recovery() {
+        let source = include_str!("window.rs");
+
+        assert!(
+            !source.contains("let _ = window.hide();\n        return Err(POPUP_WINDOW_ERROR.to_owned());"),
+            "secure password fields can deny focus; the popup must remain visible instead of hiding"
+        );
+        assert!(source.contains("set_always_on_top(true)"));
+        assert!(source.contains("request_user_attention"));
+        assert!(source.contains("set_always_on_top(false)"));
     }
 
     #[test]
