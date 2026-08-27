@@ -82,7 +82,20 @@ jobs:
           signing_keychain_password="$(openssl rand -hex 32)"
           notary_profile="barwarden-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           release_dir="$GITHUB_WORKSPACE/release-artifacts"
+          original_user_keychains=()
+          while IFS= read -r keychain_entry; do
+            keychain_entry="${keychain_entry#*\"}"
+            keychain_entry="${keychain_entry%\"*}"
+            test -z "$keychain_entry" || original_user_keychains+=("$keychain_entry")
+          done < <(security list-keychains -d user)
+          signing_keychain_on_search_list=0
+          restore_user_keychain_search_list() {
+            test "$signing_keychain_on_search_list" = 1 || return 0
+            security list-keychains -d user -s "${original_user_keychains[@]}" >/dev/null
+            signing_keychain_on_search_list=0
+          }
           cleanup() {
+            restore_user_keychain_search_list >/dev/null 2>&1 || true
             security delete-keychain "$signing_keychain" >/dev/null 2>&1 || true
             rm -f "$certificate_path" "$api_key_path" "$provider_profile_path"
           }
@@ -102,6 +115,8 @@ jobs:
           security unlock-keychain -p "$signing_keychain_password" "$signing_keychain"
           security import "$certificate_path" -k "$signing_keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign >/dev/null 2>&1
           security set-key-partition-list -S apple-tool:,apple: -s -k "$signing_keychain_password" "$signing_keychain" >/dev/null 2>&1
+          security list-keychains -d user -s "$signing_keychain" "${original_user_keychains[@]}" >/dev/null
+          signing_keychain_on_search_list=1
           signing_identity="$(security find-identity -v -p codesigning "$signing_keychain" | awk '/Developer ID Application/ { print $2; exit }')"
           test -n "$signing_identity"
           xcrun notarytool store-credentials "$notary_profile" \

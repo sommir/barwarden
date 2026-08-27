@@ -45,8 +45,13 @@ jobs:
         run: |
           api_key_path="$RUNNER_TEMP/notary-api-key.p8"
           provider_profile_path="$RUNNER_TEMP/provider.provisionprofile"
+          original_user_keychains=("login.keychain-db")
+          cleanup() {
+            security list-keychains -d user -s "\${original_user_keychains[@]}"
+          }
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
           node scripts/download-native-autofill-provider-profile.mjs "$provider_profile_path"
+          security list-keychains -d user -s "$signing_keychain" "\${original_user_keychains[@]}"
           NATIVE_AUTOFILL_PROVIDER_PROFILE="$provider_profile_path" scripts/build-native-autofill-release.sh
           codesign --verify --deep --strict Barwarden.app
           xcrun stapler validate Barwarden.dmg
@@ -155,6 +160,26 @@ test("requires a supported Xcode toolchain and unsigned native AutoFill verifica
   assert.match(
     auditReleaseWorkflow(missingNativeBuild).join("\n"),
     /verify job must compile the unsigned native AutoFill components/,
+  );
+});
+
+test("requires the temporary signing keychain search list to be restored", () => {
+  const missingSearchList = safeWorkflow.replace(
+    '          security list-keychains -d user -s "$signing_keychain" "${original_user_keychains[@]}"\n',
+    "",
+  );
+  assert.match(
+    auditReleaseWorkflow(missingSearchList).join("\n"),
+    /temporary signing keychain to the user search list/,
+  );
+
+  const missingRestore = safeWorkflow.replace(
+    '            security list-keychains -d user -s "${original_user_keychains[@]}"\n',
+    "",
+  );
+  assert.match(
+    auditReleaseWorkflow(missingRestore).join("\n"),
+    /restore the original user keychain search list/,
   );
 });
 
