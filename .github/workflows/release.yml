@@ -19,6 +19,7 @@ jobs:
       - run: npm ci
       - run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
       - run: npm run check:publication
+      - run: cargo fetch --locked --manifest-path apps/menubar-tauri/src-tauri/Cargo.toml
       - run: npm run licenses:check
       - run: npm run test:release-policy
       - run: node --test scripts/create-updater-release-config.spec.mjs scripts/create-github-release-feed.spec.mjs
