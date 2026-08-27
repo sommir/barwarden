@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual, X509Certificate } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -9,10 +10,10 @@ const REQUIRED_ENTITLEMENT_KEYS = [
   "com.apple.application-identifier",
   "com.apple.developer.authentication-services.autofill-credential-provider",
   "com.apple.developer.team-identifier",
-  "com.apple.security.app-sandbox",
 ];
 const OPTIONAL_STANDARD_ENTITLEMENT_KEYS = new Set([
   "com.apple.security.application-groups",
+  "com.apple.security.app-sandbox",
   "get-task-allow",
   "keychain-access-groups",
 ]);
@@ -44,6 +45,37 @@ function publicKeyHash(certificate) {
     .digest();
 }
 
+function extractPlistValue(path, keyPath, format) {
+  return execFileSync("/usr/bin/plutil", [
+    "-extract", keyPath, format, "-o", "-", path,
+  ], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+}
+
+export function loadNativeAutoFillProviderProfile(path) {
+  try {
+    const developerCertificates = [];
+    for (let index = 0; index < 128; index += 1) {
+      try {
+        developerCertificates.push(
+          extractPlistValue(path, `DeveloperCertificates.${index}`, "raw"),
+        );
+      } catch {
+        break;
+      }
+    }
+    const provisionsAllDevices = extractPlistValue(path, "ProvisionsAllDevices", "raw");
+    return {
+      TeamIdentifier: JSON.parse(extractPlistValue(path, "TeamIdentifier", "json")),
+      ProvisionsAllDevices: /^(?:1|true|yes)$/iu.test(provisionsAllDevices),
+      ExpirationDate: extractPlistValue(path, "ExpirationDate", "raw"),
+      DeveloperCertificates: developerCertificates,
+      Entitlements: JSON.parse(extractPlistValue(path, "Entitlements", "json")),
+    };
+  } catch {
+    reject();
+  }
+}
+
 export function validateNativeAutoFillProviderProfile(profile, signerCertificateDer) {
   try {
     const entitlements = profile?.Entitlements;
@@ -58,7 +90,8 @@ export function validateNativeAutoFillProviderProfile(profile, signerCertificate
       !authorizesTeamValue(entitlements["com.apple.application-identifier"], `${TEAM_ID}.${BUNDLE_ID}`) ||
       entitlements["com.apple.developer.team-identifier"] !== TEAM_ID ||
       entitlements["com.apple.developer.authentication-services.autofill-credential-provider"] !== true ||
-      entitlements["com.apple.security.app-sandbox"] !== true ||
+      ("com.apple.security.app-sandbox" in entitlements &&
+        entitlements["com.apple.security.app-sandbox"] !== true) ||
       !authorizedGroupList(entitlements["com.apple.security.application-groups"]) ||
       !authorizedKeychainGroups(entitlements["keychain-access-groups"]) ||
       ("get-task-allow" in entitlements && entitlements["get-task-allow"] !== false) ||
@@ -102,7 +135,7 @@ export function validateNativeAutoFillProviderProfile(profile, signerCertificate
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
     if (process.argv.length !== 4) reject();
-    const profile = JSON.parse(readFileSync(process.argv[2], "utf8"));
+    const profile = loadNativeAutoFillProviderProfile(process.argv[2]);
     const summary = validateNativeAutoFillProviderProfile(profile, readFileSync(process.argv[3]));
     process.stdout.write(`${JSON.stringify(summary)}\n`);
   } catch {

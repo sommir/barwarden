@@ -250,8 +250,13 @@ writeFileSync(process.argv[2], `${JSON.stringify({
 }, null, 2)}\n`, { mode: 0o600 });
 NODE
 
-run_or_fail NATIVE_AUTOFILL_STRICT_VERIFIER_FAILED \
-  "$SCRIPT_DIR/verify-native-autofill-bundle.sh" --app "$APP_PATH" --dmg "$DMG_PATH" --attestation "$ATTESTATION"
+if ! STRICT_VERIFIER_OUTPUT="$(
+  "$SCRIPT_DIR/verify-native-autofill-bundle.sh" \
+    --app "$APP_PATH" --dmg "$DMG_PATH" --attestation "$ATTESTATION" 2>&1
+)"; then
+  STRICT_VERIFIER_CODE="$(printf '%s\n' "$STRICT_VERIFIER_OUTPUT" | /usr/bin/tail -n 1)"
+  fail "$STRICT_VERIFIER_CODE"
+fi
 
 PROMOTION_SOURCE="$WORK_ROOT/promotion"
 /bin/mkdir "$PROMOTION_SOURCE"

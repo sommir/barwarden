@@ -68,11 +68,11 @@ const REQUIRED_PROFILE_ENTITLEMENT_KEYS = [
   "com.apple.application-identifier",
   "com.apple.developer.authentication-services.autofill-credential-provider",
   "com.apple.developer.team-identifier",
-  "com.apple.security.app-sandbox",
 ];
 const ALLOWED_PROFILE_ENTITLEMENT_KEYS = new Set([
   ...REQUIRED_PROFILE_ENTITLEMENT_KEYS,
   "com.apple.security.application-groups",
+  "com.apple.security.app-sandbox",
   "get-task-allow",
   "keychain-access-groups",
 ]);

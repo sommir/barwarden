@@ -76,4 +76,9 @@ promotion_line="$(rg -n 'native-autofill-atomic-promotion\.mjs' "$BUILDER" | tai
 [[ -n "$evidence_line" && -n "$promotion_line" && "$evidence_line" -lt "$promotion_line" ]] || \
   fail "evidence must be staged before the single release promotion"
 
+rg -q 'STRICT_VERIFIER_OUTPUT=' "$BUILDER" || \
+  fail "strict verifier output must be captured for sanitized diagnostics"
+rg -q 'fail "\$STRICT_VERIFIER_CODE"' "$BUILDER" || \
+  fail "strict verifier failure must pass through the release-code allowlist"
+
 printf 'build-native-autofill-release tests: PASS\n'
