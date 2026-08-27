@@ -27,9 +27,9 @@
 +  type OfficialAboutDialogView,
 +} from "./official-about-dialog.component";
 +import { MacosAlertStripComponent } from "../../official-ui/macos-alert-strip.component";
-+import { translateOfficialMessage } from "../../official-ui/official-i18n.service";
 +import { I18nPipe } from "../../official-ui/official-ui-common";
 +import type { AppUpdateView } from "../../updates/app-update.service";
++import { AppUpdateCardComponent } from "../../updates/app-update-card.component";
 @@ -13,7 +20,0 @@
 -import { PopOutComponent } from "../../../../platform/popup/components/pop-out.component";
 -import { PopupHeaderComponent } from "../../../../platform/popup/layout/popup-header.component";
@@ -52,14 +52,15 @@
 +    ItemComponent,
 +    ItemContentComponent,
 +    ItemGroupComponent,
-@@ -29,0 +29,4 @@
+@@ -29,0 +29,5 @@
++    AppUpdateCardComponent,
 +    MacosAlertStripComponent,
 +    OfficialAboutDialogComponent,
 +    PopupHeaderComponent,
 +    PopupPageComponent,
-@@ -30,0 +34 @@
+@@ -30,0 +35 @@
 +  templateUrl: "./official-about.component.html",
-@@ -32,6 +36,22 @@
+@@ -32,6 +37,24 @@
 -export class AboutPageV2Component {
 -  constructor(
 -    private dialogService: DialogService,
@@ -77,6 +78,7 @@
 +    notes: null,
 +    progress: null,
 +    message: "",
++    notificationVisible: false,
 +  };
 +  @Output() readonly back = new EventEmitter<void>();
 +  @Output() readonly metadataViewChange = new EventEmitter<OfficialAboutDialogView | null>();
@@ -88,7 +90,8 @@
 +  @Output() readonly checkForUpdates = new EventEmitter<void>();
 +  @Output() readonly downloadAndRestart = new EventEmitter<void>();
 +  @Output() readonly dismissUpdate = new EventEmitter<void>();
-@@ -39,5 +59,2 @@
++  @Output() readonly retryUpdate = new EventEmitter<void>();
+@@ -39,5 +62,2 @@
 -  about() {
 -    this.dialogService.open(AboutDialogComponent, {
 -      positionStrategy: new CenterPositionStrategy(),
@@ -96,24 +99,11 @@
 -  }
 +  readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
 +    this.back.emit();
-@@ -45,2 +62,14 @@
+@@ -45,13 +65,5 @@
 -  troubleshoot() {
 -    TroubleshootingDialogComponent.open(this.dialogService);
-+  get updateActionLabel(): string {
-+    switch (this.updateView.status) {
-+      case "checking":
-+        return translateOfficialMessage("i18nCheckingUpdates");
-+      case "downloading":
-+        return this.updateView.progress === null
-+          ? translateOfficialMessage("i18nDownloadingUpdate")
-+          : translateOfficialMessage(
-+              "i18nDownloadingUpdateProgress",
-+              Math.round(this.updateView.progress * 100),
-+            );
-+      default:
-+        return translateOfficialMessage("i18nCheckForUpdates");
-+    }
-@@ -49,10 +78,2 @@
+-  }
+-
 -  async launchHelp() {
 -    const confirmed = await this.dialogService.openSimpleDialog({
 -      title: { key: "continueToHelpCenter" },
@@ -123,10 +113,14 @@
 -    });
 -    if (confirmed) {
 -      this.platformUtilsService.launchUri("https://bitwarden.com/help/");
--    }
-+  get updateActionPending(): boolean {
-+    return this.updateView.status === "checking" || this.updateView.status === "downloading";
-@@ -61,10 +82,5 @@
++  activateMetadataFromKeyboard(
++    event: KeyboardEvent,
++  ): void {
++    if (event.key !== "Enter" && event.key !== " ") {
++      return;
+@@ -59,12 +71,3 @@
+-  }
+-
 -  async openWebVault() {
 -    const confirmed = await this.dialogService.openSimpleDialog({
 -      title: { key: "continueToWebApp" },
@@ -137,15 +131,9 @@
 -    if (confirmed) {
 -      const env = await firstValueFrom(this.environmentService.environment$);
 -      this.platformUtilsService.launchUri(env.getWebVaultUrl());
-+  activateMetadataFromKeyboard(
-+    event: KeyboardEvent,
-+  ): void {
-+    if (event.key !== "Enter" && event.key !== " ") {
-+      return;
-@@ -71,0 +88,6 @@
 +    event.preventDefault();
 +    if (event.repeat) {
 +      return;
-+    }
+@@ -71,0 +75,2 @@
 +    const button = event.currentTarget as HTMLButtonElement;
 +    globalThis.setTimeout(() => button.click(), 0);

@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Inject, OnDestroy, Optional } from "@angular/core";
+import { ChangeDetectorRef, Component, DestroyRef, Inject, OnDestroy, Optional, ViewChild } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { Subscription } from "rxjs";
 
@@ -18,17 +18,28 @@ import { SEND_CREATED_HOST } from "./send-created-page.component";
 import { GeneratorService } from "../generator/generator.service";
 import { BitwardenSendActions, SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
 import type { SendItem } from "./send-item.model";
-import { RetainedTextSendFormService, type RetainedTextSendFormValue } from "./retained-text-send-form.service";
+import {
+  RetainedTextSendFormService,
+  type RetainedTextSendErrors,
+  type RetainedTextSendField,
+  type RetainedTextSendFormValue,
+} from "./retained-text-send-form.service";
 import { TextSendOperation } from "./text-send-operation";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
+import {
+  PopupRouterCacheService,
+  type PopupBackContinuation,
+} from "../platform/popup-router-cache.service";
 
 export const textSendDeletionPresetHours = [1, 24, 48, 72, 168, 336, 720] as const;
 
-@Component({ selector: "bw-send-add-edit-page", host: { class: "macos-page macos-page--secondary macos-page--send-form" }, standalone: true, imports: [OfficialSendAddEditComponent], template: `<bw-official-send-add-edit [mode]="mode" [editing]="editing" [disabled]="disabled" [pending]="operation.pending" [valid]="form.valid()" [unavailable]="invalidRequestedSend" [value]="form.value()" [originalHadPassword]="originalHadPassword" [hideEmailAllowed]="hideEmailAllowed" [status]="status" (edit)="beginEditing()" (save)="save()" (cancel)="cancelEditing()" (back)="back()" (delete)="delete()" (removePassword)="removePassword()" (generatePassword)="generatePassword()" (copyPassword)="copyPassword($event)" (valueChange)="form.patch($event)" />` })
+@Component({ selector: "bw-send-add-edit-page", host: { class: "macos-page macos-page--secondary macos-page--send-form" }, standalone: true, imports: [OfficialSendAddEditComponent], template: `<bw-official-send-add-edit [mode]="mode" [editing]="editing" [disabled]="disabled" [pending]="operation.pending" [valid]="form.valid()" [unavailable]="invalidRequestedSend" [value]="form.value()" [errors]="errors" [touched]="touched" [originalHadPassword]="originalHadPassword" [hideEmailAllowed]="hideEmailAllowed" [status]="status" (edit)="beginEditing()" (save)="save()" (cancel)="cancelEditing()" (back)="back()" (delete)="delete()" (removePassword)="removePassword()" (generatePassword)="generatePassword()" (copyPassword)="copyPassword($event)" (valueChange)="form.patch($event)" (fieldBlur)="fieldBlur($event)" />` })
 export class SendAddEditPageComponent implements OnDestroy {
+  @ViewChild(OfficialSendAddEditComponent) private presentation?: OfficialSendAddEditComponent;
   readonly form: RetainedTextSendFormService;
   readonly operation: TextSendOperation;
   readonly host: HostApi;
+  readonly touched = new Set<RetainedTextSendField>();
   mode: OfficialSendMode = "add";
   editing = true;
   private source?: SendItem;
@@ -42,7 +53,9 @@ export class SendAddEditPageComponent implements OnDestroy {
   private readonly routeSubscription: Subscription;
   private readonly stateSubscription: Subscription;
 
-  constructor(route: ActivatedRoute, private readonly router: Router, private readonly store: PopupStateStore, private readonly generator: GeneratorService, private readonly clipboard: ClipboardPolicyService, private readonly dialogService: DialogService, private readonly changeDetectorRef: ChangeDetectorRef, @Optional() @Inject(SEND_ACTION_PORT) actions: SendActionPort | null = null, @Optional() @Inject(SEND_CREATED_HOST) host: HostApi | null = null) {
+  constructor(route: ActivatedRoute, private readonly router: Router, private readonly store: PopupStateStore, private readonly generator: GeneratorService, private readonly clipboard: ClipboardPolicyService, private readonly dialogService: DialogService, private readonly changeDetectorRef: ChangeDetectorRef, private readonly routeCache: PopupRouterCacheService, destroyRef: DestroyRef, @Optional() @Inject(SEND_ACTION_PORT) actions: SendActionPort | null = null, @Optional() @Inject(SEND_CREATED_HOST) host: HostApi | null = null) {
+    const releaseBackOwner = routeCache.registerBackOwner((resume) => this.leaveRoute(resume));
+    destroyRef.onDestroy(releaseBackOwner);
     this.host = host ?? new TauriHostService();
     const state = store.snapshot();
     this.policyDisabled = state.sendPolicy.disabled;
@@ -57,8 +70,9 @@ export class SendAddEditPageComponent implements OnDestroy {
   get hideEmailAllowed(): boolean { return this.policyHideEmailAllowed; }
   get originalHadPassword(): boolean { return Boolean(this.source?.hasPassword || this.source?.password); }
   get status(): string { return this.store.snapshot().statusMessage; }
+  get errors(): RetainedTextSendErrors { return this.form.errors(); }
   get invalidRequestedSend(): boolean { return this.ownershipInvalid || (this.requestedId.length > 0 && !this.source); }
-  get canSave(): boolean { return !this.disabled && !this.invalidRequestedSend && this.form.valid() && !this.operation.pending; }
+  get canSave(): boolean { return !this.disabled && !this.invalidRequestedSend && !this.operation.pending; }
   get name(): string { return this.form.value().name; } set name(value: string) { this.form.patch({ name: value }); }
   get text(): string { return this.form.value().text; } set text(value: string) { this.form.patch({ text: value }); }
   get password(): string { return this.form.value().password; } set password(value: string) { this.form.patch({ authType: value ? "password" : "none", password: value }); }
@@ -73,6 +87,10 @@ export class SendAddEditPageComponent implements OnDestroy {
       : "";
   }
   setDeletionHoursValue(value: number | string | null): void { const hours = Number(value); if (textSendDeletionPresetHours.includes(hours as typeof textSendDeletionPresetHours[number])) this.form.patch({ deletionPresetHours: hours as RetainedTextSendFormValue["deletionPresetHours"] }); }
+  fieldBlur(field: RetainedTextSendField): void {
+    this.touched.add(field);
+    this.changeDetectorRef.markForCheck();
+  }
 
   beginEditing(): void { if (this.mode === "edit" && !this.invalidRequestedSend) this.editing = true; }
   async cancelEditing(): Promise<void> {
@@ -80,21 +98,32 @@ export class SendAddEditPageComponent implements OnDestroy {
       if (!(await this.discardEditing())) return;
       return;
     }
-    this.invalidateContinuations();
-    void this.router.navigate(["/tabs/send"]);
+    await this.routeCache.back();
   }
   async back(): Promise<void> {
+    await this.routeCache.back();
+  }
+
+  private async leaveRoute(resume: PopupBackContinuation): Promise<void> {
     if (this.mode === "edit" && this.editing) {
       await this.discardEditing();
       return;
     }
+    if (!(await this.discardEditing())) return;
     this.invalidateContinuations();
-    await this.router.navigate(["/tabs/send"]);
+    await resume("/tabs/send");
   }
 
   async save(): Promise<void> {
-    if (this.destroyed || this.invalidRequestedSend || !this.form.valid() || this.operation.pending) return;
+    if (this.destroyed || this.invalidRequestedSend || this.operation.pending) return;
     if (this.disabled) { this.store.setStatus(translateOfficialMessage("i18nOrganizationPolicyDisabledSendStatus")); return; }
+    const errors = this.form.errors();
+    if (Object.keys(errors).length > 0) {
+      for (const field of Object.keys(errors) as RetainedTextSendField[]) this.touched.add(field);
+      this.changeDetectorRef.detectChanges();
+      this.presentation?.focusFirstError(errors);
+      return;
+    }
     if (!this.store.snapshot().activeSession?.crypto?.userKeyB64) { this.store.setStatus(translateOfficialMessage("i18nUnlockBeforeCreatingSend")); return; }
     const source = this.mode === "edit" ? this.source : undefined;
     if (this.mode === "edit" && !source) { this.store.setStatus(translateOfficialMessage("i18nUnableToSaveSend")); return; }
@@ -236,6 +265,7 @@ export class SendAddEditPageComponent implements OnDestroy {
     this.mode = this.source ? "edit" : "add";
     this.editing = !this.source;
     this.form.initialize(this.source ? valueFrom(this.source) : emptyValue(), this.source?.deletionDate);
+    this.touched.clear();
     this.pageOwner = capturePageOwner(this.store);
   }
 
@@ -271,6 +301,7 @@ export class SendAddEditPageComponent implements OnDestroy {
     this.mode = "edit";
     this.editing = false;
     this.form.initialize(valueFrom(send), send.deletionDate);
+    this.touched.clear();
     this.pageOwner = capturePageOwner(this.store);
   }
 
@@ -291,6 +322,7 @@ export class SendAddEditPageComponent implements OnDestroy {
       )
     ) return false;
     this.form.reset();
+    this.touched.clear();
     this.editing = false;
     return true;
   }
@@ -303,6 +335,7 @@ export class SendAddEditPageComponent implements OnDestroy {
     this.ownershipInvalid = true;
     this.editing = false;
     this.form.destroy();
+    this.touched.clear();
   }
 
   private captureContinuation(invalidateExisting = false): SendContinuationOwner {

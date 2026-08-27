@@ -1,7 +1,7 @@
 {
   "revision": "f47b6946e01aed474875789081966d311d5b8289",
   "license": {
-    "rootPackageSha256": "b670e31d191e75483aec74a3f424d0f438e0d396e6f66ec216aacebc42e6fa99",
+    "rootPackageSha256": "c1a93edc30ab20f6c7ea825f06339118fdf6bbb874765dbbefd0fd308a5e5f29",
     "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
     "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
     "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"
@@ -206,11 +206,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-detail.component.ts",
-      "sha256": "b676cc7940e260f22a5f515d8d817b93b36cfdb39fc13b7c934e396dc7b9188a"
+      "sha256": "cdcb845766b360bab218949839a6039997ba8e330b0256a321803def31d9d8e1"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-detail.component.html",
-      "sha256": "b0ab4488fb7da3f9377b4f551797abc55ebced30f2b9a3ae308a10e7881c3028"
+      "sha256": "b1a74687690b67c16018806a05a0ce2ce37970669df318809991b3b2ec49b745"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-color-password.component.ts",
@@ -222,15 +222,15 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-details.component.html",
-      "sha256": "ad9a00fd52289d3e283eee9b45561e0424c076ac67465f3564db05d203b91f77"
+      "sha256": "3a46221977d598be31e9d913cd463fb12906053f400ec173b0f7ee96b5bec415"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-credentials.component.ts",
-      "sha256": "6313d243bab2248a910b38b33ca116e58dca727b4413ba06d88fe40c8f0a337e"
+      "sha256": "0d24323494b7b25f439676965b0a90a0140ee426cb7fdd3a621c491ceb4ec755"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-login-credentials.component.html",
-      "sha256": "1b7f016f70f9e171e2d8cf16813266be3e09d064ac9bc6de205e85da2d3082f3"
+      "sha256": "512919743848a9f6fde2437537d6865a8248f6fd1b654fa69e025bbe01f2bc73"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-totp-countdown.component.ts",
@@ -270,7 +270,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-history.component.html",
-      "sha256": "c9e35ec47a145433dd5c61a9bb0e1acbb7902242014c59bc77f9f65c4aeb93ff"
+      "sha256": "ed46fa357349b85a717bc43fb48dc409d273a89dc01f7fa0d3e6d70a0ce08d25"
     }
   ],
   "aliases": {

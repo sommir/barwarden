@@ -29,7 +29,8 @@ export type RecoveryRepromptRequest = (
 export type RecoveryConfirmationRequest = (
   command: Extract<RecoveryCommand, "soft-delete" | "permanent-delete">,
   item: RetainedPopupCipherView,
-  continuation: () => Promise<void>,
+  continuation: () => Promise<RecoveryPageActionResult>,
+  trigger?: HTMLElement,
 ) => boolean;
 
 interface RecoveryActionContext {
@@ -41,6 +42,7 @@ interface RecoveryActionContext {
   readonly route: string;
   readonly serverUrl: string;
   readonly source: VaultItem;
+  readonly trigger?: HTMLElement;
 }
 
 export class RecoveryPageActionsAdapter implements OnDestroy {
@@ -88,28 +90,23 @@ export class RecoveryPageActionsAdapter implements OnDestroy {
       return staleResult();
     }
 
-    if (isConfirmationCommand(command) && !confirmationPassed) {
-      if (!this.requestConfirmation) {
-        return result(false, "Action cancelled.");
-      }
-      const requested = this.requestConfirmation(command, context.item, async () => {
-        await this.executeCurrent(context, command, repromptPassed, true);
-      });
-      return requested
-        ? result(false, "Confirmation required.")
-        : result(false, "Action cancelled.");
-    }
-
     if (context.item.reprompt && !repromptPassed) {
       if (!this.requestReprompt) {
         return result(false, "Unable to verify master password.");
       }
-      const requested = this.requestReprompt(context.source.id, async () => {
-        await this.executeCurrent(context, command, true, confirmationPassed);
-      });
-      return requested
-        ? result(false, "Verification required.")
+      const requested = this.requestReprompt(context.source.id, () =>
+        this.executeCurrent(context, command, true, confirmationPassed).then((): void => undefined));
+      return requested ? result(false, "Verification required.")
         : result(false, "Unable to verify master password.");
+    }
+    if (isConfirmationCommand(command) && !confirmationPassed) {
+      if (!this.requestConfirmation) return result(false, "Action cancelled.");
+      const requested = this.requestConfirmation(
+        command, context.item,
+        () => this.executeCurrent(context, command, true, true),
+        context.trigger,
+      );
+      return requested ? result(false, "Confirmation required.") : result(false, "Action cancelled.");
     }
 
     const key = `${context.location}:${context.source.id}:${command}`;
@@ -135,7 +132,11 @@ export class RecoveryPageActionsAdapter implements OnDestroy {
 
       const outcome = await this.runLifecycle(context, command);
       if ("reason" in outcome) {
-        return this.notCommitted(context, outcome);
+        return this.notCommitted(
+          context,
+          outcome,
+          confirmationPassed && isConfirmationCommand(command),
+        );
       }
       if (outcome.result.item !== context.source || !this.isContextCurrent(context)) {
         return staleResult();
@@ -179,11 +180,16 @@ export class RecoveryPageActionsAdapter implements OnDestroy {
   private notCommitted(
     context: RecoveryActionContext,
     outcome: RecoveryMutationNotCommitted,
+    confirmationOwnsFeedback: boolean,
   ): RecoveryPageActionResult {
-    if (outcome.reason !== "stale" && this.isCurrent(context)) {
+    if (
+      !confirmationOwnsFeedback
+      && outcome.reason !== "stale"
+      && this.isCurrent(context)
+    ) {
       this.store.setStatus(outcome.status);
     }
-    return result(false, outcome.status);
+    return result(false, outcome.status, outcome.reason);
   }
 
   private capture(command: RecoveryPageCommand): RecoveryActionContext | undefined {
@@ -211,6 +217,7 @@ export class RecoveryPageActionsAdapter implements OnDestroy {
       route: expectedRoute,
       serverUrl: state.serverUrl,
       source,
+      trigger: command.trigger,
     };
   }
 
@@ -250,12 +257,16 @@ function isConfirmationCommand(
   return command === "soft-delete" || command === "permanent-delete";
 }
 
-function result(terminal: boolean, status: string): RecoveryPageActionResult {
-  return { terminal, status };
+function result(
+  terminal: boolean,
+  status: string,
+  reason?: RecoveryPageActionResult["reason"],
+): RecoveryPageActionResult {
+  return reason ? { terminal, status, reason } : { terminal, status };
 }
 
 function staleResult(): RecoveryPageActionResult {
-  return result(false, "Vault changed; action not applied.");
+  return result(false, "Vault changed; action not applied.", "stale");
 }
 
 const cipherTypeQuery: Partial<Record<VaultItem["type"], string>> = {

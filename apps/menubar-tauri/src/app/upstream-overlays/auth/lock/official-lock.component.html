@@ -1,4 +1,6 @@
 <popup-page>
+  <popup-header slot="header" [pageTitle]="''" />
+
   <section class="tw-flex tw-flex-col tw-gap-4 macos-auth-page">
     <h1 class="macos-auth-heading">Barwarden</h1>
     @if (account$ | async; as account) {
@@ -31,20 +33,20 @@
 
       @switch (activeMethod) {
         @case ("biometric") {
-          <button
-            type="button"
-            bitButton
-            buttonType="primary"
-            class="macos-primary-action"
-            block
-            [disabled]="submitting"
-            (click)="unlockWithBiometric()"
-            data-testid="lock-biometric-button"
-          >
-            {{ "i18nUnlockWithTouchId" | i18n }}
-          </button>
+          <div class="macos-unlock-methods" data-testid="lock-unlock-methods">
+            <button
+              type="button"
+              bitButton
+              buttonType="primary"
+              class="macos-primary-action macos-button-owner"
+              block
+              [disabled]="submitting"
+              (click)="unlockWithBiometric()"
+              data-testid="lock-biometric-button"
+            >
+              {{ "i18nUnlockWithTouchId" | i18n }}
+            </button>
 
-          <div class="tw-flex tw-flex-col tw-space-y-3">
             <p class="tw-text-center tw-mb-0">{{ "or" | i18n }}</p>
 
             @if (availability.pinEnabled) {
@@ -52,6 +54,7 @@
                 type="button"
                 bitButton
                 buttonType="secondary"
+                class="macos-auth-alternative macos-hit-target macos-pressable"
                 block
                 [disabled]="submitting"
                 (click)="selectMethod('pin')"
@@ -65,6 +68,7 @@
               type="button"
               bitButton
               buttonType="secondary"
+              class="macos-auth-alternative macos-hit-target macos-pressable"
               block
               [disabled]="submitting"
               (click)="selectMethod('masterPassword')"
@@ -76,6 +80,7 @@
             <button
               type="button"
               bitButton
+              class="macos-auth-alternative macos-hit-target macos-pressable macos-danger-action"
               block
               [disabled]="submitting"
               (click)="logout()"
@@ -83,6 +88,8 @@
             >
               {{ "logOut" | i18n }}
             </button>
+
+            <a bitLink routerLink="/account-switcher" class="macos-auth-alternative macos-hit-target macos-pressable" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
           </div>
         }
         @case ("pin") {
@@ -93,7 +100,9 @@
             (pinSubmitted)="unlockWithPin($event)"
             (loggedOut)="logout()"
             (methodSelected)="selectMethod($event)"
-          />
+          >
+            <a bitLink routerLink="/account-switcher" class="macos-auth-alternative macos-hit-target macos-pressable" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+          </bw-official-pin-lock>
         }
         @default {
           <bw-official-master-password-lock
@@ -103,7 +112,9 @@
             (unlocked)="unlockSucceeded($event)"
             (loggedOut)="logoutSucceeded()"
             (methodSelected)="selectMethod($event)"
-          />
+          >
+            <a bitLink routerLink="/account-switcher" class="macos-auth-alternative macos-hit-target macos-pressable" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
+          </bw-official-master-password-lock>
         }
       }
     }
@@ -117,7 +128,5 @@
         </bit-callout>
       }
     </div>
-
-    <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">{{ "switchAccount" | i18n }}</a>
   </section>
 </popup-page>

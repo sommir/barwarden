@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from "@angular/core";
+import { Inject, Injectable, Optional, signal } from "@angular/core";
 
 import {
   APP_UPDATE_PORT,
@@ -21,20 +21,21 @@ export interface AppUpdateView {
   readonly notes: string | null;
   readonly progress: number | null;
   readonly message: string;
+  readonly notificationVisible: boolean;
 }
 
 @Injectable({ providedIn: "root" })
 export class AppUpdateService {
   private candidate: AvailableAppUpdate | null = null;
   private operation: Promise<void> | null = null;
-  private view = createView("idle", null, null, null, "");
+  readonly view = signal(createView("idle", null, null, null, "", false));
 
   constructor(
     @Optional() @Inject(APP_UPDATE_PORT) private readonly port: AppUpdatePort | null = null,
   ) {}
 
   snapshot(): AppUpdateView {
-    return this.view;
+    return this.view();
   }
 
   checkManually(): Promise<void> {
@@ -61,11 +62,10 @@ export class AppUpdateService {
         this.publish("idle", null, null, null, "");
       })
       .catch(() => {
-        this.candidate = null;
         this.publish(
           "error",
-          null,
-          null,
+          candidate.version,
+          candidate.notes,
           null,
           translateOfficialMessage("i18nUpdateInstallFailed"),
         );
@@ -82,6 +82,21 @@ export class AppUpdateService {
     }
     this.candidate = null;
     this.publish("idle", null, null, null, "");
+  }
+
+  dismissNotification(): void {
+    const current = this.snapshot();
+    if (current.status !== "available") {
+      return;
+    }
+    this.publish(
+      current.status,
+      current.version,
+      current.notes,
+      current.progress,
+      current.message,
+      false,
+    );
   }
 
   private check(manual: boolean): Promise<void> {
@@ -112,7 +127,7 @@ export class AppUpdateService {
       const candidate = await this.port.check();
       this.candidate = candidate;
       if (candidate) {
-        this.publish("available", candidate.version, candidate.notes, null, "");
+        this.publish("available", candidate.version, candidate.notes, null, "", true);
         return;
       }
       this.publish(
@@ -140,8 +155,11 @@ export class AppUpdateService {
     notes: string | null,
     progress: number | null,
     message: string,
+    notificationVisible = false,
   ): void {
-    this.view = createView(status, version, notes, progress, message);
+    this.view.set(
+      createView(status, version, notes, progress, message, notificationVisible),
+    );
   }
 }
 
@@ -158,6 +176,14 @@ function createView(
   notes: string | null,
   progress: number | null,
   message: string,
+  notificationVisible: boolean,
 ): AppUpdateView {
-  return Object.freeze({ status, version, notes, progress, message });
+  return Object.freeze({
+    status,
+    version,
+    notes,
+    progress,
+    message,
+    notificationVisible,
+  });
 }

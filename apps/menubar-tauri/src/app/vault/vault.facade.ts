@@ -12,7 +12,7 @@ import {
 } from "../official-ui/official-i18n.service";
 
 export interface VaultSectionView {
-  readonly id: "favorites" | "all-items" | "search-results";
+  readonly id: "autofill-suggestions" | "favorites" | "all-items" | "search-results";
   readonly title: string;
   readonly description: string;
   readonly items: readonly VaultItem[];

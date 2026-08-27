@@ -9,6 +9,7 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideNoopAnimations } from "@angular/platform-browser/animations";
 import { provideRouter } from "@angular/router";
@@ -19,11 +20,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GeneratorPageComponent } from "./generator/generator-page.component";
 import { GeneratorService } from "./generator/generator.service";
 import { PopupStateStore } from "./popup-state";
+import { PopupPageComponent } from "./layout/popup-page.component";
 import { SendPageComponent } from "./send/send-page.component";
 import { SettingsPageComponent } from "./settings/settings-page.component";
 import { SettingsService } from "./settings/settings.service";
 import { AuthFacade } from "./auth/auth.facade";
 import { demoVaultItems } from "./vault-demo";
+import { PopupHeaderComponent } from "./layout/popup-header.component";
 import { AccountSecurityPageComponent } from "./settings/account-security-page.component";
 import { VaultActionsService } from "./vault/vault-actions.service";
 import { VaultFacade } from "./vault/vault.facade";
@@ -33,6 +36,18 @@ import { VaultSettingsPageComponent } from "./settings/vault-settings-page.compo
 import { OfficialI18nService } from "./official-ui/official-i18n.service";
 import { officialCurrentAccountTestProviders } from "./official-ui/official-current-account.test-support";
 import { OfficialAccountSwitcherComponent } from "./upstream-overlays/auth/account-switching/official-account-switcher.component";
+
+@Component({
+  standalone: true,
+  imports: [PopupHeaderComponent, PopupPageComponent],
+  template: `
+    <popup-page class="macos-page macos-page--test">
+      <popup-header slot="header" pageTitle="测试标题"></popup-header>
+      <main data-testid="popup-content-start">内容</main>
+    </popup-page>
+  `,
+})
+class HeaderRhythmFixtureComponent {}
 
 function officialIconStyles(): string {
   return readFileSync(
@@ -71,11 +86,30 @@ function frontendTemplateSources(directory: string): string[] {
 }
 
 function cssDeclarations(css: string, selector: string): string {
-  const selectorIndex = css.indexOf(`${selector} {`);
-  expect(selectorIndex).toBeGreaterThanOrEqual(0);
-  const blockStart = css.indexOf("{", selectorIndex);
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const selectorMatch = new RegExp(`(?:^|\\n)\\s*${escapedSelector}\\s*\\{`, "u").exec(css);
+  expect(selectorMatch?.index ?? -1).toBeGreaterThanOrEqual(0);
+  const blockStart = css.indexOf("{", selectorMatch!.index);
   const blockEnd = css.indexOf("}", blockStart);
   return css.slice(blockStart + 1, blockEnd);
+}
+
+function installVisualCss(...paths: readonly string[]): () => void {
+  const style = document.createElement("style");
+  const source = paths
+    .map((path) => readFileSync(join(process.cwd(), path), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const macTokens = new Map(
+    [...rootDeclarations.matchAll(/(--mac-[\w-]+):\s*([^;]+);/g)]
+      .map(([, token, value]) => [token, value.trim()]),
+  );
+  style.textContent = source.replace(/var\((--mac-[\w-]+)\)/g, (reference, token) =>
+    macTokens.get(token) ?? reference,
+  );
+  document.head.append(style);
+  return () => style.remove();
 }
 
 describe("popup visual smoke classes", () => {
@@ -83,6 +117,140 @@ describe("popup visual smoke classes", () => {
     TestBed.configureTestingModule({
       providers: [provideNoopAnimations(), ...officialCurrentAccountTestProviders()],
     });
+  });
+
+  it("resolves the approved luminous palette and semantic field colors", () => {
+    const cleanup = installVisualCss("apps/menubar-tauri/src/styles/macos-tokens.css");
+    const root = document.documentElement;
+    root.setAttribute("data-bw-window", "popout");
+    root.removeAttribute("data-bw-theme");
+    const style = getComputedStyle(root);
+
+    expect(style.getPropertyValue("--mac-canvas").trim()).toBe("#f4f8ff");
+    expect(style.getPropertyValue("--mac-surface-solid").trim()).toBe("#fbfdff");
+    expect(style.getPropertyValue("--mac-surface-contextual").trim()).toBe("#eaf2ff");
+    expect(style.getPropertyValue("--mac-text-primary").trim()).toBe("#111827");
+    expect(style.getPropertyValue("--mac-text-secondary").trim()).toBe("#536784");
+    expect(style.getPropertyValue("--mac-action-username").trim()).toBe("#0a66ff");
+    expect(style.getPropertyValue("--mac-action-password").trim()).toBe("#6657d9");
+    expect(style.getPropertyValue("--mac-action-totp").trim()).toBe("#e98a15");
+    expect(style.getPropertyValue("--mac-control-min-size").trim()).toBe("44px");
+
+    root.removeAttribute("data-bw-window");
+    cleanup();
+  });
+
+  it("renders a shared header/content divider for every popup header", async () => {
+    const cleanup = installVisualCss(
+      "apps/menubar-tauri/src/styles/macos-tokens.css",
+      "apps/menubar-tauri/src/styles/global.css",
+    );
+    await TestBed.configureTestingModule({
+      imports: [HeaderRhythmFixtureComponent],
+    }).compileComponents();
+
+    try {
+      const fixture = TestBed.createComponent(HeaderRhythmFixtureComponent);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const divider = host.querySelector<HTMLElement>('[data-testid="popup-header-divider"]');
+      const content = host.querySelector<HTMLElement>('[data-testid="popup-content-start"]')!;
+
+      expect(divider).not.toBeNull();
+      expect(getComputedStyle(divider!).height).toBe("1px");
+      expect(getComputedStyle(divider!).backgroundColor).toBe("rgba(92, 114, 146, 0.22)");
+      expect(getComputedStyle(content).marginTop).toBe("16px");
+
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      expect(getComputedStyle(content).marginTop).toBe("12px");
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("uses one search-to-content gap instead of stacked wrapper and scroll padding", () => {
+    const cleanup = installVisualCss(
+      "apps/menubar-tauri/src/styles/macos-tokens.css",
+      "apps/menubar-tauri/src/styles/global.css",
+    );
+    const page = document.createElement("popup-page");
+    page.innerHTML = `
+      <main>
+        <div data-testid="popup-above-scroll-area"><bw-root-search></bw-root-search></div>
+        <div data-testid="popup-layout-scroll-region"><section data-testid="first-content-section">内容</section></div>
+      </main>
+    `;
+    document.body.append(page);
+
+    try {
+      const above = page.querySelector<HTMLElement>('[data-testid="popup-above-scroll-area"]')!;
+      const scroll = page.querySelector<HTMLElement>('[data-testid="popup-layout-scroll-region"]')!;
+      expect(getComputedStyle(above).paddingTop).toBe("16px");
+      expect(getComputedStyle(above).paddingBottom).toBe("0px");
+      expect(getComputedStyle(scroll).paddingTop).toBe("0px");
+
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      expect(getComputedStyle(above).paddingTop).toBe("12px");
+      expect(getComputedStyle(above).paddingBottom).toBe("0px");
+      expect(getComputedStyle(scroll).paddingTop).toBe("0px");
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+    } finally {
+      page.remove();
+      cleanup();
+    }
+  });
+
+  it("uses unboxed semantic field glyphs inside 44px action targets", () => {
+    const cleanup = installVisualCss(
+      "apps/menubar-tauri/src/styles/macos-tokens.css",
+      "apps/menubar-tauri/src/styles/global.css",
+    );
+    const row = document.createElement("bit-item");
+    row.className = "vault-list-row";
+    row.innerHTML = `
+      <bit-item-action><button biticonbutton data-field="username"><i class="bwi"></i></button></bit-item-action>
+      <bit-item-action><button biticonbutton data-field="password"><i class="bwi"></i></button></bit-item-action>
+      <bit-item-action><button biticonbutton data-field="totp"><i class="bwi"></i></button></bit-item-action>
+    `;
+    document.body.append(row);
+
+    const username = row.querySelector<HTMLElement>('[data-field="username"]')!;
+    const usernameGlyph = username.querySelector<HTMLElement>(".bwi")!;
+    const passwordGlyph = row.querySelector<HTMLElement>('[data-field="password"] .bwi')!;
+    const totpGlyph = row.querySelector<HTMLElement>('[data-field="totp"] .bwi')!;
+    const target = getComputedStyle(username);
+
+    expect(target.width).toBe("44px");
+    expect(target.minWidth).toBe("44px");
+    expect(target.height).toBe("44px");
+    expect(target.borderTopWidth).toBe("0px");
+    expect(target.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(usernameGlyph).color).toBe("rgb(10, 102, 255)");
+    expect(getComputedStyle(passwordGlyph).color).toBe("rgb(102, 87, 217)");
+    expect(getComputedStyle(totpGlyph).color).toBe("rgb(233, 138, 21)");
+
+    row.remove();
+    cleanup();
+  });
+
+  it("defines a solid dark surface ladder and brighter semantic actions", () => {
+    const cleanup = installVisualCss("apps/menubar-tauri/src/styles/macos-tokens.css");
+    const root = document.documentElement;
+    root.setAttribute("data-bw-window", "popout");
+    root.setAttribute("data-bw-theme", "dark");
+    const style = getComputedStyle(root);
+
+    expect(style.getPropertyValue("--mac-canvas").trim()).toBe("#101621");
+    expect(style.getPropertyValue("--mac-surface-solid").trim()).toBe("#151d2a");
+    expect(style.getPropertyValue("--mac-surface-contextual").trim()).toBe("#1a2638");
+    expect(style.getPropertyValue("--mac-action-username").trim()).toBe("#4c8dff");
+    expect(style.getPropertyValue("--mac-action-password").trim()).toBe("#9b8cff");
+    expect(style.getPropertyValue("--mac-action-totp").trim()).toBe("#ffb454");
+
+    root.removeAttribute("data-bw-theme");
+    root.removeAttribute("data-bw-window");
+    cleanup();
   });
 
   it("uses the official default popup dimensions and application icon in Tauri configuration", () => {
@@ -132,7 +300,7 @@ describe("popup visual smoke classes", () => {
     expect(canvas).toContain("background: transparent;");
   });
 
-  it("uses one visible, continuous material gradient for menu-bar and popout auth routes", () => {
+  it("uses one visible, continuous material surface for menu-bar and popout auth routes", () => {
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
@@ -142,23 +310,24 @@ describe("popup visual smoke classes", () => {
       "utf8",
     );
 
-    expect(rootTokens).toMatch(/--mac-popup-material:\s*linear-gradient\(/);
+    expect(rootTokens).toContain("--mac-popup-material: #f4f8ff;");
     expect(globalCss).toMatch(
       /:root:not\(\[data-bw-window="popout"\]\) barwarden-root\s*{[^}]*background:\s*var\(--mac-popup-material\);/s,
     );
     expect(globalCss).toMatch(
       /popup-page > main,[\s\S]*?background:\s*transparent !important;/,
     );
-    expect(rootTokens).toMatch(/--mac-auth-background:\s*linear-gradient\(/);
+    expect(rootTokens).toContain("--mac-auth-background: #f4f8ff;");
     expect(globalCss).toMatch(
-      /:root:has\([\s\S]*?bw-lock-page[\s\S]*?\)\s+barwarden-root\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
+      /barwarden-root\.barwarden-root--authentication\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
     );
     expect(globalCss).toMatch(
-      /:root:has\([\s\S]*?bw-lock-page[\s\S]*?\)\s+:is\([\s\S]*?popup-page > main,[\s\S]*?background:\s*transparent !important;/s,
+      /barwarden-root\.barwarden-root--authentication\s+:is\([\s\S]*?popup-page > main,[\s\S]*?background:\s*transparent !important;/s,
     );
     expect(globalCss).toMatch(
-      /:root:has\([\s\S]*?bw-lock-page[\s\S]*?\)\s+body\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
+      /body:has\(> barwarden-root\.barwarden-root--authentication\)\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
     );
+    expect(globalCss).not.toMatch(/barwarden-root:has\([^}]*bw-lock-page/s);
     expect(globalCss).not.toContain(':root:not([data-bw-window="popout"]):has(');
   });
 
@@ -191,6 +360,17 @@ describe("popup visual smoke classes", () => {
 
     expect(navigation).toContain("backdrop-filter: saturate(1.25) blur(16px);");
     expect(navigation).toContain("-webkit-backdrop-filter: saturate(1.25) blur(16px);");
+  });
+
+  it("respects reduced-transparency preferences for the bottom interaction shield", () => {
+    const globalCss = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+      "utf8",
+    );
+
+    expect(globalCss).toMatch(
+      /@media\s*\(prefers-reduced-transparency:\s*reduce\),\s*\(prefers-contrast:\s*more\)\s*{[\s\S]*?\.popup-shell::after[\s\S]*?backdrop-filter:\s*none;[\s\S]*?-webkit-backdrop-filter:\s*none;/s,
+    );
   });
 
   it("keeps the settings group canvas transparent while retaining solid setting rows", () => {
@@ -300,15 +480,19 @@ describe("popup visual smoke classes", () => {
     expect(loading).toContain("min-height: var(--bw-popup-height);");
   });
 
-  it("lets the official form-field own the password focus ring", () => {
+  it("lets official field containers own the single 2px focus ring", () => {
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
     );
 
     expect(globalCss).toMatch(
-      /\.macos-auth-card \.macos-field :is\(input, select, textarea\):focus(?:-visible)?\s*{[^}]*outline:\s*none !important;/s,
+      /bit-form-field \[bitfieldcontainer\]:has\(:focus-visible\),[\s\S]*?outline-width:\s*var\(--mac-focus-ring-width\);[\s\S]*?outline-style:\s*solid;/,
     );
+    expect(globalCss).toMatch(
+      /bit-form-field \[bitfieldcontainer\] :is\(input, select, textarea\):focus-visible,[\s\S]*?outline-width:\s*0 !important;[\s\S]*?outline-style:\s*none !important;/,
+    );
+    expect(globalCss).not.toMatch(/box-shadow:\s*0 0 0 3px[^;]*--mac-focus/);
   });
 
   it("applies the official button preflight before Tailwind component utilities", () => {
@@ -363,17 +547,22 @@ describe("popup visual smoke classes", () => {
     const indicator = cssDeclarations(globalCss, ".floating-tab-switcher__indicator");
 
     expect(switcher).toContain("position: absolute;");
-    expect(switcher).toContain("right: 14px;");
-    expect(switcher).toContain("bottom: 13px;");
-    expect(switcher).toContain("left: 14px;");
-    expect(switcher).toContain("min-height: 58px;");
-    expect(switcher).toContain("border-radius: var(--mac-floating-radius);");
+    expect(switcher).toContain("right: var(--mac-tabbar-inline-offset);");
+    expect(switcher).toContain("bottom: var(--mac-tabbar-bottom-offset);");
+    expect(switcher).toContain("left: var(--mac-tabbar-inline-offset);");
+    expect(switcher).toContain("height: var(--mac-tabbar-height);");
+    expect(switcher).toContain("min-height: var(--mac-tabbar-height);");
+    expect(switcher).toContain("padding: 4px 8px;");
+    expect(switcher).toContain("border-radius: 12px;");
     expect(switcher).toContain("grid-template-columns: repeat(var(--segment-count), minmax(0, 1fr));");
     expect(segment).toContain("grid-template-rows: auto auto;");
-    expect(icon).toContain("font-size: 20px;");
-    expect(label).toContain("font-size: 12px;");
+    expect(segment).toContain("min-height: var(--mac-hit-size);");
+    expect(icon).toContain("font-size: 18px;");
+    expect(label).toContain("font-size: 10.5px;");
+    expect(indicator).toContain("background: var(--mac-selected);");
+    expect(indicator).toContain("box-shadow: none;");
     expect(indicator).toContain("transform: translateX(calc(var(--selected-index) * 100%));");
-    expect(indicator).toContain("transition: transform var(--mac-motion-duration)");
+    expect(indicator).toContain("transition: transform var(--mac-motion-navigation)");
     expect(globalCss).not.toContain("padding-bottom: calc(58px + 13px + var(--mac-space-5));");
     expect(switcher).toContain("isolation: isolate;");
   });
@@ -398,16 +587,31 @@ describe("popup visual smoke classes", () => {
     );
 
     const heading = cssDeclarations(globalCss, ".macos-page-heading");
-    const title = cssDeclarations(globalCss, ".macos-page-heading h1");
+    const leading = cssDeclarations(globalCss, ".macos-page-heading__leading");
+    const titles = cssDeclarations(globalCss, ".macos-page-heading__titles");
+    const title = cssDeclarations(globalCss, "popup-header > header h1");
+    const projectedTitle = cssDeclarations(globalCss, "popup-header > header h1[bittypography]");
     const actions = cssDeclarations(globalCss, ".macos-page-heading__actions");
 
     expect(heading).toContain("display: grid;");
     expect(heading).toContain("grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);");
     expect(heading).toContain("width: 100%;");
-    expect(title).toContain("font-size: 18px;");
-    expect(title).toContain("font-weight: 680;");
+    expect(leading).toContain("height: var(--mac-header-action-size);");
+    expect(titles).toContain("display: grid;");
+    expect(titles).toContain("height: var(--mac-header-action-size);");
+    expect(titles).toContain("place-items: center;");
+    expect(title).toContain("font-size: 17px !important;");
+    expect(title).toContain("box-sizing: border-box;");
+    expect(title).toContain("padding-top: var(--mac-header-title-optical-padding-top) !important;");
+    expect(title).toContain("line-height: var(--mac-header-title-line-height) !important;");
+    expect(title).toContain("font-weight: 650 !important;");
+    expect(title).toContain("letter-spacing: -0.01em;");
     expect(title).toContain("text-align: center;");
+    expect(projectedTitle).toContain("font-size: 17px !important;");
+    expect(projectedTitle).toContain("line-height: var(--mac-header-title-line-height) !important;");
+    expect(projectedTitle).toContain("margin: 0 !important;");
     expect(actions).toContain("display: flex;");
+    expect(actions).toContain("height: var(--mac-header-action-size);");
     expect(actions).toContain("grid-column: 3;");
     expect(actions).toContain("justify-self: end;");
   });
@@ -418,7 +622,7 @@ describe("popup visual smoke classes", () => {
       "utf8",
     );
     const header = cssDeclarations(globalCss, "popup-header > header");
-    const title = cssDeclarations(globalCss, ".macos-page-heading h1");
+    const title = cssDeclarations(globalCss, "popup-header > header h1");
 
     expect(header).toContain("background: transparent !important;");
     expect(header).toContain("border-color: transparent !important;");
@@ -513,7 +717,11 @@ describe("popup visual smoke classes", () => {
     expect(officialItemContent).toContain("bit-compact:tw-py-1.5 bit-compact:tw-px-2");
   });
 
-  it("styles the Vault hierarchy as a quiet native surface with a title-bar add control", () => {
+  it("styles the Vault hierarchy as one continuous native surface with a title-bar add control", () => {
+    const cleanup = installVisualCss(
+      "apps/menubar-tauri/src/styles/macos-tokens.css",
+      "apps/menubar-tauri/src/styles/global.css",
+    );
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
@@ -524,10 +732,8 @@ describe("popup visual smoke classes", () => {
     );
     const header = cssDeclarations(globalCss, ".vault-root-header");
     const title = cssDeclarations(globalCss, ".vault-root-header__title");
-    const search = cssDeclarations(globalCss, ".vault-root-header__search");
     const hierarchy = cssDeclarations(globalCss, ".vault-hierarchy");
     const node = cssDeclarations(globalCss, ".vault-hierarchy__node");
-    const trigger = cssDeclarations(globalCss, ".vault-hierarchy__trigger");
     const content = cssDeclarations(globalCss, ".vault-hierarchy__content");
     const openContent = cssDeclarations(globalCss, ".vault-hierarchy__content.is-open");
     const headerAdd = cssDeclarations(
@@ -546,30 +752,70 @@ describe("popup visual smoke classes", () => {
       globalCss,
       ":is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] .bwi",
     );
+    const vault = document.createElement("div");
+    vault.innerHTML = `
+      <div class="vault-root-header__search"></div>
+      <button class="vault-hierarchy__trigger" aria-expanded="true"></button>
+      <div class="vault-hierarchy__items">
+        <bit-item-group>
+          <bit-item class="vault-list-row"></bit-item>
+          <bit-item class="vault-list-row"></bit-item>
+        </bit-item-group>
+      </div>
+      <div class="vault-hierarchy__children">
+        <button class="vault-hierarchy__child macos-pressable" aria-expanded="true"></button>
+      </div>
+      <div class="vault-hierarchy__content">
+        <p class="vault-hierarchy__empty"></p>
+      </div>
+    `;
+    document.body.append(vault);
+
+    const search = vault.querySelector<HTMLElement>(".vault-root-header__search")!;
+    const trigger = vault.querySelector<HTMLElement>(".vault-hierarchy__trigger")!;
+    const group = vault.querySelector<HTMLElement>("bit-item-group")!;
+    const row = vault.querySelector<HTMLElement>(".vault-list-row")!;
+    const childTrigger = vault.querySelector<HTMLElement>(".vault-hierarchy__child")!;
+    const empty = vault.querySelector<HTMLElement>(".vault-hierarchy__empty")!;
 
     expect(header).toContain("display: grid;");
     expect(header).toContain(
       "grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);",
     );
     expect(title).toContain("text-align: center;");
-    expect(search).toContain("border-radius: 999px;");
-    expect(search).toContain("min-height: 42px;");
-    expect(search).toContain("margin: 0 var(--mac-space-5) var(--mac-space-1);");
+    expect(getComputedStyle(search).minHeight).toBe("44px");
+    expect(getComputedStyle(search).borderRadius).toBe("12px");
+    expect(getComputedStyle(search).marginBottom).toBe("0px");
+    expect(getComputedStyle(search).backgroundColor).toBe("rgb(234, 242, 255)");
+    expect(getComputedStyle(search).boxShadow).toBe("none");
+    expect(getComputedStyle(trigger).minHeight).toBe("44px");
+    expect(getComputedStyle(trigger).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(trigger).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(group).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(group).borderRadius).toBe("12px");
+    expect(getComputedStyle(row).minHeight).toBe("52px");
+    expect(getComputedStyle(row).borderBottomWidth).toBe("1px");
+    expect(getComputedStyle(row).borderRadius).toBe("0px");
+    expect(getComputedStyle(row).boxShadow).toBe("none");
+    expect(getComputedStyle(childTrigger).minHeight).toBe("44px");
+    expect(getComputedStyle(empty).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(empty).borderBottomWidth).toBe("0px");
+    expect(getComputedStyle(empty).borderRadius).toBe("0px");
+    expect(getComputedStyle(empty).boxShadow).toBe("none");
     expect(globalCss).toMatch(
-      /popup-page\s*>\s*main\s*>\s*div:has\(bw-root-search\),[\s\S]*?popup-page\s*>\s*main\s*>\s*div:has\(bit-search\)\s*{[^}]*padding-block:\s*var\(--mac-space-2\) !important;/,
+      /popup-page\s*>\s*main\s*>\s*div:has\(bw-root-search\),[\s\S]*?popup-page\s*>\s*main\s*>\s*div:has\(bit-search\)\s*{[^}]*padding-top:\s*var\(--mac-space-4\) !important;[^}]*padding-bottom:\s*0 !important;/,
     );
     expect(globalCss).toMatch(
-      /div:has\(bw-root-search\)\s*\+\s*\[data-testid="popup-layout-scroll-region"\],[\s\S]*?div:has\(bit-search\)\s*\+\s*\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-top:\s*var\(--mac-space-2\) !important;/,
+      /div:has\(bw-root-search\)\s*\+\s*\[data-testid="popup-layout-scroll-region"\],[\s\S]*?div:has\(bit-search\)\s*\+\s*\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-top:\s*0 !important;/,
     );
     expect(hierarchy).toContain("display: flex;");
     expect(hierarchy).toContain("flex-direction: column;");
     expect(node).toContain("display: block;");
     expect(node).toContain("flex: 0 0 auto;");
-    expect(trigger).toContain("min-height: 40px;");
-    expect(trigger).toContain("background: transparent;");
-    expect(motionCss).toContain("--mac-disclosure-motion: 200ms;");
+    expect(motionCss).toContain("--mac-motion-standard: 180ms;");
+    expect(motionCss).toContain("--mac-disclosure-motion: var(--mac-motion-standard);");
     expect(motionCss).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*--mac-disclosure-motion:\s*1ms;/,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*transition:\s*none !important;/,
     );
     expect(content).toContain("display: none;");
     expect(content).toContain("transform: translateY(-4px);");
@@ -589,14 +835,19 @@ describe("popup visual smoke classes", () => {
       /bw-vault-hierarchy,[\s\S]*app-vault-list-items-container,[\s\S]*bw-retained-new-item-dropdown\s*{\s*display:\s*block;/,
     );
     expect(globalCss).not.toContain(".vault-progressive-loading");
-    expect(headerAdd).toContain("width: 36px;");
-    expect(headerAdd).toContain("height: 36px;");
+    expect(headerAdd).toContain("width: var(--mac-header-action-size);");
+    expect(headerAdd).toContain("height: var(--mac-header-action-size);");
     expect(headerAdd).toContain("border-radius: 999px;");
     expect(headerAdd).toContain("place-items: center;");
     expect(headerAdd).toContain("font-size: 0;");
+    expect(headerAddContent).toContain("width: var(--mac-header-action-disc-size) !important;");
+    expect(headerAddContent).toContain("height: var(--mac-header-action-disc-size) !important;");
     expect(headerAddContent).toContain("gap: 0 !important;");
     expect(headerAddLabel).toContain("display: none;");
     expect(headerAddIcon).toContain("transform: translateY(1px);");
+
+    vault.remove();
+    cleanup();
   });
 
   it("keeps retained fade content visible after native route transitions", () => {
@@ -630,7 +881,7 @@ describe("popup visual smoke classes", () => {
     );
     const hierarchySelection = cssDeclarations(
       globalCss,
-      ".vault-hierarchy__items app-retained-vault-list-item > bit-item:focus-within",
+      ".vault-hierarchy__items .vault-list-row:focus-within",
     );
     const menuTriggerSource = readFileSync(
       join(
@@ -640,12 +891,15 @@ describe("popup visual smoke classes", () => {
       "utf8",
     );
 
-    expect(menu).toContain("min-width: 156px;");
+    expect(menu).toContain("min-width: 148px;");
+    expect(menu).toContain("gap: 0;");
     expect(menu).toContain("border-radius: 12px;");
     expect(menu).toContain("box-shadow:");
-    expect(menu).toContain("animation: macos-menu-appear 100ms ease-out;");
+    expect(menu).toContain("animation-name: macos-menu-appear;");
+    expect(menu).toContain("animation-duration: var(--mac-motion-fast);");
+    expect(menu).toContain("animation-timing-function: ease-out;");
     expect(globalCss).toMatch(
-      /\.bit-menu-panel--closing \[role="menu"\][\s\S]*?animation:\s*macos-menu-disappear 100ms ease-in forwards/,
+      /\.bit-menu-panel--closing \[role="menu"\][\s\S]*?animation-name:\s*macos-menu-disappear;[\s\S]*?animation-duration:\s*var\(--mac-motion-fast\);[\s\S]*?animation-fill-mode:\s*forwards;/,
     );
     expect(globalCss).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.bit-menu-panel \[role="menu"\][\s\S]*?animation:\s*none/,
@@ -655,33 +909,40 @@ describe("popup visual smoke classes", () => {
     expect(content).toContain("background: transparent !important;");
     expect(hierarchySelection).toContain("background: var(--mac-selected);");
     expect(globalCss).not.toContain(
-      ".vault-hierarchy__items app-retained-vault-list-item > bit-item:focus-within::after",
+      ".vault-hierarchy__items .vault-list-row:focus-within::after",
     );
     expect(menu).not.toContain("transform-origin: top right;");
     expect(menuTriggerSource).toContain('.withTransformOriginOn(\'[role="menu"]\')');
+    expect(menuTriggerSource).toContain("const MENU_CLOSE_MOTION_MS = 160;");
+    expect(menuTriggerSource).toContain("setTimeout(() => this.finishClose(), MENU_CLOSE_MOTION_MS)");
   });
 
-  it("connects expanded Vault parents and nested rows into one enclosure", () => {
+  it("keeps the continuous Vault list's final-row separator removal scoped to item groups", () => {
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
-    );
-    const expandedParent = cssDeclarations(
-      globalCss,
-      '.vault-hierarchy__trigger[aria-expanded="true"]',
     );
     const nestedGroup = cssDeclarations(
       globalCss,
       ".vault-hierarchy__children .vault-hierarchy__child-content .vault-hierarchy__items bit-item-group",
     );
+    const directLastRow = cssDeclarations(
+      globalCss,
+      ".vault-hierarchy__items bit-item-group > .vault-list-row:last-child",
+    );
+    const wrappedLastRow = cssDeclarations(
+      globalCss,
+      ".vault-hierarchy__items bit-item-group app-retained-vault-list-item:last-child > .vault-list-row",
+    );
 
-    expect(expandedParent).toContain("border-radius: 12px 12px 0 0;");
-    expect(expandedParent).toContain("background: var(--mac-surface-solid);");
     expect(globalCss).not.toContain(
       ".vault-hierarchy__node:has(> .vault-hierarchy__content) > .vault-hierarchy__trigger",
     );
     expect(nestedGroup).toContain("border-radius: 0;");
     expect(nestedGroup).toContain("border: 0;");
+    expect(directLastRow).toContain("border-bottom: 0;");
+    expect(wrappedLastRow).toContain("border-bottom: 0;");
+    expect(globalCss).not.toContain(".vault-hierarchy__items .vault-list-row:last-child {");
   });
 
   it("uses one continuous responsive form-field surface and compact auth errors", () => {
@@ -724,6 +985,35 @@ describe("popup visual smoke classes", () => {
     expect(toast).toContain("width: 100%;");
   });
 
+  it("presents app updates as a compact native card and anchored global notice", () => {
+    const globalCss = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+      "utf8",
+    );
+    const card = cssDeclarations(globalCss, ".app-update-card");
+    const header = cssDeclarations(globalCss, ".app-update-card__header");
+    const actions = cssDeclarations(globalCss, ".app-update-card__actions");
+    const notice = cssDeclarations(globalCss, ".app-update-notice");
+
+    expect(card).toContain("border: 0;");
+    expect(card).toContain("border-block: 1px solid var(--mac-border-subtle);");
+    expect(card).toContain("border-radius: 0;");
+    expect(card).toContain("background: transparent;");
+    expect(header).toContain("display: flex;");
+    expect(actions).toContain("justify-content: flex-end;");
+    expect(notice).toContain("position: absolute;");
+    expect(notice).toContain("pointer-events: auto;");
+    expect(globalCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.app-update-card progress/u,
+    );
+    expect(globalCss).toMatch(
+      /@media \(prefers-reduced-transparency: reduce\)[\s\S]*?\.app-update-notice/u,
+    );
+    expect(globalCss).toMatch(
+      /@media \(prefers-contrast: more\)[\s\S]*?\.app-update-card/u,
+    );
+  });
+
   it("anchors global feedback in the application window and keeps its close control clickable", () => {
     const globalCss = readFileSync(
       join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
@@ -760,11 +1050,22 @@ describe("popup visual smoke classes", () => {
     const row = cssDeclarations(globalCss, ".otp-code-row");
     const code = cssDeclarations(globalCss, ".otp-code-row__code");
     const countdown = cssDeclarations(globalCss, ".otp-code-row__countdown");
+    const compactRow = cssDeclarations(globalCss, "body.tw-bit-compact .otp-code-row");
+    const tokens = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"),
+      "utf8",
+    );
 
-    expect(list).toContain("border-radius: 12px;");
+    expect(list).toContain("border-radius: 0;");
     expect(list).toContain("background: var(--mac-surface-solid);");
-    expect(row).toContain("min-height: 64px;");
+    expect(list).toContain("box-shadow: none;");
+    expect(row).toContain("min-height: var(--mac-row-height);");
+    expect(row).toContain("border-radius: 0;");
+    expect(row).toContain("box-shadow: none;");
     expect(row).toContain("grid-template-columns: 28px minmax(0, 1fr) auto auto;");
+    expect(compactRow).toContain("min-height: var(--mac-compact-row-height);");
+    expect(tokens).toContain("--mac-row-height: 52px;");
+    expect(tokens).toContain("--mac-compact-row-height: 44px;");
     expect(code).toContain("font-family: ui-monospace");
     expect(code).toContain("font-size: 18px;");
     expect(countdown).toContain("width: 32px;");
@@ -989,8 +1290,16 @@ describe("popup visual smoke classes", () => {
         || JSON.stringify(labels) === JSON.stringify(["Password", "Passphrase", "Username"]),
     );
     expect(generatorHost.querySelector(".generator-algorithm-toggle")).toBeNull();
-    expect(generatorHost.querySelector("bit-toggle-group + bit-card .bwi-generate")).not.toBeNull();
-    expect(generatorHost.querySelector("bit-toggle-group + bit-card .bwi-clone")).not.toBeNull();
+    const generatorResult = generatorHost.querySelector<HTMLElement>(".macos-generator__result");
+    const generatorMode = generatorHost.querySelector<HTMLElement>(".macos-generator__mode");
+    expect(generatorResult).not.toBeNull();
+    expect(generatorResult?.querySelector(".bwi-generate")).not.toBeNull();
+    expect(generatorResult?.querySelector(".bwi-clone")).not.toBeNull();
+    expect(
+      generatorResult && generatorMode
+        ? Boolean(generatorResult.compareDocumentPosition(generatorMode) & Node.DOCUMENT_POSITION_FOLLOWING)
+        : false,
+    ).toBe(true);
     expect(generatorHost.querySelector('bit-item a[routerlink="/generator-history"] .bwi-angle-right')).not.toBeNull();
     expect((send.nativeElement as HTMLElement).querySelector("popup-page > main")).not.toBeNull();
     expect((send.nativeElement as HTMLElement).querySelector("bit-no-items")).not.toBeNull();

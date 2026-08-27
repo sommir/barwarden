@@ -1,6 +1,7 @@
 import {
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   Inject,
   OnDestroy,
   Optional,
@@ -27,6 +28,10 @@ import {
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
 import { PopupStateStore, type PopupState } from "../popup-state";
+import {
+  PopupRouterCacheService,
+  type PopupBackContinuation,
+} from "../platform/popup-router-cache.service";
 import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component";
 import { OfficialLoginCipherFormComponent } from "../upstream-overlays/cipher-form/official-login-cipher-form.component";
 import { OfficialPersonalCipherFormComponent } from "../upstream-overlays/cipher-form/official-personal-cipher-form.component";
@@ -120,7 +125,7 @@ interface LoginSaveOwnership {
         <button slot="end" bitIconButton="bwi-popout" type="button" [label]="'i18nPopOut' | i18n" (click)="popOut()"></button>
       </popup-header>
 
-      <div class="cipher-form-scroll macos-list">
+      <div class="cipher-form-scroll macos-list" [attr.aria-busy]="savePending">
         @if (cipherType.type === 'login') {
           <bw-official-login-cipher-form
             formId="official-login-cipher-form"
@@ -138,11 +143,14 @@ interface LoginSaveOwnership {
 
       <popup-footer slot="footer">
         @if (cipherType.type === 'login') {
-          <button bitButton buttonType="primary" type="submit" form="official-login-cipher-form" [disabled]="!canSubmitOfficialLogin">{{ "save" | i18n }}</button>
+          <button class="macos-button-owner macos-primary-action" bitButton buttonType="primary" type="submit" form="official-login-cipher-form" [disabled]="!canSubmitOfficialLogin" [loading]="savePending" [attr.aria-busy]="savePending">{{ "save" | i18n }}</button>
         } @else {
-          <button bitButton buttonType="primary" type="submit" form="official-personal-cipher-form" [disabled]="!canSubmitOfficialPersonal">{{ "save" | i18n }}</button>
+          <button class="macos-button-owner macos-primary-action" bitButton buttonType="primary" type="submit" form="official-personal-cipher-form" [disabled]="!canSubmitOfficialPersonal" [loading]="savePending" [attr.aria-busy]="savePending">{{ "save" | i18n }}</button>
         }
-        <button bitButton buttonType="secondary" type="button" (click)="cancel($event)">{{ "cancel" | i18n }}</button>
+        <button class="macos-hit-target" bitButton buttonType="secondary" type="button" (click)="cancel($event)">{{ "cancel" | i18n }}</button>
+        <span class="tw-sr-only" data-testid="vault-save-status" role="status" aria-live="polite" aria-atomic="true">
+          {{ savePending ? ("i18nSaving" | i18n) : "" }}
+        </span>
       </popup-footer>
     </popup-page>
   `,
@@ -154,7 +162,7 @@ export class VaultAddEditPageComponent implements OnDestroy {
   private officialPersonalForm: OfficialPersonalCipherFormComponent | undefined;
 
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.backToVault();
+    this.routeCache.back();
   folderId = "";
   cipherType: CipherTypeView = CIPHER_TYPES["1"];
   selectedItem: VaultItem | undefined;
@@ -169,6 +177,7 @@ export class VaultAddEditPageComponent implements OnDestroy {
   private syncRequiredEditId: string | null = null;
   private readonly popOutHost: PopOutHost;
   private readonly personalOperation: PersonalCipherSaveOperation;
+  private pendingBackFocusTarget: EventTarget | null = null;
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -179,11 +188,15 @@ export class VaultAddEditPageComponent implements OnDestroy {
     private readonly dirtyFormService: DirtyFormService,
     private readonly vaultSession: VaultSessionService,
     private readonly changeDetectorRef: ChangeDetectorRef,
+    private readonly routeCache: PopupRouterCacheService,
+    destroyRef: DestroyRef,
     @Optional()
     @Inject(VAULT_CIPHER_WRITE_PORT)
     private readonly cipherWrite: VaultCipherWritePort | null = null,
     @Optional() @Inject(POP_OUT_HOST) popOutHost: PopOutHost | null = null,
   ) {
+    const releaseBackOwner = routeCache.registerBackOwner((resume) => this.leavePage(resume));
+    destroyRef.onDestroy(releaseBackOwner);
     this.popOutHost = popOutHost ?? new TauriHostService();
     this.routePath = this.route.snapshot?.routeConfig?.path ?? "add-cipher";
     this.personalOperation = new PersonalCipherSaveOperation({
@@ -243,17 +256,29 @@ export class VaultAddEditPageComponent implements OnDestroy {
     );
   }
 
+  get savePending(): boolean {
+    return this.loginOperationToken !== null || this.personalOperation.pending;
+  }
+
   async popOut(): Promise<void> {
     await this.popOutHost.popOut(this.router.url);
   }
 
   async backToVault(): Promise<void> {
-    const focusTarget = document.activeElement;
+    this.pendingBackFocusTarget = document.activeElement;
+    await this.routeCache.back();
+  }
+
+  private async leavePage(
+    resume: PopupBackContinuation,
+  ): Promise<void> {
+    const focusTarget = this.pendingBackFocusTarget ?? document.activeElement;
+    this.pendingBackFocusTarget = null;
     this.invalidateOperations();
     if (!(await this.confirmDiscardChanges(focusTarget))) {
       return;
     }
-    await this.router.navigateByUrl("/tabs/vault");
+    await resume("/tabs/vault");
   }
 
   async cancel(trigger: Event | HTMLElement): Promise<void> {
@@ -262,11 +287,8 @@ export class VaultAddEditPageComponent implements OnDestroy {
       : trigger.currentTarget instanceof HTMLElement
         ? trigger.currentTarget
         : document.activeElement;
-    this.invalidateOperations();
-    if (!(await this.confirmDiscardChanges(focusTarget))) {
-      return;
-    }
-    await this.router.navigateByUrl("/tabs/vault");
+    this.pendingBackFocusTarget = focusTarget;
+    await this.routeCache.back();
   }
 
   readonly onOfficialLoginBeforeSubmit = async (value: CipherView): Promise<boolean> => {
@@ -649,13 +671,11 @@ export class VaultAddEditPageComponent implements OnDestroy {
   private invalidateOperations(): void {
     this.invalidateLoginOperation();
     this.personalOperation.invalidate();
-    this.officialPersonalForm?.enableFormFields();
   }
 
   private invalidateLoginOperation(): void {
     this.saveEpoch += 1;
-    this.loginOperationToken = null;
-    if (!this.loginCommitTerminal) {
+    if (this.loginOperationToken === null && !this.loginCommitTerminal) {
       this.officialLoginForm?.enableFormFields();
     }
   }

@@ -81,9 +81,12 @@ export class PersonalCipherSaveOperation {
     return this.committedTerminal || this.operationToken !== null;
   }
 
+  get pending(): boolean {
+    return this.operationToken !== null;
+  }
+
   invalidate(): void {
     this.operationEpoch += 1;
-    this.operationToken = null;
   }
 
   async submit(

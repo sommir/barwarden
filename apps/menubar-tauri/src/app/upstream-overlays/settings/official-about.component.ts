@@ -14,9 +14,9 @@ import {
   type OfficialAboutDialogView,
 } from "./official-about-dialog.component";
 import { MacosAlertStripComponent } from "../../official-ui/macos-alert-strip.component";
-import { translateOfficialMessage } from "../../official-ui/official-i18n.service";
 import { I18nPipe } from "../../official-ui/official-ui-common";
 import type { AppUpdateView } from "../../updates/app-update.service";
+import { AppUpdateCardComponent } from "../../updates/app-update-card.component";
 
 @Component({
   selector: "bw-official-about",
@@ -26,6 +26,7 @@ import type { AppUpdateView } from "../../updates/app-update.service";
     ItemContentComponent,
     ItemGroupComponent,
     I18nPipe,
+    AppUpdateCardComponent,
     MacosAlertStripComponent,
     OfficialAboutDialogComponent,
     PopupHeaderComponent,
@@ -44,6 +45,7 @@ export class OfficialAboutComponent {
     notes: null,
     progress: null,
     message: "",
+    notificationVisible: false,
   };
   @Output() readonly back = new EventEmitter<void>();
   @Output() readonly metadataViewChange = new EventEmitter<OfficialAboutDialogView | null>();
@@ -55,29 +57,10 @@ export class OfficialAboutComponent {
   @Output() readonly checkForUpdates = new EventEmitter<void>();
   @Output() readonly downloadAndRestart = new EventEmitter<void>();
   @Output() readonly dismissUpdate = new EventEmitter<void>();
+  @Output() readonly retryUpdate = new EventEmitter<void>();
 
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
     this.back.emit();
-
-  get updateActionLabel(): string {
-    switch (this.updateView.status) {
-      case "checking":
-        return translateOfficialMessage("i18nCheckingUpdates");
-      case "downloading":
-        return this.updateView.progress === null
-          ? translateOfficialMessage("i18nDownloadingUpdate")
-          : translateOfficialMessage(
-              "i18nDownloadingUpdateProgress",
-              Math.round(this.updateView.progress * 100),
-            );
-      default:
-        return translateOfficialMessage("i18nCheckForUpdates");
-    }
-  }
-
-  get updateActionPending(): boolean {
-    return this.updateView.status === "checking" || this.updateView.status === "downloading";
-  }
 
   activateMetadataFromKeyboard(
     event: KeyboardEvent,

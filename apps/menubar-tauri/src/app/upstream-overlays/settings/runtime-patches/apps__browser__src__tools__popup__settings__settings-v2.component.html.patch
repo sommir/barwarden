@@ -9,87 +9,90 @@
 -      <app-pop-out></app-pop-out>
 -      <app-current-account></app-current-account>
 +      <ng-content select="[slot=end]" />
-@@ -10,30 +8,62 @@
--  <bit-item-group>
--    <bit-item>
--      <a bit-item-content routerLink="/account-security" [truncate]="false">
--        <i slot="start" class="bwi bwi-lock" aria-hidden="true"></i>
--        {{ "accountSecurity" | i18n }}
--        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
--      </a>
--    </bit-item>
--    <bit-item>
--      <a bit-item-content routerLink="/vault-settings" [truncate]="false">
--        <i slot="start" class="bwi bwi-vault" aria-hidden="true"></i>
--        {{ "settingsVaultOptions" | i18n }}
--        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
--      </a>
--    </bit-item>
--    <bit-item>
--      <a bit-item-content routerLink="/appearance" [truncate]="false">
--        <i slot="start" class="bwi bwi-brush" aria-hidden="true"></i>
--        {{ "appearance" | i18n }}
--        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
--      </a>
--    </bit-item>
--    <bit-item>
--      <a bit-item-content routerLink="/about" [truncate]="false">
--        <i slot="start" class="bwi bwi-info-circle" aria-hidden="true"></i>
--        {{ "about" | i18n }}
--        <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
--      </a>
--    </bit-item>
--  </bit-item-group>
-+  <div class="tw-px-4 tw-pt-4">
-+    <h2 bitTypography="h6" class="tw-mb-2">{{ "i18nGeneral" | i18n }}</h2>
-+
-+    <bit-item-group>
-+      <bit-item>
-+        <label
-+          bit-item-content
-+          class="settings-row official-settings-row"
-+          data-testid="launch-at-login-row"
-+        >
-+          <input
-+            slot="start"
-+            bitCheckbox
-+            id="launch-at-login"
-+            type="checkbox"
-+            [attr.aria-label]="'i18nLaunchAtLogin' | i18n"
-+            [checked]="launchAtLoginEnabled"
-+            [disabled]="launchAtLoginBusy"
-+            (change)="requestLaunchAtLoginChange($event)"
-+          />
-+          <span
-+            class="launch-at-login-row__copy tw-inline-flex tw-max-w-full tw-items-baseline tw-gap-2 tw-whitespace-nowrap"
-+          >
-+            <span class="launch-at-login-row__title tw-font-medium">
-+              {{ "i18nLaunchAtLogin" | i18n }}
-+            </span>
-+            <span class="launch-at-login-row__hint tw-truncate tw-text-sm tw-text-muted">
-+              {{ "i18nLaunchAtLoginHint" | i18n }}
-+            </span>
-+          </span>
-+        </label>
-+      </bit-item>
-+
-+      @for (item of items; track item.route) {
-+        <bit-item>
-+          <button
-+            type="button"
-+            bit-item-content
-+            class="settings-row official-settings-row"
-+            [truncate]="false"
-+            (click)="navigate.emit(item.route)"
-+          >
-+            <i slot="start" class="bwi" [class]="item.icon" aria-hidden="true"></i>
-+            {{ item.label }}
-+            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
-+          </button>
-+        </bit-item>
-+      }
-+    </bit-item-group>
-+
+@@ -11,12 +9,32 @@
+-    <section class="macos-preference-group" aria-labelledby="general-title" data-settings-group="general">
+-      <h2 id="general-title" class="settings-group__title" data-settings-group-title="general">{{ "general" | i18n }}</h2>
+-      <bit-item-group class="settings-group__items">
+-        <bit-item>
+-          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/appearance" routerLink="/appearance" [truncate]="false">
+-            <i slot="start" class="bwi bwi-brush" aria-hidden="true"></i>
+-            <span class="macos-preference-row__copy">{{ "appearance" | i18n }}</span>
+-            <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
+-          </a>
+-        </bit-item>
+-      </bit-item-group>
+-    </section>
++    @for (group of groups; track group.id) {
++      <section class="macos-preference-group" [attr.aria-labelledby]="group.id + '-title'"
++        [attr.data-settings-group]="group.id">
++        <h2 class="settings-group__title" [id]="group.id + '-title'"
++          [attr.data-settings-group-title]="group.id">{{ group.label }}</h2>
++        <bit-item-group class="settings-group__items">
++          @if (group.id === "general") {
++            <bit-item>
++              <div bit-item-content [truncate]="false" class="macos-preference-row" data-testid="launch-at-login-row">
++                <span id="launch-at-login-label" class="macos-preference-row__copy">{{ "i18nLaunchAtLogin" | i18n }}</span>
++                <button type="button" class="macos-switch-owner macos-hit-target" role="switch"
++                  aria-labelledby="launch-at-login-label" [attr.aria-checked]="launchAtLoginEnabled"
++                  [disabled]="launchAtLoginBusy"
++                  (click)="requestLaunchAtLoginChange(!launchAtLoginEnabled)">
++                  <span aria-hidden="true"></span>
++                </button>
++              </div>
++            </bit-item>
++          }
++          @for (item of group.items; track item.route) {
++            <bit-item>
++              <button type="button" bit-item-content [truncate]="false" class="macos-preference-row macos-hit-target macos-pressable"
++                [attr.data-settings-route]="item.route" (click)="navigate.emit(item.route)">
++                <i slot="start" class="bwi" [class]="item.icon" aria-hidden="true"></i>
++                <span class="macos-preference-row__copy">{{ item.label }}</span>
++                <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
++              </button>
++            </bit-item>
++          }
++        </bit-item-group>
++      </section>
++    }
+@@ -24,38 +42,11 @@
+-    <section class="macos-preference-group" aria-labelledby="security-title" data-settings-group="security">
+-      <h2 id="security-title" class="settings-group__title" data-settings-group-title="security">{{ "security" | i18n }}</h2>
+-      <bit-item-group class="settings-group__items">
+-        <bit-item>
+-          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/account-security" routerLink="/account-security" [truncate]="false">
+-            <i slot="start" class="bwi bwi-lock" aria-hidden="true"></i>
+-            <span class="macos-preference-row__copy">{{ "accountSecurity" | i18n }}</span>
+-            <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
+-          </a>
+-        </bit-item>
+-      </bit-item-group>
+-    </section>
+-
+-    <section class="macos-preference-group" aria-labelledby="application-title" data-settings-group="application">
+-      <h2 id="application-title" class="settings-group__title" data-settings-group-title="application">{{ "app" | i18n }}</h2>
+-      <bit-item-group class="settings-group__items">
+-        <bit-item>
+-          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/vault-settings" routerLink="/vault-settings" [truncate]="false">
+-            <i slot="start" class="bwi bwi-vault" aria-hidden="true"></i>
+-            <span class="macos-preference-row__copy">{{ "settingsVaultOptions" | i18n }}</span>
+-            <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
+-          </a>
+-        </bit-item>
+-      </bit-item-group>
+-    </section>
+-
+-    <section class="macos-preference-group" aria-labelledby="information-title" data-settings-group="information">
+-      <h2 id="information-title" class="settings-group__title" data-settings-group-title="information">{{ "about" | i18n }}</h2>
+-      <bit-item-group class="settings-group__items">
+-        <bit-item>
+-          <a bit-item-content class="macos-preference-row macos-hit-target macos-pressable" data-settings-route="/about" routerLink="/about" [truncate]="false">
+-            <i slot="start" class="bwi bwi-info-circle" aria-hidden="true"></i>
+-            <span class="macos-preference-row__copy">{{ "about" | i18n }}</span>
+-            <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
+-          </a>
+-        </bit-item>
+-      </bit-item-group>
+-    </section>
 +    @if (launchAtLoginError) {
 +      <bw-macos-alert-strip
 +        class="tw-mt-3"
@@ -101,4 +104,3 @@
 +        (dismiss)="dismissLaunchAtLoginError.emit()"
 +      />
 +    }
-+  </div>

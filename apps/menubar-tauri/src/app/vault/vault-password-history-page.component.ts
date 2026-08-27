@@ -1,4 +1,3 @@
-import { Location } from "@angular/common";
 import { ChangeDetectorRef, Component, Inject, Optional, ViewChild } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 
@@ -25,6 +24,7 @@ import { VaultFacade } from "./vault.facade";
 import { projectLoginDetail } from "./login-cipher-view.adapter";
 import { VaultRepromptDialogComponent } from "./vault-reprompt-dialog.component";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 type MaybeAsync<T> = T | PromiseLike<T>;
 
@@ -68,7 +68,7 @@ export class VaultPasswordHistoryPageComponent {
 
   constructor(
     private readonly route: ActivatedRoute,
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly router: Router,
     private readonly vault: VaultFacade,
     private readonly actions: VaultActionsService,
@@ -196,25 +196,11 @@ export class VaultPasswordHistoryPageComponent {
     }
 
     this.closeRequested = true;
-    if (!hasNavigationHistory()) {
-      await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
-      return;
-    }
-
-    this.location.back();
+    await this.routeCache.back();
   }
 
 }
 
 function isPromiseLike<T>(value: MaybeAsync<T>): value is PromiseLike<T> {
   return typeof value === "object" && value !== null && "then" in value;
-}
-
-function hasNavigationHistory(): boolean {
-  const historyState = globalThis.history?.state;
-  if (typeof historyState?.navigationId === "number") {
-    return historyState.navigationId > 1;
-  }
-
-  return (globalThis.history?.length ?? 0) > 1;
 }

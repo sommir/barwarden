@@ -65,6 +65,10 @@ import {
   type UnlockMethodsPort,
 } from "./unlock-methods.port";
 import {
+  AUTOFILL_PROJECTION_LIFECYCLE_PORT,
+  type AutoFillProjectionLifecyclePort,
+} from "./autofill-projection-lifecycle.port";
+import {
   PROCESS_SESSION_BROKER,
   type ProcessSessionBrokerPort,
 } from "./process-session-broker.service";
@@ -238,6 +242,8 @@ export class AuthFacade {
     private readonly unlockMethods: UnlockMethodsPort | null = null,
     @Optional() @Inject(PROCESS_SESSION_BROKER)
     private readonly processSessionBroker: ProcessSessionBrokerPort | null = null,
+    @Optional() @Inject(AUTOFILL_PROJECTION_LIFECYCLE_PORT)
+    private readonly projectionLifecycle: AutoFillProjectionLifecyclePort | null = null,
   ) {
     this.loginTimeoutMs = loginTimeoutMs ?? DEFAULT_LOGIN_TIMEOUT_MS;
     this.lifecycleTimeoutMs = lifecycleTimeoutMs ?? DEFAULT_ACCOUNT_LIFECYCLE_TIMEOUT_MS;
@@ -261,12 +267,12 @@ export class AuthFacade {
       }
       const candidateState = this.store.snapshot();
       this.store.restore({ ...baseline, isLoggingIn: true, loginError: "" });
-      await this.commitAuthenticatedAccount(request, session, epoch);
+      const vaultOwnerAccountId = await this.commitAuthenticatedAccount(request, session, epoch);
       if (!this.isCurrentOperation(epoch)) {
         return;
       }
       await this.activatePersistedPinAfterMasterPassword();
-      this.store.restore(candidateState);
+      this.store.restore({ ...candidateState, vaultOwnerAccountId });
       this.finishAuthentication();
       await this.publishCurrentUnlockedState();
     } catch (error) {
@@ -634,7 +640,7 @@ export class AuthFacade {
             handoff,
             this.store.snapshot(),
           );
-          this.store.restore(decoded);
+          this.store.restore(decoded, processSnapshot.activeAccountId);
           this.setRuntimeAccountId(processSnapshot.activeAccountId);
           await this.activatePersistedPinForAttachedProcess(processSnapshot.activeAccountId);
           this.vaultTimeout?.start();
@@ -701,7 +707,7 @@ export class AuthFacade {
             session,
             this.store.snapshot(),
           );
-          this.store.restore(decoded);
+          this.store.restore(decoded, processSnapshot.activeAccountId);
           restoredSharedSnapshot = true;
           requiresLocalHydration =
             processSharedPopupStateRequiresLocalHydration(decoded);
@@ -746,58 +752,47 @@ export class AuthFacade {
     result: AuthStartupResult,
   ): Promise<ProcessSessionSnapshot | null> {
     const broker = this.processSessionBroker;
-    if (!broker) {
-      return null;
-    }
     if (result === "login") {
-      return broker.mutate({ type: "logged-out" });
+      return broker ? broker.mutate({ type: "logged-out" }) : null;
     }
     const accountId =
       this.runtimeAccountId ??
       (await this.accounts()).find((account) => account.isActive)?.id ??
       null;
     if (!accountId) {
-      return broker.mutate({ type: "logged-out" });
+      return broker ? broker.mutate({ type: "logged-out" }) : null;
     }
     if (result === "locked") {
-      return broker.mutate({
+      return broker ? broker.mutate({
         type: "account-selected",
         activeAccountId: accountId,
-      });
+      }) : null;
     }
     const snapshot = this.store.snapshot();
     if (!snapshot.isUnlocked || !snapshot.activeSession) {
-      return broker.mutate({
+      return broker ? broker.mutate({
         type: "recovery-required",
         activeAccountId: accountId,
         code: "session-missing",
-      });
+      }) : null;
     }
-    try {
-      await broker.setSessionHandoff?.(snapshot.activeSession);
-    } catch {}
-    let sharedSnapshot: ReturnType<typeof encodeProcessSharedPopupState>;
-    try {
-      sharedSnapshot = encodeProcessSharedPopupState(snapshot);
-    } catch {
-      // A large local vault must not prevent this window from starting.
+    if (!broker) {
+      await this.publishLocalAutoFillProjection();
       return null;
     }
-    try {
-      return await broker.mutate({
-        type: "unlocked",
-        activeAccountId: accountId,
-        sharedSnapshot,
-      });
-    } catch (error) {
-      if (
-        error instanceof ProcessSessionBrokerError
-        && error.code === "invalid-payload"
-      ) {
-        return null;
-      }
-      throw error;
+    const publishedSnapshot = await this.publishUnlockedBrokerState(
+      broker,
+      accountId,
+      snapshot,
+    );
+    if (
+      publishedSnapshot.authorization === "unlocked" &&
+      publishedSnapshot.activeAccountId === accountId &&
+      this.projectionLifecycle
+    ) {
+      await this.publishLocalAutoFillProjection();
     }
+    return publishedSnapshot;
   }
 
   async publishProcessStateProjection(): Promise<ProcessSessionSnapshot | null | undefined> {
@@ -1011,14 +1006,37 @@ export class AuthFacade {
     const accountStore = this.requireAccountStore();
     let selectedAccount: StoredAccount;
     try {
+      await this.projectionLifecycle?.invalidateAndLock();
+      this.assertCurrentOperation(epoch);
+    } catch (error) {
+      if (this.inFlightSwitchEpoch === epoch) this.inFlightSwitchEpoch = null;
+      if (!this.isCurrentOperation(epoch)) throw new AccountOperationCancelledError();
+      this.store.restore(previousState);
+      this.surfaceLifecycleError("Unable to switch account", error);
+      throw new Error("Unable to switch account");
+    }
+    try {
       selectedAccount = await this.trackAccountMutation(() => accountStore.setActive(id));
     } catch (error) {
-      if (this.inFlightSwitchEpoch === epoch) {
-        this.inFlightSwitchEpoch = null;
-      }
       if (!this.isCurrentOperation(epoch)) {
         throw new AccountOperationCancelledError();
       }
+      if (this.projectionLifecycle) {
+        try {
+          await this.compensateFailedAccountSwitch(previousState, epoch);
+        } catch {
+          if (!this.isCurrentOperation(epoch)) {
+            throw new AccountOperationCancelledError();
+          }
+          await this.failClosedAfterSwitchCompensation(previousState);
+        }
+        if (this.inFlightSwitchEpoch === epoch) this.inFlightSwitchEpoch = null;
+        const message = translateOfficialMessage("i18nUnableToCompleteAccountAction");
+        this.store.setSyncError(message);
+        this.store.setStatus(message);
+        throw new Error(message);
+      }
+      if (this.inFlightSwitchEpoch === epoch) this.inFlightSwitchEpoch = null;
       this.store.restore(previousState);
       this.surfaceLifecycleError("Unable to switch account", error);
       throw new Error(sanitizedErrorMessage(error));
@@ -1123,6 +1141,76 @@ export class AuthFacade {
         this.inFlightSwitchEpoch = null;
       }
     }
+  }
+
+  private async compensateFailedAccountSwitch(
+    previousState: PopupState,
+    epoch: number,
+  ): Promise<void> {
+    const broker = this.processSessionBroker;
+    const accountId = this.runtimeAccountId;
+    if (
+      !broker ||
+      !accountId ||
+      !previousState.isUnlocked ||
+      !previousState.activeSession ||
+      previousState.vaultOwnerAccountId !== accountId
+    ) {
+      throw new Error("switch compensation unavailable");
+    }
+    const persistedActive = (await this.boundedRead(
+      this.requireAccountStore().list(),
+      "Verify previous active account",
+    )).find((account) => account.isActive);
+    if (persistedActive?.id !== accountId) {
+      throw new Error("switch persistence state is ambiguous");
+    }
+    this.assertCurrentOperation(epoch);
+    const sharedSnapshot = encodeProcessSharedPopupState(previousState);
+    if (broker.setSessionHandoff) {
+      await this.boundedRead(
+        broker.setSessionHandoff(previousState.activeSession),
+        "Restore account session handoff",
+      );
+    }
+    this.assertCurrentOperation(epoch);
+    const restored = await this.boundedRead(
+      broker.mutate({
+        type: "unlocked",
+        activeAccountId: accountId,
+        sharedSnapshot,
+      }),
+      "Restore account authority",
+    );
+    if (restored.authorization !== "unlocked" || restored.activeAccountId !== accountId) {
+      throw new Error("switch compensation rejected");
+    }
+    this.assertCurrentOperation(epoch);
+    this.store.restore(previousState, accountId);
+    await this.boundedRead(
+      this.projectionLifecycle!.reprojectCurrent(),
+      "Restore AutoFill projection",
+    );
+    this.assertCurrentOperation(epoch);
+    this.vaultTimeout?.start();
+  }
+
+  private async failClosedAfterSwitchCompensation(previousState: PopupState): Promise<void> {
+    const accountId = this.runtimeAccountId ?? previousState.vaultOwnerAccountId;
+    this.prepareRuntimeLock(previousState.activeSession);
+    this.vaultTimeout?.stop();
+    this.store.setLocked();
+    if (!accountId || !this.processSessionBroker) return;
+    try {
+      await this.boundedRead(
+        this.processSessionBroker.mutate({
+          type: "recovery-required",
+          activeAccountId: accountId,
+          code: "projection-unavailable",
+        }),
+        "Publish account recovery",
+      );
+    } catch {}
   }
 
   private async performLogoutAccount(id: string, epoch: number): Promise<StoredAccount | null> {
@@ -1294,28 +1382,78 @@ export class AuthFacade {
     const broker = this.processSessionBroker;
     const accountId = this.runtimeAccountId;
     const snapshot = this.store.snapshot();
-    if (!broker || !accountId || !snapshot.isUnlocked || !snapshot.activeSession) {
+    if (!accountId || !snapshot.isUnlocked || !snapshot.activeSession) {
       return;
     }
+    if (!broker) {
+      await this.publishLocalAutoFillProjection();
+      return;
+    }
+    let published: ProcessSessionSnapshot | null = null;
+    try {
+      published = await this.publishUnlockedBrokerState(broker, accountId, snapshot);
+    } catch {
+      return;
+    }
+    if (published?.authorization === "unlocked" && published.activeAccountId === accountId) {
+      await this.publishLocalAutoFillProjection();
+    }
+  }
+
+  private async publishUnlockedBrokerState(
+    broker: ProcessSessionBrokerPort,
+    accountId: string,
+    snapshot: PopupState,
+  ): Promise<ProcessSessionSnapshot> {
     try {
       await broker.setSessionHandoff?.(snapshot.activeSession);
     } catch {
       // The public, sanitized snapshot is still useful even if the ephemeral
       // credential handoff cannot be published.
     }
-    let sharedSnapshot: ReturnType<typeof encodeProcessSharedPopupState>;
+
+    let sharedSnapshot: ReturnType<typeof encodeProcessSharedPopupState> | null;
     try {
       sharedSnapshot = encodeProcessSharedPopupState(snapshot);
     } catch {
-      return;
+      sharedSnapshot = null;
     }
+
+    if (sharedSnapshot !== null) {
+      try {
+        return await broker.mutate({
+          type: "unlocked",
+          activeAccountId: accountId,
+          sharedSnapshot,
+        });
+      } catch (error) {
+        if (
+          !(error instanceof ProcessSessionBrokerError) ||
+          error.code !== "invalid-payload"
+        ) {
+          throw error;
+        }
+      }
+    }
+
+    return broker.mutate({
+      type: "unlocked",
+      activeAccountId: accountId,
+      sharedSnapshot: null,
+    });
+  }
+
+  private async publishLocalAutoFillProjection(): Promise<void> {
+    if (!this.projectionLifecycle) return;
     try {
-      await broker.mutate({
-        type: "unlocked",
-        activeAccountId: accountId,
-        sharedSnapshot,
-      });
-    } catch {}
+      await this.boundedRead(
+        this.projectionLifecycle.reprojectCurrent(),
+        "Publish AutoFill projection",
+      );
+    } catch {
+      // AutoFill remains fail-closed without preventing the vault itself from
+      // unlocking. A later explicit AutoFill entry can retry the projection.
+    }
   }
 
   private broadcastProcessMutation(
@@ -1427,6 +1565,7 @@ export class AuthFacade {
       );
       this.assertCurrentOperation(epoch);
       this.vaultTimeout?.start();
+      await this.publishCurrentUnlockedState();
     } catch (error) {
       if (candidateInstalled && this.isCurrentOperation(epoch)) {
         this.prepareRuntimeLock(this.store.snapshot().activeSession);
@@ -1489,13 +1628,14 @@ export class AuthFacade {
       }
       const candidateState = this.store.snapshot();
       this.store.restore({ ...baseline, isLoggingIn: true, loginError: "" });
-      await this.commitAuthenticatedAccount(request, session, epoch);
+      const vaultOwnerAccountId = await this.commitAuthenticatedAccount(request, session, epoch);
       if (!this.isCurrentOperation(epoch)) {
         return authChallengeOutcome(this.store.snapshot(), activeChallenge?.type ?? "twoFactor");
       }
       await this.activatePersistedPinAfterMasterPassword();
-      this.store.restore(candidateState);
+      this.store.restore({ ...candidateState, vaultOwnerAccountId });
       this.finishAuthentication();
+      await this.publishCurrentUnlockedState();
       return "unlocked";
     } catch (error) {
       if (error instanceof AuthTimeoutHandledError || !this.isCurrentOperation(epoch)) {
@@ -1590,9 +1730,9 @@ export class AuthFacade {
     request: LoginRequest,
     session: AuthSession,
     epoch: number,
-  ): Promise<void> {
+  ): Promise<string | null> {
     if (!this.accountStore) {
-      return;
+      return null;
     }
 
     const commit = this.trackAccountMutation(() => this.accountStore!.saveAccount(
@@ -1611,6 +1751,7 @@ export class AuthFacade {
         persistActiveAccountHint(savedAccount);
         this.accountPersistedSubject.next();
       }
+      return savedAccount.id;
     } catch (error) {
       if (error instanceof AccountSessionMutationCancelledError) {
         throw new AccountOperationCancelledError();
@@ -1640,6 +1781,7 @@ export class AuthFacade {
   private setRuntimeAccountId(accountId: string | null): void {
     if (this.runtimeAccountId !== null && this.runtimeAccountId !== accountId) {
       this.routeCache?.clear();
+      this.store.clearVaultOwnerAccountId();
     }
     this.runtimeAccountId = accountId;
     this.vaultTimeout?.useAccount(accountId);

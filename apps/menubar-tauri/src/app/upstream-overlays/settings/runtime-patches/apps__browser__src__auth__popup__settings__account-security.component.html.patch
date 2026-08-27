@@ -9,12 +9,16 @@
 -    </ng-container>
 -  </popup-header>
 +  <popup-header slot="header" [pageTitle]="'i18nAccountSecurity' | i18n" showBackButton [backAction]="backAction" />
-@@ -11 +6 @@
--      <h2 bitTypography="h6">{{ "sessionTimeoutHeader" | i18n }}</h2>
-+      <h2 bitTypography="h6">{{ "i18nUnlockOptions" | i18n }}</h2>
-@@ -14 +9,30 @@
--      <bit-session-timeout-settings [refreshTimeoutActionSettings]="refreshTimeoutSettings$" />
-+      <bit-form-control>
+@@ -15 +10 @@
+-        <h2 bitTypography="h6">{{ "sessionTimeoutHeader" | i18n }}</h2>
++        <h2 bitTypography="h6">{{ "i18nUnlockOptions" | i18n }}</h2>
+@@ -17,4 +12,32 @@
+-      <bit-session-timeout-settings
+-        class="settings-detail-row macos-preference-row"
+-        [refreshTimeoutActionSettings]="refreshTimeoutSettings$"
+-      />
++      <div class="macos-preference-stack">
++      <bit-form-control class="settings-detail-row macos-preference-row macos-checkbox-owner">
 +        <input
 +          bitCheckbox
 +          id="biometricUnlock"
@@ -30,7 +34,7 @@
 +          <bit-hint>{{ biometricUnavailableReason }}</bit-hint>
 +        }
 +      </bit-form-control>
-+      <bit-form-control disableMargin>
++      <bit-form-control class="settings-detail-row macos-preference-row macos-checkbox-owner" disableMargin>
 +        <input
 +          bitCheckbox
 +          id="pinUnlock"
@@ -44,70 +48,101 @@
 +        </bit-label>
 +        <bit-hint>{{ "i18nPinDeviceHint" | i18n }}</bit-hint>
 +      </bit-form-control>
-@@ -17,0 +42,26 @@
-+  <bit-section>
-+    <bit-section-header>
-+      <h2 bitTypography="h6">{{ "i18nSessionTimeout" | i18n }}</h2>
-+    </bit-section-header>
-+    <bit-card>
-+      <bit-form-field>
++      </div>
+@@ -22,0 +46,28 @@
++    <bit-section>
++      <bit-section-header>
++        <h2 bitTypography="h6">{{ "i18nSessionTimeout" | i18n }}</h2>
++      </bit-section-header>
++      <div class="macos-preference-stack">
++      <bit-form-field class="settings-detail-row macos-preference-row">
 +        <bit-label>{{ "i18nVaultTimeout" | i18n }}</bit-label>
 +        <bit-select
++          class="macos-control-visible"
 +          [attr.aria-label]="'i18nVaultTimeout' | i18n"
 +          [items]="timeoutOptions"
 +          [ngModel]="settings.vaultTimeoutMinutes"
 +          (ngModelChange)="setVaultTimeoutMinutesValue($event)"
 +        />
 +      </bit-form-field>
-+      <bit-form-field disableMargin>
++      <bit-form-field class="settings-detail-row macos-preference-row" disableMargin>
 +        <bit-label>{{ "i18nVaultTimeoutAction" | i18n }}</bit-label>
 +        <bit-select
++          class="macos-control-visible"
 +          [attr.aria-label]="'i18nVaultTimeoutAction' | i18n"
 +          [items]="timeoutActionOptions"
 +          [ngModel]="settings.vaultTimeoutAction"
 +          (ngModelChange)="setVaultTimeoutActionValue($event)"
 +        />
 +      </bit-form-field>
-+    </bit-card>
-+  </bit-section>
++      </div>
++    </bit-section>
 +
-@@ -20 +70 @@
--      <h2 bitTypography="h6">{{ "otherOptions" | i18n }}</h2>
-+      <h2 bitTypography="h6">{{ "i18nOtherOptions" | i18n }}</h2>
-@@ -22,17 +72,15 @@
--    <bit-item>
--      <button bit-item-content type="button" appStopClick (click)="openAcctFingerprintDialog()">
--        {{ "fingerprintPhrase" | i18n }}
--      </button>
--    </bit-item>
--    <bit-item>
--      <button bit-item-content type="button" appStopClick (click)="twoStep()">
--        {{ "twoStepLogin" | i18n }}
--        <bit-icon slot="end" name="bwi-external-link"></bit-icon>
--      </button>
--    </bit-item>
--    <bit-item>
--      <button bit-item-content type="button" appStopClick (click)="changePassword()">
--        {{ "changeMasterPassword" | i18n }}
--        <bit-icon slot="end" name="bwi-external-link"></bit-icon>
--      </button>
--    </bit-item>
-+    <bit-item-group>
-+      <bit-item>
-+        <button type="button" bit-item-content (click)="openTwoStepLogin.emit()">
-+          {{ "twoStepLogin" | i18n }}
-+          <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
-+        </button>
-+      </bit-item>
-+      <bit-item>
-+        <button type="button" bit-item-content (click)="openChangePassword.emit()">
-+          {{ "i18nChangeMasterPassword" | i18n }}
-+          <span slot="secondary">{{ "i18nContinueInWebVault" | i18n }}</span>
-+          <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
-+        </button>
-+      </bit-item>
-+    </bit-item-group>
-@@ -39,0 +88,15 @@
+@@ -25 +76 @@
+-        <h2 bitTypography="h6">{{ "otherOptions" | i18n }}</h2>
++        <h2 bitTypography="h6">{{ "i18nOtherOptions" | i18n }}</h2>
+@@ -27,35 +78,25 @@
+-      <bit-item>
+-        <button
+-          bit-item-content
+-          type="button"
+-          class="settings-detail-row macos-preference-row"
+-          appStopClick
+-          (click)="openAcctFingerprintDialog()"
+-        >
+-          {{ "fingerprintPhrase" | i18n }}
+-        </button>
+-      </bit-item>
+-      <bit-item>
+-        <button
+-          bit-item-content
+-          type="button"
+-          class="settings-detail-row macos-preference-row"
+-          appStopClick
+-          (click)="twoStep()"
+-        >
+-          {{ "twoStepLogin" | i18n }}
+-          <bit-icon slot="end" name="bwi-external-link"></bit-icon>
+-        </button>
+-      </bit-item>
+-      <bit-item>
+-        <button
+-          bit-item-content
+-          type="button"
+-          class="settings-detail-row macos-preference-row"
+-          appStopClick
+-          (click)="changePassword()"
+-        >
+-          {{ "changeMasterPassword" | i18n }}
+-          <bit-icon slot="end" name="bwi-external-link"></bit-icon>
+-        </button>
+-      </bit-item>
++      <bit-item-group>
++        <bit-item>
++          <button
++            type="button"
++            bit-item-content
++            class="settings-detail-row macos-preference-row"
++            (click)="openTwoStepLogin.emit()"
++          >
++            {{ "twoStepLogin" | i18n }}
++            <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
++          </button>
++        </bit-item>
++        <bit-item>
++          <button
++            type="button"
++            bit-item-content
++            class="settings-detail-row macos-preference-row"
++            (click)="openChangePassword.emit()"
++          >
++            {{ "i18nChangeMasterPassword" | i18n }}
++            <span slot="secondary">{{ "i18nContinueInWebVault" | i18n }}</span>
++            <i slot="end" class="bwi bwi-external-link" aria-hidden="true"></i>
++          </button>
++        </bit-item>
++      </bit-item-group>
+@@ -63,0 +105,15 @@
 +
 +  @if (handoffError) {
 +    <bw-macos-alert-strip

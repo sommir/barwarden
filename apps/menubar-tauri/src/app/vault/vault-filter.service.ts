@@ -11,6 +11,7 @@ export function filterVaultItems(
   filter: VaultFilter,
 ): readonly VaultItem[] {
   const normalizedQuery = filter.query.trim().toLocaleLowerCase();
+  const compactQuery = compactSearchText(normalizedQuery);
 
   return items.filter((item) => {
     if (filter.folderId && item.folderId !== filter.folderId) {
@@ -21,7 +22,13 @@ export function filterVaultItems(
       return false;
     }
 
-    return normalizedQuery.length === 0 || searchableText(item).includes(normalizedQuery);
+    if (normalizedQuery.length === 0) {
+      return true;
+    }
+
+    const text = searchableText(item);
+    return text.includes(normalizedQuery) ||
+      (compactQuery.length > 0 && compactSearchText(text).includes(compactQuery));
   });
 }
 
@@ -38,4 +45,8 @@ function searchableText(item: VaultItem): string {
   ]
     .join(" ")
     .toLocaleLowerCase();
+}
+
+function compactSearchText(value: string): string {
+  return value.replace(/[\s._-]+/gu, "");
 }

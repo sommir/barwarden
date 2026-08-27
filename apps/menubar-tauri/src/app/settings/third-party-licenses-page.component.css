@@ -1,16 +1,23 @@
 .third-party-license-text {
   box-sizing: border-box;
-  width: calc(100% - 32px);
-  margin: 16px;
-  padding: 16px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 12px 0;
+  overflow-x: hidden;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   user-select: text;
   border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
-  background: var(--mac-surface-solid);
+  border-radius: 0;
+  background: transparent;
   color: var(--mac-text-primary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.55;
+  font: 400 14px/20px ui-monospace, SFMono-Regular, Menlo, monospace;
+  box-shadow: none;
+}
+
+.third-party-license-text mark {
+  border-radius: 3px;
+  background: var(--mac-selected);
+  color: inherit;
 }

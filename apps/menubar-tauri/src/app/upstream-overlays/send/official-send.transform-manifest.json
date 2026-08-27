@@ -67,55 +67,55 @@
   "localRuntimes": [
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.html",
-      "sha256": "455e84fe51e8782a25f7b15a2206f80d09e29a97c9effc0063d490bc38bc6b12"
+      "sha256": "026c1aed0328505039f73733434bfe11a5f312fa909f56bf85733e93eafe7f02"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
-      "sha256": "d76c1f8f98556b761d0d3a113a885b33a7aa68d6f25e881f8f5d52ef1d9ef9c6"
+      "sha256": "19740b3ff24c2306a5664ebb44ef6863282f33beb1b2c0f91a91a3584551a454"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.html",
-      "sha256": "93768bcb18e258a788e031edda966bf28f48bbd1ea8d438cbb49f80a200c5ed1"
+      "sha256": "30217f17b9b550a57c5091c553fff340f552ebc1f86193c26fdfd324e6336d61"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
-      "sha256": "3497af4c624f2b9fdcef7f9cf3517c0ef95cd40af98d929a869b6978209811cb"
+      "sha256": "6549808ae054e7638b430efc247063068464dfa5b9edcfe06c1681faab632edd"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.html",
-      "sha256": "471c14ddcac88a9f7f9e3bd6b70e4cb1308f32d3ad63c072fab2f84ae9fc7098"
+      "sha256": "7bee3886360c51c18805c6eec0f60a149ab5fff5af34f4792525aded50051145"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
-      "sha256": "930b814a4b461563f23426d382461b0bc1aa161bb5d8e70d3f678b376a1e6cd5"
+      "sha256": "45f6d522c64c7aed8ebc51a31a76fbaefcd81bfcd5e82eb438d4866478b12b05"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.html",
-      "sha256": "45759eb76ebd52cd6bbf6ab5ae99c4dc019abb86ab6c122ac2f5188fc138cc89"
+      "sha256": "647138f26a8600288bf7fda646efed27fdd87492ca523d8944d5bc29bc2260da"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
-      "sha256": "469cca0dc3539d94988ae7832a363032f3271cabef8229fcf430c20274d4e96a"
+      "sha256": "7f616d5033058df403963162c5aa3ecca2dee708c307b3329e9ebd45df6c94d5"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.html",
-      "sha256": "663c470eed05611fae21e59b8f2586a7fe935b91919fdac2107c5280698eda79"
+      "sha256": "4ac1c710822b433599453ed263702b480ad62ad46d2143aea2f4367a1133c1ba"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
-      "sha256": "4a6a3ec5e94dacc1dd87c09073c6687d58b8750043317c84ea6ed41df8f0d72c"
+      "sha256": "f798e5740e70b206cf1e880d8f70f1ad1ec825737d88c4505a047f3f048345db"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
-      "sha256": "38b5ca9d0edbf2c39d8ddab4107ba01cbc03a04613cabc889ac58bbed4090641"
+      "sha256": "2147ffc83746d31053b3b2e3d8c50678709a72b2da1286dce0bebf128b1775ac"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html",
-      "sha256": "7fdf948bc699e06f315b76991fad8265f180a04bdf576f12ad4bbac92a39e322"
+      "sha256": "cc51075b06c2ebcf5a2426603924ebf85725302d7e1a8fec90a463db6e5aff8c"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
-      "sha256": "12a3b1199d1d6fa24a5fbf3931abf34c0dda8fb5d8b8bfb350e3a028cb0369db"
+      "sha256": "bababcf1b1a3c39cb184ac70b6cb2ac6208fd1960765711e2c2b855eb6e24636"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-raw-template.d.ts",
@@ -123,55 +123,55 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html",
-      "sha256": "2cd16bdda2cd34e65ca43c66498259821f023e9dbeb258e5f3cdf1988e31541f"
+      "sha256": "b81a17f44f821c49d22e8d8d7333007167528c6346702ea3d8d9561127f8780b"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
-      "sha256": "0ff545f96df27ca4b299da0e4b7ed9914865b00f904472e4dafcf9039bcdc72d"
+      "sha256": "534424dd2b3711cab6ee7d7c0160e12c47a5333251a3b32989654baf0d872906"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.html.patch",
-      "sha256": "815e8d1ce49c115c22cdc555390150cdfbb86ed265b240fdc32f166d7d5c03a2"
+      "sha256": "ec8506b728bd7bbcab5643e461eb51ee845a303848c01bf1752f78e06d5d0452"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-add-edit.component.ts.patch",
-      "sha256": "bb5a9d6072955c6c18165f99761796ae9816681738de8a10effc7ae2d40eb8af"
+      "sha256": "49e61a7a7911ebcc9da7fad91b311fbea91a276b2b1674eeaa8f1905c7960a1f"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-created.component.ts.patch",
-      "sha256": "dab1892da661e66b7891c12c7b55ed50bb0981ce94d8136a51a795065064f0e2"
+      "sha256": "6ff27261fcf15f71a160fe2bc437854721d636c28c3c0fa09f6c5f34e3d96b8d"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.html.patch",
-      "sha256": "2a51e10d06a40bbd6a1ca1f3ea40c80f7304975d34d955e5d0efc19e6097e3f7"
+      "sha256": "bb4ca6b15d501f0b22459af367e0b1ff590610cb155adf27cfa20e33c6a28c53"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-details.component.ts.patch",
-      "sha256": "7a3ba9d03bf0cadc71f6fd8695e79c00b641bbbf3c7fba054a3ba0cb34c473bc"
+      "sha256": "7b60b7c6a4a0c4aa5416de82b7085e3f315e17ba9939a92e1a5da9b1142de611"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-list-items-container.component.ts.patch",
-      "sha256": "055d0fc018822667810a54759dc795cf6da63da92e0cbb140d273ed0ac4918bb"
+      "sha256": "eb99b8bf8c751367458e9c8074b5dee6eb79b9629e9b32bcb1d0a9e3e61e8aec"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-list.component.ts.patch",
-      "sha256": "6fe9af2a72b75610f736ddccbadb8e5e04d4a6b9c51f60a1d6e2c2174480c277"
+      "sha256": "9534eea1b58b1a940787580ecd278ba015f4de057d9786dfa5a12fc6965f77b5"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.html.patch",
-      "sha256": "88e39e07974fe88100cc885389ea0d1beaecf636e6d68b53a3fb4bf7c9c12d04"
+      "sha256": "7e9b12faba0e66e74cee3300cac2b39c11da382e4c3a409bfaaeaa4ff2459b9f"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.ts.patch",
-      "sha256": "c0e07160467dc79309b9db707445fa73a9490f4d17c4336d37f90365adbec264"
+      "sha256": "a54f29de79355315a1025fc5fb96708b76bd198c6b67a8c17581460cf22cefca"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.html.patch",
-      "sha256": "a303d3b598455f7aad548cf0b00bf85c6ee50c76c1d5a4c25d0616c5be0b7ab5"
+      "sha256": "130c9bef833e8c483f14085da4e8c54c20305c2c828d9477700e0f16e7dcd4bb"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-text-details.component.ts.patch",
-      "sha256": "0755c9e0347874f6be358161ee4d0e75fa7363a1c6aa3159637274d9f1aac263"
+      "sha256": "e0b81acc183ef15feb53009445c452fb94d4bb1aa1c5fc89d8a98153fdb25df6"
     }
   ],
   "aliases": [
@@ -194,7 +194,7 @@
   ],
   "transformContract": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
-    "sha256": "38b5ca9d0edbf2c39d8ddab4107ba01cbc03a04613cabc889ac58bbed4090641"
+    "sha256": "2147ffc83746d31053b3b2e3d8c50678709a72b2da1286dce0bebf128b1775ac"
   },
   "productionRoots": [
     "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
@@ -250,6 +250,11 @@
       "apps/menubar-tauri/official-components-overlay/form-field/form-field-control.directive.ts",
       "apps/menubar-tauri/official-components-overlay/form-field/form-field.component.ts",
       "apps/menubar-tauri/official-components-overlay/index.ts",
+      "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+      "apps/menubar-tauri/official-components-overlay/tooltip/tooltip-positions.ts",
+      "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.component.html",
+      "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.component.ts",
+      "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.directive.ts",
       "apps/menubar-tauri/src/app/official-ui/app-bottom-sheet.component.ts",
       "apps/menubar-tauri/src/app/official-ui/app-overlay-stack.service.ts",
       "apps/menubar-tauri/src/app/official-ui/callout-compatibility.component.ts",
@@ -260,6 +265,7 @@
       "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
       "apps/menubar-tauri/src/app/official-ui/official-platform.adapter.ts",
       "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts",
       "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
       "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
       "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
@@ -290,6 +296,7 @@
       "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
       "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html",
       "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
+      "apps/menubar-tauri/src/app/vault/otp.facade.ts",
       "apps/menubar-tauri/src/auth/bitwarden-crypto.ts",
       "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
       "apps/menubar-tauri/src/host/biometric-host.ts",
@@ -297,6 +304,7 @@
       "apps/menubar-tauri/src/host/host-api.ts",
       "apps/menubar-tauri/src/host/launch-at-login.ts",
       "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "apps/menubar-tauri/src/host/website-context.ts",
       "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json",
       "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.html",
       "vendor/bitwarden-clients/apps/browser/src/platform/popup/layout/popup-footer.component.ts",
@@ -307,6 +315,7 @@
       "vendor/bitwarden-clients/libs/assets/src/svg/svgs/active-send.icon.ts",
       "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts",
       "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts",
+      "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-send.icon.ts",
       "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
       "vendor/bitwarden-clients/libs/common/src/tools/send/send-kdf.ts",
       "vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts",
@@ -320,8 +329,6 @@
       "vendor/bitwarden-clients/libs/components/src/button/button.component.html",
       "vendor/bitwarden-clients/libs/components/src/button/button.component.ts",
       "vendor/bitwarden-clients/libs/components/src/button/index.ts",
-      "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts",
-      "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
       "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
       "vendor/bitwarden-clients/libs/components/src/dialog/dialog-ref.ts",
       "vendor/bitwarden-clients/libs/components/src/dialog/dialog/dialog.component.html",
@@ -373,6 +380,11 @@
       "vendor/bitwarden-clients/libs/components/src/item/item.component.html",
       "vendor/bitwarden-clients/libs/components/src/item/item.component.ts",
       "vendor/bitwarden-clients/libs/components/src/layout/scroll-layout.directive.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/default-positions.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.html",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.component.html",
+      "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts",
       "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.html",
       "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.ts",
       "vendor/bitwarden-clients/libs/components/src/search/search.component.html",
@@ -599,6 +611,102 @@
         "target": "vendor/bitwarden-clients/libs/components/src/typography/typography.module.ts"
       },
       {
+        "from": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+        "kind": "import",
+        "specifier": "../tooltip/tooltip.directive",
+        "target": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+        "kind": "import",
+        "specifier": "./default-positions",
+        "target": "vendor/bitwarden-clients/libs/components/src/menu/default-positions.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/keycodes",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/portal",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core/rxjs-interop",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts",
+        "kind": "import",
+        "specifier": "rxjs/operators",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.component.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./tooltip.component.html",
+        "target": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.component.html"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "./tooltip-positions",
+        "target": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip-positions.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "./tooltip.component",
+        "target": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/overlay",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/portal",
+        "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/official-components-overlay/tooltip/tooltip.directive.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
         "from": "apps/menubar-tauri/src/app/official-ui/app-bottom-sheet.component.ts",
         "kind": "import",
         "specifier": "./app-overlay-stack.service",
@@ -681,18 +789,6 @@
         "kind": "export",
         "specifier": "@bitwarden/components/button/button.component",
         "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
-      },
-      {
-        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
-        "kind": "export",
-        "specifier": "@bitwarden/components/card/card.component",
-        "target": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts"
-      },
-      {
-        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
-        "kind": "export",
-        "specifier": "@bitwarden/components/card/card.component",
-        "target": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts"
       },
       {
         "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
@@ -793,8 +889,8 @@
       {
         "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
         "kind": "export",
-        "specifier": "@bitwarden/components/input/input.directive",
-        "target": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts"
+        "specifier": "@bitwarden/components/icon-button/icon-button.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/icon-button/icon-button.component.ts"
       },
       {
         "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
@@ -807,6 +903,30 @@
         "kind": "export",
         "specifier": "@bitwarden/components/input/input.directive",
         "target": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/input/input.directive",
+        "target": "vendor/bitwarden-clients/libs/components/src/input/input.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/menu/menu-item.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/menu/menu-trigger-for.directive",
+        "target": "apps/menubar-tauri/official-components-overlay/menu/menu-trigger-for.directive.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
+        "kind": "export",
+        "specifier": "@bitwarden/components/menu/menu.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts"
       },
       {
         "from": "apps/menubar-tauri/src/app/official-ui/official-components.ts",
@@ -919,6 +1039,18 @@
       {
         "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
         "kind": "import",
+        "specifier": "../vault/otp.facade",
+        "target": "apps/menubar-tauri/src/app/vault/otp.facade.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "./popup-route-metadata",
+        "target": "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
         "specifier": "./popup-route-reuse.strategy",
         "target": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts"
       },
@@ -927,6 +1059,12 @@
         "kind": "import",
         "specifier": "./popup-router-cache.lifecycle",
         "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
       },
       {
         "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
@@ -1435,6 +1573,12 @@
       {
         "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
         "kind": "import",
+        "specifier": "../../official-ui/official-components",
+        "target": "apps/menubar-tauri/src/app/official-ui/official-components.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
+        "kind": "import",
         "specifier": "../../official-ui/official-ui-common",
         "target": "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts"
       },
@@ -1533,6 +1677,12 @@
         "kind": "import",
         "specifier": "@angular/forms",
         "target": null
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
+        "specifier": "@bitwarden/assets/svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts"
       },
       {
         "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
@@ -1637,6 +1787,12 @@
         "target": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.html"
       },
       {
+        "from": "apps/menubar-tauri/src/app/vault/otp.facade.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
         "from": "apps/menubar-tauri/src/host/launch-at-login.ts",
         "kind": "import",
         "specifier": "@tauri-apps/api/core",
@@ -1671,6 +1827,12 @@
         "kind": "import",
         "specifier": "./launch-at-login",
         "target": "apps/menubar-tauri/src/host/launch-at-login.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "./website-context",
+        "target": "apps/menubar-tauri/src/host/website-context.ts"
       },
       {
         "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
@@ -1757,6 +1919,12 @@
         "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts"
       },
       {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts",
+        "kind": "export",
+        "specifier": "./svgs",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts"
+      },
+      {
         "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/active-send.icon.ts",
         "kind": "import",
         "specifier": "../svg",
@@ -1775,7 +1943,19 @@
         "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts"
       },
       {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts",
+        "kind": "export",
+        "specifier": "./no-send.icon",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-send.icon.ts"
+      },
+      {
         "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts",
+        "kind": "import",
+        "specifier": "../svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svg.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-send.icon.ts",
         "kind": "import",
         "specifier": "../svg",
         "target": "vendor/bitwarden-clients/libs/assets/src/svg/svg.ts"
@@ -1923,24 +2103,6 @@
         "kind": "export",
         "specifier": "./button.component",
         "target": "vendor/bitwarden-clients/libs/components/src/button/button.component.ts"
-      },
-      {
-        "from": "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts",
-        "kind": "import",
-        "specifier": "@angular/core",
-        "target": null
-      },
-      {
-        "from": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
-        "kind": "import",
-        "specifier": "./base-card/base-card.directive",
-        "target": "vendor/bitwarden-clients/libs/components/src/card/base-card/base-card.directive.ts"
-      },
-      {
-        "from": "vendor/bitwarden-clients/libs/components/src/card/card.component.ts",
-        "kind": "import",
-        "specifier": "@angular/core",
-        "target": null
       },
       {
         "from": "vendor/bitwarden-clients/libs/components/src/checkbox/checkbox.component.ts",
@@ -2753,6 +2915,48 @@
         "target": null
       },
       {
+        "from": "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/coercion",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts",
+        "kind": "templateUrl",
+        "specifier": "menu-item.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.html"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts",
+        "kind": "import",
+        "specifier": "./menu-item.component",
+        "target": "vendor/bitwarden-clients/libs/components/src/menu/menu-item.component.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts",
+        "kind": "import",
+        "specifier": "@angular/cdk/a11y",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/components/src/menu/menu.component.ts",
+        "kind": "templateUrl",
+        "specifier": "./menu.component.html",
+        "target": "vendor/bitwarden-clients/libs/components/src/menu/menu.component.html"
+      },
+      {
         "from": "vendor/bitwarden-clients/libs/components/src/no-items/no-items.component.ts",
         "kind": "import",
         "specifier": "../svg/svg.component",
@@ -3191,6 +3395,6 @@
         "target": null
       }
     ],
-    "sha256": "2d4b27b540e79d52011ce18d7774122bebb6279bdaf4de5dd2ae627ab224e4ba"
+    "sha256": "84af64a159614920cae1b1958ab52b13b3ec06eaa3e9b819ac91550ac5f2131b"
   }
 }

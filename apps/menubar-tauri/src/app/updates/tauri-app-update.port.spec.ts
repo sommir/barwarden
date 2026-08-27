@@ -17,7 +17,7 @@ describe("TauriAppUpdatePort", () => {
 
     await candidate!.downloadAndInstall((value) => progress.push(value));
 
-    expect(api.check).toHaveBeenCalledOnce();
+    expect(api.check).toHaveBeenCalledWith({ timeout: 15_000 });
     expect(native.downloadAndInstall).toHaveBeenCalledOnce();
     expect(api.relaunch).toHaveBeenCalledOnce();
     expect(progress).toEqual([0, 0.5, 1]);

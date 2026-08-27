@@ -483,8 +483,8 @@ describe("buildIdentityCipherCreateRequest", () => {
     const result = await buildIdentityCipherCreateRequest({
       userKeyB64: bytesToBase64(userKey),
       name: "Personal identity",
-      firstName: "Liu",
-      lastName: "Jieren",
+      firstName: "Example",
+      lastName: "Person",
       email: "me@example.com",
       phone: "+1 555 0100",
       address1: "1 Market Street",
@@ -512,10 +512,10 @@ describe("buildIdentityCipherCreateRequest", () => {
       "identity note",
     );
     await expect(decryptEncStringToUtf8(result.identity.firstName, bytesToBase64(userKey))).resolves.toBe(
-      "Liu",
+      "Example",
     );
     await expect(decryptEncStringToUtf8(result.identity.lastName, bytesToBase64(userKey))).resolves.toBe(
-      "Jieren",
+      "Person",
     );
     await expect(decryptEncStringToUtf8(result.identity.email, bytesToBase64(userKey))).resolves.toBe(
       "me@example.com",

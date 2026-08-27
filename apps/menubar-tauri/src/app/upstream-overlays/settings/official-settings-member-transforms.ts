@@ -30,6 +30,32 @@ export const settingsExcludedTemplateContract = {
   marker: 'routerLink="/autofill"',
 } as const;
 
+export const officialSettingsHomeLocalAdaptations = [
+  {
+    id: "launch-at-login-switch",
+    runtimeMembers: [
+      "launchAtLoginEnabled",
+      "launchAtLoginBusy",
+      "launchAtLoginError",
+      "launchAtLoginEnabledChange",
+      "dismissLaunchAtLoginError",
+    ],
+    interactionRole: "switch",
+  },
+  {
+    id: "native-settings-routes",
+    runtimeMembers: ["groups", "navigate"],
+    routes: [
+      "/appearance",
+      "/account-security",
+      "/autofill",
+      "/keyboard-shortcut",
+      "/vault-settings",
+      "/about",
+    ],
+  },
+] as const;
+
 export const officialAccountSecurityLocalAdaptations = [
   {
     id: "runtime-pin",

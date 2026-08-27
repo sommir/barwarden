@@ -74,6 +74,9 @@ describe("GeneratorHistoryPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector("bit-empty-credential-history bit-no-items")).not.toBeNull();
+    expect(host.querySelectorAll('[data-testid="generator-history-content"]')).toHaveLength(1);
+    expect(host.querySelector('[data-testid="generator-history-content"]')?.hasAttribute("aria-live"))
+      .toBe(false);
     expect(host.textContent).toContain("没有可显示的内容");
     expect(host.textContent).toContain("您最近没有生成任何内容");
     expect(clearButtonOrNull(host)).toBeNull();
@@ -93,7 +96,7 @@ describe("GeneratorHistoryPageComponent", () => {
     expect(host.textContent).toContain("没有可显示的内容");
   });
 
-  it("renders mixed official rows with color-password, timestamps, and algorithm labels", async () => {
+  it("keeps asynchronous credential history out of live regions while retaining safe row names", async () => {
     const history = [
       credential("password", "password-value", "2026-07-11T08:09:10.000Z"),
       credential("passphrase", "passphrase-value", "2026-07-10T08:09:10.000Z"),
@@ -103,15 +106,72 @@ describe("GeneratorHistoryPageComponent", () => {
     const { fixture } = await setup(generatorService({ history: vi.fn(async () => history) }));
     await render(fixture);
     const host = fixture.nativeElement as HTMLElement;
-    const rows = host.querySelectorAll("bit-credential-generator-history bit-item");
+    const content = host.querySelector<HTMLElement>(
+      '[data-testid="generator-history-content"]',
+    );
+    const rows = host.querySelectorAll("bit-credential-generator-history [role=listitem]");
+    const liveRegions = host.querySelectorAll('[aria-live], [role="status"], [role="alert"]');
 
     expect(rows).toHaveLength(3);
+    expect(content).not.toBeNull();
+    expect(content?.hasAttribute("aria-live")).toBe(false);
+    for (const liveRegion of liveRegions) {
+      expect(liveRegion.textContent).not.toContain("password-value");
+      expect(liveRegion.textContent).not.toContain("passphrase-value");
+      expect(liveRegion.textContent).not.toContain("username-value");
+    }
+    expect(host.querySelectorAll(".macos-generator-history__row")).toHaveLength(3);
+    expect([...rows].every((row) => row.classList.contains("macos-row"))).toBe(true);
+    expect([...rows].every((row) => row.classList.contains("macos-row--double"))).toBe(true);
     expect(rows[0]?.querySelector("bit-color-password")?.textContent).toContain("password-value");
+    expect(rows[0]?.getAttribute("role")).toBe("listitem");
+    expect(rows[0]?.closest('[role="list"]')).not.toBeNull();
+    expect(rows[0]?.getAttribute("aria-label")).toBe("密码");
+    expect(rows[1]?.getAttribute("aria-label")).toBe("密码短语");
+    expect(rows[2]?.getAttribute("aria-label")).toBe("用户名");
+    expect([...rows].map((row) => row.getAttribute("aria-label")).join("\n"))
+      .not.toMatch(/password-value|passphrase-value|username-value/);
+    const readableValues = host.querySelectorAll("bit-color-password");
+    expect([...readableValues].map((value) => value.textContent?.trim()))
+      .toEqual(["password-value", "passphrase-value", "username-value"]);
+    for (const value of readableValues) {
+      let node: HTMLElement | null = value as HTMLElement;
+      while (node) {
+        expect(node.getAttribute("aria-hidden")).not.toBe("true");
+        expect(node.hidden).toBe(false);
+        expect(node.hasAttribute("inert")).toBe(false);
+        if (node === content) break;
+        node = node.parentElement;
+      }
+      expect(node).toBe(content);
+    }
     expect(rows[0]?.querySelector('[slot="secondary"]')?.textContent?.trim()).not.toBe("");
     expect(button(host, "复制密码").querySelector(".bwi-clone")).not.toBeNull();
     expect(button(host, "复制密码短语")).toBeDefined();
     expect(button(host, "复制用户名")).toBeDefined();
     expect(clearButton(host).disabled).toBe(false);
+  });
+
+  it("publishes structural history-row focus keys without exposing credential values", async () => {
+    const sensitiveCredential = "orbit-lantern-copper-signal";
+    const { fixture } = await setup(
+      generatorService({
+        history: vi.fn(async () => [
+          credential("password", sensitiveCredential, "2026-07-11T08:09:10.000Z"),
+        ]),
+      }),
+    );
+    await render(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const generatorKeys = [...host.querySelectorAll<HTMLElement>("[data-popup-focus-key]")].map(
+      (node) => node.getAttribute("data-popup-focus-key"),
+    );
+
+    expect(
+      generatorKeys.some((key) => /^generator-history:\d{1,16}:\d{1,4}$/.test(key ?? "")),
+    ).toBe(true);
+    expect(generatorKeys.join("\n")).not.toContain(sensitiveCredential);
+    expect(host.querySelector("[data-bw-focus-key]")).toBeNull();
   });
 
   it("copies only through the native clipboard policy host", async () => {
@@ -243,9 +303,14 @@ describe("GeneratorHistoryPageComponent", () => {
     expect(clearDialog.hasAttribute("open")).toBe(true);
     expect(clearDialog.textContent).toContain("清除生成器历史记录");
     expect(clearDialog.textContent).toContain("若继续，所有条目将从生成器历史记录中永久删除。确定要继续吗？");
-    expect(document.activeElement).toBe(button(host, "清除历史记录", "dialog"));
+    const cancel = button(host, "取消", "dialog");
+    const dangerClear = button(host, "清除历史记录", "dialog");
+    expect(document.activeElement).toBe(cancel);
+    expect(cancel.compareDocumentPosition(dangerClear) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    expect(dangerClear.getAttribute("buttontype")).toBe("danger");
 
-    button(host, "取消").click();
+    cancel.click();
     await settle(fixture);
     expect(clearDialog.hasAttribute("open")).toBe(false);
     expect(document.activeElement).toBe(trigger);
@@ -257,6 +322,43 @@ describe("GeneratorHistoryPageComponent", () => {
     expect(clearDialog.hasAttribute("open")).toBe(false);
     expect(document.activeElement).toBe(trigger);
     expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it("does not let a nested close transition or its fallback restore focus early", async () => {
+    const { fixture } = await setup(generatorService({
+      history: vi.fn(async () => [credential("password", "value")]),
+    }));
+    await render(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = clearButton(host);
+    const clearDialog = dialog(host);
+    useDialogFallback(clearDialog);
+    clearDialog.style.transitionProperty = "transform";
+    clearDialog.style.transitionDuration = "200ms";
+    clearDialog.style.transitionDelay = "0s";
+    trigger.focus();
+    trigger.click();
+    await settle(fixture);
+    const cancel = button(host, "取消", "dialog");
+
+    expect(document.activeElement).toBe(cancel);
+    cancel.click();
+    expect(clearDialog.getAttribute("data-state")).toBe("closing");
+    expect(document.activeElement).toBe(cancel);
+
+    const nested = clearDialog.querySelector<HTMLElement>(".app-bottom-sheet-footer")!;
+    nested.dispatchEvent(transformTransitionEnd());
+    expect(clearDialog.hasAttribute("open")).toBe(true);
+    expect(document.activeElement).toBe(cancel);
+
+    clearDialog.dispatchEvent(transformTransitionEnd());
+    expect(clearDialog.hasAttribute("open")).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+
+    const copy = button(host, "复制密码");
+    copy.focus();
+    await new Promise((resolve) => window.setTimeout(resolve, 275));
+    expect(document.activeElement).toBe(copy);
   });
 
   it("suppresses duplicate clear and changes to the official empty state only after success", async () => {
@@ -558,6 +660,12 @@ function dialog(host: HTMLElement): HTMLDialogElement {
 function useDialogFallback(element: HTMLDialogElement): void {
   Object.defineProperty(element, "showModal", { configurable: true, value: undefined });
   Object.defineProperty(element, "close", { configurable: true, value: undefined });
+}
+
+function transformTransitionEnd(): Event {
+  const event = new Event("transitionend", { bubbles: true });
+  Object.defineProperty(event, "propertyName", { value: "transform" });
+  return event;
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {

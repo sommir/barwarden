@@ -57,6 +57,8 @@ export interface PopupState {
   readonly lastSuccessfulSyncDate: Date | null;
   readonly vaultSyncStatus: VaultSyncStatus;
   readonly vaultSyncMessage: string;
+  /** Account that owns the current vault item arrays; committed with sync data. */
+  readonly vaultOwnerAccountId: string | null;
   readonly activeSession: AuthSession | null;
   readonly authChallenge: AuthChallenge | null;
   readonly filterFolderId: string;
@@ -102,6 +104,7 @@ export class PopupStateStore {
     lastSuccessfulSyncDate: null,
     vaultSyncStatus: "initial",
     vaultSyncMessage: "",
+    vaultOwnerAccountId: null,
     activeSession: null,
     authChallenge: null,
     filterFolderId: "",
@@ -119,13 +122,16 @@ export class PopupStateStore {
     return this.state;
   }
 
-  restore(state: PopupState): void {
+  restore(
+    state: PopupState,
+    vaultOwnerAccountId: string | null = state.vaultOwnerAccountId,
+  ): void {
     this.vaultSyncEpoch += 1;
     this.protectedOperationEpoch += 1;
     this.sendRevision += 1;
     this.sendLifecycleRevision += 1;
     this.rememberDeletedRestoreDestinations(state.deletedItems);
-    this.commit(state);
+    this.commit({ ...state, vaultOwnerAccountId });
   }
 
   beginProtectedOperation(): number {
@@ -239,6 +245,7 @@ export class PopupStateStore {
       lastSuccessfulSyncDate: null,
       vaultSyncStatus: "initial",
       vaultSyncMessage: "",
+      vaultOwnerAccountId: null,
       activeSession: null,
       authChallenge: null,
       filterFolderId: "",
@@ -254,6 +261,7 @@ export class PopupStateStore {
     items: readonly VaultItem[],
     folders: readonly VaultFolder[] = this.state.folders,
     lastSyncDate = new Date(),
+    vaultOwnerAccountId: string | null = this.state.vaultOwnerAccountId,
   ): void {
     this.commit({
       ...this.state,
@@ -263,7 +271,14 @@ export class PopupStateStore {
       lastSuccessfulSyncDate: lastSyncDate,
       vaultSyncStatus: "fresh",
       vaultSyncMessage: "",
+      vaultOwnerAccountId,
     });
+  }
+
+  clearVaultOwnerAccountId(): void {
+    if (this.state.vaultOwnerAccountId !== null) {
+      this.commit({ ...this.state, vaultOwnerAccountId: null });
+    }
   }
 
   setArchivedItems(archivedItems: readonly VaultItem[]): void {
@@ -725,6 +740,7 @@ export class PopupStateStore {
       lastSuccessfulSyncDate: null,
       vaultSyncStatus: "initial",
       vaultSyncMessage: "",
+      vaultOwnerAccountId: null,
       activeSession: null,
       authChallenge: null,
       filterFolderId: "",

@@ -71,11 +71,42 @@ describe("OtpCodeRowComponent", () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
 
+    fixture.componentRef.setInput("copied", true);
+    fixture.detectChanges();
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("aria-live")).toBeNull();
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("role")).toBeNull();
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.getAttribute("aria-hidden")).toBe("true");
+    expect(host.querySelector("[data-testid='otp-copy-status']")?.textContent?.trim()).toBe("已复制");
+    expect(host.querySelector(".otp-code-row__countdown")?.getAttribute("aria-live")).toBeNull();
+    fixture.componentRef.setInput("copied", false);
+    fixture.detectChanges();
+
+    const owner = host.querySelector<HTMLElement>("article.otp-code-row")!;
+    const ownerKey = owner.getAttribute("data-popup-focus-key") ?? "";
+    const copyButton = host.querySelector<HTMLButtonElement>("[data-testid='otp-code']")!;
+    const copyPlate = copyButton.querySelector<HTMLElement>(".otp-code-row__copy-icon")!;
+    const countdownPlate = host.querySelector<HTMLElement>(".otp-code-row__countdown")!;
+    expect(owner.classList).toContain("macos-row--double");
+    expect(copyButton.classList).toContain("macos-hit-target");
+    expect(copyPlate.classList).toContain("macos-icon-plate");
+    expect(countdownPlate.classList).toContain("macos-icon-plate");
+    expect(ownerKey).toBe("otp-item:github");
+    expect(copyButton.closest("[data-popup-focus-key]")).toBe(owner);
+    for (const sensitiveValue of [item.name, seed, totp.code, totp.formattedCode]) {
+      expect(ownerKey).not.toContain(sensitiveValue);
+    }
     expect(host.textContent).toContain("GitHub");
     expect(host.textContent).toContain("ops@example.com");
     expect(host.textContent).toContain("123 456");
     expect(host.querySelector(".otp-code-row__countdown")?.textContent).toContain("18");
     expect(host.textContent).not.toContain(seed);
+    const announcementMarkup = Array.from(
+      host.querySelectorAll<HTMLElement>('[aria-live], [role="status"], [role="alert"]'),
+      (node) => node.outerHTML,
+    ).join("\n");
+    for (const sensitiveValue of [item.id, item.name, item.subtitle, seed, totp.code, totp.formattedCode]) {
+      expect(announcementMarkup).not.toContain(sensitiveValue);
+    }
     host.querySelector<HTMLButtonElement>('[aria-label="复制 GitHub 的验证码"]')!.click();
     expect(copied).toHaveBeenCalledWith(field);
   });
@@ -104,9 +135,13 @@ describe("OtpCodeRowComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    const owner = host.querySelector<HTMLElement>("article.otp-code-row")!;
+    const retry = host.querySelector<HTMLButtonElement>("[data-testid=otp-retry]")!;
+    expect(owner.getAttribute("data-popup-focus-key")).toBe("otp-item:github");
+    expect(retry.closest("[data-popup-focus-key]")).toBe(owner);
     expect(host.querySelector("[data-testid=otp-code]")).toBeNull();
     expect(host.textContent).toContain("验证码暂不可用");
-    expect(host.querySelector<HTMLButtonElement>("[data-testid=otp-retry]")).not.toBeNull();
+    expect(retry).not.toBeNull();
   });
 
   it("backs off after a transient failure and recovers without leaving the page", async () => {

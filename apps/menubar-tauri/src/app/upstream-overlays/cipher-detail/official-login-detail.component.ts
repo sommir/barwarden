@@ -8,6 +8,7 @@ import { OfficialItemDetailsComponent } from "./official-item-details.component"
 import { OfficialItemHistoryComponent } from "./official-item-history.component";
 import {
   OfficialLoginCredentialsComponent,
+  type LoginContextualFillPresentation,
   type LoginRevealRequest,
 } from "./official-login-credentials.component";
 import { OfficialLoginUriOptionsComponent } from "./official-login-uri-options.component";
@@ -29,9 +30,12 @@ import { OfficialLoginUriOptionsComponent } from "./official-login-uri-options.c
 export class OfficialLoginDetailComponent {
   @Input({ required: true }) projection!: OfficialLoginDetailProjection;
   @Input() canFill = false;
+  @Input() contextualFillAction?: LoginContextualFillPresentation;
+  @Input() contextualFillBusy = false;
   @Input() revealedFieldIds: ReadonlySet<string> = new Set();
   @Output() copyField = new EventEmitter<VaultField>();
   @Output() fillField = new EventEmitter<VaultField>();
+  @Output() contextualFill = new EventEmitter<Event>();
   @Output() launchUri = new EventEmitter<string>();
   @Output() toggleReveal = new EventEmitter<string | LoginRevealRequest>();
   @Output() viewPasswordHistory = new EventEmitter<void>();

@@ -53,16 +53,60 @@ describe("ThirdPartyNoticesPageComponent", () => {
     expect(host.textContent).toContain("npm");
     expect(host.textContent).toContain("27");
     expect(host.textContent).toContain("Cargo");
-    expect(host.textContent).toContain("218");
+    expect(host.textContent).toContain("241");
     expect(host.textContent).toContain("许可证类别");
     expect(host.textContent).toContain("查看完整许可文本");
     expect(host.querySelector("pre")).toBeNull();
     expect(host.textContent).not.toContain("| Ecosystem |");
+
+    const counts = host.querySelector<HTMLElement>(".third-party-notices-counts")!;
+    const groups = host.querySelector<HTMLElement>(".third-party-license-groups")!;
+    const list = groups.querySelector<HTMLElement>("ul")!;
+    expect(getComputedStyle(counts).boxShadow).toBe("none");
+    expect(getComputedStyle(groups).borderRadius).toBe("0px");
+    expect(getComputedStyle(groups).boxShadow).toBe("none");
+    expect(getComputedStyle(list).overflowY).not.toBe("auto");
+    expect(getComputedStyle(list).maxHeight).toBe("none");
 
     host
       .querySelector<HTMLButtonElement>("[data-testid='view-complete-third-party-licenses']")!
       .click();
     await fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe("/third-party-licenses");
+  });
+
+  it("filters license categories through the shared document search without rendering license HTML", async () => {
+    await TestBed.configureTestingModule({
+      imports: [ThirdPartyNoticesPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ThirdPartyNoticesPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const search = host.querySelector<HTMLInputElement>("[data-testid='document-search-input']");
+    expect(search).not.toBeNull();
+
+    search!.value = "Apache";
+    search!.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.query).toBe("Apache");
+    expect(fixture.componentInstance.filteredLicenseGroups.length).toBeGreaterThan(0);
+    for (const item of host.querySelectorAll<HTMLElement>(".third-party-license-groups li")) {
+      expect(item.textContent?.toLocaleLowerCase()).toContain("apache");
+      expect(item.innerHTML).not.toContain("<script");
+    }
+    expect(host.querySelector("pre")).toBeNull();
+    expect(getComputedStyle(host.querySelector<HTMLElement>(".third-party-notices-count-card")!).padding)
+      .toBe("8px 12px");
+    expect(host.querySelector<HTMLButtonElement>("[data-testid='document-search-previous']")?.disabled)
+      .toBe(true);
+    expect(host.querySelector<HTMLButtonElement>("[data-testid='document-search-next']")?.disabled)
+      .toBe(true);
   });
 });

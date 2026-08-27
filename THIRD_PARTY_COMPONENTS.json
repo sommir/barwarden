@@ -3,21 +3,21 @@
   "target": "aarch64-apple-darwin",
   "counts": {
     "npm": 27,
-    "cargo": 218,
-    "total": 245
+    "cargo": 241,
+    "total": 268
   },
   "licenseGroups": [
     {
       "expression": "MIT OR Apache-2.0",
-      "count": 94
+      "count": 111
     },
     {
       "expression": "MIT",
-      "count": 52
+      "count": 53
     },
     {
       "expression": "Apache-2.0 OR MIT",
-      "count": 22
+      "count": 25
     },
     {
       "expression": "Unicode-3.0",
@@ -29,10 +29,14 @@
     },
     {
       "expression": "Zlib OR Apache-2.0 OR MIT",
-      "count": 11
+      "count": 12
     },
     {
       "expression": "BSD-3-Clause",
+      "count": 4
+    },
+    {
+      "expression": "MIT OR Apache-2.0 OR Zlib",
       "count": 4
     },
     {
@@ -41,10 +45,6 @@
     },
     {
       "expression": "Apache-2.0",
-      "count": 3
-    },
-    {
-      "expression": "MIT OR Apache-2.0 OR Zlib",
       "count": 3
     },
     {
@@ -146,6 +146,16 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "aead",
+      "version": "0.5.2",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-949ab7b3e714"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "aho-corasick",
       "version": "1.1.4",
       "license": "Unlicense OR MIT",
@@ -231,6 +241,16 @@
       "documents": [
         "DOC-a60eea817514",
         "DOC-6485b8ed310d"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-d5c22aa3118d"
       ]
     },
     {
@@ -322,6 +342,36 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "chacha20",
+      "version": "0.9.1",
+      "license": "Apache-2.0 OR MIT",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-b6f6f01b03ee"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "chacha20poly1305",
+      "version": "0.10.1",
+      "license": "Apache-2.0 OR MIT",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-3c0dfa33fd2e"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cipher",
+      "version": "0.4.4",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-5c7bd92d1f09"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "cookie",
       "version": "0.18.1",
       "license": "MIT OR Apache-2.0",
@@ -373,6 +423,16 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-ae9baa7beea9"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "crc32fast",
       "version": "1.5.0",
       "license": "MIT OR Apache-2.0",
@@ -404,6 +464,16 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "crypto-common",
+      "version": "0.1.7",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-3521672491a3"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "ctor",
       "version": "0.8.0",
       "license": "Apache-2.0 OR MIT",
@@ -420,6 +490,16 @@
       "documents": [
         "DOC-edd65bdd8895",
         "DOC-231c837c45eb"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "digest",
+      "version": "0.10.7",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-9e0dfd2dd417"
       ]
     },
     {
@@ -648,6 +728,15 @@
       "documents": [
         "DOC-275c491d6d11",
         "DOC-6652c868f35d"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "generic-array",
+      "version": "0.14.7",
+      "license": "MIT",
+      "documents": [
+        "DOC-eb69613e00e5"
       ]
     },
     {
@@ -908,6 +997,16 @@
       "license": "MIT",
       "documents": [
         "DOC-270b0d81891a"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "inout",
+      "version": "0.1.4",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-304b898acad7"
       ]
     },
     {
@@ -1232,6 +1331,16 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "opaque-debug",
+      "version": "0.3.1",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-f59f5a781935"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "option-ext",
       "version": "0.2.0",
       "license": "MPL-2.0",
@@ -1308,6 +1417,16 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "poly1305",
+      "version": "0.8.0",
+      "license": "Apache-2.0 OR MIT",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-6d99fffea918"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "potential_utf",
       "version": "0.1.5",
       "license": "Unicode-3.0",
@@ -1323,6 +1442,16 @@
       "documents": [
         "DOC-155420c6403d",
         "DOC-070dbc7dda03"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ppv-lite86",
+      "version": "0.2.21",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-0218327e7a48",
+        "DOC-4cada0bd02ea"
       ]
     },
     {
@@ -1352,6 +1481,50 @@
       "license": "MIT",
       "documents": [
         "DOC-f0cf9b1c62bb"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rand",
+      "version": "0.9.5",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-90eb64f0279b",
+        "DOC-35242e7a83f6",
+        "DOC-209fbbe0ad52"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rand_chacha",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-90eb64f0279b",
+        "DOC-35242e7a83f6",
+        "DOC-209fbbe0ad52"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rand_core",
+      "version": "0.6.4",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-90eb64f0279b",
+        "DOC-6df43f6f4b5d",
+        "DOC-209fbbe0ad52"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rand_core",
+      "version": "0.9.5",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-90eb64f0279b",
+        "DOC-6df43f6f4b5d",
+        "DOC-209fbbe0ad52"
       ]
     },
     {
@@ -1610,6 +1783,16 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "sha2",
+      "version": "0.10.9",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-b4eb00df6e2a"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "simd-adler32",
       "version": "0.3.9",
       "license": "MIT",
@@ -1846,6 +2029,28 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "tinyvec",
+      "version": "1.11.0",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "documents": [
+        "DOC-cfc7749b96f6",
+        "DOC-fd80a26fbb3f",
+        "DOC-84b34dd7608f"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tinyvec_macros",
+      "version": "0.1.1",
+      "license": "MIT OR Apache-2.0 OR Zlib",
+      "documents": [
+        "DOC-1cdc81fa4411",
+        "DOC-1dd8eca0f836",
+        "DOC-6abdec69ada0"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "tokio",
       "version": "1.52.3",
       "license": "MIT",
@@ -1998,6 +2203,17 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "typenum",
+      "version": "1.20.1",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-36bb253818ac",
+        "DOC-3c97f5b6ad4e",
+        "DOC-a825bd853ab7"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "unic-char-property",
       "version": "0.9.0",
       "license": "MIT/Apache-2.0",
@@ -2043,6 +2259,17 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "unicode-normalization",
+      "version": "0.1.25",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-23860c2a7b5d",
+        "DOC-a60eea817514",
+        "DOC-7b63ecd5f190"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "unicode-segmentation",
       "version": "1.13.3",
       "license": "MIT OR Apache-2.0",
@@ -2050,6 +2277,16 @@
         "DOC-23860c2a7b5d",
         "DOC-a60eea817514",
         "DOC-7b63ecd5f190"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "universal-hash",
+      "version": "0.5.1",
+      "license": "MIT OR Apache-2.0",
+      "documents": [
+        "DOC-a9040321c371",
+        "DOC-6b50510a0400"
       ]
     },
     {
@@ -2221,11 +2458,11 @@
     {
       "ecosystem": "cargo",
       "name": "zeroize",
-      "version": "1.9.0",
+      "version": "1.8.2",
       "license": "Apache-2.0 OR MIT",
       "documents": [
         "DOC-cfc7749b96f6",
-        "DOC-8c7516d4b27b"
+        "DOC-0b04ee3ce002"
       ]
     },
     {
@@ -2280,7 +2517,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/animations",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2289,7 +2526,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/cdk",
-      "version": "21.2.9",
+      "version": "21.2.14",
       "license": "MIT",
       "documents": [
         "DOC-adb40d7d256e"
@@ -2298,7 +2535,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/common",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2307,7 +2544,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/compiler",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2316,7 +2553,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/core",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2325,7 +2562,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/forms",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2334,7 +2571,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/platform-browser",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2343,7 +2580,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/router",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2488,7 +2725,7 @@
     {
       "ecosystem": "npm",
       "name": "tldts-core",
-      "version": "7.4.7",
+      "version": "7.4.11",
       "license": "MIT",
       "documents": [
         "DOC-c64182d48160"

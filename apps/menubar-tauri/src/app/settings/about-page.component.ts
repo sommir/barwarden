@@ -1,4 +1,3 @@
-import { Location } from "@angular/common";
 import { Component } from "@angular/core";
 import { Router } from "@angular/router";
 
@@ -15,7 +14,8 @@ import { aboutMetadata, aboutVersion } from "./about-metadata";
 import { EnvironmentHandoffService, helpUrl, sourceUrl } from "./environment-handoff.service";
 import { ClipboardPolicyService } from "./clipboard-policy.service";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
-import { AppUpdateService, type AppUpdateView } from "../updates/app-update.service";
+import { AppUpdateService } from "../updates/app-update.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-about-page",
@@ -28,7 +28,7 @@ import { AppUpdateService, type AppUpdateView } from "../updates/app-update.serv
       [metadataView]="metadataView"
       [revisionCopyStatus]="revisionCopyStatus"
       [handoffError]="handoffError"
-      [updateView]="updateView"
+      [updateView]="updateView()"
       (back)="back()"
       (metadataViewChange)="setMetadataView($event)"
       (openThirdPartyNotices)="openThirdPartyNotices()"
@@ -39,6 +39,7 @@ import { AppUpdateService, type AppUpdateView } from "../updates/app-update.serv
       (checkForUpdates)="checkForUpdates()"
       (downloadAndRestart)="downloadAndRestart()"
       (dismissUpdate)="dismissUpdate()"
+      (retryUpdate)="retryUpdate()"
     />
   `,
 })
@@ -46,17 +47,17 @@ export class AboutPageComponent {
   metadataView: OfficialAboutDialogView | null = null;
   revisionCopyStatus: OfficialAboutRevisionCopyStatus = "idle";
   handoffError = "";
-  updateView: AppUpdateView;
+  readonly updateView: AppUpdateService["view"];
 
   constructor(
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly handoff: EnvironmentHandoffService,
     private readonly store: PopupStateStore,
     private readonly clipboard: ClipboardPolicyService,
     private readonly updates: AppUpdateService,
     private readonly router: Router,
   ) {
-    this.updateView = updates.snapshot();
+    this.updateView = updates.view;
   }
 
   get metadata(): Readonly<OfficialAboutDialogMetadata> {
@@ -69,8 +70,8 @@ export class AboutPageComponent {
     };
   }
 
-  back(): void {
-    this.location.back();
+  async back(): Promise<void> {
+    await this.routeCache.back();
   }
 
   setMetadataView(view: OfficialAboutDialogView | null): void {
@@ -113,22 +114,23 @@ export class AboutPageComponent {
   }
 
   async checkForUpdates(): Promise<void> {
-    const check = this.updates.checkManually();
-    this.updateView = this.updates.snapshot();
-    await check;
-    this.updateView = this.updates.snapshot();
+    await this.updates.checkManually();
   }
 
   async downloadAndRestart(): Promise<void> {
-    const install = this.updates.downloadAndRestart();
-    this.updateView = this.updates.snapshot();
-    await install;
-    this.updateView = this.updates.snapshot();
+    await this.updates.downloadAndRestart();
   }
 
   dismissUpdate(): void {
     this.updates.dismiss();
-    this.updateView = this.updates.snapshot();
+  }
+
+  async retryUpdate(): Promise<void> {
+    if (this.updates.snapshot().version) {
+      await this.updates.downloadAndRestart();
+      return;
+    }
+    await this.updates.checkManually();
   }
 
   private async openHandoff(action: () => Promise<void>): Promise<void> {

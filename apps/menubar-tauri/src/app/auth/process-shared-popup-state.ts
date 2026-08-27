@@ -359,6 +359,7 @@ export function decodeProcessSharedPopupState(
       lastSuccessfulSyncDate: date(shared["lastSuccessfulSyncDate"]),
       vaultSyncStatus: vaultSyncStatus(shared["vaultSyncStatus"]),
       vaultSyncMessage: string(shared["vaultSyncMessage"]),
+      vaultOwnerAccountId: null,
       activeSession: session,
       authChallenge: null,
       filterFolderId: string(shared["filterFolderId"]),

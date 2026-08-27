@@ -1,8 +1,12 @@
-use crate::window::{hide_popup_window, show_popup_window, toggle_popup_window};
+use crate::window::{
+    hide_popup_window, show_autofill_picker_window_from_captured_target, show_popup_window,
+    toggle_popup_window, PopupEntrySource,
+};
 use tauri::image::Image;
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
+const MENU_AUTOFILL: &str = "autofill";
 const MENU_SHOW: &str = "show";
 const MENU_HIDE: &str = "hide";
 const MENU_QUIT: &str = "quit";
@@ -10,6 +14,8 @@ const BARWARDEN_TEMPLATE_ICON_PNG: &[u8] = include_bytes!("../icons/tray-templat
 
 pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let menu = MenuBuilder::new(app)
+        .text(MENU_AUTOFILL, "AutoFill…")
+        .separator()
         .text(MENU_SHOW, "Show Popup")
         .text(MENU_HIDE, "Hide Popup")
         .separator()
@@ -24,11 +30,20 @@ pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
+            if autofill_menu_pre_capture_requested(&event) {
+                crate::frontmost::capture_current_target_app(tray.app_handle());
+            }
             if let Some(rect) = primary_click_rect(&event) {
                 let _ = toggle_popup_window(tray.app_handle(), Some(rect));
             }
         })
         .on_menu_event(|app, event| match event.id().as_ref() {
+            MENU_AUTOFILL => {
+                let _ = show_autofill_picker_window_from_captured_target(
+                    app,
+                    PopupEntrySource::AutoFillMenu,
+                );
+            }
             MENU_SHOW => {
                 let _ = show_popup_window(app, None);
             }
@@ -49,6 +64,17 @@ fn is_primary_click(event: &TrayIconEvent) -> bool {
         TrayIconEvent::Click {
             button: MouseButton::Left,
             button_state: MouseButtonState::Up,
+            ..
+        }
+    )
+}
+
+fn autofill_menu_pre_capture_requested(event: &TrayIconEvent) -> bool {
+    matches!(
+        event,
+        TrayIconEvent::Click {
+            button: MouseButton::Right,
+            button_state: MouseButtonState::Down | MouseButtonState::Up,
             ..
         }
     )
@@ -103,6 +129,39 @@ mod tests {
     }
 
     #[test]
+    fn secondary_click_captures_the_target_before_the_autofill_menu_opens() {
+        for button_state in [MouseButtonState::Down, MouseButtonState::Up] {
+            let event = TrayIconEvent::Click {
+                id: "main".into(),
+                position: PhysicalPosition::new(0.0, 0.0),
+                rect: Rect {
+                    position: Position::Physical(PhysicalPosition::new(0, 0)),
+                    size: Size::Physical(PhysicalSize::new(22, 22)),
+                },
+                button: MouseButton::Right,
+                button_state,
+            };
+
+            assert!(autofill_menu_pre_capture_requested(&event));
+        }
+    }
+
+    #[test]
+    fn autofill_menu_reuses_the_target_captured_before_menu_selection() {
+        let tray = include_str!("tray.rs");
+        let menu_branch = tray
+            .split("MENU_AUTOFILL =>")
+            .nth(1)
+            .expect("AutoFill menu branch")
+            .split("MENU_SHOW =>")
+            .next()
+            .expect("bounded AutoFill menu branch");
+
+        assert!(menu_branch.contains("show_autofill_picker_window_from_captured_target"));
+        assert!(!menu_branch.contains("show_autofill_picker_window(app"));
+    }
+
+    #[test]
     fn primary_left_click_propagates_the_event_tray_rectangle() {
         let expected = Rect {
             position: Position::Physical(PhysicalPosition::new(-1200, -24)),
@@ -143,5 +202,13 @@ mod tests {
 
         assert!(alpha.contains(&0));
         assert!(alpha.iter().any(|value| *value > 0));
+    }
+
+    #[test]
+    fn title_clear_uses_an_empty_string_for_the_macos_status_button() {
+        let source = include_str!("suggestion_count.rs");
+
+        assert!(source.contains("set_title(Some(title))"));
+        assert!(!source.contains("set_title::<&str>(None)"));
     }
 }

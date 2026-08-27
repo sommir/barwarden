@@ -1,6 +1,6 @@
 [package]
 name = "barwarden"
-version = "0.1.2"
+version = "0.1.3"
 description = "Independent GPL-3.0-only macOS menubar client for Bitwarden-compatible services"
 authors = ["Barwarden contributors"]
 edition = "2021"
@@ -13,24 +13,32 @@ tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 arboard = "3.6.1"
+base64 = "0.22.1"
+chacha20poly1305 = "0.10.1"
 keyring = "4.1.4"
+libc = "0.2"
+rand = "0.9.2"
 reqwest = { version = "0.12.24", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sha2 = "0.10.9"
 tauri = { version = "2.11.5", features = ["image-png", "tray-icon"] }
 tauri-plugin-global-shortcut = "=2.3.2"
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.10.1"
 tokio = { version = "1.48.0", features = ["macros", "rt", "time"] }
 url = "2.5.7"
+unicode-normalization = "0.1.25"
 uuid = { version = "1.18.1", features = ["v4"] }
+zeroize = { version = "=1.8.2", features = ["derive"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "=0.6.2"
+core-foundation = "=0.10.1"
 core-graphics = { version = "=0.25.0", features = ["elcapitan"] }
 objc2 = "=0.6.4"
-objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSColor", "NSRunningApplication", "NSView", "NSWindow", "NSWorkspace", "libc", "objc2-quartz-core"] }
-objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSError", "NSString"] }
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSApplication", "NSButton", "NSColor", "NSControl", "NSEvent", "NSGraphics", "NSImage", "NSPanel", "NSPasteboard", "NSPasteboardItem", "NSResponder", "NSRunningApplication", "NSScreen", "NSView", "NSWindow", "NSWorkspace", "libc", "objc2-quartz-core"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSError", "NSFileManager", "NSGeometry", "NSNotification", "NSObject", "NSOperation", "NSString", "NSURL", "NSValue", "block2"] }
 objc2-local-authentication = { version = "=0.3.2", default-features = false, features = ["std", "block2", "LABase", "LAContext", "LAError"] }
 objc2-quartz-core = { version = "=0.3.2", default-features = false, features = ["std", "CALayer", "objc2-core-foundation"] }
 objc2-service-management = { version = "=0.3.2", default-features = false, features = ["std", "SMAppService", "objc2", "objc2-foundation"] }

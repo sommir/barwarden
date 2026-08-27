@@ -1,6 +1,9 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -26,6 +29,33 @@ const tabs: readonly FloatingTab[] = [
 class TabRouteComponent {}
 
 const routes = tabs.map((tab) => ({ path: tab.path.slice(1), component: TabRouteComponent }));
+// The deterministic light fixture resolves macos-tokens.css --mac-selected to this color.
+const lightSelectedTint = "rgba(10, 102, 255, 0.1)";
+
+function installTabSwitcherVisualCss(): () => void {
+  const style = document.createElement("style");
+  const source = ["macos-tokens.css", "global.css"]
+    .map((filename) =>
+      readFileSync(
+        join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+        "utf8",
+      ),
+    )
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const macTokens = new Map(
+    [...rootDeclarations.matchAll(/(--mac-[\w-]+):\s*([^;]+);/g)].map(([, token, value]) => [
+      token,
+      value.trim(),
+    ]),
+  );
+  style.textContent = source.replace(/var\((--mac-[\w-]+)\)/g, (reference, token) =>
+    macTokens.get(token) ?? reference,
+  );
+  document.head.append(style);
+  return () => style.remove();
+}
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -36,6 +66,85 @@ try {
 }
 
 describe("FloatingTabSwitcherComponent", () => {
+  it("paints a 52px tab bar with 44px segments and a quiet indicator", async () => {
+    const cleanupCss = installTabSwitcherVisualCss();
+    const root = document.documentElement;
+    const originalCompactMode = root.dataset["bwCompactMode"];
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [FloatingTabSwitcherComponent],
+        providers: [
+          provideRouter(routes),
+          OfficialI18nService,
+          { provide: I18nService, useExisting: OfficialI18nService },
+        ],
+      }).compileComponents();
+      const router = TestBed.inject(Router);
+      const fixture = TestBed.createComponent(FloatingTabSwitcherComponent);
+      fixture.componentRef.setInput("tabs", tabs);
+      await router.navigateByUrl("/tabs/vault");
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.querySelectorAll(".floating-tab-switcher__indicator")).toHaveLength(1);
+
+      for (const compactMode of [false, true]) {
+        if (compactMode) {
+          root.dataset["bwCompactMode"] = "true";
+        } else {
+          delete root.dataset["bwCompactMode"];
+        }
+
+        const nav = getComputedStyle(host.querySelector<HTMLElement>("nav")!);
+        const segment = getComputedStyle(host.querySelector<HTMLButtonElement>("button")!);
+        const icon = getComputedStyle(host.querySelector<HTMLElement>(".floating-tab-switcher__icon")!);
+        const indicator = getComputedStyle(
+          host.querySelector<HTMLElement>(".floating-tab-switcher__indicator")!,
+        );
+
+        expect(nav.height).toBe("52px");
+        const navRule =
+          readFileSync(
+            join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+            "utf8",
+          ).match(/\.floating-tab-switcher\s*{[\s\S]*?}/)?.[0] ?? "";
+        expect(navRule).toMatch(/border-radius:\s*12px;/);
+        expect(navRule).not.toMatch(/border-radius:\s*12px\s+12px\s+0\s+0;/);
+        expect(segment.minWidth).toBe("44px");
+        expect(segment.minHeight).toBe("44px");
+        expect(icon.fontSize).toBe("18px");
+        expect(indicator.getPropertyValue("inset-block")).toBe("4px");
+        expect(indicator.borderRadius).toBe("9px");
+        expect(indicator.boxShadow).toBe("none");
+        expect(indicator.backgroundColor).toBe(lightSelectedTint);
+      }
+    } finally {
+      if (originalCompactMode === undefined) {
+        delete root.dataset["bwCompactMode"];
+      } else {
+        root.dataset["bwCompactMode"] = originalCompactMode;
+      }
+      cleanupCss();
+    }
+  });
+
+  it("marks the actual OTP segment as the route focus trigger", async () => {
+    await TestBed.configureTestingModule({
+      imports: [FloatingTabSwitcherComponent],
+      providers: [
+        provideRouter(routes),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(FloatingTabSwitcherComponent);
+    fixture.componentRef.setInput("tabs", tabs);
+    fixture.detectChanges();
+    const otp = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("OTP"));
+    expect(otp?.dataset["popupFocusKey"]).toBe("tab:/tabs/otp");
+  });
+
   it("renders one icon above one label per segment and exposes its selected grid state", async () => {
     await TestBed.configureTestingModule({
       imports: [FloatingTabSwitcherComponent],
@@ -85,6 +194,8 @@ describe("FloatingTabSwitcherComponent", () => {
     expect(buttons[3]?.getAttribute("aria-current")).toBe("page");
     expect(navigation.style.getPropertyValue("--segment-count")).toBe("5");
     expect(navigation.style.getPropertyValue("--selected-index")).toBe("3");
+    expect(buttons.map((button) => button.getAttribute("data-popup-focus-key")))
+      .toEqual(tabs.map((tab) => `tab:${tab.path}`));
   });
 
   it("retains the current segment when navigation rejects", async () => {

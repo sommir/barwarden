@@ -2,6 +2,7 @@
   <popup-header slot="header" [pageTitle]="'folders' | i18n" showBackButton [backAction]="backAction">
     <ng-container slot="end">
       <button
+        class="macos-header-primary-action macos-hit-target"
         bitButton
         size="small"
         buttonType="primary"
@@ -10,6 +11,7 @@
         startIcon="bwi-plus"
         [attr.aria-label]="'new' | i18n"
         data-testid="new-folder-button"
+        [attr.data-popup-focus-key]="'folders:new'"
       >
         {{ "new" | i18n }}
       </button>
@@ -26,8 +28,8 @@
   @if (folders.length) {
     <bit-item-group>
       @for (folder of folders; track folder.id) {
-        <bit-item>
-          <bit-item-content>
+        <bit-item class="macos-row macos-row--double macos-recovery-row" [attr.data-popup-focus-key]="'folder:' + folder.id">
+          <bit-item-content class="macos-recovery-row__content" [truncate]="false">
             {{ folder.name }}
             <button
               slot="end"
@@ -35,8 +37,9 @@
               (click)="editFolder.emit(folder)"
               [label]="'i18nEditFolderLabel' | i18n: folder.name"
               bitIconButton="bwi-pencil-square"
-              class="tw-self-end"
+              class="tw-self-end macos-hit-target macos-recovery-action"
               [attr.data-testid]="'edit-folder-' + folder.id"
+              [attr.data-popup-focus-key]="'folder:' + folder.id"
             ></button>
           </bit-item-content>
         </bit-item>
@@ -53,6 +56,7 @@
         slot="button"
         (click)="addFolder.emit()"
         data-testid="empty-new-folder-button"
+        [attr.data-popup-focus-key]="'folders:new'"
         startIcon="bwi-plus"
       >
         {{ "i18nNewFolder" | i18n }}

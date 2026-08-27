@@ -1,7 +1,7 @@
 {
   "revision": "f47b6946e01aed474875789081966d311d5b8289",
   "license": {
-    "rootPackageSha256": "b670e31d191e75483aec74a3f424d0f438e0d396e6f66ec216aacebc42e6fa99",
+    "rootPackageSha256": "c1a93edc30ab20f6c7ea825f06339118fdf6bbb874765dbbefd0fd308a5e5f29",
     "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
     "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
     "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"
@@ -150,7 +150,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-personal-cipher-detail.component.html",
-      "sha256": "d91b13f0d013cd4093a7d0cca4e3fd6d573e5a274b0735be68742505d0460656"
+      "sha256": "fd1f7d6b2b52244a3627f7b9a54c63c2d2b9c1bd2b7e6a967f3a0e73a9765e6c"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-card-details.component.ts",
@@ -174,7 +174,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-read-only-cipher-card.component.html",
-      "sha256": "71f3d6df47cf48f681fface525a62944e77be0ca644cc31496bb482ac26e2026"
+      "sha256": "388f1c81d6bc5dfb78c3001858da520b8579982ac0f1e314a50f6ba0ba90c34c"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-credit-card-number.pipe.ts",
@@ -194,7 +194,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-details.component.html",
-      "sha256": "ad9a00fd52289d3e283eee9b45561e0424c076ac67465f3564db05d203b91f77"
+      "sha256": "3a46221977d598be31e9d913cd463fb12906053f400ec173b0f7ee96b5bec415"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-additional-options.component.ts",
@@ -210,7 +210,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/cipher-detail/official-item-history.component.html",
-      "sha256": "c9e35ec47a145433dd5c61a9bb0e1acbb7902242014c59bc77f9f65c4aeb93ff"
+      "sha256": "ed46fa357349b85a717bc43fb48dc409d273a89dc01f7fa0d3e6d70a0ce08d25"
     }
   ],
   "transforms": [

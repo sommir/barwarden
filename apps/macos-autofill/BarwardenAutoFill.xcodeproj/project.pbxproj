@@ -1,0 +1,155 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* AgentMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* AgentMain.swift */; };
+		A10000000000000000000002 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* CredentialProviderViewController.swift */; };
+		A10000000000000000000003 /* AgentProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* AgentProtocolTests.swift */; };
+		A10000000000000000000004 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* AuthenticationServices.framework */; };
+		A10000000000000000000005 /* AgentProtocol.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* AgentProtocol.swift */; };
+		A10000000000000000000006 /* AgentFraming.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AgentFraming.swift */; };
+		A10000000000000000000007 /* AgentProtocol.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* AgentProtocol.swift */; };
+		A10000000000000000000008 /* AgentFraming.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AgentFraming.swift */; };
+		A10000000000000000000009 /* AgentProtocol.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* AgentProtocol.swift */; };
+		A1000000000000000000000A /* AgentFraming.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AgentFraming.swift */; };
+		A1000000000000000000000B /* CredentialProviderViewController.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* CredentialProviderViewController.swift */; };
+		A1000000000000000000000C /* PeerIdentityVerifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* PeerIdentityVerifierTests.swift */; };
+		A1000000000000000000000D /* PeerIdentityVerifier.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* PeerIdentityVerifier.swift */; };
+		A1000000000000000000000E /* PeerIdentityVerifier.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* PeerIdentityVerifier.swift */; };
+		A1000000000000000000000F /* AgentServer.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* AgentServer.swift */; };
+		A10000000000000000000010 /* AgentServer.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* AgentServer.swift */; };
+		A10000000000000000000011 /* Security.framework in Agent Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* Security.framework */; };
+		A10000000000000000000012 /* Security.framework in Test Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* Security.framework */; };
+		A10000000000000000000013 /* AgentClientServerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* AgentClientServerTests.swift */; };
+		A10000000000000000000014 /* AgentClient.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* AgentClient.swift */; };
+		A10000000000000000000015 /* AgentClient.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* AgentClient.swift */; };
+		A10000000000000000000016 /* AgentClient.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* AgentClient.swift */; };
+		A10000000000000000000017 /* Security.framework in Provider Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* Security.framework */; };
+		A10000000000000000000018 /* libbsm.tbd in Agent Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* libbsm.tbd */; };
+		A10000000000000000000019 /* libbsm.tbd in Test Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* libbsm.tbd */; };
+		A1000000000000000000001A /* ProjectionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* ProjectionStoreTests.swift */; };
+		A1000000000000000000001B /* AutoFillProjection.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* AutoFillProjection.swift */; };
+		A1000000000000000000001C /* AutoFillProjection.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* AutoFillProjection.swift */; };
+		A1000000000000000000001D /* ProjectionStore.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ProjectionStore.swift */; };
+		A1000000000000000000001E /* ProjectionStore.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ProjectionStore.swift */; };
+		A1000000000000000000001F /* MatchingEngine.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* MatchingEngine.swift */; };
+		A10000000000000000000020 /* MatchingEngine.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* MatchingEngine.swift */; };
+		A10000000000000000000021 /* MatchingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* MatchingEngineTests.swift */; };
+		A10000000000000000000022 /* AppPresets.json in Agent Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* AppPresets.json */; };
+		A10000000000000000000023 /* AppPresets.json in Test Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* AppPresets.json */; };
+		A10000000000000000000024 /* DomainMatchRules.json in Agent Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* DomainMatchRules.json */; };
+		A10000000000000000000025 /* DomainMatchRules.json in Test Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* DomainMatchRules.json */; };
+		A10000000000000000000026 /* CredentialIdentityPublisherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* CredentialIdentityPublisherTests.swift */; };
+		A10000000000000000000027 /* CredentialIdentityPublisher.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* CredentialIdentityPublisher.swift */; };
+		A10000000000000000000028 /* CredentialIdentityPublisher.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* CredentialIdentityPublisher.swift */; };
+		A10000000000000000000029 /* CredentialProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* CredentialProviderTests.swift */; };
+		A1000000000000000000002A /* TOTPGenerator.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* TOTPGenerator.swift */; };
+		A1000000000000000000002B /* TOTPGenerator.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* TOTPGenerator.swift */; };
+		A1000000000000000000002C /* CandidateListViewController.swift in Provider Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* CandidateListViewController.swift */; };
+		A1000000000000000000002D /* CandidateListViewController.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* CandidateListViewController.swift */; };
+		C10000000000000000000001 /* ApplicationNameSimilarity.swift in Agent Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000001 /* ApplicationNameSimilarity.swift */; };
+		C10000000000000000000002 /* ApplicationNameSimilarity.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000001 /* ApplicationNameSimilarity.swift */; };
+		C10000000000000000000003 /* ApplicationNameSimilarityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000002 /* ApplicationNameSimilarityTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* AgentMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentMain.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* AgentProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProtocolTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* Native.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Native.xcconfig; sourceTree = "<group>"; };
+		A20000000000000000000005 /* Agent Entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Entitlements.plist; sourceTree = "<group>"; };
+		A20000000000000000000006 /* Agent LaunchAgent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = com.sommir.barwarden.autofill-agent.plist; sourceTree = "<group>"; };
+		A20000000000000000000007 /* Credential Provider Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000008 /* Credential Provider Entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Entitlements.plist; sourceTree = "<group>"; };
+		A20000000000000000000009 /* BarwardenAutoFillAgent */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = BarwardenAutoFillAgent; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000A /* BarwardenCredentialProvider.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BarwardenCredentialProvider.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000B /* BarwardenAutoFillTests.xctest */ = {isa = PBXFileReference; explicitFileType = "wrapper.cfbundle"; includeInIndex = 0; path = BarwardenAutoFillTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000D /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
+		A2000000000000000000000E /* AgentProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProtocol.swift; sourceTree = "<group>"; };
+		A2000000000000000000000F /* AgentFraming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFraming.swift; sourceTree = "<group>"; };
+		A20000000000000000000010 /* PeerIdentityVerifierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerIdentityVerifierTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* PeerIdentityVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerIdentityVerifier.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* AgentServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentServer.swift; sourceTree = "<group>"; };
+		A20000000000000000000013 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		A20000000000000000000014 /* AgentClientServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentClientServerTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000015 /* AgentClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentClient.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* libbsm.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbsm.tbd; path = usr/lib/libbsm.tbd; sourceTree = SDKROOT; };
+		A20000000000000000000017 /* ProjectionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectionStoreTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* AutoFillProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoFillProjection.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* ProjectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectionStore.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* MatchingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchingEngine.swift; sourceTree = "<group>"; };
+		A2000000000000000000001B /* MatchingEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchingEngineTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000001C /* AppPresets.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = AppPresets.json; sourceTree = "<group>"; };
+		A2000000000000000000001D /* DomainMatchRules.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = DomainMatchRules.json; sourceTree = "<group>"; };
+		A2000000000000000000001E /* CredentialIdentityPublisherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialIdentityPublisherTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000001F /* CredentialIdentityPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialIdentityPublisher.swift; sourceTree = "<group>"; };
+		A20000000000000000000020 /* CredentialProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000021 /* TOTPGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TOTPGenerator.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* CandidateListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandidateListViewController.swift; sourceTree = "<group>"; };
+		C20000000000000000000001 /* ApplicationNameSimilarity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationNameSimilarity.swift; sourceTree = "<group>"; };
+		C20000000000000000000002 /* ApplicationNameSimilarityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationNameSimilarityTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000011 /* Security.framework in Agent Frameworks */, A10000000000000000000018 /* libbsm.tbd in Agent Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AuthenticationServices.framework in Frameworks */, A10000000000000000000017 /* Security.framework in Provider Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000003 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000012 /* Security.framework in Test Frameworks */, A10000000000000000000019 /* libbsm.tbd in Test Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002 /* Config */, A40000000000000000000008 /* Shared */, A40000000000000000000003 /* Agent */, A40000000000000000000004 /* CredentialProvider */, A40000000000000000000005 /* Tests */, A40000000000000000000006 /* Frameworks */, A40000000000000000000007 /* Products */,); sourceTree = "<group>"; };
+		A40000000000000000000002 /* Config */ = {isa = PBXGroup; children = (A20000000000000000000004 /* Native.xcconfig */,); path = Config; sourceTree = "<group>"; };
+		A40000000000000000000003 /* Agent */ = {isa = PBXGroup; children = (A20000000000000000000001 /* AgentMain.swift */, A20000000000000000000012 /* AgentServer.swift */, A20000000000000000000011 /* PeerIdentityVerifier.swift */, A20000000000000000000019 /* ProjectionStore.swift */, A2000000000000000000001A /* MatchingEngine.swift */, C20000000000000000000001 /* ApplicationNameSimilarity.swift */, A20000000000000000000021 /* TOTPGenerator.swift */, A2000000000000000000001C /* AppPresets.json */, A2000000000000000000001D /* DomainMatchRules.json */, A20000000000000000000005 /* Agent Entitlements.plist */, A20000000000000000000006 /* Agent LaunchAgent.plist */,); path = Agent; sourceTree = "<group>"; };
+		A40000000000000000000004 /* CredentialProvider */ = {isa = PBXGroup; children = (A20000000000000000000002 /* CredentialProviderViewController.swift */, A20000000000000000000022 /* CandidateListViewController.swift */, A2000000000000000000001F /* CredentialIdentityPublisher.swift */, A20000000000000000000007 /* Credential Provider Info.plist */, A20000000000000000000008 /* Credential Provider Entitlements.plist */,); path = CredentialProvider; sourceTree = "<group>"; };
+		A40000000000000000000005 /* Tests */ = {isa = PBXGroup; children = (A20000000000000000000003 /* AgentProtocolTests.swift */, A20000000000000000000014 /* AgentClientServerTests.swift */, A20000000000000000000010 /* PeerIdentityVerifierTests.swift */, A20000000000000000000017 /* ProjectionStoreTests.swift */, A2000000000000000000001B /* MatchingEngineTests.swift */, C20000000000000000000002 /* ApplicationNameSimilarityTests.swift */, A2000000000000000000001E /* CredentialIdentityPublisherTests.swift */, A20000000000000000000020 /* CredentialProviderTests.swift */,); path = Tests; sourceTree = "<group>"; };
+		A40000000000000000000006 /* Frameworks */ = {isa = PBXGroup; children = (A2000000000000000000000D /* AuthenticationServices.framework */, A20000000000000000000013 /* Security.framework */, A20000000000000000000016 /* libbsm.tbd */,); name = Frameworks; sourceTree = "<group>"; };
+		A40000000000000000000007 /* Products */ = {isa = PBXGroup; children = (A20000000000000000000009 /* BarwardenAutoFillAgent */, A2000000000000000000000A /* BarwardenCredentialProvider.appex */, A2000000000000000000000B /* BarwardenAutoFillTests.xctest */,); name = Products; sourceTree = "<group>"; };
+		A40000000000000000000008 /* Shared */ = {isa = PBXGroup; children = (A2000000000000000000000E /* AgentProtocol.swift */, A2000000000000000000000F /* AgentFraming.swift */, A20000000000000000000015 /* AgentClient.swift */, A20000000000000000000018 /* AutoFillProjection.swift */,); path = Shared; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* BarwardenAutoFillAgent */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000002; buildPhases = (A60000000000000000000001 /* Sources */, A30000000000000000000001 /* Frameworks */, A70000000000000000000001 /* Resources */,); buildRules = (); dependencies = (); name = BarwardenAutoFillAgent; productName = BarwardenAutoFillAgent; productReference = A20000000000000000000009 /* BarwardenAutoFillAgent */; productType = "com.apple.product-type.tool"; };
+		A50000000000000000000002 /* BarwardenCredentialProvider */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000003; buildPhases = (A60000000000000000000002 /* Sources */, A30000000000000000000002 /* Frameworks */, A70000000000000000000002 /* Resources */,); buildRules = (); dependencies = (); name = BarwardenCredentialProvider; productName = BarwardenCredentialProvider; productReference = A2000000000000000000000A /* BarwardenCredentialProvider.appex */; productType = "com.apple.product-type.app-extension"; };
+		A50000000000000000000003 /* BarwardenAutoFillTests */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000004; buildPhases = (A60000000000000000000003 /* Sources */, A30000000000000000000003 /* Frameworks */, A70000000000000000000003 /* Resources */,); buildRules = (); dependencies = (); name = BarwardenAutoFillTests; productName = BarwardenAutoFillTests; productReference = A2000000000000000000000B /* BarwardenAutoFillTests.xctest */; productType = "com.apple.product-type.bundle.unit-test"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A80000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2660; LastUpgradeCheck = 2660; TargetAttributes = {A50000000000000000000001 = {CreatedOnToolsVersion = 26.0; }; A50000000000000000000002 = {CreatedOnToolsVersion = 26.0; }; A50000000000000000000003 = {CreatedOnToolsVersion = 26.0; };};}; buildConfigurationList = A90000000000000000000001; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = A40000000000000000000001; productRefGroup = A40000000000000000000007 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (A50000000000000000000001 /* BarwardenAutoFillAgent */, A50000000000000000000002 /* BarwardenCredentialProvider */, A50000000000000000000003 /* BarwardenAutoFillTests */,); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A70000000000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000022 /* AppPresets.json in Agent Resources */, A10000000000000000000024 /* DomainMatchRules.json in Agent Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A70000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A70000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000023 /* AppPresets.json in Test Resources */, A10000000000000000000025 /* DomainMatchRules.json in Test Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* AgentMain.swift in Sources */, A1000000000000000000000F /* AgentServer.swift in Agent Sources */, A1000000000000000000000D /* PeerIdentityVerifier.swift in Agent Sources */, A10000000000000000000005 /* AgentProtocol.swift in Agent Sources */, A10000000000000000000006 /* AgentFraming.swift in Agent Sources */, A10000000000000000000014 /* AgentClient.swift in Agent Sources */, A1000000000000000000001B /* AutoFillProjection.swift in Agent Sources */, A1000000000000000000001D /* ProjectionStore.swift in Agent Sources */, A1000000000000000000001F /* MatchingEngine.swift in Agent Sources */, C10000000000000000000001 /* ApplicationNameSimilarity.swift in Agent Sources */, A1000000000000000000002A /* TOTPGenerator.swift in Agent Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000002 /* CredentialProviderViewController.swift in Sources */, A1000000000000000000002C /* CandidateListViewController.swift in Provider Sources */, A10000000000000000000027 /* CredentialIdentityPublisher.swift in Provider Sources */, A10000000000000000000007 /* AgentProtocol.swift in Provider Sources */, A10000000000000000000008 /* AgentFraming.swift in Provider Sources */, A10000000000000000000015 /* AgentClient.swift in Provider Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* AgentProtocolTests.swift in Sources */, A10000000000000000000013 /* AgentClientServerTests.swift in Sources */, A1000000000000000000000C /* PeerIdentityVerifierTests.swift in Sources */, A1000000000000000000001A /* ProjectionStoreTests.swift in Sources */, A10000000000000000000021 /* MatchingEngineTests.swift in Sources */, C10000000000000000000003 /* ApplicationNameSimilarityTests.swift in Sources */, A10000000000000000000026 /* CredentialIdentityPublisherTests.swift in Sources */, A10000000000000000000029 /* CredentialProviderTests.swift in Sources */, A10000000000000000000010 /* AgentServer.swift in Test Sources */, A1000000000000000000000E /* PeerIdentityVerifier.swift in Test Sources */, A10000000000000000000009 /* AgentProtocol.swift in Test Sources */, A1000000000000000000000A /* AgentFraming.swift in Test Sources */, A10000000000000000000016 /* AgentClient.swift in Test Sources */, A1000000000000000000001C /* AutoFillProjection.swift in Test Sources */, A1000000000000000000001E /* ProjectionStore.swift in Test Sources */, A10000000000000000000020 /* MatchingEngine.swift in Test Sources */, C10000000000000000000002 /* ApplicationNameSimilarity.swift in Test Sources */, A1000000000000000000000B /* CredentialProviderViewController.swift in Test Sources */, A1000000000000000000002D /* CandidateListViewController.swift in Test Sources */, A10000000000000000000028 /* CredentialIdentityPublisher.swift in Test Sources */, A1000000000000000000002B /* TOTPGenerator.swift in Test Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		B10000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {CLANG_ENABLE_MODULES = YES; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; GCC_OPTIMIZATION_LEVEL = 0; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;}; name = Debug; };
+		B10000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {CLANG_ENABLE_MODULES = YES; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule;}; name = Release; };
+		B10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {CODE_SIGN_ENTITLEMENTS = Agent/Entitlements.plist; CREATE_INFOPLIST_SECTION_IN_BINARY = YES; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = "$(AGENT_BUNDLE_IDENTIFIER)"; PRODUCT_NAME = BarwardenAutoFillAgent;}; name = Debug; };
+		B10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {CODE_SIGN_ENTITLEMENTS = Agent/Entitlements.plist; CREATE_INFOPLIST_SECTION_IN_BINARY = YES; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = "$(AGENT_BUNDLE_IDENTIFIER)"; PRODUCT_NAME = BarwardenAutoFillAgent;}; name = Release; };
+		B10000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = CredentialProvider/Entitlements.plist; ENABLE_APP_SANDBOX = YES; INFOPLIST_FILE = CredentialProvider/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = "$(CREDENTIAL_PROVIDER_BUNDLE_IDENTIFIER)"; PRODUCT_NAME = BarwardenCredentialProvider; SKIP_INSTALL = YES;}; name = Debug; };
+		B10000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = CredentialProvider/Entitlements.plist; ENABLE_APP_SANDBOX = YES; INFOPLIST_FILE = CredentialProvider/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = "$(CREDENTIAL_PROVIDER_BUNDLE_IDENTIFIER)"; PRODUCT_NAME = BarwardenCredentialProvider; SKIP_INSTALL = YES;}; name = Release; };
+		B10000000000000000000007 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {BUNDLE_LOADER = ""; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.sommir.barwarden.autofill-tests; PRODUCT_NAME = BarwardenAutoFillTests; TEST_HOST = "";}; name = Debug; };
+		B10000000000000000000008 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = A20000000000000000000004 /* Native.xcconfig */; buildSettings = {BUNDLE_LOADER = ""; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.sommir.barwarden.autofill-tests; PRODUCT_NAME = BarwardenAutoFillTests; TEST_HOST = "";}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A90000000000000000000001 /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000001 /* Debug */, B10000000000000000000002 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000002 /* Build configuration list for BarwardenAutoFillAgent */ = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000003 /* Debug */, B10000000000000000000004 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000003 /* Build configuration list for BarwardenCredentialProvider */ = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000005 /* Debug */, B10000000000000000000006 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000004 /* Build configuration list for BarwardenAutoFillTests */ = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000007 /* Debug */, B10000000000000000000008 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A80000000000000000000001 /* Project object */;
+}

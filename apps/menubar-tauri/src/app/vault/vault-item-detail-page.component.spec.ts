@@ -2,6 +2,8 @@ import "zone.js";
 import "@angular/compiler";
 
 import { webcrypto } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   BrowserTestingModule,
@@ -9,10 +11,27 @@ import {
 } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 
+import type { AutoFillSecretField } from "../autofill/autofill-candidate.service";
+import {
+  AUTOFILL_CONTEXT_CLOCK,
+  AutoFillContextSessionService,
+} from "../autofill/autofill-context-session.service";
+import type {
+  ContextualCandidate,
+  DetectedFillMode,
+  DetectedFieldKind,
+  FieldConfidence,
+  LiveAutoFillContext,
+} from "../autofill/autofill-fill-context.model";
+import {
+  AUTOFILL_NATIVE_HOST,
+  type AutoFillAgentSession,
+  type AutoFillNativeHost,
+} from "../autofill/autofill-native.host";
 import { PopupStateStore } from "../popup-state";
 import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component";
 import { demoVaultItems } from "../vault-demo";
@@ -24,7 +43,10 @@ import {
   type VaultRemovalMutationOutcome,
 } from "./vault-actions.service";
 import { VaultFacade } from "./vault.facade";
+import { VaultDetailFieldComponent } from "./vault-detail-field.component";
 import { VaultItemDetailPageComponent } from "./vault-item-detail-page.component";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
+import type { PopupFocusKey } from "../platform/popup-route-metadata";
 import { OFFICIAL_TOTP_CLOCK } from "./official-totp.service.adapter";
 import { VaultRepromptService } from "./vault-reprompt.service";
 
@@ -39,6 +61,7 @@ try {
 describe("VaultItemDetailPageComponent", () => {
   beforeEach(() => {
     vi.stubGlobal("crypto", webcrypto);
+    window.history.replaceState({}, "", "/");
     TestBed.configureTestingModule({
       providers: [
         OfficialI18nService,
@@ -46,6 +69,30 @@ describe("VaultItemDetailPageComponent", () => {
       ],
     });
   });
+
+  afterEach(() => {
+    document.head.querySelectorAll("style[data-vault-detail-production-css]")
+      .forEach((node) => node.remove());
+    document.body.classList.remove("tw-bit-compact");
+  });
+
+  function installProductionCss(): HTMLStyleElement {
+    const stylesheet = document.createElement("style");
+    stylesheet.dataset["vaultDetailProductionCss"] = "true";
+    const source = ["macos-tokens.css", "global.css"]
+      .map((file) => readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", file), "utf8"))
+      .join("\n");
+    const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+    const tokens = new Map(
+      [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+        .map(([, name, value]) => [name, value.trim()]),
+    );
+    stylesheet.textContent = source.replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) =>
+      tokens.get(name) ?? value,
+    );
+    document.head.append(stylesheet);
+    return stylesheet;
+  }
 
   async function createFixture(
     actionsOverride?: Partial<Pick<VaultActionsService,
@@ -67,6 +114,10 @@ describe("VaultItemDetailPageComponent", () => {
     items = demoVaultItems,
     archivedItems: typeof demoVaultItems = [],
     deletedItems: typeof demoVaultItems = [],
+    contextOptions?: {
+      readonly native?: AutoFillNativeHost & NativeAutoFillSpies;
+      readonly clock?: () => number;
+    },
   ) {
     const store = new PopupStateStore();
     store.setUnlocked("account-a@example.test");
@@ -120,6 +171,7 @@ describe("VaultItemDetailPageComponent", () => {
       }),
       ...actionsOverride,
     };
+    const native = contextOptions?.native ?? detailNative(() => detailContext());
     await TestBed.configureTestingModule({
       imports: [VaultItemDetailPageComponent],
       providers: [
@@ -131,6 +183,8 @@ describe("VaultItemDetailPageComponent", () => {
           useValue: actions satisfies Partial<Record<keyof VaultActionsService, unknown>>,
         },
         { provide: POP_OUT_HOST, useValue: popOutHost ?? null },
+        { provide: AUTOFILL_NATIVE_HOST, useValue: native },
+        { provide: AUTOFILL_CONTEXT_CLOCK, useValue: contextOptions?.clock ?? Date.now },
         { provide: VaultRepromptService, useValue: { verify: repromptVerify } },
         { provide: OFFICIAL_TOTP_CLOCK, useValue: () => 1_700_000_000 },
       ],
@@ -145,8 +199,562 @@ describe("VaultItemDetailPageComponent", () => {
       navigateByUrl,
       repromptVerify,
       store,
+      native,
+      contextSession: TestBed.inject(AutoFillContextSessionService),
     };
   }
+
+  async function createLiveContextFixture(options?: {
+    readonly item?: typeof demoVaultItems[number];
+    readonly context?: LiveAutoFillContext;
+    readonly candidate?: ContextualCandidate;
+    readonly now?: { value: number };
+  }) {
+    const item = options?.item ?? demoVaultItems[0];
+    const context = options?.context ?? detailContext();
+    const candidate = options?.candidate ?? detailCandidate(item.id, context.action.fields);
+    const now = options?.now ?? { value: 1_000 };
+    const native = detailNative(() => context);
+    const result = await createFixture(undefined, undefined, [item], [], [], {
+      native,
+      clock: () => now.value,
+    });
+    Object.defineProperty(TestBed.inject(Router), "url", {
+      value: `/view-cipher/${encodeURIComponent(item.id)}`,
+      configurable: true,
+    });
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [candidate]);
+    expect(result.contextSession.select(item.id)).toBe(true);
+    return { ...result, item, context, candidate, now };
+  }
+
+  it("shows one live contextual form action only for the selected Login and fills only after click", async () => {
+    const { fixture, native, contextSession } = await createLiveContextFixture();
+    fixture.componentRef.setInput("id", "github");
+    fixture.detectChanges();
+
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector("[data-testid='autofill-detail-context']"))
+        .not.toBeNull();
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    const card = host.querySelector<HTMLElement>("[data-testid='autofill-detail-context']")!;
+    expect(card.textContent?.trim()).toBe("自动填充");
+    expect(card.textContent).not.toContain("文本编辑");
+    expect(card.textContent).not.toContain("用户名");
+    expect(card.textContent).not.toContain("密码");
+    expect(card.querySelector("[data-testid='fill-username']")).toBeNull();
+    expect(card.querySelector("[data-testid='fill-password']")).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+
+    card.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
+    await vi.waitFor(() => expect(native.fillDetected).toHaveBeenCalledOnce());
+    expect(native.fillDetected).toHaveBeenCalledWith({
+      intent: "auto",
+      fillContextToken: detailContext().fillContextToken,
+      authorizations: [
+        { scope: expect.objectContaining({ candidateId: "github", field: "username" }), mismatchConfirmed: false },
+        { scope: expect.objectContaining({ candidateId: "github", field: "password" }), mismatchConfirmed: false },
+      ],
+    });
+    expect(contextSession.snapshot()).toBeNull();
+    fixture.detectChanges();
+    expect(host.querySelector("[data-testid='autofill-detail-context']")).toBeNull();
+    expect(native.releaseSecret).not.toHaveBeenCalled();
+    expect(native.pasteText).not.toHaveBeenCalled();
+    expect(native.copyText).not.toHaveBeenCalled();
+  });
+
+  it("uses one generic action while native detection keeps the password-only authorization scope", async () => {
+    const fillField = vi.fn(async () => "legacy fill must not run");
+    const context = detailContext({ kind: "password", mode: "field", fields: ["password"] });
+    const native = detailNative(() => context);
+    const result = await createFixture({ fillField }, undefined, [demoVaultItems[0]], [], [], { native });
+    Object.defineProperty(TestBed.inject(Router), "url", {
+      value: "/view-cipher/github",
+      configurable: true,
+    });
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", ["password"])]);
+    result.contextSession.select("github");
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => {
+      result.fixture.detectChanges();
+      expect((result.fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+    const host = result.fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector("[data-testid='fill-username']")).toBeNull();
+    expect(host.querySelector("[data-testid='fill-password']")).toBeNull();
+    expect(host.querySelector("[data-testid='fill-totp']")).toBeNull();
+    host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
+    await vi.waitFor(() => expect(native.fillDetected).toHaveBeenCalledOnce());
+    expect(native.fillDetected).toHaveBeenCalledWith({
+      intent: "auto",
+      fillContextToken: context.fillContextToken,
+      authorizations: [{
+        scope: expect.objectContaining({ candidateId: "github", field: "password" }),
+        mismatchConfirmed: false,
+      }],
+    });
+    expect(fillField).not.toHaveBeenCalled();
+    expect(native.releaseSecret).not.toHaveBeenCalled();
+    expect(native.pasteText).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["email", "username"],
+    ["password", "password"],
+    ["one-time-code", "totp"],
+  ] as const)(
+    "renders one generic action while retaining the exact native %s field scope",
+    async (kind, field) => {
+      const context = detailContext({ kind, mode: "field", fields: [field] });
+      const { fixture } = await createLiveContextFixture({
+        context,
+        candidate: detailCandidate("github", [field]),
+      });
+      fixture.componentRef.setInput("id", "github");
+      fixture.detectChanges();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement)
+          .querySelector("[data-testid='autofill-detail-primary-action']"))
+          .not.toBeNull();
+      });
+
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.querySelector("[data-testid='autofill-detail-context']")?.textContent?.trim())
+        .toBe("自动填充");
+      const button = host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!;
+      expect(button.textContent?.trim()).toBe("自动填充");
+      expect(button.getAttribute("aria-label")).toBe("自动填充");
+      expect(host.querySelector("[data-testid='fill-username']")).toBeNull();
+      expect(host.querySelector("[data-testid='fill-password']")).toBeNull();
+      expect(host.querySelector("[data-testid='fill-totp']")).toBeNull();
+    },
+  );
+
+  it("uses one mismatch confirmation and preserves per-field mismatch flags", async () => {
+    const candidate = detailCandidate("github", ["username", "password"], ["password"]);
+    const { fixture, native } = await createLiveContextFixture({ candidate });
+    fixture.componentRef.setInput("id", "github");
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+    const host = fixture.nativeElement as HTMLElement;
+
+    host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
+    fixture.detectChanges();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+    expect(host.querySelector("[data-testid='vault-detail-confirmation'][open]")?.textContent)
+      .toContain("当前应用不完全匹配");
+
+    host.querySelector<HTMLFormElement>("[data-testid='vault-detail-confirmation'] form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(native.fillDetected).toHaveBeenCalledOnce());
+    expect(native.fillDetected).toHaveBeenCalledWith(expect.objectContaining({
+      authorizations: [
+        { scope: expect.objectContaining({ field: "username" }), mismatchConfirmed: false },
+        { scope: expect.objectContaining({ field: "password" }), mismatchConfirmed: true },
+      ],
+    }));
+  });
+
+  it("uses one exact batch receipt and one detail reprompt for a protected form", async () => {
+    const protectedItem = { ...demoVaultItems[0], reprompt: true };
+    const { fixture, native, repromptVerify } = await createLiveContextFixture({ item: protectedItem });
+    fixture.componentRef.setInput("id", protectedItem.id);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+    const host = fixture.nativeElement as HTMLElement;
+
+    host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
+    await vi.waitFor(() => expect(native.beginRepromptBatch).toHaveBeenCalledOnce());
+    fixture.detectChanges();
+    expect(host.querySelector("bw-vault-reprompt-dialog dialog[open]")).not.toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+
+    submitReprompt(host, "verified-master-password");
+    await vi.waitFor(() => expect(native.fillDetected).toHaveBeenCalledOnce());
+    expect(repromptVerify).toHaveBeenCalledWith(
+      "verified-master-password",
+      expect.any(Number),
+      "detail-reprompt-receipt",
+    );
+    expect(native.beginRepromptBatch).toHaveBeenCalledOnce();
+  });
+
+  it("burns the exact batch receipt when the detail reprompt is cancelled", async () => {
+    const protectedItem = { ...demoVaultItems[0], reprompt: true };
+    const { fixture, native, contextSession } = await createLiveContextFixture({ item: protectedItem });
+    fixture.componentRef.setInput("id", protectedItem.id);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
+    await vi.waitFor(() => expect(native.beginRepromptBatch).toHaveBeenCalledOnce());
+    fixture.detectChanges();
+
+    host.querySelector<HTMLDialogElement>("bw-vault-reprompt-dialog dialog")!
+      .dispatchEvent(new Event("cancel", { cancelable: true }));
+    await vi.waitFor(() => expect(native.cancelRepromptBatch).toHaveBeenCalledWith(
+      expect.any(Array),
+      "detail-reprompt-receipt",
+    ));
+    expect(contextSession.snapshot()).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("fails closed outside the exact live main-window Login journey", async () => {
+    const context = detailContext();
+    const cases: Array<{
+      readonly name: string;
+      readonly item: typeof demoVaultItems[number];
+      readonly active?: typeof demoVaultItems;
+      readonly archived?: typeof demoVaultItems;
+      readonly deleted?: typeof demoVaultItems;
+      readonly selectedId?: string;
+      readonly candidate?: ContextualCandidate;
+      readonly route?: string;
+      readonly popout?: boolean;
+      readonly stale?: boolean;
+    }> = [
+      { name: "normal navigation", item: demoVaultItems[0], selectedId: "" },
+      { name: "wrong cipher", item: demoVaultItems[1], selectedId: demoVaultItems[0].id },
+      { name: "non Login", item: demoVaultItems.find((item) => item.type === "card")! },
+      { name: "archived", item: { ...demoVaultItems[0], id: "archived" }, active: [], archived: [{ ...demoVaultItems[0], id: "archived" }] },
+      { name: "deleted", item: { ...demoVaultItems[0], id: "deleted" }, active: [], deleted: [{ ...demoVaultItems[0], id: "deleted" }] },
+      { name: "missing required field", item: demoVaultItems[0], candidate: detailCandidate("github", ["username"]) },
+      { name: "wrong route", item: demoVaultItems[0], route: "/tabs/vault" },
+      { name: "popout window", item: demoVaultItems[0], popout: true },
+      { name: "stale native target", item: demoVaultItems[0], stale: true },
+    ];
+
+    for (const testCase of cases) {
+      TestBed.resetTestingModule();
+      window.history.replaceState({}, "", testCase.popout ? "/?uilocation=popout" : "/");
+      const active = testCase.active ?? [testCase.item];
+      const native = detailNative(() => testCase.stale
+        ? { ...context, fillContextToken: "00000000-0000-4000-8000-000000000099" }
+        : context);
+      const result = await createFixture(
+        undefined,
+        undefined,
+        active,
+        testCase.archived ?? [],
+        testCase.deleted ?? [],
+        { native },
+      );
+      Object.defineProperty(TestBed.inject(Router), "url", {
+        value: testCase.route ?? `/view-cipher/${encodeURIComponent(testCase.item.id)}`,
+        configurable: true,
+      });
+      const candidate = testCase.candidate ?? detailCandidate(testCase.item.id, context.action.fields);
+      result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [candidate]);
+      if (testCase.selectedId !== "") {
+        const selected = testCase.selectedId ?? testCase.item.id;
+        if (candidate.cipherId === selected) expect(result.contextSession.select(selected)).toBe(true);
+      }
+      result.fixture.componentRef.setInput("id", testCase.item.id);
+      result.fixture.detectChanges();
+      await result.fixture.whenStable();
+      result.fixture.detectChanges();
+
+      expect(
+        (result.fixture.nativeElement as HTMLElement)
+          .querySelector("[data-testid='autofill-detail-context']"),
+        testCase.name,
+      ).toBeNull();
+      expect(native.fillDetected, testCase.name).not.toHaveBeenCalled();
+    }
+  });
+
+  it("does not publish a contextual action when the detail route changes during native validation", async () => {
+    let resolveEntry!: (
+      value: Awaited<ReturnType<AutoFillNativeHost["entryContext"]>>,
+    ) => void;
+    const pendingEntry = new Promise<Awaited<ReturnType<AutoFillNativeHost["entryContext"]>>>(
+      (resolve) => { resolveEntry = resolve; },
+    );
+    const context = detailContext();
+    const native = detailNative(() => context);
+    native.entryContext.mockImplementation(() => pendingEntry);
+    const result = await createFixture(undefined, undefined, [demoVaultItems[0]], [], [], { native });
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    expect(result.contextSession.select("github")).toBe(true);
+
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => expect(native.entryContext).toHaveBeenCalledOnce());
+
+    Object.defineProperty(router, "url", { value: "/tabs/vault", configurable: true });
+    resolveEntry({
+      status: "available",
+      application: { bundleId: context.bundleId, appName: context.appName },
+      fillContext: context,
+    });
+    await result.fixture.whenStable();
+    result.fixture.detectChanges();
+
+    expect((result.fixture.nativeElement as HTMLElement)
+      .querySelector("[data-testid='autofill-detail-context']"))
+      .toBeNull();
+    expect(result.contextSession.snapshot()).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("burns a contextual session when a reused detail route changes A to B to A", async () => {
+    const secondItem = {
+      ...demoVaultItems[0],
+      id: "second-login",
+      name: "Second Login",
+    };
+    const context = detailContext();
+    const native = detailNative(() => context);
+    const result = await createFixture(undefined, undefined, [demoVaultItems[0], secondItem], [], [], { native });
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    expect(result.contextSession.select("github")).toBe(true);
+
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => {
+      result.fixture.detectChanges();
+      expect((result.fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-context']"))
+        .not.toBeNull();
+    });
+
+    Object.defineProperty(router, "url", { value: "/view-cipher/second-login", configurable: true });
+    result.fixture.componentRef.setInput("id", "second-login");
+    result.fixture.detectChanges();
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await result.fixture.whenStable();
+    result.fixture.detectChanges();
+
+    expect(result.contextSession.snapshot()).toBeNull();
+    expect((result.fixture.nativeElement as HTMLElement)
+      .querySelector("[data-testid='autofill-detail-context']"))
+      .toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("cancels a no-reprompt action when navigation changes during live validation", async () => {
+    const secondItem = {
+      ...demoVaultItems[0],
+      id: "second-login",
+      name: "Second Login",
+    };
+    const context = detailContext();
+    const native = detailNative(() => context);
+    const result = await createFixture(undefined, undefined, [demoVaultItems[0], secondItem], [], [], { native });
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.select("github");
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => {
+      result.fixture.detectChanges();
+      expect((result.fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+
+    let resolveEntry!: (value: Awaited<ReturnType<AutoFillNativeHost["entryContext"]>>) => void;
+    const pendingEntry = new Promise<Awaited<ReturnType<AutoFillNativeHost["entryContext"]>>>(
+      (resolve) => { resolveEntry = resolve; },
+    );
+    native.entryContext.mockImplementationOnce(() => pendingEntry);
+    (result.fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!
+      .click();
+    await vi.waitFor(() => expect(native.entryContext).toHaveBeenCalledTimes(2));
+
+    Object.defineProperty(router, "url", { value: "/view-cipher/second-login", configurable: true });
+    result.fixture.componentRef.setInput("id", "second-login");
+    result.fixture.detectChanges();
+    resolveEntry({
+      status: "available",
+      application: { bundleId: context.bundleId, appName: context.appName },
+      fillContext: context,
+    });
+    await result.fixture.whenStable();
+    await Promise.resolve();
+    result.fixture.detectChanges();
+
+    expect(result.contextSession.snapshot()).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("burns an exact protected batch receipt that arrives after detail navigation", async () => {
+    const protectedItem = { ...demoVaultItems[0], reprompt: true };
+    const secondItem = {
+      ...demoVaultItems[0],
+      id: "second-login",
+      name: "Second Login",
+    };
+    const context = detailContext();
+    const native = detailNative(() => context);
+    let resolveBatch!: (
+      value: Awaited<ReturnType<AutoFillNativeHost["beginRepromptBatch"]>>,
+    ) => void;
+    native.beginRepromptBatch.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveBatch = resolve;
+    }));
+    const result = await createFixture(undefined, undefined, [protectedItem, secondItem], [], [], { native });
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.select("github");
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => {
+      result.fixture.detectChanges();
+      expect((result.fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+
+    (result.fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!
+      .click();
+    await vi.waitFor(() => expect(native.beginRepromptBatch).toHaveBeenCalledOnce());
+    Object.defineProperty(router, "url", { value: "/view-cipher/second-login", configurable: true });
+    result.fixture.componentRef.setInput("id", "second-login");
+    result.fixture.detectChanges();
+    resolveBatch({ status: "pending", receipt: "late-detail-receipt" });
+
+    await vi.waitFor(() => expect(native.cancelRepromptBatch).toHaveBeenCalledOnce());
+    expect(native.cancelRepromptBatch).toHaveBeenCalledWith([
+      {
+        accountId: "account-a",
+        candidateId: "github",
+        field: "username",
+        generation: "00000000-0000-4000-8000-000000000004",
+        contextToken: "username-token",
+      },
+      {
+        accountId: "account-a",
+        candidateId: "github",
+        field: "password",
+        generation: "00000000-0000-4000-8000-000000000004",
+        contextToken: "password-token",
+      },
+    ], "late-detail-receipt");
+    expect(result.contextSession.snapshot()).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("burns the exact protected batch receipt when reprompt validation becomes invalid", async () => {
+    const protectedItem = { ...demoVaultItems[0], reprompt: true };
+    const { fixture, native, repromptVerify, contextSession } = await createLiveContextFixture({
+      item: protectedItem,
+    });
+    fixture.componentRef.setInput("id", protectedItem.id);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>("[data-testid='autofill-detail-primary-action']")!.click();
+    await vi.waitFor(() => expect(native.beginRepromptBatch).toHaveBeenCalledOnce());
+    fixture.detectChanges();
+    repromptVerify.mockResolvedValueOnce(false);
+
+    submitReprompt(host, "invalidated-master-password");
+
+    await vi.waitFor(() => expect(native.cancelRepromptBatch).toHaveBeenCalledOnce());
+    expect(native.cancelRepromptBatch).toHaveBeenCalledWith([
+      {
+        accountId: "account-a",
+        candidateId: "github",
+        field: "username",
+        generation: "00000000-0000-4000-8000-000000000004",
+        contextToken: "username-token",
+      },
+      {
+        accountId: "account-a",
+        candidateId: "github",
+        field: "password",
+        generation: "00000000-0000-4000-8000-000000000004",
+        contextToken: "password-token",
+      },
+    ], "detail-reprompt-receipt");
+    expect(repromptVerify).toHaveBeenCalledWith(
+      "invalidated-master-password",
+      expect.any(Number),
+      "detail-reprompt-receipt",
+    );
+    expect(contextSession.snapshot()).toBeNull();
+    expect(native.fillDetected).not.toHaveBeenCalled();
+  });
+
+  it("expires and burns the contextual detail action and clears it on pop-out", async () => {
+    const calls: string[] = [];
+    const now = { value: 1_000 };
+    const context = detailContext();
+    const native = detailNative(() => context);
+    const result = await createFixture(
+      undefined,
+      { popOut: async (route: string) => calls.push(route) },
+      [demoVaultItems[0]],
+      [],
+      [],
+      { native, clock: () => now.value },
+    );
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/view-cipher/github", configurable: true });
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.select("github");
+    result.fixture.componentRef.setInput("id", "github");
+    result.fixture.detectChanges();
+    await vi.waitFor(() => {
+      result.fixture.detectChanges();
+      expect((result.fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-context']"))
+        .not.toBeNull();
+    });
+
+    now.value += 30_000;
+    expect(result.contextSession.snapshot()).toBeNull();
+    result.fixture.detectChanges();
+    expect((result.fixture.nativeElement as HTMLElement)
+      .querySelector("[data-testid='autofill-detail-context']"))
+      .toBeNull();
+
+    result.contextSession.begin({ bundleId: context.bundleId, appName: context.appName }, context, DETAIL_SESSION, [detailCandidate("github", context.action.fields)]);
+    result.contextSession.select("github");
+    await result.fixture.componentInstance.popOut();
+    expect(calls).toEqual(["/view-cipher/github"]);
+    expect(result.contextSession.snapshot()).toBeNull();
+  });
 
   it("renders Login detail through the guarded official child composition", async () => {
     const { fixture } = await createFixture();
@@ -170,7 +778,7 @@ describe("VaultItemDetailPageComponent", () => {
     expect(footer?.parentElement?.tagName).toBe("POPUP-PAGE");
     expect(host.querySelector(".popup-page.detail-page")).toBeNull();
     expect(host.querySelector(".detail-header")).toBeNull();
-    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("查看登录");
+    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("GitHub");
     expect(host.textContent).toContain("GitHub");
     expect(host.textContent).toContain("登录凭据");
     expect(host.textContent).toContain("自动填充选项");
@@ -193,6 +801,139 @@ describe("VaultItemDetailPageComponent", () => {
     expect(host.querySelectorAll('[aria-label^="前往"]').length).toBe(2);
     expect(host.querySelector('[data-testid="toggle-password"]')).not.toBeNull();
     expect(host.querySelector("footer a[bitbutton]")?.textContent).toContain("编辑");
+  });
+
+  it("uses item h1, type-folder metadata, contextual Fill first, and exact keys", async () => {
+    installProductionCss();
+    const { fixture } = await createLiveContextFixture();
+    fixture.componentRef.setInput("id", demoVaultItems[0]!.id);
+    fixture.detectChanges();
+
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector("popup-header h1")?.textContent?.trim()).toBe(demoVaultItems[0]!.name);
+    expect(host.querySelector(".vault-detail-heading__metadata")?.textContent).toMatch(/登录.*·.*Work/);
+    expect(host.querySelector("[data-testid='official-item-identity']")?.getAttribute("aria-hidden")).toBe("true");
+    const visible = Array.from(host.querySelectorAll<HTMLElement>(".cipher-view section"))
+      .filter((node) => getComputedStyle(node).display !== "none");
+    expect(visible[0]?.querySelector("[data-testid='autofill-detail-primary-action']")).not.toBeNull();
+    expect(host.querySelector(`[data-popup-focus-key='detail-edit:${demoVaultItems[0]!.id}']`)).not.toBeNull();
+  });
+
+  it("computes flat ordinary detail cards and 10px read-only controls from production CSS", async () => {
+    const stylesheet = installProductionCss();
+
+    try {
+      const { fixture } = await createFixture();
+      fixture.componentRef.setInput("id", demoVaultItems[0]!.id);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      const card = host.querySelector<HTMLElement>(".macos-page--vault-detail .cipher-view bit-card")!;
+      const readOnlyControl = host.querySelector<HTMLElement>(
+        ".macos-page--vault-detail .cipher-view input[readonly]",
+      )!;
+      expect(card).not.toBeNull();
+      expect(readOnlyControl).not.toBeNull();
+      expect(getComputedStyle(card).borderRadius).toBe("0px");
+      expect(getComputedStyle(card).boxShadow).toBe("none");
+      expect(getComputedStyle(readOnlyControl).borderRadius).toBe("10px");
+
+      const fieldFixture = TestBed.createComponent(VaultDetailFieldComponent);
+      fieldFixture.componentRef.setInput("field", {
+        id: "review-control",
+        label: "Review control",
+        value: "value",
+      });
+      fieldFixture.nativeElement.classList.add("macos-page--vault-detail");
+      fieldFixture.detectChanges();
+      const officialReadOnlyControl = (fieldFixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>(".official-read-only-control")!;
+      expect(officialReadOnlyControl).not.toBeNull();
+      expect(getComputedStyle(officialReadOnlyControl).borderRadius).toBe("10px");
+    } finally {
+      stylesheet.remove();
+    }
+  });
+
+  it("computes Login dividers across real official section hosts with compact spacing", async () => {
+    installProductionCss();
+    const { fixture } = await createLiveContextFixture();
+    fixture.componentRef.setInput("id", demoVaultItems[0]!.id);
+    fixture.detectChanges();
+
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector("[data-testid='autofill-detail-primary-action']"))
+        .not.toBeNull();
+    });
+
+    const host = fixture.nativeElement as HTMLElement;
+    const fill = host.querySelector<HTMLElement>(
+      "official-login-credentials > section[data-testid='autofill-detail-context']",
+    )!;
+    const ordinarySections = [
+      host.querySelector<HTMLElement>("official-login-credentials > section:not([data-testid])")!,
+      host.querySelector<HTMLElement>("official-login-uri-options > section")!,
+      host.querySelector<HTMLElement>("official-custom-fields > section")!,
+      host.querySelector<HTMLElement>("app-item-history-v2 > bit-section > section")!,
+    ];
+    expect(fill).not.toBeNull();
+    expect(ordinarySections.every(Boolean)).toBe(true);
+    expect(getComputedStyle(fill).borderTopWidth).not.toBe("1px");
+    expect(getComputedStyle(fill).paddingTop).not.toBe("16px");
+    for (const section of ordinarySections) {
+      expect(getComputedStyle(section).borderTopWidth).toBe("1px");
+      expect(getComputedStyle(section).paddingTop).toBe("16px");
+    }
+
+    document.body.classList.add("tw-bit-compact");
+    for (const section of ordinarySections) {
+      expect(getComputedStyle(section).paddingTop).toBe("12px");
+    }
+  });
+
+  it("computes Personal dividers across real official section hosts without styling the first section", async () => {
+    installProductionCss();
+    const card = {
+      ...demoVaultItems[1]!,
+      notes: "Travel account notes",
+      fields: [
+        ...demoVaultItems[1]!.fields,
+        { id: "custom:Region", label: "Region", value: "APAC", type: "text" as const },
+      ],
+    };
+    const { fixture } = await createFixture(undefined, undefined, [card]);
+    fixture.componentRef.setInput("id", card.id);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const first = host.querySelector<HTMLElement>("official-card-details > section")!;
+    const followingSections = [
+      host.querySelector<HTMLElement>("app-additional-options > section")!,
+      host.querySelector<HTMLElement>("official-custom-fields > section")!,
+      host.querySelector<HTMLElement>("app-item-history-v2 > bit-section > section")!,
+    ];
+    expect(first).not.toBeNull();
+    expect(followingSections.every(Boolean)).toBe(true);
+    expect(getComputedStyle(first).borderTopWidth).not.toBe("1px");
+    expect(getComputedStyle(first).paddingTop).not.toBe("16px");
+    for (const section of followingSections) {
+      expect(getComputedStyle(section).borderTopWidth).toBe("1px");
+      expect(getComputedStyle(section).paddingTop).toBe("16px");
+    }
+
+    document.body.classList.add("tw-bit-compact");
+    for (const section of followingSections) {
+      expect(getComputedStyle(section).paddingTop).toBe("12px");
+    }
   });
 
   it("marks the detail composition as a secondary macOS page without primary navigation", async () => {
@@ -238,6 +979,7 @@ describe("VaultItemDetailPageComponent", () => {
 
   it("returns to the Vault through the shared popup header", async () => {
     const { fixture, navigateByUrl } = await createFixture();
+    const back = vi.spyOn(TestBed.inject(PopupRouterCacheService), "back").mockResolvedValue(true);
     fixture.componentRef.setInput("id", "github");
     fixture.detectChanges();
 
@@ -245,7 +987,59 @@ describe("VaultItemDetailPageComponent", () => {
     host.querySelector<HTMLButtonElement>('[aria-label="返回"]')!.click();
     await fixture.whenStable();
 
-    expect(navigateByUrl).toHaveBeenCalledWith("/tabs/vault");
+    expect(back).toHaveBeenCalledOnce();
+    expect(navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it("stages the real Edit and password-history triggers as one-shot detail predecessors", async () => {
+    const item = {
+      ...demoVaultItems[0]!,
+      passwordHistory: [{ password: "old-password", lastUsedDate: "2026-07-01T00:00:00.000Z" }],
+    };
+    const { fixture, navigateByUrl } = await createFixture(undefined, undefined, [item]);
+    const routeCache = TestBed.inject(PopupRouterCacheService);
+    const stage = vi.spyOn(routeCache, "stageTransientBack");
+    const router = TestBed.inject(Router);
+    fixture.componentRef.setInput("id", item.id);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    const editLink = host.querySelector<HTMLAnchorElement>(
+      `[data-popup-focus-key="detail-edit:${item.id}"]`,
+    )!;
+    expect(editLink.getAttribute("href")).toContain(`/edit-cipher?cipherId=${item.id}`);
+    const primaryClick = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+    editLink.dispatchEvent(primaryClick);
+    expect(primaryClick.defaultPrevented).toBe(true);
+    expect(navigateByUrl).toHaveBeenCalledOnce();
+    expect(stage.mock.invocationCallOrder[0])
+      .toBeLessThan(navigateByUrl.mock.invocationCallOrder[0]!);
+
+    const modifiedClick = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      metaKey: true,
+    });
+    fixture.componentInstance.openEdit(modifiedClick, item.id);
+    expect(modifiedClick.defaultPrevented).toBe(false);
+    expect(navigateByUrl).toHaveBeenCalledOnce();
+
+    const editFocusKey: PopupFocusKey = fixture.componentInstance.detailFocusKey("edit", item.id);
+    const historyFocusKey: PopupFocusKey = fixture.componentInstance.detailFocusKey("history", item.id);
+    expect(editFocusKey).toBe(`detail-edit:${item.id}`);
+    expect(historyFocusKey).toBe(`detail-history:${item.id}`);
+
+    vi.spyOn(router, "navigate").mockResolvedValue(true);
+    fixture.componentInstance.openPasswordHistory();
+    await fixture.whenStable();
+
+    expect(stage).toHaveBeenNthCalledWith(1, "/edit-cipher", `detail-edit:${item.id}`);
+    expect(stage).toHaveBeenNthCalledWith(
+      2,
+      "/cipher-password-history",
+      `detail-history:${item.id}`,
+    );
   });
 
   it("maps the official detail pop-out action to the native menubar window command", async () => {
@@ -369,7 +1163,7 @@ describe("VaultItemDetailPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    for (const label of ["复制验证码", "填入验证码字段", "复制 PIN", "填入PIN字段"]) {
+    for (const label of ["复制验证码", "填入验证码", "复制 PIN", "填入PIN字段"]) {
       host.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!.click();
       fixture.detectChanges();
       expect(host.querySelector("bw-vault-reprompt-dialog dialog[open]")).not.toBeNull();
@@ -431,7 +1225,7 @@ describe("VaultItemDetailPageComponent", () => {
     expect(host.textContent).not.toContain(seed);
 
     host.querySelector<HTMLButtonElement>('[aria-label="复制验证码"]')!.click();
-    host.querySelector<HTMLButtonElement>('[aria-label="填入验证码字段"]')!.click();
+    host.querySelector<HTMLButtonElement>('[aria-label="填入验证码"]')!.click();
     await fixture.whenStable();
 
     const sourceField = itemWithTotp.fields.find((field) => field.id === "otp");
@@ -513,9 +1307,9 @@ describe("VaultItemDetailPageComponent", () => {
   });
 
   it.each([
-    ["card", "查看支付卡", "Visa 详细信息", ["Travel Ops", "04 / 2029"], "登录凭据"],
-    ["identity", "查看身份", "个人详细信息", ["Liu Jieren", "me@example.com", "+1 555 0100"], "登录凭据"],
-    ["note", "查看笔记", "附加选项", ["plain"], "登录凭据"],
+    ["card", "Travel card", "Visa 详细信息", ["Travel Ops", "04 / 2029"], "登录凭据"],
+    ["identity", "Personal identity", "个人详细信息", ["Example Person", "me@example.com", "+1 555 0100"], "登录凭据"],
+    ["note", "Recovery note", "附加选项", ["plain"], "登录凭据"],
   ])(
     "renders typed detail sections for %s items",
     async (itemId, title, sectionTitle, expectedTexts, unexpectedText) => {
@@ -1087,6 +1881,8 @@ describe("VaultItemDetailPageComponent", () => {
         VaultFacade,
         VaultActionsService,
         { provide: VAULT_CIPHER_ACTION_PORT, useValue: cipherActions },
+        { provide: AUTOFILL_NATIVE_HOST, useValue: detailNative(() => detailContext()) },
+        { provide: AUTOFILL_CONTEXT_CLOCK, useValue: Date.now },
       ],
     }).compileComponents();
 
@@ -1214,6 +2010,97 @@ function submitReprompt(host: HTMLElement, password: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
   host.querySelector<HTMLFormElement>("bw-vault-reprompt-dialog form")!
     .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+}
+
+interface NativeAutoFillSpies {
+  entryContext: ReturnType<typeof vi.fn>;
+  agentSession: ReturnType<typeof vi.fn>;
+  beginReprompt: ReturnType<typeof vi.fn>;
+  cancelReprompt: ReturnType<typeof vi.fn>;
+  beginRepromptBatch: ReturnType<typeof vi.fn>;
+  cancelRepromptBatch: ReturnType<typeof vi.fn>;
+  biometricReprompt: ReturnType<typeof vi.fn>;
+  fillDetected: ReturnType<typeof vi.fn>;
+  releaseSecret: ReturnType<typeof vi.fn>;
+  pasteText: ReturnType<typeof vi.fn>;
+  copyText: ReturnType<typeof vi.fn>;
+}
+
+const DETAIL_SESSION: AutoFillAgentSession = Object.freeze({
+  accountId: "account-a",
+  generation: "00000000-0000-4000-8000-000000000004",
+  vaultRevision: 1,
+});
+
+function detailContext(options?: {
+  readonly kind?: DetectedFieldKind;
+  readonly confidence?: FieldConfidence;
+  readonly mode?: DetectedFillMode;
+  readonly fields?: readonly AutoFillSecretField[];
+}): LiveAutoFillContext {
+  return {
+    bundleId: "com.example.TextEdit",
+    appName: "文本编辑",
+    fillContextToken: "00000000-0000-4000-8000-000000000005",
+    focusedField: {
+      kind: options?.kind ?? "username",
+      confidence: options?.confidence ?? "high",
+    },
+    action: {
+      mode: options?.mode ?? "form",
+      fields: options?.fields ?? ["username", "password"],
+    },
+  };
+}
+
+function detailCandidate(
+  cipherId: string,
+  fields: readonly AutoFillSecretField[],
+  mismatchFields: readonly AutoFillSecretField[] = [],
+): ContextualCandidate {
+  return {
+    cipherId,
+    displayName: "Example Login",
+    username: "person@example.test",
+    group: "exact",
+    reason: "service_identifier",
+    availableFields: fields,
+    authorizations: new Map(fields.map((field) => [field, {
+      contextToken: `${field}-token`,
+      requiresMismatchConfirmation: mismatchFields.includes(field),
+    }])),
+  };
+}
+
+function detailNative(
+  readContext: () => LiveAutoFillContext,
+): AutoFillNativeHost & NativeAutoFillSpies {
+  return {
+    entryContext: vi.fn<AutoFillNativeHost["entryContext"]>(async () => ({
+      status: "available",
+      application: { bundleId: readContext().bundleId, appName: readContext().appName },
+      fillContext: readContext(),
+    })),
+    agentSession: vi.fn<AutoFillNativeHost["agentSession"]>(async () => ({
+      status: "success",
+      ...DETAIL_SESSION,
+    })),
+    beginReprompt: vi.fn(),
+    cancelReprompt: vi.fn(async () => undefined),
+    beginRepromptBatch: vi.fn(async () => ({
+      status: "pending",
+      receipt: "detail-reprompt-receipt",
+    })),
+    cancelRepromptBatch: vi.fn(async () => undefined),
+    biometricReprompt: vi.fn(async () => "success"),
+    fillDetected: vi.fn(async (request: { authorizations: Array<{ scope: { field: AutoFillSecretField } }> }) => ({
+      status: "success" as const,
+      fields: request.authorizations.map(({ scope }) => scope.field),
+    })),
+    releaseSecret: vi.fn(),
+    pasteText: vi.fn(),
+    copyText: vi.fn(),
+  } as AutoFillNativeHost & NativeAutoFillSpies;
 }
 
 function dispatchSheetTransitionEnd(sheet: HTMLDialogElement): void {

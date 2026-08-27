@@ -124,6 +124,19 @@ describe("M11 source-direct official Generator history", () => {
       expect(validate(authority, runtime.replace(mutationTarget, "mutatedHistoryMember")), runtimeFile)
         .not.toEqual([]);
     }
+
+    const parentAuthority = readFileSync(
+      join(root, "vendor/bitwarden-clients", authorities.popupTs.path),
+      "utf8",
+    );
+    const parentRuntime = readFileSync(
+      join(overlay, "official-generator-history.component.ts"),
+      "utf8",
+    );
+    expect(validateOfficialGeneratorHistoryParentMemberTransforms(
+      parentAuthority,
+      parentRuntime.replace("this.clearCancel?.nativeElement", "undefined"),
+    )).not.toEqual([]);
   });
 
   it("exact-applies the official popup, row, and empty templates", () => {

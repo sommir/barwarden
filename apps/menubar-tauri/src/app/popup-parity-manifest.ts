@@ -68,7 +68,6 @@ const m34AuthAuditEvidencePath = "docs/superpowers/specs/2026-07-14-m3-m4-task-8
 const m34SelfHostedLiveEvidencePath = "docs/superpowers/specs/2026-07-14-m3-m4-task-8-self-hosted-live-result.md";
 const m34AuthTests = ["apps/menubar-tauri/e2e/official-auth-accounts.spec.ts"] as const;
 const m34AuthLiveTest = "apps/menubar-tauri/e2e/live/official-auth-live.spec.ts";
-const excludedCurrentTabReason = "Browser tab and current-URL detection. Current-site suggestion ranking.";
 const excludedDomAutofillReason = "DOM or multi-field autofill. Content scripts and page-detail parsing.";
 const excludedBrowserBackgroundReason = "Browser background/service-worker messaging.";
 const excludedBrowserNavigationReason =
@@ -1942,12 +1941,34 @@ const popupParityEntries = [
   ),
 
   incompleteEntry(
-    "excluded.current-tab",
+    "native.current-site-suggestions",
     ["/tabs/current", "URL ranking"],
-    "excluded-browser",
-    "missing",
-    {},
-    excludedCurrentTabReason,
+    "required-native",
+    "partial",
+    {
+      localModules: [
+        "apps/menubar-tauri/src-tauri/src/frontmost.rs",
+        "apps/menubar-tauri/src-tauri/src/browser_context.rs",
+        "apps/menubar-tauri/src-tauri/src/browser_context_macos.rs",
+        "apps/menubar-tauri/src/host/website-context.ts",
+        "apps/menubar-tauri/src/app/vault/current-website-context.service.ts",
+        "apps/menubar-tauri/src/app/autofill/autofill-vault-context.service.ts",
+        "apps/menubar-tauri/src/app/autofill/autofill-contextual-candidates.service.ts",
+        "apps/menubar-tauri/src/app/vault/vault-autofill-suggestions.component.ts",
+      ],
+      tests: [
+        "apps/menubar-tauri/src/host/website-context.spec.ts",
+        "apps/menubar-tauri/src/app/vault/current-website-context.service.spec.ts",
+        "apps/menubar-tauri/src/app/autofill/autofill-vault-context.service.spec.ts",
+        "apps/menubar-tauri/src/app/autofill/autofill-contextual-candidates.service.spec.ts",
+        "apps/menubar-tauri/src/app/vault/vault-autofill-suggestions.component.spec.ts",
+      ],
+      productionOwner: "native",
+    },
+    undefined,
+    [
+      "Signed-build Automation permission and installed-browser live verification remain open.",
+    ],
   ),
   incompleteEntry(
     "excluded.dom-autofill",

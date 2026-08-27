@@ -11,7 +11,7 @@ import { By } from "@angular/platform-browser";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NoItemsComponent } from "./no-items.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
@@ -31,6 +31,7 @@ try {
 @Component({
   standalone: true,
   imports: [PopupPageComponent, PopupHeaderComponent, PopupFooterComponent, NoItemsComponent],
+  host: { class: "popup-shell" },
   template: `
     <popup-page>
       <popup-header slot="header" pageTitle="密码库" showBackButton [backAction]="backAction" />
@@ -49,7 +50,12 @@ class HostComponent {
 }
 
 describe("official popup layout primitives", () => {
+  afterEach(() => {
+    document.head.querySelectorAll("style[data-ios27-accessibility]").forEach((node) => node.remove());
+  });
+
   it("renders the official header with one page scroll owner", async () => {
+    installAccessibilityCss();
     await TestBed.configureTestingModule({
       imports: [HostComponent],
       providers: [OfficialI18nService, { provide: I18nService, useExisting: OfficialI18nService }],
@@ -76,7 +82,10 @@ describe("official popup layout primitives", () => {
     expect(back.getAttribute("aria-label")).toBe("返回");
     expect(back.tabIndex).toBe(0);
     back.focus();
+    back.dataset["testFocusVisible"] = "true";
     expect(document.activeElement).toBe(back);
+    expect(getComputedStyle(back).outlineWidth).toBe("2px");
+    expect(getComputedStyle(back).outlineOffset).toBe("2px");
     back.click();
     expect(fixture.componentInstance.onBack).toHaveBeenCalledOnce();
     expect(host.querySelector("button.popup-back-button")).toBeNull();
@@ -121,6 +130,47 @@ describe("official popup layout primitives", () => {
     expect(defaultContent?.parentElement).not.toBe(endContent?.parentElement);
   });
 
+  it("gives header one 52px slot and keeps the scroll owner above navigation", async () => {
+    installAccessibilityCss();
+    await TestBed.configureTestingModule({
+      imports: [HostComponent],
+      providers: [
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const css = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
+    expect(css).toMatch(
+      /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*16px;/s,
+    );
+    const header = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header")!);
+    const action = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header button")!);
+    const title = getComputedStyle(host.querySelector<HTMLElement>("popup-header > header h1")!);
+    const scrollOwner = host.querySelector<HTMLElement>(
+      '[data-testid="popup-layout-scroll-region"]',
+    )!;
+    const scroller = getComputedStyle(scrollOwner);
+    expect(header.height).toBe("52px");
+    expect(action.minWidth).toBe("44px");
+    expect(action.minHeight).toBe("44px");
+    expect(title.fontSize).toBe("17px");
+    expect(title.paddingTop).toBe("2px");
+    expect(title.lineHeight).toBe("38px");
+    expect(title.fontWeight).toBe("650");
+    expect(scroller.paddingInlineStart).toBe("16px");
+    expect(scroller.paddingInlineEnd).toBe("16px");
+    expect(scroller.paddingBottom).toBe("16px");
+    expect(scroller.scrollPaddingBottom).toBe("16px");
+
+    host.classList.remove("popup-shell");
+    const secondaryScroller = getComputedStyle(scrollOwner);
+    expect(secondaryScroller.paddingBottom).toBe("16px");
+    expect(secondaryScroller.scrollPaddingBottom).toBe("16px");
+  });
+
   it("sizes route pages from the shell instead of creating another 600px owner", () => {
     const css = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
 
@@ -147,8 +197,12 @@ describe("official popup layout primitives", () => {
     expect(css).toMatch(
       /popup-page\s*\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*flex:\s*1 1 auto;[^}]*overflow-x:\s*hidden;[^}]*overscroll-behavior:\s*contain;/s,
     );
+    expect(css).toMatch(/popup-page\s*{[^}]*--mac-page-bottom-safe:\s*16px;/s);
     expect(css).toMatch(
-      /\.popup-shell\s+popup-page\s+\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-bottom:\s*calc\(\s*var\(--mac-floating-navigation-height\)\s*\+\s*var\(--mac-floating-navigation-bottom-offset\)\s*\+\s*var\(--mac-floating-navigation-safe-gap\)\s*\)\s*!important;/s,
+      /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*16px;/s,
+    );
+    expect(css).toMatch(
+      /popup-page\s+\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-inline:\s*var\(--mac-page-inset\);[^}]*padding-bottom:\s*var\(--mac-page-bottom-safe\);/s,
     );
     expect(css).toMatch(
       /\[data-testid="popup-layout-scroll-region"\][\s\S]*?::-webkit-scrollbar\s*{[^}]*width:\s*2px;[^}]*height:\s*2px;/s,
@@ -157,4 +211,107 @@ describe("official popup layout primitives", () => {
       /::-webkit-scrollbar-thumb\s*{[^}]*border-radius:\s*999px;[^}]*background:\s*linear-gradient\(/s,
     );
   });
+
+  it("lets routed content continue behind the floating navigation with a safe scroll ending", () => {
+    const css = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
+
+    expect(css).toMatch(
+      /\.popup-shell:has\(\.floating-tab-switcher\)\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*var\(--mac-tabbar-occlusion-height\);/s,
+    );
+    expect(css).toMatch(
+      /\.popup-shell::after\s*{[^}]*inset:\s*auto 0 0;[^}]*pointer-events:\s*auto;/s,
+    );
+  });
 });
+
+function installAccessibilityCss(): HTMLStyleElement {
+  const source = ["macos-tokens.css", "macos-motion.css", "global.css"]
+    .map((file) => readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", file), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const tokens = new Map(
+    [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]),
+  );
+  const secondaryPageBottomSafe = resolvePageBottomSafe(
+    source,
+    tokens,
+    /popup-page\s*{[^}]*--mac-page-bottom-safe:\s*([^;]+);/s,
+    "secondary page",
+  );
+  const tabbedPageBottomSafe = resolvePageBottomSafe(
+    source,
+    tokens,
+    /\.popup-shell\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*([^;]+);/s,
+    "tabbed page",
+  );
+  const scrollOwnerDeclarations = [...source.matchAll(
+    /popup-page\s+\[data-testid="popup-layout-scroll-region"\]\s*{([^}]*)}/gs,
+  )]
+    .map((match) => match[1])
+    .find((declarations) => declarations?.includes("padding-bottom:"));
+  if (
+    !scrollOwnerDeclarations?.includes("padding-bottom: var(--mac-page-bottom-safe);")
+    || !scrollOwnerDeclarations.includes("scroll-padding-bottom: var(--mac-page-bottom-safe);")
+  ) {
+    throw new Error("Missing the production scroll-owner safe-area declarations");
+  }
+  const style = document.createElement("style");
+  style.dataset["ios27Accessibility"] = "true";
+  style.textContent = source
+    .replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) => tokens.get(name) ?? value)
+    // JSDOM does not resolve logical padding shorthands or inherited custom
+    // properties in computed styles. Keep the mounted shell assertion tied to
+    // the production values while normalizing those two engine gaps.
+    .replace(
+      "padding-inline: 16px;",
+      "padding-inline-start: 16px; padding-inline-end: 16px;",
+    )
+    .replace(
+      "padding-bottom: var(--mac-page-bottom-safe);",
+      `padding-bottom: ${secondaryPageBottomSafe};`,
+    )
+    .replace(
+      "scroll-padding-bottom: var(--mac-page-bottom-safe);",
+      `scroll-padding-bottom: ${secondaryPageBottomSafe};`,
+    )
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]')
+    .concat(`
+.popup-shell popup-page [data-testid="popup-layout-scroll-region"] {
+  padding-bottom: ${tabbedPageBottomSafe};
+  scroll-padding-bottom: ${tabbedPageBottomSafe};
+}`);
+  document.head.append(style);
+  return style;
+}
+
+function resolvePageBottomSafe(
+  source: string,
+  tokens: Map<string, string>,
+  declarationPattern: RegExp,
+  context: string,
+): string {
+  const declaration = source.match(declarationPattern)?.[1];
+  if (!declaration) {
+    throw new Error(`Missing the production ${context} safe-area declaration`);
+  }
+
+  const resolvedDeclaration = declaration.replace(
+    /var\((--(?:mac|bw)-[\w-]+)\)/g,
+    (value, name) => tokens.get(name) ?? value,
+  );
+  const pixels = resolvedDeclaration.match(/^(\d+(?:\.\d+)?)px$/);
+  if (pixels) {
+    return `${Number(pixels[1])}px`;
+  }
+  const calcExpression = resolvedDeclaration.match(/^calc\((.*)\)$/)?.[1];
+  const pixelTerms = calcExpression
+    ?.split("+")
+    .map((term) => term.trim().match(/^(\d+(?:\.\d+)?)px$/)?.[1]);
+  if (!pixelTerms?.length || pixelTerms.some((term) => !term)) {
+    throw new Error(`Unsupported production ${context} safe-area value: ${declaration}`);
+  }
+
+  return `${pixelTerms.reduce((sum, term) => sum + Number(term), 0)}px`;
+}

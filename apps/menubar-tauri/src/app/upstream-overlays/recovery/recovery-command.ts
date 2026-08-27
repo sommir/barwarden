@@ -14,9 +14,11 @@ export interface RecoveryPageCommand {
   readonly command: RecoveryCommand;
   readonly location: RecoveryLocation;
   readonly item: RetainedPopupCipherView;
+  readonly trigger?: HTMLElement;
 }
 
 export interface RecoveryPageActionResult {
   readonly terminal: boolean;
   readonly status: string;
+  readonly reason?: "duplicate" | "failure" | "stale";
 }

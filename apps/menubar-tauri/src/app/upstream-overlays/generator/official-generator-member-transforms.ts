@@ -429,10 +429,10 @@ export const officialGeneratorHistoryParentMemberContract = {
     runtimeMember("confirming", "Synchronous duplicate native confirmation guard.", "fc25fbbffb0fe3d3d7b3aea2cbffc89be50ac7d45a42b0501266c1eb64461cee"),
     runtimeMember("clearDialog", "Shared application bottom-sheet ownership.", "84203a93de5bf221fc56609190d7599fa94dda70719ce8109028ee09f4e10b60"),
     runtimeMember("clearTrigger", "Native dialog trigger focus restoration.", "8f22309f52e7f07643904bdd251ca14d38ced56aa782747cb7351606d905cf7f"),
-    runtimeMember("clearConfirm", "Native dialog initial confirmation focus.", "6c3866114a687c06fc1cffd8619ec53688326a3d4c63d21f7b7e1847822f2604"),
+    runtimeMember("clearCancel", "Native dialog initial cancel focus.", "59fd2e728a7c150ba2df3d93808c7b06455e592c7c19ff5dbc4bc935b33ee56d"),
     runtimeMember("constructor", "Tauri account and history adapter injection boundary.", "5a2b605f897e4b8839af048f7b7c036e195a9f2daf257dd4d0fd93da303b4b3c"),
     runtimeMember("ngOnInit", "Owned one-shot secure history projection lifecycle.", "7f1e206ea23cbea11c4537e976d226795186cc44cee6fd5b092710913ddbb66c"),
-    runtimeMember("clear", "Shared bottom sheet replaces official DialogService.", "81a5e9088ced73b2ba38f0dbd738c98c8ec061837d651957c393449ff9a33b1a"),
+    runtimeMember("clear", "Shared bottom sheet replaces official DialogService.", "3980dfabfa67775cc4c9857d3bccd322a491c63ee7dcba667e65ae3b8ea41ecd"),
     runtimeMember("cancelClear", "Native dialog cancel command boundary.", "b09c1ddd9c8036e86fb71113b726171d4e35bc76b18e281050782eadfd2c4f56"),
     runtimeMember("confirmClear", "Session-owned transactional clear command.", "5a0c76461165f51412d273f69e79443e67a9a964d3b8e1a93613569e5d49c49d"),
     runtimeMember("closeDialog", "Shared bottom-sheet deterministic close adapter.", "7e2b121ac24880bb6763b16ee2ce6d3c51b940e8ee5e9b765cdd227f19c28d6f"),
@@ -625,6 +625,11 @@ export const generatorTemplateContracts = [
       "c907585b53fe214b153707ad1dace68a5801cc30f0f9a2ac79c204ba1ba9734e",
     transforms: [
       {
+        search:
+          '<!-- FIXME: root$ should be powered using a reactive form -->\n<bit-toggle-group\n  fullWidth\n  class="tw-mb-4"\n  [selected]="(root$ | async).nav"\n  (selectedChange)="onRootChanged({ nav: $event })"\n  attr.aria-label="{{ \'type\' | i18n }}"\n>\n  @for (option of rootOptions$ | async; track option) {\n    <bit-toggle [value]="option.value">\n      {{ option.label }}\n    </bit-toggle>\n  }\n</bit-toggle-group>\n\n',
+        replacement: "",
+      },
+      {
         search: "<nudge-generator-spotlight></nudge-generator-spotlight>\n\n",
         replacement: "",
       },
@@ -642,9 +647,36 @@ export const generatorTemplateContracts = [
       },
       {
         search:
+          '<bit-card class="tw-flex tw-justify-between tw-mb-4">\n  <div class="tw-grow tw-flex tw-items-center tw-min-w-0">',
+        replacement:
+          '<section class="macos-generator__result" aria-labelledby="generator-result-title">\n  <h2 id="generator-result-title" class="tw-sr-only">{{ "generator" | i18n }}</h2>\n  <div class="macos-generator__value">',
+      },
+      {
+        search: '  <div class="tw-flex tw-items-center tw-space-x-1">',
+        replacement: '  <div class="macos-generator__result-actions">',
+      },
+      {
+        search:
+          '    <button\n      type="button"\n      bitIconButton="bwi-generate"\n      buttonType="primaryGhost"\n      (click)="generate(USER_REQUEST)"\n      [label]="credentialTypeGenerateLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n    >\n      {{ credentialTypeGenerateLabel$ | async }}\n    </button>\n    <button\n      type="button"\n      bitIconButton="bwi-clone"\n      buttonType="primaryGhost"\n      [label]="credentialTypeCopyLabel$ | async"\n      [valueLabel]="credentialTypeLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n      [bwGeneratorClipboard]="value$ | async"\n    ></button>',
+        replacement:
+          '    <button\n      class="macos-hit-target"\n      data-testid="generator-copy"\n      data-popup-focus-key="generator:copy"\n      type="button"\n      bitIconButton="bwi-clone"\n      buttonType="primary"\n      [label]="credentialTypeCopyLabel$ | async"\n      [valueLabel]="credentialTypeLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n      [bwGeneratorClipboard]="value$ | async"\n    ></button>\n    <button\n      class="macos-hit-target"\n      data-testid="generator-regenerate"\n      type="button"\n      bitIconButton="bwi-generate"\n      buttonType="primaryGhost"\n      (click)="generate(USER_REQUEST)"\n      [label]="credentialTypeGenerateLabel$ | async"\n      [disabled]="!(algorithm$ | async)"\n    >\n      {{ credentialTypeGenerateLabel$ | async }}\n    </button>',
+      },
+      {
+        search: "  </div>\n</bit-card>\n@let showAlgorithm = showAlgorithm$ | async;",
+        replacement:
+          '  </div>\n</section>\n<!-- FIXME: root$ should be powered using a reactive form -->\n<section class="macos-generator__mode">\n  <bit-toggle-group\n    fullWidth\n    [selected]="(root$ | async).nav"\n    (selectedChange)="onRootChanged({ nav: $event })"\n    attr.aria-label="{{ \'type\' | i18n }}"\n  >\n    @for (option of rootOptions$ | async; track option) {\n      <bit-toggle [value]="option.value">\n        {{ option.label }}\n      </bit-toggle>\n    }\n  </bit-toggle-group>\n</section>\n<section class="macos-generator__settings">\n@let showAlgorithm = showAlgorithm$ | async;',
+      },
+      {
+        search:
           '@if ((category$ | async) !== "password") {\n  <bit-section>\n    <bit-section-header>\n      <h2 bitTypography="h6">{{ "options" | i18n }}</h2>\n    </bit-section-header>\n    <div class="tw-mb-4">\n      <bit-card>\n        <form [formGroup]="username" class="tw-container">\n          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"\n              formControlName="nav"\n              data-testid="username-type"\n            >\n            </bit-select>\n            @if (credentialTypeHint$ | async) {\n              <bit-hint>{{ credentialTypeHint$ | async }}</bit-hint>\n            }\n          </bit-form-field>\n        </form>\n        @if (showForwarder$ | async) {\n          <form [formGroup]="forwarder" class="tw-container">\n            <bit-form-field>\n              <bit-label>{{ "service" | i18n }}</bit-label>\n              <bit-select\n                [items]="forwarderOptions$ | async"\n                formControlName="nav"\n                data-testid="email-forwarding-service"\n              >\n              </bit-select>\n            </bit-form-field>\n          </form>\n        }\n        @if (showAlgorithm?.id === Algorithm.catchall) {\n          <tools-catchall-settings\n            [account]="account"\n            (onUpdated)="generate(\'catchall settings\')"\n          />\n        }\n        @if (forwarderId$ | async; as forwarderId) {\n          <tools-forwarder-settings [account]="account" [forwarder]="forwarderId" />\n        }\n        @if (showAlgorithm?.id === Algorithm.plusAddress) {\n          <tools-subaddress-settings\n            [account]="account"\n            (onUpdated)="generate(\'subaddress settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.username) {\n          <tools-username-settings\n            [account]="account"\n            (onUpdated)="generate(\'username settings\')"\n          />\n        }\n      </bit-card>\n    </div>\n  </bit-section>\n}\n',
         replacement:
-          '@if ((category$ | async) !== "password") {\n  <bit-section>\n    <bit-section-header>\n      <h2 bitTypography="h6">{{ "options" | i18n }}</h2>\n    </bit-section-header>\n    <div class="tw-mb-4">\n      <bit-card>\n        <form [formGroup]="username" class="tw-container">\n          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"\n              formControlName="nav"\n              data-testid="username-type"\n            >\n            </bit-select>\n            @if (credentialTypeHint$ | async) {\n              <bit-hint>{{ credentialTypeHint$ | async }}</bit-hint>\n            }\n          </bit-form-field>\n        </form>\n        @if (showAlgorithm?.id === Algorithm.catchall) {\n          <tools-catchall-settings\n            [account]="account"\n            (onUpdated)="generate(\'catchall settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.plusAddress) {\n          <tools-subaddress-settings\n            [account]="account"\n            (onUpdated)="generate(\'subaddress settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.username) {\n          <tools-username-settings\n            [account]="account"\n            (onUpdated)="generate(\'username settings\')"\n          />\n        }\n      </bit-card>\n    </div>\n  </bit-section>\n}\n',
+          '@if ((category$ | async) !== "password") {\n  <bit-section>\n    <bit-section-header>\n      <h2 bitTypography="h6">{{ "options" | i18n }}</h2>\n    </bit-section-header>\n    <div class="tw-mb-4">\n      <bit-card>\n        <form [formGroup]="username" class="tw-container">\n          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"\n              formControlName="nav"\n              data-testid="username-type"\n            >\n            </bit-select>\n            @if (credentialTypeHint$ | async) {\n              <bit-hint>{{ credentialTypeHint$ | async }}</bit-hint>\n            }\n          </bit-form-field>\n        </form>\n        @if (showAlgorithm?.id === Algorithm.catchall) {\n          <tools-catchall-settings\n            [account]="account"\n            (onUpdated)="generate(\'catchall settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.plusAddress) {\n          <tools-subaddress-settings\n            [account]="account"\n            (onUpdated)="generate(\'subaddress settings\')"\n          />\n        }\n        @if (showAlgorithm?.id === Algorithm.username) {\n          <tools-username-settings\n            [account]="account"\n            (onUpdated)="generate(\'username settings\')"\n          />\n        }\n      </bit-card>\n    </div>\n  </bit-section>\n}\n</section>\n',
+      },
+      {
+        search:
+          '          <bit-form-field>\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              [items]="usernameOptions$ | async"',
+        replacement:
+          '          <bit-form-field class="macos-field-owner">\n            <bit-label>{{ "type" | i18n }}</bit-label>\n            <bit-select\n              class="macos-control-visible"\n              [items]="usernameOptions$ | async"',
       },
     ],
   },
@@ -657,12 +689,23 @@ export const generatorTemplateContracts = [
       "d334de44aee06d8efbdfefbc79c3452247548005275a37f7e1a95fcef6b2691a",
     transforms: [
       {
+        search: "<popup-page>",
+        replacement:
+          '<popup-page class="macos-generator" data-generator-layout="result-first">',
+      },
+      {
         search: "      <app-pop-out />\n      <app-current-account />",
         replacement: "      <bw-popup-header-actions />",
       },
       {
         search: "  <tools-credential-generator />",
         replacement: "  <bw-official-generator-core />",
+      },
+      {
+        search:
+          '  <bit-item>\n    <a type="button" bit-item-content routerLink="/generator-history">',
+        replacement:
+          '  <bit-item class="macos-generator__history-row">\n    <a class="macos-generator__history-link" data-popup-focus-key="generator:history" bit-item-content routerLink="/generator-history">',
       },
     ],
   },
@@ -679,18 +722,18 @@ export const generatorTemplateContracts = [
         search:
           '  <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n  <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />',
         replacement:
-          '  @if (!(loading$ | async)) {\n    <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n    <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />\n  }',
+          '  @if (!(loading$ | async)) {\n    <section class="macos-generator-history__content" data-testid="generator-history-content">\n      <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />\n      <bit-credential-generator-history\n        role="list"\n        [account]="account$ | async"\n        *ngIf="hasHistory$ | async"\n      />\n    </section>\n  }',
       },
       {
         search:
           '  <popup-footer slot="footer">\n    <button\n      [disabled]="!(hasHistory$ | async)"\n      bitButton\n      type="submit"\n      buttonType="primary"\n      (click)="clear()"\n    >\n      {{ "clearHistory" | i18n }}\n    </button>\n  </popup-footer>',
         replacement:
-          '  @if (statusMessage$ | async; as statusMessage) {\n    <bw-macos-alert-strip\n      kind="danger"\n      [title]="\'i18nGeneratorHistoryFailed\' | i18n"\n      [message]="statusMessage"\n    />\n  }\n  @if ((hasHistory$ | async) && !(loading$ | async)) {\n    <popup-footer slot="footer">\n      <button\n        #clearTrigger\n        [disabled]="clearing$ | async"\n        bitButton\n        type="submit"\n        buttonType="primary"\n        (click)="clear()"\n      >\n        {{ "clearHistory" | i18n }}\n      </button>\n    </popup-footer>\n  }',
+          '  @if (statusMessage$ | async; as statusMessage) {\n    <bw-macos-alert-strip\n      kind="danger"\n      [title]="\'i18nGeneratorHistoryFailed\' | i18n"\n      [message]="statusMessage"\n    />\n  }\n  @if ((hasHistory$ | async) && !(loading$ | async)) {\n    <popup-footer slot="footer">\n      <button\n        #clearTrigger\n        class="macos-generator-history__clear-action"\n        data-testid="generator-history-clear"\n        [disabled]="clearing$ | async"\n        bitButton\n        type="submit"\n        buttonType="primary"\n        (click)="clear()"\n      >\n        {{ "clearHistory" | i18n }}\n      </button>\n    </popup-footer>\n  }',
       },
       {
         search: "\n</popup-page>",
         replacement:
-          '\n  <bw-app-bottom-sheet\n    #clearDialog\n    labelledBy="generator-history-dialog-title"\n    describedBy="generator-history-dialog-description"\n    testId="generator-history-dialog"\n    (dismissed)="cancelClear()"\n  >\n    <form class="app-bottom-sheet-panel">\n      <header class="app-bottom-sheet-header">\n        <h2 id="generator-history-dialog-title">\n          {{ "clearGeneratorHistoryTitle" | i18n }}\n        </h2>\n      </header>\n      <div class="app-bottom-sheet-body">\n        <p id="generator-history-dialog-description">\n          {{ "cleargGeneratorHistoryDescription" | i18n }}\n        </p>\n      </div>\n      <footer class="app-bottom-sheet-footer">\n        <button\n          #clearConfirm\n          bitButton\n          buttonType="danger"\n          type="button"\n          [disabled]="confirming || (clearing$ | async)"\n          (click)="confirmClear()"\n        >\n          {{ "clearHistory" | i18n }}\n        </button>\n        <button\n          bitButton\n          buttonType="secondary"\n          type="button"\n          [disabled]="confirming || (clearing$ | async)"\n          (click)="cancelClear()"\n        >\n          {{ "cancel" | i18n }}\n        </button>\n      </footer>\n    </form>\n  </bw-app-bottom-sheet>\n</popup-page>',
+          '\n  <bw-app-bottom-sheet\n    #clearDialog\n    labelledBy="generator-history-dialog-title"\n    describedBy="generator-history-dialog-description"\n    testId="generator-history-dialog"\n    (dismissed)="cancelClear()"\n  >\n    <form class="app-bottom-sheet-panel">\n      <header class="app-bottom-sheet-header">\n        <h2 id="generator-history-dialog-title">\n          {{ "clearGeneratorHistoryTitle" | i18n }}\n        </h2>\n      </header>\n      <div class="app-bottom-sheet-body">\n        <p id="generator-history-dialog-description">\n          {{ "cleargGeneratorHistoryDescription" | i18n }}\n        </p>\n      </div>\n      <footer class="app-bottom-sheet-footer">\n        <button\n          #clearCancel\n          class="macos-generator-history__sheet-action"\n          data-testid="generator-history-clear-cancel"\n          bitButton\n          buttonType="secondary"\n          type="button"\n          [disabled]="confirming || (clearing$ | async)"\n          (click)="cancelClear()"\n        >\n          {{ "cancel" | i18n }}\n        </button>\n        <button\n          class="macos-generator-history__sheet-action"\n          data-testid="generator-history-clear-confirm"\n          bitButton\n          buttonType="danger"\n          type="button"\n          [disabled]="confirming || (clearing$ | async)"\n          (click)="confirmClear()"\n        >\n          {{ "clearHistory" | i18n }}\n        </button>\n      </footer>\n    </form>\n  </bw-app-bottom-sheet>\n</popup-page>',
       },
     ],
   },
@@ -703,10 +746,19 @@ export const generatorTemplateContracts = [
       "2eef6e1fcc3d03b4685dacff58e9b7afb5204ac62038372f942e21c4b65a28b7",
     transforms: [
       {
+        search: "@for (credential of credentials$ | async; track credential) {",
+        replacement:
+          "@for (credential of credentials$ | async; track credential; let historyIndex = $index) {",
+      },
+      {
+        search: "  <bit-item>",
+        replacement: '  <bit-item\n    class="macos-generator-history__row macos-row macos-row--double"\n    role="listitem"\n    [attr.aria-label]="getGeneratedValueText(credential)"\n  >',
+      },
+      {
         search:
           '          [appCopyClick]="credential.credential"\n          [valueLabel]="getGeneratedValueText(credential)"\n          [label]="getCopyText(credential)"\n          showToast',
         replacement:
-          '          [label]="getCopyText(credential)"\n          (click)="copy(credential, $event.currentTarget)"',
+          '          [attr.data-popup-focus-key]="\'generator-history:\' + credential.generationDate.getTime() + \':\' + historyIndex"\n          [label]="getCopyText(credential)"\n          (click)="copy(credential, $event.currentTarget)"',
       },
     ],
   },

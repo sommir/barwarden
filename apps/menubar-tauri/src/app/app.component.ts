@@ -9,7 +9,7 @@ import {
   OnDestroy,
   signal,
 } from "@angular/core";
-import { Router, RouterOutlet } from "@angular/router";
+import { NavigationEnd, Router, RouterOutlet } from "@angular/router";
 import { Subscription } from "rxjs";
 
 import { PopupFocusWrapDirective } from "@bitwarden/browser-popup/components/popup-focus-wrap.directive";
@@ -62,7 +62,15 @@ import { LocalCopyFeedbackService } from "./official-ui/local-copy-feedback.serv
 import { PopupWindowSizeService } from "./window-size/popup-window-size.service";
 import { translateOfficialMessage } from "./official-ui/official-i18n.service";
 import { LocaleRouteRefreshService } from "./platform/locale-route-refresh.service";
+import { AppUpdateNoticeComponent } from "./updates/app-update-notice.component";
 import { VaultFacade } from "./vault/vault.facade";
+import { AutoFillSetupService } from "./autofill/autofill-setup.service";
+import { AutoFillVaultContextService } from "./autofill/autofill-vault-context.service";
+import { PopupRouteAnnouncerService } from "./platform/popup-route-announcer.service";
+import {
+  deepestIos27RouteData,
+  type Ios27PageFamily,
+} from "./platform/popup-route-metadata";
 
 const startupNavigationErrorMessage = () =>
   translateOfficialMessage("i18nStartupNavigationFailed");
@@ -72,6 +80,18 @@ const STARTUP_DESTINATION: Record<AuthStartupResult, string> = {
   locked: "/lock",
   unlocked: "/tabs/vault",
 };
+
+const MAX_SUGGESTION_REVISION = 18_446_744_073_709_551_615n;
+
+function decodeSuggestionRevision(value: unknown): bigint | null {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value)) return null;
+  try {
+    const revision = BigInt(value);
+    return revision <= MAX_SUGGESTION_REVISION ? revision : null;
+  } catch {
+    return null;
+  }
+}
 
 interface PopupLifecycleHost {
   hidePopup(): Promise<void>;
@@ -98,11 +118,23 @@ export const POPUP_LIFECYCLE_HOST = new InjectionToken<PopupLifecycleHost>(
 @Component({
   selector: "barwarden-root",
   standalone: true,
+  host: {
+    "[class.barwarden-root--authentication]": "authenticationLayoutActive()",
+    "[class.ios27-family--auth]": "routeFamily() === 'auth'",
+    "[class.ios27-family--shell]": "routeFamily() === 'shell'",
+    "[class.ios27-family--vault]": "routeFamily() === 'vault'",
+    "[class.ios27-family--otp]": "routeFamily() === 'otp'",
+    "[class.ios27-family--generator]": "routeFamily() === 'generator'",
+    "[class.ios27-family--send]": "routeFamily() === 'send'",
+    "[class.ios27-family--settings]": "routeFamily() === 'settings'",
+    "[class.ios27-family--document]": "routeFamily() === 'document'",
+  },
   imports: [
     AppBottomSheetDialogHostComponent,
     AppFeedbackComponent,
     AccessibilityPermissionDialogComponent,
     MacosAlertStripComponent,
+    AppUpdateNoticeComponent,
     I18nPipe,
     RouterOutlet,
     PopupFocusWrapDirective,
@@ -142,6 +174,7 @@ export const POPUP_LIFECYCLE_HOST = new InjectionToken<PopupLifecycleHost>(
         (action)="recoverStartupFailure(failure.action)"
       />
     }
+    <bw-app-update-notice />
     <bw-app-bottom-sheet-dialog-host />
     <bw-accessibility-permission-dialog />
     <bw-app-feedback [hasMainSwitcher]="hasMainSwitcher" />
@@ -168,9 +201,16 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private applyingProcessSnapshot = false;
   private lastProcessProjection: string | null = null;
   private lastProcessProjectionState: PopupState | null = null;
+  private pendingSuggestionRevision = 0n;
+  private consumedSuggestionRevision = 0n;
+  private suggestionRefreshRunning = false;
+  private suggestionInitialRefreshPending = false;
+  private suggestionContextInitialized = false;
   protected readonly startupPending = signal(true);
   protected readonly startupFailure = signal<StartupFailurePresentation | null>(null);
   protected readonly popupRenderRecoveryActive = signal(false);
+  protected readonly authenticationLayoutActive = signal(false);
+  protected readonly routeFamily = signal<Ios27PageFamily | null>(null);
   hasMainSwitcher = false;
   private popupRenderRecoveryFrame: number | undefined;
 
@@ -208,6 +248,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly localeRouteRefresh: LocaleRouteRefreshService | null = null,
     @Optional()
     private readonly vault: VaultFacade | null = null,
+    @Optional()
+    private readonly autoFillSetup: AutoFillSetupService | null = null,
+    @Optional()
+    private readonly autoFillVaultContext: AutoFillVaultContextService | null = null,
+    @Optional()
+    private readonly popupRouteAnnouncer: PopupRouteAnnouncerService | null = null,
   ) {
     // The root owns the singleton so every live route is refreshed when the
     // user changes language, including secondary Settings routes.
@@ -216,9 +262,23 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.vaultMainEvidenceState = vaultMainEvidenceState;
     this.sendEvidenceState = sendEvidenceState;
     this.settingsPreviewState = settingsPreviewState;
+    this.authenticationLayoutActive.set(routeUsesAuthenticationLayout(this.router.url));
     this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
-    this.routeSubscription = this.router.events?.subscribe(() => {
+    this.routeSubscription = this.router.events?.subscribe((event) => {
+      if (!(event instanceof NavigationEnd)) return;
+      this.authenticationLayoutActive.set(routeUsesAuthenticationLayout(this.router.url));
+      const routeRoot = this.router.routerState?.snapshot?.root;
+      this.routeFamily.set(
+        routeRoot ? deepestIos27RouteData(routeRoot)?.ios27Family ?? null : null,
+      );
       this.hasMainSwitcher = routeHasMainSwitcher(this.router.url);
+      this.autoFillVaultContext?.navigationChanged(this.router.url);
+      const path = this.router.url.split(/[?#]/, 1)[0];
+      if (path === "/tabs/vault") {
+        this.drainSuggestionRefresh();
+      } else if (!path.startsWith("/view-cipher/")) {
+        this.suggestionContextInitialized = false;
+      }
       const activeTab = mainTabFromUrl(this.router.url);
       if (activeTab) {
         this.store.setActiveTab(activeTab);
@@ -238,13 +298,29 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     let wasUnlocked = this.store.snapshot().isUnlocked;
     this.lockRouteSubscription = this.store.state$.subscribe((state) => {
+      const becameUnlocked = !wasUnlocked && state.isUnlocked;
       const shouldNavigateToUnlock =
         wasUnlocked &&
         !state.isUnlocked &&
         !state.isLoggingIn &&
         !this.evidenceMode &&
         this.router.url !== "/lock";
+      if (wasUnlocked && !state.isUnlocked) {
+        this.autoFillVaultContext?.invalidate("lock");
+        this.suggestionContextInitialized = false;
+        this.suggestionInitialRefreshPending = false;
+      }
       wasUnlocked = state.isUnlocked;
+      if (becameUnlocked) {
+        this.suggestionInitialRefreshPending = true;
+        this.drainSuggestionRefresh();
+        const recoverAutoFill = this.autoFillSetup?.recoverAtStartup;
+        if (typeof recoverAutoFill === "function") {
+          void recoverAutoFill.call(this.autoFillSetup)
+            .then(() => this.drainSuggestionRefresh())
+            .catch(() => undefined);
+        }
+      }
       if (shouldNavigateToUnlock) {
         void this.router.navigateByUrl("/lock", { replaceUrl: true });
       }
@@ -266,6 +342,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.processSessionBroker?.destroy();
     this.statusFeedbackBridge?.destroy();
+    this.popupRouteAnnouncer?.destroy();
     this.localCopyFeedback?.destroy();
     this.popupWindowSize?.destroy();
   }
@@ -277,6 +354,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     this.statusFeedbackBridge?.start();
+    this.popupRouteAnnouncer?.start();
     this.localCopyFeedback?.start();
     try {
       if (this.evidenceState) {
@@ -287,10 +365,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
-      if (
-        import.meta.env.VITE_BW_VAULT_EVIDENCE === "true" &&
-        this.vaultMainEvidenceState
-      ) {
+      if (this.vaultMainEvidenceState) {
         this.evidenceMode = true;
         const { applyVaultMainEvidenceState, vaultMainEvidenceRoute } = await import(
           "./vault/vault-main-evidence-preview"
@@ -358,6 +433,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         } catch (error) {
           await this.handleStartupRestoreFailure(error);
           return;
+        }
+        if (this.autoFillSetup) {
+          await this.autoFillSetup.recoverAtStartup().catch(() => undefined);
         }
         if (attachedProcessSnapshot) {
           this.startProcessReconciliation(attachedProcessSnapshot);
@@ -567,23 +645,117 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener("document:keydown.escape", ["$event"])
   hideOnEscape(event: KeyboardEvent): void {
-    if (this.overlayStack.consumeEscape(event)) {
-      return;
-    }
-    if (resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout") {
-      return;
-    }
+    if (this.overlayStack.consumeEscape(event)) return;
+    if (resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout") return;
     event.preventDefault();
+    if (this.routeCache?.hasBackTarget()) {
+      void this.routeCache.back().catch(() => undefined);
+      return;
+    }
     void this.popupLifecycleHost.hidePopup().catch(() => undefined);
+  }
+
+  @HostListener("window:barwarden:popup-entry", ["$event"])
+  handlePopupEntry(event: Event): void {
+    const detail = (event as CustomEvent<{
+      reset?: boolean;
+      entrySource?: "vault" | "autofill-menu" | "autofill-shortcut" | "autofill-floating";
+      suggestionRevision?: string;
+    }>).detail;
+    const suggestionRevision = decodeSuggestionRevision(detail?.suggestionRevision);
+    if (detail?.entrySource === "autofill-menu"
+        || detail?.entrySource === "autofill-shortcut"
+        || detail?.entrySource === "autofill-floating") {
+      void this.openAutoFillInVault(suggestionRevision);
+      return;
+    }
+    if (detail?.reset === true) {
+      void this.resetPopupToInitialState(suggestionRevision);
+      return;
+    }
+    if (
+      detail?.entrySource === "vault"
+      && this.store.snapshot().isUnlocked
+      && this.router.url.split(/[?#]/, 1)[0] === "/tabs/vault"
+      && resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popout"
+    ) {
+      this.requestSuggestionRefresh(suggestionRevision, true);
+    }
+  }
+
+  @HostListener("window:barwarden:suggestion-context-changed", ["$event"])
+  handleSuggestionContextChanged(event: Event): void {
+    const revision = decodeSuggestionRevision((event as CustomEvent<{
+      suggestionRevision?: string;
+    }>).detail?.suggestionRevision);
+    if (revision === null) return;
+    this.requestSuggestionRefresh(revision, false);
+  }
+
+  private requestSuggestionRefresh(revision: bigint | null, allowInitial: boolean): void {
+    if (revision !== null && revision > this.pendingSuggestionRevision) {
+      this.pendingSuggestionRevision = revision;
+    }
+    if (allowInitial && !this.suggestionContextInitialized) {
+      this.suggestionInitialRefreshPending = true;
+    }
+    this.drainSuggestionRefresh();
+  }
+
+  private drainSuggestionRefresh(): void {
+    if (this.suggestionRefreshRunning || !this.canRefreshSuggestions()) return;
+    const forceInitial = this.suggestionInitialRefreshPending
+      && !this.suggestionContextInitialized;
+    if (!forceInitial && this.pendingSuggestionRevision <= this.consumedSuggestionRevision) {
+      return;
+    }
+    const service = this.autoFillVaultContext;
+    if (!service) return;
+    const targetRevision = this.pendingSuggestionRevision;
+    this.suggestionRefreshRunning = true;
+    let refreshed = false;
+    void service.beginFromVaultOpen().then((state) => {
+      if (state.status !== "ready") {
+        this.suggestionContextInitialized = false;
+        this.suggestionInitialRefreshPending = true;
+        return;
+      }
+      refreshed = true;
+      this.suggestionContextInitialized = true;
+      this.suggestionInitialRefreshPending = false;
+      if (targetRevision > this.consumedSuggestionRevision) {
+        this.consumedSuggestionRevision = targetRevision;
+      }
+    }).catch(() => {
+      this.suggestionContextInitialized = false;
+      this.suggestionInitialRefreshPending = true;
+    }).finally(() => {
+      this.suggestionRefreshRunning = false;
+      if (
+        (refreshed && this.pendingSuggestionRevision > this.consumedSuggestionRevision)
+        || (!refreshed && this.pendingSuggestionRevision > targetRevision)
+      ) {
+        this.drainSuggestionRefresh();
+      }
+    });
+  }
+
+  private canRefreshSuggestions(): boolean {
+    return this.autoFillVaultContext !== null
+      && this.store.snapshot().isUnlocked
+      && this.router.url.split(/[?#]/, 1)[0] === "/tabs/vault"
+      && resolveWindowLayoutMode(globalThis.location?.search ?? "") !== "popout";
   }
 
   /**
    * macOS suspends WebKit's layer tree while the menu-bar popup is hidden.
    * Recreating one composited frame after it is shown prevents the live
    * Angular view from being left behind a blank canvas after an autofill.
+   * Functional entry handling is deliberately separate because WebKit may
+   * defer or drop animation frames while resuming a hidden view.
    */
-  @HostListener("window:barwarden:popup-shown", ["$event"])
-  restorePopupComposition(event: Event): void {
+  @HostListener("window:barwarden:popup-shown")
+  restorePopupComposition(): void {
     if (this.popupRenderRecoveryFrame !== undefined) {
       globalThis.cancelAnimationFrame?.(this.popupRenderRecoveryFrame);
     }
@@ -594,12 +766,51 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         this.popupRenderRecoveryFrame = undefined;
       });
     });
-    if ((event as CustomEvent<{ reset?: boolean }>).detail?.reset === true) {
-      void this.resetPopupToInitialState();
+  }
+
+  private async openAutoFillInVault(suggestionRevision: bigint | null): Promise<void> {
+    if (
+      this.evidenceMode
+      || resolveWindowLayoutMode(globalThis.location?.search ?? "") === "popout"
+    ) {
+      return;
+    }
+    this.routeCache?.clear();
+    try {
+      const contextState = await this.autoFillVaultContext?.beginFromEntry();
+      const contextReady = contextState?.status === "ready";
+      this.suggestionContextInitialized = contextReady;
+      this.suggestionInitialRefreshPending = !contextReady;
+      if (suggestionRevision !== null && suggestionRevision > this.pendingSuggestionRevision) {
+        this.pendingSuggestionRevision = suggestionRevision;
+      }
+      if (
+        contextReady
+        && suggestionRevision !== null
+        && suggestionRevision > this.consumedSuggestionRevision
+      ) {
+        this.consumedSuggestionRevision = suggestionRevision;
+      }
+      if (contextState?.status === "ready" && contextState.candidates?.length === 0) {
+        this.store.setStatus(translateOfficialMessage("i18nAutofillNoMatches"));
+      }
+      await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
+      if (!contextReady) {
+        this.requestSuggestionRefresh(suggestionRevision, true);
+      }
+    } catch {
+      // Keep the existing popup route usable when contextual AutoFill cannot settle.
+      this.suggestionContextInitialized = false;
+      try {
+        await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
+      } catch {
+        return;
+      }
+      this.requestSuggestionRefresh(suggestionRevision, true);
     }
   }
 
-  private async resetPopupToInitialState(): Promise<void> {
+  private async resetPopupToInitialState(suggestionRevision: bigint | null): Promise<void> {
     if (
       this.evidenceMode
       || !this.store.snapshot().isUnlocked
@@ -616,6 +827,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch {
       return;
     }
+    this.requestSuggestionRefresh(suggestionRevision, true);
     globalThis.requestAnimationFrame(() => {
       globalThis.document
         ?.querySelector<HTMLInputElement>('bw-root-search input[type="search"]')
@@ -674,6 +886,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
 export function routeHasMainSwitcher(url: string): boolean {
   return /^\/tabs\/(vault|otp|generator|send|settings)(?:[?#]|$)/.test(url);
+}
+
+export function routeUsesAuthenticationLayout(url: string): boolean {
+  return /^\/(login|lock|2fa|new-device-verification|hint)(?:[?#]|$)/.test(url);
 }
 
 export function startupFailurePresentation(

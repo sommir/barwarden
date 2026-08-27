@@ -52,6 +52,11 @@ describe("OfficialPersonalCipherDetailComponent", () => {
       "official-custom-fields",
       "app-item-history-v2",
     ]);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector("official-item-details")?.classList)
+      .toContain("official-detail-identity-duplicate");
+    expect(host.querySelector("[data-testid='official-item-identity']")?.getAttribute("aria-hidden"))
+      .toBe("true");
 
     (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="copy-number"]')!.click();
     expect(copyField).toHaveBeenCalledWith(cardProjection().actionFields.get("number"));

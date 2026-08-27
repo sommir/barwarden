@@ -5,10 +5,13 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { of } from "rxjs";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+import { DialogService } from "@bitwarden/components";
 
 import { AuthFacade } from "./auth/auth.facade";
 import { VaultTimeoutService } from "./auth/vault-timeout.service";
@@ -16,7 +19,21 @@ import { AppComponent } from "./app.component";
 import { PopupStateStore } from "./popup-state";
 import { POPUP_LIFECYCLE_HOST } from "./app.component";
 import { OfficialI18nService } from "./official-ui/official-i18n.service";
+import { PopupRouterCacheService } from "./platform/popup-router-cache.service";
 import { VaultFacade } from "./vault/vault.facade";
+import { ios27RouteData } from "./platform/popup-route-metadata";
+import { PasswordHintPageComponent } from "./auth/password-hint-page.component";
+import { OfficialPasswordAuthAdapter } from "./auth/official-password-auth.adapter";
+import { OfficialPasswordHintApiAdapter } from "./auth/official-password-hint-api.adapter";
+import { OfficialAccountSwitcherAdapter } from "./auth/official-account-switcher.adapter";
+import { OfficialAccountSwitcherComponent } from "./upstream-overlays/auth/account-switching/official-account-switcher.component";
+import { PopupHeaderComponent } from "./layout/popup-header.component";
+
+@Component({ standalone: true, template: "" })
+class OtpRouteStubComponent {}
+
+@Component({ standalone: true, template: "" })
+class LoginRouteStubComponent {}
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -42,10 +59,22 @@ afterEach(() => {
 async function renderRoot({
   restoreStartup = vi.fn().mockResolvedValue("login"),
   navigateByUrl,
+  routeCache = {
+    clear: vi.fn(),
+    restore: vi.fn(async () => false),
+    hasBackTarget: vi.fn().mockReturnValue(false),
+    back: vi.fn(async () => true),
+  },
   store = new PopupStateStore(),
 }: {
   restoreStartup?: ReturnType<typeof vi.fn>;
   navigateByUrl?: (url: string, options?: { replaceUrl?: boolean }) => Promise<boolean>;
+  routeCache?: {
+    clear: ReturnType<typeof vi.fn>;
+    restore: ReturnType<typeof vi.fn>;
+    hasBackTarget: ReturnType<typeof vi.fn>;
+    back: ReturnType<typeof vi.fn>;
+  };
   store?: PopupStateStore;
 } = {}) {
   const timeout = { recordActivity: vi.fn() };
@@ -61,6 +90,7 @@ async function renderRoot({
       { provide: PopupStateStore, useValue: store },
       { provide: VaultTimeoutService, useValue: timeout },
       { provide: POPUP_LIFECYCLE_HOST, useValue: popupLifecycleHost },
+      { provide: PopupRouterCacheService, useValue: routeCache },
     ],
   }).compileComponents();
 
@@ -78,6 +108,7 @@ async function renderRoot({
     fixture,
     navigateByUrl: navigate,
     popupLifecycleHost,
+    routeCache,
     restoreStartup,
     store,
     timeout,
@@ -85,6 +116,87 @@ async function renderRoot({
 }
 
 describe("AppComponent rendering", () => {
+  it("applies the authentication layout only while an authentication route is active", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([
+          {
+            path: "login",
+            component: LoginRouteStubComponent,
+            data: ios27RouteData("auth", "base", false),
+          },
+          {
+            path: "tabs/otp",
+            component: OtpRouteStubComponent,
+            data: ios27RouteData("otp", "base", true),
+          },
+        ]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: AuthFacade, useValue: { restoreStartup: vi.fn().mockResolvedValue("login") } },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultTimeoutService, useValue: { recordActivity: vi.fn() } },
+        { provide: POPUP_LIFECYCLE_HOST, useValue: { hidePopup: vi.fn() } },
+      ],
+    }).compileComponents();
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(router.url).toBe("/login");
+      expect((fixture.nativeElement as HTMLElement).classList)
+        .toContain("barwarden-root--authentication");
+    });
+
+    await router.navigateByUrl("/tabs/otp");
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).classList)
+      .not.toContain("barwarden-root--authentication");
+  });
+
+  it("binds the current routed family to the root host", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([{
+          path: "tabs/otp",
+          component: OtpRouteStubComponent,
+          data: ios27RouteData("otp", "base", true),
+        }]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: AuthFacade, useValue: { restoreStartup: vi.fn().mockResolvedValue("unlocked") } },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultTimeoutService, useValue: { recordActivity: vi.fn() } },
+        { provide: POPUP_LIFECYCLE_HOST, useValue: { hidePopup: vi.fn() } },
+      ],
+    }).compileComponents();
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector(
+        ".app-bootstrap-loading--runtime",
+      )).toBeNull();
+    });
+    await router.navigateByUrl("/tabs/otp");
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).classList)
+      .toContain("ios27-family--otp");
+  });
+
   it("renders the router outlet root", async () => {
     const { fixture } = await renderRoot();
 
@@ -135,7 +247,7 @@ describe("AppComponent rendering", () => {
     (fixture.nativeElement as HTMLElement).append(searchHost);
     navigateByUrl.mockClear();
 
-    window.dispatchEvent(new CustomEvent("barwarden:popup-shown", {
+    window.dispatchEvent(new CustomEvent("barwarden:popup-entry", {
       detail: { reset: true },
     }));
 
@@ -254,6 +366,138 @@ describe("AppComponent rendering", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     await vi.waitFor(() => expect(popupLifecycleHost.hidePopup).toHaveBeenCalledOnce());
+  });
+
+  it("uses mounted root Escape to return a secondary route before hiding", async () => {
+    const routeCache = {
+      clear: vi.fn(),
+      restore: vi.fn(async () => false),
+      hasBackTarget: vi.fn().mockReturnValue(true),
+      back: vi.fn(async () => true),
+    };
+    const { popupLifecycleHost } = await renderRoot({ routeCache });
+
+    document.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(routeCache.back).toHaveBeenCalledOnce();
+    expect(popupLifecycleHost.hidePopup).not.toHaveBeenCalled();
+  });
+
+  it("uses mounted root Escape and the real hint route owner to cancel back to login", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    const popupLifecycleHost = { hidePopup: vi.fn().mockResolvedValue(undefined) };
+    const auth = {
+      rememberedEmail$: of(""),
+      takeNavigationEmail: vi.fn(() => ""),
+      setNavigationEmail: vi.fn(),
+      cancel: vi.fn(),
+      rememberEmail: vi.fn(),
+    };
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([
+          { path: "login", component: LoginRouteStubComponent, data: ios27RouteData("auth", "base", false) },
+          { path: "hint", component: PasswordHintPageComponent, data: ios27RouteData("auth", "secondary", false) },
+        ]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: AuthFacade, useValue: { restoreStartup: vi.fn().mockResolvedValue("login") } },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultTimeoutService, useValue: { recordActivity: vi.fn() } },
+        { provide: POPUP_LIFECYCLE_HOST, useValue: popupLifecycleHost },
+        { provide: OfficialPasswordAuthAdapter, useValue: auth },
+        { provide: OfficialPasswordHintApiAdapter, useValue: { request: vi.fn() } },
+      ],
+    }).compileComponents();
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(router.url).toBe("/login"));
+    await router.navigateByUrl("/hint");
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }));
+    await vi.waitFor(() => expect(router.url).toBe("/login"));
+
+    expect(auth.setNavigationEmail).toHaveBeenCalledOnce();
+    expect(auth.cancel).toHaveBeenCalled();
+    expect(popupLifecycleHost.hidePopup).not.toHaveBeenCalled();
+  });
+
+  it("keeps mounted account-switcher header Back and Escape owned by the locked route", async () => {
+    TestBed.resetTestingModule();
+    const store = new PopupStateStore();
+    store.setUnlocked("locked@example.test");
+    store.setLocked();
+    const popupLifecycleHost = { hidePopup: vi.fn().mockResolvedValue(undefined) };
+    const accountSwitcher = {
+      accounts$: of([]),
+      activeAccount$: of(null),
+      activeAuthorization$: of("locked"),
+      loading$: of(false),
+      error$: of(null),
+      refresh: vi.fn(async () => undefined),
+    };
+    TestBed.overrideComponent(OfficialAccountSwitcherComponent, {
+      set: {
+        imports: [PopupHeaderComponent],
+        template: '<popup-header pageTitle="Accounts" showBackButton />',
+      },
+    });
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([
+          { path: "lock", component: LoginRouteStubComponent, data: ios27RouteData("auth", "base", false) },
+          {
+            path: "account-switcher",
+            component: OfficialAccountSwitcherComponent,
+            data: ios27RouteData("auth", "secondary", false),
+          },
+        ]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: AuthFacade, useValue: { restoreStartup: vi.fn().mockResolvedValue("locked") } },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultTimeoutService, useValue: { recordActivity: vi.fn() } },
+        { provide: POPUP_LIFECYCLE_HOST, useValue: popupLifecycleHost },
+        { provide: OfficialAccountSwitcherAdapter, useValue: accountSwitcher },
+        { provide: DialogService, useValue: { openSimpleDialog: vi.fn() } },
+      ],
+    }).compileComponents();
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(router.url).toBe("/lock"));
+
+    await router.navigateByUrl("/account-switcher");
+    fixture.detectChanges();
+    await fixture.whenStable();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[aria-label="返回"]')!
+      .click();
+    await vi.waitFor(() => expect(router.url).toBe("/lock"));
+
+    await router.navigateByUrl("/account-switcher");
+    fixture.detectChanges();
+    document.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }));
+    await vi.waitFor(() => expect(router.url).toBe("/lock"));
+    expect(popupLifecycleHost.hidePopup).not.toHaveBeenCalled();
   });
 
   it("leaves Escape to an open native dialog", async () => {

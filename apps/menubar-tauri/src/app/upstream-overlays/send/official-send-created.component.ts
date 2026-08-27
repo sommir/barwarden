@@ -35,6 +35,7 @@ export interface OfficialCreatedTextSend {
 export class OfficialSendCreatedComponent {
   readonly send = input.required<OfficialCreatedTextSend>();
   readonly formattedExpiration = input.required<string>();
+  readonly link = input.required<string>();
   readonly copyLink = output<Event>();
   readonly close = output<void>();
   readonly popOut = output<void>();

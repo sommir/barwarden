@@ -1,5 +1,4 @@
-import { Location } from "@angular/common";
-import { Component } from "@angular/core";
+import { Component, Optional } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
 import { PopupHeaderComponent } from "../layout/popup-header.component";
@@ -8,12 +7,14 @@ import {
   BitFormFieldComponent,
   BitHintDirective,
   BitLabelComponent,
-  CardComponent,
+  ButtonComponent,
   SectionComponent,
   SectionHeaderComponent,
   SelectComponent,
   TypographyDirective,
 } from "../official-ui/official-components";
+import { AutoFillAccessibilityService } from "../autofill/autofill-accessibility.service";
+import { AutoFillSetupService } from "../autofill/autofill-setup.service";
 import {
   activeOfficialLocale,
   translateOfficialMessage,
@@ -27,6 +28,8 @@ import {
   isFillMode,
 } from "./settings-options";
 import { SettingsService } from "./settings.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
+import { AccessibilityPermissionDialogService } from "../official-ui/accessibility-permission-dialog.service";
 
 @Component({
   selector: "bw-autofill-settings-page",
@@ -36,7 +39,7 @@ import { SettingsService } from "./settings.service";
     BitFormFieldComponent,
     BitHintDirective,
     BitLabelComponent,
-    CardComponent,
+    ButtonComponent,
     FormsModule,
     I18nPipe,
     PopupHeaderComponent,
@@ -49,22 +52,48 @@ import { SettingsService } from "./settings.service";
   template: `
     <popup-page>
       <popup-header slot="header" [pageTitle]="'i18nAutofill' | i18n" [showBackButton]="true" [backAction]="backAction" />
-      <div class="tw-p-4">
-        <bit-section>
-          <bit-section-header><h2 bitTypography="h6">{{ "i18nAutofillBehavior" | i18n }}</h2></bit-section-header>
-          <bit-card>
-            <bit-form-field>
-              <bit-label>{{ "i18nClearClipboard" | i18n }}</bit-label>
-              <bit-select [attr.aria-label]="'i18nClearClipboard' | i18n" [items]="clipboardClearOptions" [ngModel]="settings.clipboardClearSeconds" (ngModelChange)="setClipboardClearSecondsValue($event)" />
-              <bit-hint>{{ "i18nClearClipboardHint" | i18n }}</bit-hint>
-            </bit-form-field>
-            <bit-form-field disableMargin>
-              <bit-label>{{ "i18nAutofill" | i18n }}</bit-label>
-              <bit-select [attr.aria-label]="'i18nAutofill' | i18n" [items]="fillModeOptions" [ngModel]="settings.fillMode" (ngModelChange)="setFillModeValue($event)" />
-              <bit-hint>{{ "i18nAutofillModeHint" | i18n }}</bit-hint>
-            </bit-form-field>
-          </bit-card>
-        </bit-section>
+      <bit-section>
+        <bit-section-header><h2 bitTypography="h6">{{ "i18nAutofillBehavior" | i18n }}</h2></bit-section-header>
+        <section class="settings-detail-group macos-preference-group" data-settings-detail="autofill">
+          <bit-form-field class="settings-detail-row macos-preference-row">
+            <bit-label class="macos-preference-row__copy">{{ "i18nClearClipboard" | i18n }}</bit-label>
+            <bit-select class="macos-control-visible" [attr.aria-label]="'i18nClearClipboard' | i18n" [items]="clipboardClearOptions" [ngModel]="settings.clipboardClearSeconds" (ngModelChange)="setClipboardClearSecondsValue($event)" />
+            <bit-hint>{{ "i18nClearClipboardHint" | i18n }}</bit-hint>
+          </bit-form-field>
+          <bit-form-field class="settings-detail-row macos-preference-row" disableMargin>
+            <bit-label class="macos-preference-row__copy">{{ "i18nAutofill" | i18n }}</bit-label>
+            <bit-select class="macos-control-visible" [attr.aria-label]="'i18nAutofill' | i18n" [items]="fillModeOptions" [ngModel]="settings.fillMode" (ngModelChange)="setFillModeValue($event)" />
+            <bit-hint>{{ "i18nAutofillModeHint" | i18n }}</bit-hint>
+          </bit-form-field>
+          <div class="settings-detail-row macos-preference-row">
+            <span id="autofill-field-icon-label" class="macos-preference-row__copy">
+              <span>{{ "i18nShowInputFieldIcon" | i18n }}</span>
+              <small>{{ "i18nShowInputFieldIconHint" | i18n }}</small>
+            </span>
+            <button
+              type="button"
+              class="macos-switch-owner macos-hit-target"
+              role="switch"
+              aria-labelledby="autofill-field-icon-label"
+              [attr.aria-checked]="settings.showInputFieldIcon"
+              (click)="setShowInputFieldIconValue(!settings.showInputFieldIcon)"
+            >
+              <span aria-hidden="true"></span>
+            </button>
+          </div>
+        </section>
+      </bit-section>
+      <div class="autofill-permission-action">
+        <button
+          bitButton
+          buttonType="secondary"
+          type="button"
+          class="secondary-action macos-hit-target"
+          data-testid="autofill-accessibility-permission"
+          (click)="openAccessibilityPermission($event)"
+        >
+          {{ "i18nAllowAutofill" | i18n }}
+        </button>
       </div>
     </popup-page>
   `,
@@ -87,15 +116,19 @@ export class AutofillSettingsPageComponent {
 
   constructor(
     private readonly settingsService: SettingsService,
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
+    @Optional() private readonly accessibility: AutoFillAccessibilityService | null = null,
+    @Optional() private readonly setup: AutoFillSetupService | null = null,
+    @Optional()
+    private readonly permissionDialog: AccessibilityPermissionDialogService | null = null,
   ) {}
 
   get settings() {
     return this.settingsService.snapshot();
   }
 
-  back(): void {
-    this.location.back();
+  async back(): Promise<void> {
+    await this.routeCache.back();
   }
 
   setClipboardClearSecondsValue(value: unknown): void {
@@ -108,6 +141,18 @@ export class AutofillSettingsPageComponent {
     if (isFillMode(value)) {
       this.settingsService.setFillMode(value);
     }
+  }
+
+  setShowInputFieldIconValue(enabled: boolean): void {
+    this.settingsService.setShowInputFieldIcon(enabled);
+    const update = this.setup?.setFloatingIconPreference(enabled)
+      ?? this.accessibility?.setFloatingIconEnabled(enabled);
+    void update?.catch(() => undefined);
+  }
+
+  openAccessibilityPermission(event: Event): void {
+    const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    this.permissionDialog?.present(trigger);
   }
 
   private refreshLocalizedOptions(): void {

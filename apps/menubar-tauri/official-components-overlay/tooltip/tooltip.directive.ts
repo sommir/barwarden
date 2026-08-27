@@ -37,6 +37,8 @@ export const TOOLTIP_DELAY_MS = 800;
 })
 export class TooltipDirective implements OnInit, OnDestroy {
   private static nextId = 0;
+  private static activeTooltip: TooltipDirective | undefined;
+  private static dismissalListenersInstalled = false;
   /**
    * The value of this input is forwarded to the tooltip.component to render
    */
@@ -75,6 +77,7 @@ export class TooltipDirective implements OnInit, OnDestroy {
     this.elementRef.nativeElement.getAttribute("aria-describedby") || null;
 
   constructor() {
+    TooltipDirective.installDismissalListeners();
     effect(() => {
       if (this.suppressed()) {
         this.destroyTooltip();
@@ -118,6 +121,9 @@ export class TooltipDirective implements OnInit, OnDestroy {
     this.overlayRef?.dispose();
     this.overlayRef = undefined;
     this.isVisible.set(false);
+    if (TooltipDirective.activeTooltip === this) {
+      TooltipDirective.activeTooltip = undefined;
+    }
   };
 
   protected showTooltip = () => {
@@ -126,6 +132,11 @@ export class TooltipDirective implements OnInit, OnDestroy {
     }
 
     this.clearTimeout();
+
+    if (TooltipDirective.activeTooltip !== this) {
+      TooltipDirective.activeTooltip?.destroyTooltip();
+      TooltipDirective.activeTooltip = this;
+    }
 
     if (!this.overlayRef) {
       this.overlayRef = this.overlay.create({
@@ -158,6 +169,14 @@ export class TooltipDirective implements OnInit, OnDestroy {
 
   protected onFocusOut() {
     this.hideTooltip();
+  }
+
+  private static installDismissalListeners(): void {
+    if (this.dismissalListenersInstalled || typeof document === "undefined") return;
+    this.dismissalListenersInstalled = true;
+    const dismiss = () => this.activeTooltip?.destroyTooltip();
+    document.addEventListener("pointerdown", dismiss, true);
+    document.addEventListener("scroll", dismiss, true);
   }
 
   protected readonly resolvedDescribedByIds = computed(() => {

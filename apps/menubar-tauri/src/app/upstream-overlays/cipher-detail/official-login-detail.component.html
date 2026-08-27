@@ -1,14 +1,19 @@
-<div data-testid="official-login-detail">
+<div class="macos-detail-stack" data-testid="official-login-detail">
   <official-item-details
+    class="official-detail-identity-duplicate"
+    aria-hidden="true"
     [cipher]="projection.cipher"
     [folder]="projection.folder"
   />
   <official-login-credentials
     [projection]="projection"
     [canFill]="canFill"
+    [contextualFillAction]="contextualFillAction"
+    [contextualFillBusy]="contextualFillBusy"
     [revealedFieldIds]="revealedFieldIds"
     (copyField)="copyField.emit($event)"
     (fillField)="fillField.emit($event)"
+    (contextualFill)="contextualFill.emit($event)"
     (toggleReveal)="toggleReveal.emit($event)"
   />
   @if (projection.cipher.login.uris.length > 0) {

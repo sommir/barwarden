@@ -66,6 +66,7 @@
   :root .macos-glass-menu,
   :root .app-bottom-sheet {
     background: var(--mac-surface-solid);
+    border-color: var(--mac-border);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -108,6 +109,15 @@
   :root .app-bottom-sheet {
     border-color: var(--mac-border);
   }
+
+  :root .macos-glass-navigation,
+  :root .macos-glass-menu,
+  :root .app-bottom-sheet {
+    background: var(--mac-surface-solid);
+    border-color: var(--mac-border);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 @media (prefers-contrast: more) and (prefers-color-scheme: dark) {
@@ -116,5 +126,18 @@
     --mac-border-subtle: #d7d7dc;
     --mac-text-primary: #ffffff;
     --mac-surface-raised: #1d1d1f;
+  }
+}
+
+@media (forced-colors: active) {
+  :root .macos-glass-navigation,
+  :root .macos-glass-menu,
+  :root .app-bottom-sheet {
+    border-color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+    color: CanvasText;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

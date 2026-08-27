@@ -6,12 +6,14 @@
     </bit-section-header>
     <bit-item-group>
       @for (item of items; track item.id) {
-        <bit-item>
+        <bit-item class="macos-row macos-row--double macos-recovery-row">
           <button
             bit-item-content
+            class="macos-recovery-row__content macos-pressable"
             type="button"
             [attr.aria-label]="'i18nViewItem' | i18n: item.name"
             [attr.data-testid]="'trash-view-' + item.id"
+            [attr.data-popup-focus-key]="'trash-item:' + item.id"
             (click)="emit('view', item)"
           >
             <div slot="start" class="tw-justify-start tw-w-7 tw-flex">
@@ -23,15 +25,18 @@
           <ng-container slot="end">
             <bit-item-action>
               <button
+                #moreTrigger
                 type="button"
                 bitIconButton="bwi-ellipsis-v"
+                class="macos-hit-target macos-recovery-action"
                 size="small"
                 [label]="'i18nTrashOptions' | i18n: item.name"
                 [bitMenuTriggerFor]="moreOptions"
+                [attr.data-popup-focus-key]="'trash-item:' + item.id"
               ></button>
               <bit-menu #moreOptions [ariaLabel]="'i18nTrashOptions' | i18n: item.name">
-                <button type="button" bitMenuItem (click)="emit('restore', item)">{{ "i18nRestore" | i18n }}</button>
-                <button type="button" bitMenuItem (click)="emit('permanent-delete', item)">{{ "i18nPermanentDelete" | i18n }}</button>
+                <button type="button" bitMenuItem (click)="emit('restore', item, moreTrigger.getFocusTarget())">{{ "i18nRestore" | i18n }}</button>
+                <button type="button" bitMenuItem variant="danger" (click)="emit('permanent-delete', item, moreTrigger.getFocusTarget())">{{ "i18nPermanentDelete" | i18n }}</button>
               </bit-menu>
             </bit-item-action>
           </ng-container>

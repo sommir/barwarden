@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Inject, Injectable, InjectionToken, OnDestroy, Optional } from "@angular/core";
+import { ChangeDetectorRef, Component, DestroyRef, Inject, Injectable, InjectionToken, OnDestroy, Optional } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { Subscription } from "rxjs";
 
@@ -18,6 +18,7 @@ import {
 } from "../upstream-overlays/send/official-send-created.component";
 import type { SendItem } from "./send-item.model";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 export const SEND_CREATED_HOST = new InjectionToken<HostApi | null>("SEND_CREATED_HOST", {
   providedIn: "root",
@@ -49,6 +50,7 @@ export class SendLinkBuilder {
       <bw-official-send-created
         [send]="send"
         [formattedExpiration]="formattedExpiration"
+        [link]="link"
         (copyLink)="copyLink($event)"
         (close)="close()"
         (popOut)="popOut()"
@@ -61,6 +63,7 @@ export class SendCreatedPageComponent implements OnDestroy {
   private readonly popOutHost: PopOutHost;
   private readonly owner: SendCreatedOwnership | undefined;
   private readonly stateSubscription: Subscription;
+  private recoveryQueued = false;
 
   constructor(
     route: ActivatedRoute,
@@ -70,14 +73,25 @@ export class SendCreatedPageComponent implements OnDestroy {
     private readonly clipboardPolicy: ClipboardPolicyService,
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly feedback: AppFeedbackService,
+    private readonly routeCache: PopupRouterCacheService,
+    destroyRef: DestroyRef,
     @Optional() @Inject(SEND_CREATED_HOST) host: HostApi | null = null,
     @Optional() @Inject(POP_OUT_HOST) popOutHost: PopOutHost | null = null,
   ) {
+    const releaseBackOwner = routeCache.registerBackOwner(async (resume) => {
+      await resume("/tabs/send");
+    });
+    destroyRef.onDestroy(releaseBackOwner);
     this.host = host ?? new TauriHostService();
     this.popOutHost = popOutHost ?? new TauriHostService();
     const sendId = route.snapshot.queryParamMap.get("sendId") ?? "";
     this.owner = captureSendCreatedOwnership(store.snapshot(), store.currentSendRevision(), sendId);
-    this.stateSubscription = store.state$.subscribe(() => this.changeDetectorRef.markForCheck());
+    this.stateSubscription = store.state$.subscribe(() => {
+      this.changeDetectorRef.markForCheck();
+      if (!this.currentSend()) {
+        this.recoverInvalidOwnership();
+      }
+    });
   }
 
   get send(): OfficialCreatedTextSend | undefined {
@@ -104,6 +118,11 @@ export class SendCreatedPageComponent implements OnDestroy {
       : translateOfficialMessage("i18nDays", Math.ceil(hours / 24));
   }
 
+  get link(): string {
+    const send = this.currentSend();
+    return send ? this.linkBuilder.linkFor(send) : "";
+  }
+
   async copyLink(trigger?: Event): Promise<void> {
     const receipt = trigger ? claimLocalCopyFeedback(trigger) : null;
     const send = this.currentSend();
@@ -125,7 +144,7 @@ export class SendCreatedPageComponent implements OnDestroy {
   }
 
   close(): void {
-    void this.router.navigate(["/tabs/send"]);
+    void this.routeCache.back();
   }
 
   async popOut(): Promise<void> {
@@ -140,6 +159,14 @@ export class SendCreatedPageComponent implements OnDestroy {
     }
     const send = state.sends.find((candidate) => candidate.id === owner.sendId);
     return isCopyableTextSend(send) ? send : undefined;
+  }
+
+  private recoverInvalidOwnership(): void {
+    if (this.recoveryQueued) return;
+    this.recoveryQueued = true;
+    queueMicrotask(() => {
+      void this.router.navigateByUrl("/tabs/send", { replaceUrl: true });
+    });
   }
 
   ngOnDestroy(): void {

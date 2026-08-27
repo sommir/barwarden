@@ -10,6 +10,7 @@ import { PopupStateStore } from "../popup-state";
 import { OfficialFoldersComponent } from "../upstream-overlays/recovery/folders/official-folders.component";
 import type { VaultFolder } from "./vault-item.model";
 import { VaultFolderDialogComponent } from "./vault-folder-dialog.component";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-folders-page",
@@ -41,6 +42,7 @@ export class FoldersPageComponent {
 
   constructor(
     private readonly router: Router,
+    private readonly routeCache: PopupRouterCacheService,
     @Optional() @Inject(POP_OUT_HOST) popOutHost: PopOutHost | null = null,
   ) {
     this.popOutHost = popOutHost ?? new TauriHostService();
@@ -60,11 +62,12 @@ export class FoldersPageComponent {
   }
 
   openFolderDialog(folder?: FolderView): void {
-    this.folderDialog?.openFor(folder ? fromFolderView(folder) : undefined);
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.folderDialog?.openFor(folder ? fromFolderView(folder) : undefined, trigger);
   }
 
   async back(): Promise<void> {
-    await this.router.navigateByUrl("/vault-settings");
+    await this.routeCache.back();
   }
 
   async popOut(): Promise<void> {

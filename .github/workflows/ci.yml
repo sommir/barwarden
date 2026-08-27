@@ -19,11 +19,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm install --global npm@11.6.2
+      - run: npm ci --legacy-peer-deps
       - run: npm run check:publication
       - run: cargo fetch --locked --manifest-path apps/menubar-tauri/src-tauri/Cargo.toml
       - run: npm run licenses:check
       - run: npm run test:release-policy
       - run: npm audit --omit=dev --audit-level=high
-      - run: npm test
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=1/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=2/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=3/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=4/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=5/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=6/6
       - run: npm run build:web

@@ -7,13 +7,12 @@
 -import { RouterModule } from "@angular/router";
 +import { Component, EventEmitter, Input, Output } from "@angular/core";
 +import { I18nPipe } from "@bitwarden/ui-common";
-@@ -6,2 +4,12 @@
+@@ -6,2 +4,11 @@
 -import { JslibModule } from "@bitwarden/angular/jslib.module";
 -import { ItemModule } from "@bitwarden/components";
 +import { PopupHeaderComponent } from "../../layout/popup-header.component";
 +import { PopupPageComponent } from "../../layout/popup-page.component";
 +import {
-+  CheckboxComponent,
 +  ItemComponent,
 +  ItemContentComponent,
 +  ItemGroupComponent,
@@ -22,37 +21,46 @@
 +import { MacosAlertStripComponent } from "../../official-ui/macos-alert-strip.component";
 +import type { RetainedSettingsRoute } from "../../settings/settings-actions.port";
 +import { translateOfficialMessage } from "../../official-ui/official-i18n.service";
-@@ -9,5 +16,0 @@
+@@ -9,4 +16,11 @@
 -import { CurrentAccountComponent } from "../../../auth/popup/account-switching/current-account.component";
 -import { PopOutComponent } from "../../../platform/popup/components/pop-out.component";
 -import { PopupHeaderComponent } from "../../../platform/popup/layout/popup-header.component";
 -import { PopupPageComponent } from "../../../platform/popup/layout/popup-page.component";
--
-@@ -15 +18,2 @@
++export type SettingsGroupId = "general" | "security" | "application" | "information";
++export interface SettingsNavigationItem {
++  readonly label: string;
++  readonly route: RetainedSettingsRoute;
++  readonly icon: string;
++}
++export interface SettingsGroup {
++  readonly id: SettingsGroupId;
++  readonly label: string;
++  readonly items: readonly SettingsNavigationItem[];
++}
+@@ -15 +29,2 @@
 -  templateUrl: "settings-v2.component.html",
 +  selector: "bw-official-settings",
 +  standalone: true,
-@@ -17,4 +21,6 @@
+@@ -17,4 +32,5 @@
 -    CommonModule,
 -    JslibModule,
 -    RouterModule,
 -    PopupPageComponent,
-+    CheckboxComponent,
 +    ItemComponent,
 +    ItemContentComponent,
 +    ItemGroupComponent,
 +    I18nPipe,
 +    MacosAlertStripComponent,
-@@ -22,3 +28,2 @@
+@@ -22,3 +38,2 @@
 -    PopOutComponent,
 -    ItemModule,
 -    CurrentAccountComponent,
 +    PopupPageComponent,
 +    TypographyDirective,
-@@ -26 +31 @@
+@@ -26 +41 @@
 -  changeDetection: ChangeDetectionStrategy.OnPush,
 +  templateUrl: "./official-settings.component.html",
-@@ -28 +33,30 @@
+@@ -28 +43,45 @@
 -export class SettingsV2Component {}
 +export class OfficialSettingsComponent {
 +  @Input() launchAtLoginEnabled = false;
@@ -62,25 +70,40 @@
 +  @Output() readonly dismissLaunchAtLoginError = new EventEmitter<void>();
 +  @Output() readonly navigate = new EventEmitter<RetainedSettingsRoute>();
 +
-+  readonly items = [
-+    { label: translateOfficialMessage("i18nAccountSecurity"), route: "/account-security", icon: "bwi-lock" },
-+    { label: translateOfficialMessage("i18nAutofill"), route: "/autofill", icon: "bwi-globe" },
-+    { label: translateOfficialMessage("i18nKeyboardShortcuts"), route: "/keyboard-shortcut", icon: "bwi-key" },
-+    { label: translateOfficialMessage("i18nVaultOptions"), route: "/vault-settings", icon: "bwi-vault" },
-+    { label: translateOfficialMessage("i18nAppearance"), route: "/appearance", icon: "bwi-brush" },
-+    { label: translateOfficialMessage("i18nAbout"), route: "/about", icon: "bwi-info-circle" },
-+  ] as const satisfies readonly {
-+    readonly label: string;
-+    readonly route: RetainedSettingsRoute;
-+    readonly icon: string;
-+  }[];
++  readonly groups: readonly SettingsGroup[] = [
++    {
++      id: "general",
++      label: translateOfficialMessage("i18nGeneral"),
++      items: [
++        { label: translateOfficialMessage("i18nAppearance"), route: "/appearance", icon: "bwi-brush" },
++      ],
++    },
++    {
++      id: "security",
++      label: translateOfficialMessage("i18nAccountSecurity"),
++      items: [
++        { label: translateOfficialMessage("i18nAccountSecurity"), route: "/account-security", icon: "bwi-lock" },
++      ],
++    },
++    {
++      id: "application",
++      label: translateOfficialMessage("app"),
++      items: [
++        { label: translateOfficialMessage("i18nAutofill"), route: "/autofill", icon: "bwi-globe" },
++        { label: translateOfficialMessage("i18nKeyboardShortcuts"), route: "/keyboard-shortcut", icon: "bwi-key" },
++        { label: translateOfficialMessage("i18nVaultOptions"), route: "/vault-settings", icon: "bwi-vault" },
++      ],
++    },
++    {
++      id: "information",
++      label: translateOfficialMessage("i18nAbout"),
++      items: [
++        { label: translateOfficialMessage("i18nAbout"), route: "/about", icon: "bwi-info-circle" },
++      ],
++    },
++  ];
 +
-+  requestLaunchAtLoginChange(event: Event): void {
-+    if (!(event.target instanceof HTMLInputElement)) {
-+      return;
-+    }
-+    const requested = event.target.checked;
-+    event.target.checked = this.launchAtLoginEnabled;
++  requestLaunchAtLoginChange(requested: boolean): void {
 +    this.launchAtLoginEnabledChange.emit(requested);
 +  }
 +}

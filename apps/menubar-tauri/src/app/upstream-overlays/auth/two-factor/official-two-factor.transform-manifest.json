@@ -53,7 +53,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor.component.html",
-      "sha256": "5a1e5ab7d5e77c0e01906461349fef856549c211ff377221e1aca47015c2996c"
+      "sha256": "eea26eb17b5e19358c2075907f8f425ebf85c05ea7307902ac501aa92fea6185"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-options.component.ts",
@@ -69,7 +69,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-email.component.html",
-      "sha256": "d817b4c5c636c40a0a06a8d4d61dee57b0fe4f0a0a1579ee5684478a44e92e4e"
+      "sha256": "53b1a32ad5d5f76098db0dda8d538317e6a2047cec5826ca91fbdef012180c85"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-authenticator.component.ts",
@@ -77,7 +77,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/two-factor/official-two-factor-authenticator.component.html",
-      "sha256": "00b787d4e49fe9752e68c34f50909a8baf5d28f811563dafa46ea83d04e305cb"
+      "sha256": "e98a726882383fc95799a245f2531861b9ffcf87d2fe9cb86d01bf70d20ade69"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/jslib.module.adapter.ts",

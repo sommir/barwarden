@@ -14,7 +14,7 @@ export interface TauriNativeUpdate {
 }
 
 export interface TauriUpdaterApi {
-  check(): Promise<TauriNativeUpdate | null>;
+  check(options?: { readonly timeout?: number }): Promise<TauriNativeUpdate | null>;
   relaunch(): Promise<void>;
 }
 
@@ -22,7 +22,7 @@ export class TauriAppUpdatePort implements AppUpdatePort {
   constructor(private readonly api: TauriUpdaterApi) {}
 
   async check(): Promise<AvailableAppUpdate | null> {
-    const update = await this.api.check();
+    const update = await this.api.check({ timeout: 15_000 });
     if (!update) {
       return null;
     }

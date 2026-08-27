@@ -1,14 +1,16 @@
-import { Location } from "@angular/common";
 import { Component } from "@angular/core";
 
 import { OfficialAppearanceComponent } from "../upstream-overlays/settings/official-appearance.component";
 import type { RetainedSettingsActions } from "./settings-actions.port";
 import { SettingsService } from "./settings.service";
 import type { OfficialLocale } from "../official-ui/official-i18n.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-appearance-page",
-  host: { class: "macos-page macos-page--secondary macos-page--appearance" },
+  host: {
+    class: "macos-page macos-page--secondary macos-page--settings-detail macos-page--appearance",
+  },
   standalone: true,
   imports: [OfficialAppearanceComponent],
   template: `
@@ -28,15 +30,15 @@ import type { OfficialLocale } from "../official-ui/official-i18n.service";
 export class AppearancePageComponent {
   constructor(
     private readonly settingsService: SettingsService,
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
   ) {}
 
   get settings() {
     return this.settingsService.snapshot();
   }
 
-  back(): void {
-    this.location.back();
+  async back(): Promise<void> {
+    await this.routeCache.back();
   }
 
   readonly setTheme: RetainedSettingsActions["setTheme"] = (value) =>

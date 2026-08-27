@@ -1,12 +1,20 @@
 <bit-section disableMargin>
-  <bit-form-field>
-    <bit-label>{{ "i18nTextToShare" | i18n }}</bit-label>
-    <textarea bitInput id="text" rows="3" [value]="value().text" [readonly]="!editing()" (input)="valueChange.emit({ text: inputValue($event) })"></textarea>
+  <bit-form-field class="macos-send-form__field macos-field-owner" [disableMargin]="true">
+    <bit-label id="send-readonly-label-text">{{ "i18nTextToShare" | i18n }}</bit-label>
+    @if (!editing()) {
+      <input class="macos-send-readonly-source" bitInput type="text" readonly aria-hidden="true" tabindex="-1" value="" />
+      <span class="macos-send-readonly-value macos-send-readonly-value--multiline" data-field="text" role="textbox" aria-readonly="true" aria-labelledby="send-readonly-label-text" tabindex="0">{{ value().text }}</span>
+    } @else {
+      <textarea class="macos-textarea-visible" bitInput id="send-text" rows="3" [value]="value().text" [attr.aria-invalid]="touched().has('text') && errors().text ? 'true' : null" [attr.aria-describedby]="touched().has('text') && errors().text ? 'send-error-text' : null" (input)="valueChange.emit({ text: inputValue($event) })" (blur)="fieldBlur.emit('text')"></textarea>
+    }
+    @if (touched().has("text") && errors().text) {
+      <p id="send-error-text" data-testid="send-error-text" role="alert" class="macos-send-form__error">{{ "inputRequired" | i18n }}</p>
+    }
   </bit-form-field>
   @if (showHiddenCheckbox()) {
-    <bit-form-control>
-      <input bitCheckbox type="checkbox" [checked]="value().hidden" [disabled]="!editing()" (change)="valueChange.emit({ hidden: checked($event) })" />
-      <bit-label>{{ "i18nDefaultHideText" | i18n }}</bit-label>
-    </bit-form-control>
+    <div class="macos-send-form__field macos-preference-row">
+      <span id="send-hidden-label" class="macos-preference-row__copy">{{ "i18nDefaultHideText" | i18n }}</span>
+      <button type="button" class="macos-switch-owner macos-hit-target" role="switch" aria-labelledby="send-hidden-label" [attr.aria-checked]="value().hidden" [disabled]="!editing()" (click)="valueChange.emit({ hidden: !value().hidden })"><span aria-hidden="true"></span></button>
+    </div>
   }
 </bit-section>

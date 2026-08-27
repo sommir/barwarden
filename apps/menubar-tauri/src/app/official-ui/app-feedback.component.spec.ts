@@ -1,6 +1,9 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
@@ -117,6 +120,28 @@ describe("AppFeedbackService and AppFeedbackComponent", () => {
 
     expect(service.snapshot()).toBeNull();
     expect(fixture.nativeElement.querySelector(".app-feedback__message")).toBeNull();
+  });
+
+  it("keeps the real toast close target at least 44px in both axes", async () => {
+    const cleanupCss = installInteractionCss();
+    const fixture = await TestBed.configureTestingModule({
+      imports: [FeedbackHostComponent],
+      providers: [AppFeedbackService],
+    }).createComponent(FeedbackHostComponent);
+    fixture.detectChanges();
+    TestBed.inject(AppFeedbackService).show("Copied", { durationMs: 1_000 });
+    fixture.detectChanges();
+
+    try {
+      const dismiss = fixture.nativeElement.querySelector<HTMLElement>(
+        ".app-feedback__dismiss",
+      )!;
+      expect(getComputedStyle(dismiss).minWidth).toBe("44px");
+      expect(getComputedStyle(dismiss).minHeight).toBe("44px");
+    } finally {
+      fixture.destroy();
+      cleanupCss();
+    }
   });
 
   it("recreates both announcement and presentation nodes for repeated text", async () => {
@@ -257,4 +282,21 @@ describe("AppFeedbackService and AppFeedbackComponent", () => {
 
 function rect(left: number, top: number, right: number, bottom: number): DOMRect {
   return { left, top, right, bottom, width: right - left, height: bottom - top } as DOMRect;
+}
+
+function installInteractionCss(): () => void {
+  const style = document.createElement("style");
+  style.textContent = ["macos-tokens.css", "global.css"]
+    .map((filename) => readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+      "utf8",
+    ))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
+    rootStyle.getPropertyValue(name).trim() || value,
+  );
+  return () => style.remove();
 }

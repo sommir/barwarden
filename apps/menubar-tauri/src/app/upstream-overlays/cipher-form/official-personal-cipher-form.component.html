@@ -1,4 +1,4 @@
-<form [id]="formId" [formGroup]="cipherForm" [bitSubmit]="submit">
+<form #formElement class="macos-cipher-form" [id]="formId" [formGroup]="cipherForm" [bitSubmit]="submit">
   @if (!loading) {
     <!-- TODO: Should we show a loading spinner here? Or emit a ready event for the container to handle loading state -->
     <vault-item-details-section

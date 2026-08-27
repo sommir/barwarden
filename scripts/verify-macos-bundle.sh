@@ -25,7 +25,7 @@ expected_minimum_macos="13.0"
 expected_icon_name="icon.icns"
 expected_app_basename="${expected_product_name}.app"
 expected_dmg_basename="${expected_product_name}_${expected_version}_${expected_architecture}.dmg"
-expected_apple_events_description="Barwarden may interact with another app only when you invoke a paste action."
+expected_apple_events_description="Barwarden reads the active browser page to suggest matching logins and interacts with the target app only when you invoke a paste action."
 
 usage() {
   cat <<'USAGE'
@@ -250,7 +250,11 @@ entitlements_json="$(plutil -convert json -o - "$entitlements_plist")"
 node - "$entitlements_json" <<'NODE'
 import assert from "node:assert/strict";
 const entitlements = JSON.parse(process.argv[2]);
-assert.deepEqual(entitlements, {}, "local distribution entitlements must be empty");
+assert.deepEqual(
+  entitlements,
+  { "com.apple.security.automation.apple-events": true },
+  "local distribution entitlements must declare only Apple Events automation",
+);
 NODE
 
 apple_events_description="$(plutil -extract NSAppleEventsUsageDescription raw -o - "$info_plist")"
@@ -406,7 +410,24 @@ fi
 
 require_command hdiutil
 require_command codesign
+require_command strings
 read_bundle_value() { plutil -extract "$2" raw -o - "$1/Contents/Info.plist"; }
+verify_native_autofill_inventory_if_exposed() {
+  local bundle="$1" label="$2" executable_path="$3"
+  if ! strings "$executable_path" | grep -Eq '^autofill_agent_(registration_status|register|unregister)$'; then
+    return 0
+  fi
+  [[ -x "$bundle/Contents/Helpers/BarwardenAutoFillAgent" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+  [[ -f "$bundle/Contents/PlugIns/BarwardenCredentialProvider.appex/Contents/Info.plist" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+  [[ -f "$bundle/Contents/Library/LaunchAgents/com.sommir.barwarden.autofill-agent.plist" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+  [[ -f "$bundle/Contents/Resources/BarwardenAutoFill/AppPresets.json" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+  [[ -f "$bundle/Contents/Resources/BarwardenAutoFill/DomainMatchRules.json" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+}
 verify_bundle() {
   local bundle="$1" label="$2" executable executable_entry executable_count=0
   require_file "$bundle/Contents/Info.plist"
@@ -430,6 +451,7 @@ verify_bundle() {
   [[ "$executable_count" -eq 1 ]] || fail "$label Contents/MacOS must contain only $expected_executable_name"
   [[ -f "$bundle/Contents/MacOS/$executable" && ! -L "$bundle/Contents/MacOS/$executable" && -x "$bundle/Contents/MacOS/$executable" ]] || \
     fail "$label executable is missing, not executable, or has an unsupported type"
+  verify_native_autofill_inventory_if_exposed "$bundle" "$label" "$bundle/Contents/MacOS/$executable"
   cmp -s "$license_file" "$bundle/Contents/Resources/LICENSE" || fail "$label bundled GPL license differs from source"
   cmp -s "$notice_file" "$bundle/Contents/Resources/NOTICE.md" || fail "$label bundled notice differs from source"
   cmp -s "$privacy_file" "$bundle/Contents/Resources/PRIVACY.md" || fail "$label bundled privacy disclosure differs from source"
@@ -460,12 +482,13 @@ verify_linker_signed_executable() {
   cp "$executable" "$copied"
   chmod 755 "$copied"
   codesign --verify --strict --verbose=4 "$copied"
-  verify_signed_entitlements "$copied" adhoc
+  verify_signed_entitlements "$copied" adhoc linker
   rm -f "$copied"
 }
 verify_signed_entitlements() {
-  local output diagnostic status entitlement_file diagnostic_file
+  local output diagnostic status entitlement_file diagnostic_file policy
   [[ "$2" != unsigned ]] || return 0
+  policy="${3:-required}"
   entitlement_file="$(mktemp "$temp_root/entitlements.XXXXXX")"
   diagnostic_file="$(mktemp "$temp_root/diagnostic.XXXXXX")"
   set +e; codesign -d --entitlements :- "$1" >"$entitlement_file" 2>"$diagnostic_file"; status=$?; set -e
@@ -474,9 +497,14 @@ verify_signed_entitlements() {
   rm -f "$entitlement_file" "$diagnostic_file"
   if [[ "$status" -ne 0 && "$diagnostic" != *"no entitlements"* ]]; then fail "signed artifact entitlements could not be inspected"; fi
   if [[ -z "$output" || "$diagnostic" == *"no entitlements"* ]]; then output='{}'; else output="$(printf '%s' "$output" | plutil -convert json -o - -)" || fail "signed artifact entitlements are not a plist"; fi
-  node - "$output" <<'NODE'
+  node - "$output" "$policy" <<'NODE'
 import assert from "node:assert/strict";
-assert.deepEqual(JSON.parse(process.argv[2]), {}, "built application contains unexpected entitlements");
+const actual = JSON.parse(process.argv[2]);
+const expected = { "com.apple.security.automation.apple-events": true };
+if (process.argv[3] === "linker" && Object.keys(actual).length === 0) {
+  process.exit(0);
+}
+assert.deepEqual(actual, expected, "built application contains unexpected entitlements");
 NODE
 }
 inspect_signature() {

@@ -50,6 +50,7 @@ import {
       labelledBy="folder-dialog-title"
       testId="folder-dialog"
       (dismissed)="close()"
+      (closed)="onFolderDialogClosed()"
       (click)="onFolderDialogClick($event)"
     >
       <bw-official-add-edit-folder-dialog
@@ -68,6 +69,7 @@ import {
       testId="delete-folder-confirmation"
       labelledBy="delete-folder-title"
       (dismissed)="closeDeleteDialog()"
+      (closed)="onDeleteDialogClosed()"
       (click)="onDeleteDialogClick($event)"
     >
       <form bit-dialog dialogSize="small" (submit)="confirmDelete($event)">
@@ -79,7 +81,8 @@ import {
           <button bitButton buttonType="danger" type="submit" [disabled]="isSaving">
             {{ isSaving ? ("i18nDeleting" | i18n) : ("i18nDelete" | i18n) }}
           </button>
-          <button bitButton buttonType="secondary" type="button" [disabled]="isSaving" (click)="closeDeleteDialog()">
+          <button #deleteCancel bitButton buttonType="secondary" type="button"
+            data-testid="delete-folder-cancel" [disabled]="isSaving" (click)="closeDeleteDialog()">
             {{ "cancel" | i18n }}
           </button>
         </ng-container>
@@ -90,6 +93,7 @@ import {
 export class VaultFolderDialogComponent implements OnDestroy {
   @ViewChild("folderDialog") private folderDialog?: AppBottomSheetComponent;
   @ViewChild("deleteDialog") private deleteDialog?: AppBottomSheetComponent;
+  @ViewChild("deleteCancel", { read: ElementRef }) private deleteCancel?: ElementRef<HTMLButtonElement>;
   @Output() readonly folderCreated = new EventEmitter<VaultFolder>();
 
   editingFolderId = "";
@@ -99,7 +103,9 @@ export class VaultFolderDialogComponent implements OnDestroy {
   readonly errorMessage = signal("");
   isOpen = false;
   private sourceFolder: VaultFolder | null = null;
+  private outerTrigger: HTMLElement | null = null;
   private deleteTrigger: HTMLElement | null = null;
+  private pendingOuterRestore = false;
   private operationToken = 0;
 
   constructor(
@@ -110,12 +116,19 @@ export class VaultFolderDialogComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.operationToken += 1;
+    this.outerTrigger = null;
+    this.pendingOuterRestore = false;
   }
 
-  openFor(folder?: VaultFolder): void {
+  openFor(folder?: VaultFolder, trigger?: HTMLElement | null): void {
+    const outerTrigger = trigger
+      ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     this.operationToken += 1;
+    this.isOpen = true;
+    this.pendingOuterRestore = false;
     this.deleteDialog?.close(false);
     this.folderDialog?.close(false);
+    this.outerTrigger = outerTrigger;
     this.sourceFolder = folder ? this.currentFolder(folder.id) : null;
     this.officialFolder = this.sourceFolder
       ? FolderView.fromJSON(this.sourceFolder as Parameters<typeof FolderView.fromJSON>[0])
@@ -125,10 +138,9 @@ export class VaultFolderDialogComponent implements OnDestroy {
     this.deleteTrigger = null;
     this.errorMessage.set("");
     this.isSaving = false;
-    this.isOpen = true;
     this.changeDetectorRef.detectChanges();
     const folderName = this.folderDialog?.nativeElement.querySelector<HTMLInputElement>("#folderName");
-    this.folderDialog?.open(undefined, folderName);
+    this.folderDialog?.open(this.outerTrigger, folderName);
   }
 
   async save(): Promise<FolderMutationOutcome> {
@@ -171,7 +183,7 @@ export class VaultFolderDialogComponent implements OnDestroy {
     }
     this.deleteTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.folderDialog?.close(false);
-    this.deleteDialog?.open();
+    this.deleteDialog?.open(this.deleteTrigger, this.deleteCancel?.nativeElement ?? null);
   }
 
   cancelDelete(event: Event): void {
@@ -234,9 +246,11 @@ export class VaultFolderDialogComponent implements OnDestroy {
 
   close(): void {
     this.operationToken += 1;
-    this.deleteDialog?.close(false);
-    this.folderDialog?.close();
     this.isOpen = false;
+    this.pendingOuterRestore = true;
+    this.deleteDialog?.close(false);
+    this.folderDialog?.close(false);
+    this.maybeRestoreOuterFocus();
     this.editingFolderId = "";
     this.folderName = "";
     this.deleteTrigger = null;
@@ -251,8 +265,16 @@ export class VaultFolderDialogComponent implements OnDestroy {
     if (reopenFolder && this.isOpen && this.editingFolderId) {
       const folderName = this.folderDialog?.nativeElement.querySelector<HTMLInputElement>("#folderName");
       const initialFocus = this.deleteTrigger?.isConnected ? this.deleteTrigger : folderName;
-      this.folderDialog?.open(undefined, initialFocus);
+      this.folderDialog?.open(this.outerTrigger, initialFocus);
     }
+  }
+
+  onFolderDialogClosed(): void {
+    this.maybeRestoreOuterFocus();
+  }
+
+  onDeleteDialogClosed(): void {
+    this.maybeRestoreOuterFocus();
   }
 
   private async commitSave(submission: OfficialFolderDialogSubmit): Promise<FolderMutationOutcome> {
@@ -294,6 +316,26 @@ export class VaultFolderDialogComponent implements OnDestroy {
       this.folderCreated.emit(folder);
     }
     return outcome;
+  }
+
+  private maybeRestoreOuterFocus(): void {
+    if (!this.pendingOuterRestore || this.isOpen) {
+      return;
+    }
+    if (this.folderDialog?.nativeElement.open || this.deleteDialog?.nativeElement.open) {
+      return;
+    }
+    const trigger = this.outerTrigger;
+    const token = this.operationToken;
+    this.outerTrigger = null;
+    this.pendingOuterRestore = false;
+    if (trigger?.isConnected) {
+      window.setTimeout(() => {
+        if (this.operationToken === token && !this.isOpen && trigger.isConnected) {
+          trigger.focus();
+        }
+      });
+    }
   }
 
   private ownershipGuard(

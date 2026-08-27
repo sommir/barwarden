@@ -11,7 +11,7 @@ const root = process.cwd();
 const vendorRoot = join(root, "vendor/bitwarden-clients");
 const overlayRoot = join(root, "apps/menubar-tauri/src/app/upstream-overlays/auth/lock");
 const manifestPath = join(overlayRoot, "official-master-password-lock.transform-manifest.json");
-const manifestDigest = "fe034697b183ab3ea04e7ade877d67c09dc605b83dbedcd370ad99b2c1aa4942";
+const manifestDigest = "8c4c2967e5cf778b527d1d39d7a48fdf02419e4a0d4f8d2e94433de9586fc2c9";
 const expectedRevision = [
   "https://github.com/bitwarden/clients.git",
   "f47b6946e01aed474875789081966d311d5b8289",
@@ -211,12 +211,25 @@ function transformMasterPasswordTemplate(authority: string): string {
     "localized password visibility control",
   );
   result = replaceExact(result, "  </bit-form-field>\n\n", "  </bit-form-field>\n\n  <div class=\"macos-auth-validation macos-auth-validation--field\">\n    @if (unlockFailed) {\n      <bit-callout\n        type=\"danger\"\n        [title]=\"null\"\n        data-testid=\"lock-unlock-error\"\n        (dismiss)=\"dismissUnlockError()\"\n      >\n        <p bitTypography=\"body1\" role=\"alert\">{{ unlockErrorMessage }}</p>\n      </bit-callout>\n    }\n  </div>\n\n", "dismissible inline unlock error");
-  result = replaceExact(result, "    <button type=\"submit\" bitButton bitFormButton buttonType=\"primary\" block>\n      {{ \"unlock\" | i18n }}\n    </button>", "    <button\n      type=\"submit\"\n      bitButton\n      bitFormButton\n      buttonType=\"primary\"\n      class=\"macos-primary-action\"\n      block\n      [disabled]=\"submitting\"\n      data-testid=\"lock-unlock-button\"\n    >\n      解锁\n    </button>", "unlock command");
+  result = replaceExact(result, "    <button type=\"submit\" bitButton bitFormButton buttonType=\"primary\" block>\n      {{ \"unlock\" | i18n }}\n    </button>", "    <button\n      type=\"submit\"\n      bitButton\n      bitFormButton\n      buttonType=\"primary\"\n      class=\"macos-primary-action macos-button-owner\"\n      block\n      [disabled]=\"submitting\"\n      data-testid=\"lock-unlock-button\"\n    >\n      解锁\n    </button>", "unlock command");
   result = replaceExact(result, "\n\n    <p class=\"tw-text-center\">{{ \"or\" | i18n }}</p>", "\n\n    @if (showBiometric || showPin) {\n      <p class=\"tw-text-center\">或</p>\n    }", "option separator");
-  result = replaceExact(result, /\n\n    @if \(showBiometricsSwap\(\)\) \{[\s\S]*?\n    \}/, "\n\n    @if (showBiometric) {\n      <button\n        type=\"button\"\n        bitButton\n        bitFormButton\n        buttonType=\"secondary\"\n        block\n        [disabled]=\"submitting\"\n        (click)=\"selectMethod('biometric')\"\n        data-testid=\"lock-switch-biometric\"\n      >\n        使用 Touch ID\n      </button>\n    }", "biometric adaptation");
-  result = replaceExact(result, /\n\n    @if \(showPinSwap\(\)\) \{[\s\S]*?\n    \}/, "\n\n    @if (showPin) {\n      <button\n        type=\"button\"\n        bitButton\n        bitFormButton\n        buttonType=\"secondary\"\n        block\n        [disabled]=\"submitting\"\n        (click)=\"selectMethod('pin')\"\n        data-testid=\"lock-switch-pin\"\n      >\n        使用 PIN\n      </button>\n    }", "PIN adaptation");
+  result = replaceExact(result, /\n\n    @if \(showBiometricsSwap\(\)\) \{[\s\S]*?\n    \}/, "\n\n    @if (showBiometric) {\n      <button\n        type=\"button\"\n        bitButton\n        bitFormButton\n        buttonType=\"secondary\"\n        class=\"macos-auth-alternative macos-hit-target macos-pressable\"\n        block\n        [disabled]=\"submitting\"\n        (click)=\"selectMethod('biometric')\"\n        data-testid=\"lock-switch-biometric\"\n      >\n        使用 Touch ID\n      </button>\n    }", "biometric adaptation");
+  result = replaceExact(result, /\n\n    @if \(showPinSwap\(\)\) \{[\s\S]*?\n    \}/, "\n\n    @if (showPin) {\n      <button\n        type=\"button\"\n        bitButton\n        bitFormButton\n        buttonType=\"secondary\"\n        class=\"macos-auth-alternative macos-hit-target macos-pressable\"\n        block\n        [disabled]=\"submitting\"\n        (click)=\"selectMethod('pin')\"\n        data-testid=\"lock-switch-pin\"\n      >\n        使用 PIN\n      </button>\n    }", "PIN adaptation");
   result = replaceExact(result, /\n\n    <bit-unlock-via-prf[\s\S]*?<\/bit-unlock-via-prf>/, "", "PRF deletion");
-  return localizeLockTemplate(replaceExact(result, "    <button type=\"button\" bitButton bitFormButton block (click)=\"logOut.emit()\">\n      {{ \"logOut\" | i18n }}\n    </button>", "    <button\n      type=\"button\"\n      bitButton\n      bitFormButton\n      block\n      [disabled]=\"submitting\"\n      (click)=\"logout()\"\n      data-testid=\"lock-logout-button\"\n    >\n      退出登录\n    </button>", "logout command"));
+  result = replaceExact(result, "    <button type=\"button\" bitButton bitFormButton block (click)=\"logOut.emit()\">\n      {{ \"logOut\" | i18n }}\n    </button>", "    <button\n      type=\"button\"\n      bitButton\n      bitFormButton\n      class=\"macos-auth-alternative macos-hit-target macos-pressable macos-danger-action\"\n      block\n      [disabled]=\"submitting\"\n      (click)=\"logout()\"\n      data-testid=\"lock-logout-button\"\n    >\n      退出登录\n    </button>", "logout command");
+  result = replaceExact(
+    result,
+    '<div class="tw-flex tw-flex-col tw-space-y-3">',
+    '<div class="macos-unlock-methods" data-testid="lock-unlock-methods">',
+    "master-password continuous method group",
+  );
+  result = replaceExact(
+    result,
+    "    </button>\n  </div>\n</form>",
+    "    </button>\n\n    <ng-content />\n  </div>\n</form>",
+    "master-password account-switch projection",
+  );
+  return localizeLockTemplate(result);
 }
 
 function transformBiometricBranch(authority: string): string {
@@ -238,7 +251,7 @@ function transformBiometricBranch(authority: string): string {
   result = replaceExact(
     result,
     "  [disabled]=\"unlockingViaBiometrics || !biometricsAvailable\"\n  [loading]=\"unlockingViaBiometrics\"\n  block\n  [bitTooltip]=\"biometricUnavailabilityReason\"\n",
-    "  class=\"macos-primary-action\"\n  block\n  [disabled]=\"submitting\"\n",
+    "  class=\"macos-primary-action macos-button-owner\"\n  block\n  [disabled]=\"submitting\"\n",
     "biometric pending state",
   );
   result = replaceExact(
@@ -256,13 +269,13 @@ function transformBiometricBranch(authority: string): string {
   result = replaceExact(
     result,
     /  <ng-container \*ngIf="unlockOptions\.pin\.enabled">[\s\S]*?  <\/ng-container>/,
-    "  @if (availability.pinEnabled) {\n    <button\n      type=\"button\"\n      bitButton\n      buttonType=\"secondary\"\n      block\n      [disabled]=\"submitting\"\n      (click)=\"selectMethod('pin')\"\n      data-testid=\"lock-switch-pin\"\n    >\n      使用 PIN\n    </button>\n  }",
+    "  @if (availability.pinEnabled) {\n    <button\n      type=\"button\"\n      bitButton\n      buttonType=\"secondary\"\n      class=\"macos-auth-alternative macos-hit-target macos-pressable\"\n      block\n      [disabled]=\"submitting\"\n      (click)=\"selectMethod('pin')\"\n      data-testid=\"lock-switch-pin\"\n    >\n      使用 PIN\n    </button>\n  }",
     "biometric-to-PIN switch",
   );
   result = replaceExact(
     result,
     /  <ng-container \*ngIf="unlockOptions\.masterPassword\.enabled">[\s\S]*?  <\/ng-container>/,
-    "  <button\n    type=\"button\"\n    bitButton\n    buttonType=\"secondary\"\n    block\n    [disabled]=\"submitting\"\n    (click)=\"selectMethod('masterPassword')\"\n    data-testid=\"lock-switch-master-password\"\n  >\n    使用主密码\n  </button>",
+    "  <button\n    type=\"button\"\n    bitButton\n    buttonType=\"secondary\"\n    class=\"macos-auth-alternative macos-hit-target macos-pressable\"\n    block\n    [disabled]=\"submitting\"\n    (click)=\"selectMethod('masterPassword')\"\n    data-testid=\"lock-switch-master-password\"\n  >\n    使用主密码\n  </button>",
     "biometric-to-password switch",
   );
   result = replaceExact(
@@ -274,7 +287,7 @@ function transformBiometricBranch(authority: string): string {
   result = replaceExact(
     result,
     "  <button type=\"button\" bitButton block (click)=\"logOut()\">\n    {{ \"logOut\" | i18n }}\n  </button>",
-    "  <button\n    type=\"button\"\n    bitButton\n    block\n    [disabled]=\"submitting\"\n    (click)=\"logout()\"\n    data-testid=\"lock-logout-button\"\n  >\n    退出登录\n  </button>",
+    "  <button\n    type=\"button\"\n    bitButton\n    class=\"macos-auth-alternative macos-hit-target macos-pressable macos-danger-action\"\n    block\n    [disabled]=\"submitting\"\n    (click)=\"logout()\"\n    data-testid=\"lock-logout-button\"\n  >\n    退出登录\n  </button>",
     "biometric logout command",
   );
   result = replaceExact(
@@ -282,6 +295,29 @@ function transformBiometricBranch(authority: string): string {
     "<p class=\"tw-text-center tw-mb-0\">{{ \"or\" | i18n }}</p>",
     "<p class=\"tw-text-center tw-mb-0\">或</p>",
     "biometric separator",
+  );
+  result = replaceExact(
+    result,
+    '<div class="tw-flex tw-flex-col tw-space-y-3">',
+    '<div class="macos-unlock-methods" data-testid="lock-unlock-methods">',
+    "biometric continuous method group",
+  );
+  const biometricPrimary = extractExact(
+    result,
+    /^<button[\s\S]*?<\/button>/,
+    "biometric primary action",
+  );
+  result = replaceExact(
+    result,
+    `${biometricPrimary}\n\n<div class="macos-unlock-methods" data-testid="lock-unlock-methods">`,
+    `<div class="macos-unlock-methods" data-testid="lock-unlock-methods">\n${indent(biometricPrimary, 2)}\n`,
+    "complete biometric method hierarchy",
+  );
+  result = replaceExact(
+    result,
+    "  </button>\n</div>",
+    "  </button>\n\n  <a bitLink routerLink=\"/account-switcher\" class=\"macos-auth-alternative macos-hit-target macos-pressable\" data-testid=\"lock-switch-account\">切换账户</a>\n</div>",
+    "biometric account switch row",
   );
   return result;
 }
@@ -330,7 +366,7 @@ function transformPinTemplate(authority: string): string {
   result = replaceExact(
     result,
     "    <button type=\"submit\" bitButton bitFormButton buttonType=\"primary\" block>\n      {{ \"unlock\" | i18n }}\n    </button>",
-    "    <button\n      type=\"submit\"\n      bitButton\n      bitFormButton\n      buttonType=\"primary\"\n      class=\"macos-primary-action\"\n      block\n      [disabled]=\"submitting\"\n      data-testid=\"lock-pin-button\"\n    >\n      解锁\n    </button>",
+    "    <button\n      type=\"submit\"\n      bitButton\n      bitFormButton\n      buttonType=\"primary\"\n      class=\"macos-primary-action macos-button-owner\"\n      block\n      [disabled]=\"submitting\"\n      data-testid=\"lock-pin-button\"\n    >\n      解锁\n    </button>",
     "PIN unlock command",
   );
   result = replaceExact(
@@ -342,13 +378,13 @@ function transformPinTemplate(authority: string): string {
   result = replaceExact(
     result,
     /    <ng-container \*ngIf="showBiometrics">[\s\S]*?    <\/ng-container>/,
-    "    @if (showBiometric) {\n      <button\n        type=\"button\"\n        bitButton\n        bitFormButton\n        buttonType=\"secondary\"\n        block\n        [disabled]=\"submitting\"\n        (click)=\"selectMethod('biometric')\"\n        data-testid=\"lock-switch-biometric\"\n      >\n        使用 Touch ID\n      </button>\n    }",
+    "    @if (showBiometric) {\n      <button\n        type=\"button\"\n        bitButton\n        bitFormButton\n        buttonType=\"secondary\"\n        class=\"macos-auth-alternative macos-hit-target macos-pressable\"\n        block\n        [disabled]=\"submitting\"\n        (click)=\"selectMethod('biometric')\"\n        data-testid=\"lock-switch-biometric\"\n      >\n        使用 Touch ID\n      </button>\n    }",
     "PIN-to-biometric switch",
   );
   result = replaceExact(
     result,
     /    <ng-container \*ngIf="unlockOptions\.masterPassword\.enabled">[\s\S]*?    <\/ng-container>/,
-    "    <button\n      type=\"button\"\n      bitButton\n      bitFormButton\n      buttonType=\"secondary\"\n      block\n      [disabled]=\"submitting\"\n      (click)=\"selectMethod('masterPassword')\"\n      data-testid=\"lock-switch-master-password\"\n    >\n      使用主密码\n    </button>",
+    "    <button\n      type=\"button\"\n      bitButton\n      bitFormButton\n      buttonType=\"secondary\"\n      class=\"macos-auth-alternative macos-hit-target macos-pressable\"\n      block\n      [disabled]=\"submitting\"\n      (click)=\"selectMethod('masterPassword')\"\n      data-testid=\"lock-switch-master-password\"\n    >\n      使用主密码\n    </button>",
     "PIN-to-password switch",
   );
   result = replaceExact(
@@ -360,8 +396,20 @@ function transformPinTemplate(authority: string): string {
   result = replaceExact(
     result,
     "    <button type=\"button\" bitButton bitFormButton block (click)=\"logOut()\">\n      {{ \"logOut\" | i18n }}\n    </button>",
-    "    <button\n      type=\"button\"\n      bitButton\n      bitFormButton\n      block\n      [disabled]=\"submitting\"\n      (click)=\"logout()\"\n      data-testid=\"lock-logout-button\"\n    >\n      退出登录\n    </button>",
+    "    <button\n      type=\"button\"\n      bitButton\n      bitFormButton\n      class=\"macos-auth-alternative macos-hit-target macos-pressable macos-danger-action\"\n      block\n      [disabled]=\"submitting\"\n      (click)=\"logout()\"\n      data-testid=\"lock-logout-button\"\n    >\n      退出登录\n    </button>",
     "PIN logout command",
+  );
+  result = replaceExact(
+    result,
+    '<div class="tw-flex tw-flex-col tw-space-y-3">',
+    '<div class="macos-unlock-methods" data-testid="lock-unlock-methods">',
+    "PIN continuous method group",
+  );
+  result = replaceExact(
+    result,
+    "    </button>\n  </div>\n</form>",
+    "    </button>\n\n    <ng-content />\n  </div>\n</form>",
+    "PIN account-switch projection",
   );
   return `${localizeLockTemplate(result)}\n`;
 }
@@ -369,6 +417,8 @@ function transformPinTemplate(authority: string): string {
 function transformLockTemplate(authority: string): string {
   const biometricBranch = indent(transformBiometricBranch(authority), 10);
   return localizeLockTemplate(`<popup-page>
+  <popup-header slot="header" [pageTitle]="''" />
+
   <section class="tw-flex tw-flex-col tw-gap-4 macos-auth-page">
     <h1 class="macos-auth-heading">Barwarden</h1>
     @if (account$ | async; as account) {
@@ -411,7 +461,9 @@ ${biometricBranch}
             (pinSubmitted)="unlockWithPin($event)"
             (loggedOut)="logout()"
             (methodSelected)="selectMethod($event)"
-          />
+          >
+            <a bitLink routerLink="/account-switcher" class="macos-auth-alternative macos-hit-target macos-pressable" data-testid="lock-switch-account">切换账户</a>
+          </bw-official-pin-lock>
         }
         @default {
           <bw-official-master-password-lock
@@ -421,7 +473,9 @@ ${biometricBranch}
             (unlocked)="unlockSucceeded($event)"
             (loggedOut)="logoutSucceeded()"
             (methodSelected)="selectMethod($event)"
-          />
+          >
+            <a bitLink routerLink="/account-switcher" class="macos-auth-alternative macos-hit-target macos-pressable" data-testid="lock-switch-account">切换账户</a>
+          </bw-official-master-password-lock>
         }
       }
     }
@@ -435,8 +489,6 @@ ${biometricBranch}
         </bit-callout>
       }
     </div>
-
-    <a bitLink routerLink="/account-switcher" data-testid="lock-switch-account">切换账户</a>
   </section>
 </popup-page>
 `);
@@ -485,7 +537,7 @@ describe("official master-password lock overlay", () => {
     expect(manifest.templateTransforms).toHaveLength(3);
     expect(manifest.templateTransforms.flatMap((transform) => transform.removed)).toEqual([
       "spinner-only loading shell",
-      "PRF/WebAuthn command", "shared/device-trust continuation branches", "browser pop-out and desktop actions", "popup-header toolbar band",
+      "PRF/WebAuthn command", "shared/device-trust continuation branches", "browser pop-out and desktop actions",
       "PRF/WebAuthn child", "native window-hidden listener",
       "PRF/WebAuthn child",
     ]);

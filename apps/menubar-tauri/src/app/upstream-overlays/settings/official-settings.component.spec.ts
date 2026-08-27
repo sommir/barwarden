@@ -1,3 +1,6 @@
+import "zone.js";
+import "@angular/compiler";
+
 import { spawnSync } from "node:child_process";
 import {
   appendFileSync,
@@ -12,8 +15,25 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from "@angular/platform-browser/testing";
+import { TestBed } from "@angular/core/testing";
+import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
+
+import { OfficialI18nService } from "../../official-ui/official-i18n.service";
+import { OfficialSettingsComponent } from "./official-settings.component";
+
+try {
+  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Cannot set base providers")) {
+    throw error;
+  }
+}
 
 const root = process.cwd();
 const overlayRoot = join(root, "apps/menubar-tauri/src/app/upstream-overlays/settings");
@@ -85,6 +105,41 @@ describe("official Settings production overlays", () => {
     expect(
       overlays.filter(([path]) => !existsSync(join(overlayRoot, path))).map(([path]) => path),
     ).toEqual([]);
+  });
+
+  it("renders the retained Settings group order as 44px preference rows", async () => {
+    const style = installSettingsPreferenceCss();
+    try {
+      await TestBed.configureTestingModule({
+        imports: [OfficialSettingsComponent],
+        providers: [
+          OfficialI18nService,
+          { provide: I18nService, useExisting: OfficialI18nService },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(OfficialSettingsComponent);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      const groupTitles = Array.from(
+        host.querySelectorAll<HTMLElement>(".settings-group__title"),
+        (title) => title.dataset["settingsGroupTitle"],
+      );
+      const routeOrder = Array.from(
+        host.querySelectorAll<HTMLButtonElement>("button.macos-preference-row"),
+        (button) => button.dataset["settingsRoute"],
+      );
+      expect(groupTitles).toEqual(["general", "security", "application", "information"]);
+      expect(routeOrder).toEqual([
+        "/appearance", "/account-security", "/autofill", "/keyboard-shortcut",
+        "/vault-settings", "/about",
+      ]);
+      for (const item of host.querySelectorAll<HTMLElement>(".macos-preference-row")) {
+        expect(getComputedStyle(item).minHeight).toBe("44px");
+      }
+    } finally {
+      style.remove();
+    }
   });
 
   it("projects the stateful Settings header actions into the shared trailing slot", () => {
@@ -283,6 +338,28 @@ describe("official Settings production overlays", () => {
     expect(source).toContain("fillModeValues");
   });
 });
+
+function installSettingsPreferenceCss(): HTMLStyleElement {
+  const source = [
+    "apps/menubar-tauri/src/styles/macos-tokens.css",
+    "apps/menubar-tauri/src/styles/global.css",
+  ]
+    .map((path) => readFileSync(join(root, path), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const tokens = new Map(
+    [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]),
+  );
+  const style = document.createElement("style");
+  style.textContent = source.replace(
+    /var\((--(?:mac|bw)-[\w-]+)\)/g,
+    (value, name) => tokens.get(name) ?? value,
+  );
+  document.head.append(style);
+  return style;
+}
 
 function forbiddenImportsBelow(entryPath: string): Array<{ dependency: string; path: string }> {
   const visited = new Set<string>();

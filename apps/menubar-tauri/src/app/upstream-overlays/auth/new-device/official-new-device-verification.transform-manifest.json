@@ -17,7 +17,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/new-device/official-new-device-verification.component.html",
-      "sha256": "d070a26b9b5e0f9b7ffd2d5d43592e8dacdc9fd9917b121cab572a7082104268"
+      "sha256": "4be10976ea2b577738db104b419da3a6e5461cac10a37eb6a70169a64d445268"
     }
   ],
   "substitutions": [
@@ -79,8 +79,8 @@
         "server error callout",
         "official disabled control inputs",
         "retained test identifiers",
-        "native popup route cancellation",
-        "macOS auth card, semantic field, primary action, and reserved validation hooks"
+        "shared Header back ownership with the retained goBack command",
+        "macOS auth card, 44px field/action owners, scalable visible control, alternatives, and reserved validation hooks"
       ]
     }
   ]

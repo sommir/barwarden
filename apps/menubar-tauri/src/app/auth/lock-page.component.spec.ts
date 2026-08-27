@@ -1,10 +1,14 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
+import postcss from "postcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OfficialLockComponent } from "../upstream-overlays/auth/lock/official-lock.component";
@@ -34,6 +38,26 @@ function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   const promise = new Promise<T>((res) => { resolve = res; });
   return { promise, resolve };
+}
+
+function installLockVisualCss(): () => void {
+  const style = document.createElement("style");
+  const productionCascade = postcss.root();
+  for (const filename of ["macos-tokens.css", "global.css"]) {
+    const source = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+      "utf8",
+    );
+    const stylesheet = postcss.parse(source);
+    productionCascade.append(
+      stylesheet.nodes.filter(
+        (node) => !(node.type === "atrule" && node.name.toLowerCase() === "import"),
+      ),
+    );
+  }
+  style.textContent = productionCascade.toString();
+  document.head.append(style);
+  return () => style.remove();
 }
 
 describe("LockPageComponent", () => {
@@ -140,6 +164,17 @@ describe("LockPageComponent", () => {
     expect(host.querySelector('input[type="email"]')).toBeNull();
   });
 
+  it("renders the base lock route inside the production popup header shell", async () => {
+    const { fixture } = await create();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelectorAll("popup-page")).toHaveLength(1);
+    expect(host.querySelectorAll("popup-header > header")).toHaveLength(1);
+    expect(host.querySelector(
+      'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
+    )).toBeNull();
+  });
+
   it("uses the macOS auth canvas, card, and wrapping account identity hooks", async () => {
     const { fixture } = await create();
     const host = fixture.nativeElement as HTMLElement;
@@ -151,6 +186,175 @@ describe("LockPageComponent", () => {
     expect(host.querySelector(".macos-auth-identity__secondary")?.textContent).toContain(account.serverUrl);
     expect(host.querySelector("bw-official-master-password-lock form.macos-auth-card")).not.toBeNull();
     expect(host.querySelector("[data-testid=lock-unlock-button].macos-primary-action")).not.toBeNull();
+  });
+
+  it("renders the biometric identity and alternatives as flat continuous rows", async () => {
+    const cleanupCss = installLockVisualCss();
+    const { fixture } = await create(vi.fn(async () => "unlocked" as const), vi.fn(async () => undefined), {
+      availability: {
+        pinEnabled: true,
+        biometricEnabled: true,
+        biometricAvailability: "available",
+      },
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    const identity = host.querySelector<HTMLElement>(".macos-auth-identity");
+    const biometric = host.querySelector<HTMLElement>('[data-testid="lock-biometric-button"]');
+    const alternativeIds = [
+      "lock-switch-pin",
+      "lock-switch-master-password",
+      "lock-logout-button",
+      "lock-switch-account",
+    ];
+    const alternatives = alternativeIds.map((testId) =>
+      host.querySelector<HTMLElement>(`[data-testid="${testId}"]`),
+    );
+
+    try {
+      expect(identity).not.toBeNull();
+      expect(biometric).not.toBeNull();
+      expect(alternatives).not.toContain(null);
+      expect([...host.querySelectorAll(".macos-primary-action")]).toEqual([biometric]);
+      expect(identity!.compareDocumentPosition(biometric!) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+      for (let index = 0; index < alternatives.length - 1; index += 1) {
+        expect(
+          alternatives[index]!.compareDocumentPosition(alternatives[index + 1]!)
+            & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).not.toBe(0);
+      }
+
+      const identityStyles = getComputedStyle(identity!);
+      expect(identityStyles.borderTopWidth).toBe("0px");
+      expect(identityStyles.borderRightWidth).toBe("0px");
+      expect(identityStyles.borderBottomWidth).toBe("1px");
+      expect(identityStyles.borderLeftWidth).toBe("0px");
+      expect(identityStyles.borderRadius).toBe("0px");
+      expect(identityStyles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(identityStyles.boxShadow).toBe("none");
+
+      for (const alternative of alternatives) {
+        const styles = getComputedStyle(alternative!);
+        expect(styles.minHeight).toBe("44px");
+        expect(styles.borderTopWidth).toBe("0px");
+        expect(styles.borderRightWidth).toBe("0px");
+        expect(styles.borderBottomWidth).toBe("1px");
+        expect(styles.borderLeftWidth).toBe("0px");
+        expect(styles.borderRadius).toBe("0px");
+        expect(styles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+        expect(styles.boxShadow).toBe("none");
+      }
+      expect(getComputedStyle(document.documentElement).getPropertyValue("--mac-destructive").trim())
+        .toBe("#d70015");
+      expect(["rgb(215, 0, 21)", "var(--mac-destructive)"])
+        .toContain(getComputedStyle(alternatives[2]!).color);
+    } finally {
+      fixture.destroy();
+      cleanupCss();
+    }
+  });
+
+  it("renders biometric, PIN, and master-password methods as complete zero-gap row hierarchies", async () => {
+    const cleanupCss = installLockVisualCss();
+    const { fixture } = await create(vi.fn(async () => "unlocked" as const), vi.fn(async () => undefined), {
+      availability: {
+        pinEnabled: true,
+        biometricEnabled: true,
+        biometricAvailability: "available",
+      },
+    });
+    const host = fixture.nativeElement as HTMLElement;
+
+    try {
+      const states = [
+        {
+          primary: "lock-biometric-button",
+          alternatives: [
+            "lock-switch-pin",
+            "lock-switch-master-password",
+            "lock-logout-button",
+            "lock-switch-account",
+          ],
+          next: "lock-switch-pin",
+        },
+        {
+          primary: "lock-pin-button",
+          alternatives: [
+            "lock-switch-biometric",
+            "lock-switch-master-password",
+            "lock-logout-button",
+            "lock-switch-account",
+          ],
+          next: "lock-switch-master-password",
+        },
+        {
+          primary: "lock-unlock-button",
+          alternatives: [
+            "lock-switch-biometric",
+            "lock-switch-pin",
+            "lock-logout-button",
+            "lock-switch-account",
+          ],
+          next: null,
+        },
+      ] as const;
+
+      for (const state of states) {
+        const group = host.querySelector<HTMLElement>('[data-testid="lock-unlock-methods"]');
+        expect(group).not.toBeNull();
+        expect(group?.classList.contains("tw-space-y-3")).toBe(false);
+
+        const rows = [state.primary, ...state.alternatives].map((testId) =>
+          group!.querySelector<HTMLElement>(`[data-testid="${testId}"]`),
+        );
+        expect(rows).not.toContain(null);
+        expect([...group!.querySelectorAll<HTMLElement>("[data-testid]")].map((element) => element.dataset.testid))
+          .toEqual([state.primary, ...state.alternatives]);
+        expect([...group!.querySelectorAll(".macos-primary-action")]).toEqual([rows[0]]);
+        expect(rows[0]!.classList).toContain("macos-button-owner");
+        for (const alternative of rows.slice(1)) {
+          expect(alternative!.classList).toContain("macos-auth-alternative");
+          expect(alternative!.classList).toContain("macos-hit-target");
+          expect(alternative!.classList).toContain("macos-pressable");
+        }
+        expect(
+          group!.querySelector<HTMLElement>('[data-testid="lock-logout-button"]')!.classList,
+        ).toContain("macos-danger-action");
+
+        const groupStyles = getComputedStyle(group!);
+        expect(groupStyles.display).toBe("grid");
+        expect(groupStyles.rowGap).toBe("0px");
+        expect(groupStyles.borderTopWidth).toBe("1px");
+        expect(groupStyles.borderBottomWidth).toBe("1px");
+        for (const row of rows) {
+          const styles = getComputedStyle(row!);
+          expect(styles.display).toBe("flex");
+          expect(styles.width).toBe("100%");
+          expect(styles.minHeight, row!.dataset.testid).toBe("44px");
+        }
+        for (const alternative of rows.slice(1)) {
+          const styles = getComputedStyle(alternative!);
+          expect(styles.borderTopWidth).toBe("0px");
+          expect(styles.borderBottomWidth).toBe("1px");
+          expect(styles.borderRadius).toBe("0px");
+          expect(styles.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+          expect(styles.boxShadow).toBe("none");
+        }
+
+        document.documentElement.style.fontSize = "200%";
+        expect(getComputedStyle(rows[0]!).height).not.toBe("0px");
+        expect(getComputedStyle(rows[0]!).overflow).not.toBe("hidden");
+        document.documentElement.style.removeProperty("font-size");
+
+        if (state.next) {
+          group!.querySelector<HTMLButtonElement>(`[data-testid="${state.next}"]`)!.click();
+          fixture.detectChanges();
+        }
+      }
+    } finally {
+      document.documentElement.style.removeProperty("font-size");
+      fixture.destroy();
+      cleanupCss();
+    }
   });
 
   it("renders one Barwarden heading without a provider subtitle", async () => {
@@ -515,7 +719,58 @@ describe("LockPageComponent", () => {
     fixture.detectChanges();
 
     expect(unlock).not.toHaveBeenCalled();
-    expect(unlockWithBiometric).toHaveBeenCalledOnce();
+    expect(unlockWithBiometric).not.toHaveBeenCalled();
+  });
+
+  it("does not automatically open the Touch ID system prompt on lock entry", async () => {
+    const unlockWithBiometric = vi.fn(async () => undefined);
+    await TestBed.configureTestingModule({
+      imports: [LockPageComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthFacade,
+          useValue: {
+            accounts: async () => [account],
+            unlock: vi.fn(),
+            logout: vi.fn(),
+            unlockWithPin: vi.fn(),
+            unlockWithBiometric,
+          },
+        },
+        {
+          provide: UNLOCK_METHODS_PORT,
+          useValue: {
+            availability: async () => ({
+              pinEnabled: false,
+              biometricEnabled: true,
+              biometricAvailability: "available",
+            }),
+            currentLockEpoch: () => 1,
+            consumeAutomaticBiometricPrompt: vi.fn(() => true),
+          } as unknown as UnlockMethodsPort,
+        },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(LockPageComponent);
+    fixture.detectChanges();
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const fallback = host.querySelector<HTMLButtonElement>(
+      '[data-testid="lock-switch-master-password"]',
+    );
+
+    expect(fallback).not.toBeNull();
+    expect(fallback!.disabled).toBe(false);
+
+    fallback!.click();
+    fixture.detectChanges();
+    expect(passwordInput(host)).not.toBeNull();
+
+    expect(unlockWithBiometric).not.toHaveBeenCalled();
   });
 
   it("refreshes the lock view when asynchronous method initialization completes", async () => {
@@ -607,7 +862,7 @@ describe("LockPageComponent", () => {
     expect(host.textContent).not.toContain("private Keychain detail");
   });
 
-  it("auto-prompts Touch ID only once per lock epoch", async () => {
+  it("renders Touch ID without automatically opening the system prompt", async () => {
     const consume = vi.fn()
       .mockReturnValueOnce(true)
       .mockReturnValue(false);
@@ -631,8 +886,8 @@ describe("LockPageComponent", () => {
     await secondFixture.whenStable();
     secondFixture.detectChanges();
 
-    expect(consume).toHaveBeenCalledTimes(2);
-    expect(unlockWithBiometric).toHaveBeenCalledOnce();
+    expect(consume).not.toHaveBeenCalled();
+    expect(unlockWithBiometric).not.toHaveBeenCalled();
     secondFixture.destroy();
   });
 
@@ -677,7 +932,7 @@ describe("LockPageComponent", () => {
     expect(unlockWithBiometric).not.toHaveBeenCalled();
   });
 
-  it("does not auto-reprompt after cancellation but permits a manual retry", async () => {
+  it("permits a manual Touch ID retry after cancellation", async () => {
     const unlockWithBiometric = vi.fn(async () => {
       throw new AlternativeUnlockError("biometric-cancelled");
     });
@@ -693,7 +948,7 @@ describe("LockPageComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(unlockWithBiometric).toHaveBeenCalledOnce();
+    expect(unlockWithBiometric).not.toHaveBeenCalled();
     expect(
       fixture.nativeElement.querySelector(
         '[data-testid="lock-alternative-error"]',
@@ -704,7 +959,7 @@ describe("LockPageComponent", () => {
     ) as HTMLButtonElement).click();
     await fixture.whenStable();
 
-    expect(unlockWithBiometric).toHaveBeenCalledTimes(2);
+    expect(unlockWithBiometric).toHaveBeenCalledOnce();
   });
 
   it("shows remaining PIN attempts without exposing the PIN", async () => {
@@ -823,7 +1078,7 @@ describe("LockPageComponent", () => {
     expect(host.textContent).toContain("PIN 已失效，请使用主密码解锁。");
   });
 
-  it("falls back to PIN before master password when Touch ID is unavailable", async () => {
+  it("falls back to PIN before master password when manually triggered Touch ID is unavailable", async () => {
     const unlockWithBiometric = vi.fn(async () => {
       throw new AlternativeUnlockError("biometric-unavailable");
     });
@@ -839,6 +1094,10 @@ describe("LockPageComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
+
+    (host.querySelector('[data-testid="lock-biometric-button"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(host.querySelector('[data-testid="lock-biometric-button"]')).toBeNull();
     expect(host.querySelector('[data-testid="lock-pin-input"]')).not.toBeNull();

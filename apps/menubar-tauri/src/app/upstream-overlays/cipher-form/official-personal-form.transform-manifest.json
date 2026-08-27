@@ -1,7 +1,7 @@
 {
   "revision": "f47b6946e01aed474875789081966d311d5b8289",
   "license": {
-    "rootPackageSha256": "b670e31d191e75483aec74a3f424d0f438e0d396e6f66ec216aacebc42e6fa99",
+    "rootPackageSha256": "c1a93edc30ab20f6c7ea825f06339118fdf6bbb874765dbbefd0fd308a5e5f29",
     "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
     "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
     "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"
@@ -99,11 +99,11 @@
   "runtimes": [
     {
       "path": "official-personal-cipher-form.component.ts",
-      "sha256": "b4109956921de82d6656a9c36d09b56333f8f0231419f172d970f2f569c2b449"
+      "sha256": "f2ea3f24b19b26cf84afaa2351589faf59f3e9b6e5a423ccffb57c14cb9ff7db"
     },
     {
       "path": "official-personal-cipher-form.component.html",
-      "sha256": "8664136cbabfb86dfc9aa60f0775ca9c6135ea400ca7207a6af6b7ea3a1a4234"
+      "sha256": "7ef5a58babb1bc8f8e2da87a48080a0680c99bb8ddb8717ba45358431748a4eb"
     },
     {
       "path": "official-personal-form-container.ts",
@@ -115,7 +115,7 @@
     },
     {
       "path": "official-personal-item-details.component.html",
-      "sha256": "85f9a150975ba7cd4afaac6522b4f4ddafdcfd706b197d5ddaffa237438d9b70"
+      "sha256": "f450fcbf8518da6a177db7cfa5d76bcb2252b992021f23a28066de2a8922bf2d"
     },
     {
       "path": "official-card-details-section.component.ts",
@@ -147,7 +147,7 @@
     },
     {
       "path": "official-personal-custom-fields.component.html",
-      "sha256": "8b5a69790d76567c53765d1639fbded1896fb1e37765539e44564438e1d47a64"
+      "sha256": "376a085cac935c7a7edd5616f7c670920f3d76c8d3770c117da7bb178703d977"
     },
     {
       "path": "official-personal-add-edit-custom-field-dialog.component.ts",
@@ -164,7 +164,7 @@
       "authority": "libs/vault/src/cipher-form/components/cipher-form.component.ts",
       "authoritySha256": "b29250c6046fc1f72513a2b5dcc599c79c8ee98d12504d168b012cc12f36dd82",
       "runtime": "official-personal-cipher-form.component.ts",
-      "runtimeSha256": "b4109956921de82d6656a9c36d09b56333f8f0231419f172d970f2f569c2b449",
+      "runtimeSha256": "f2ea3f24b19b26cf84afaa2351589faf59f3e9b6e5a423ccffb57c14cb9ff7db",
       "members": [
         {
           "authorityMember": "bitSubmit",
@@ -355,8 +355,13 @@
         {
           "authorityMember": "submit",
           "runtimeMember": "submit",
-          "canonicalSha256": "78514fea65f5d70fa355f4a53da0e94243f519fece73fc7c001eb587575f5d24",
-          "operationsSha256": "d8fe0396fb4eb408e9c8c2fbac69d34137909d7019b0a27074053ff0086b3733"
+          "canonicalSha256": "f7d495dcec66e3ee0aef566e77a4f86c0250a83b73356aa054f64b4fe64785e2",
+          "operationsSha256": "6413e70c5853aed2c4d619f53d88074f427038ee0c2cfc2787b3b27f748be7f3"
+        },
+        {
+          "runtimeMember": "formElement",
+          "canonicalSha256": "c89eadf07e48038831dda4127f5ea1df54899956419e826b69b39013c5f287a9",
+          "justification": "Scopes invalid-control lookup to this retained personal form element."
         },
         {
           "runtimeMember": "protectedOriginalCipherView",
@@ -367,6 +372,11 @@
           "runtimeMember": "canViewSecrets:get",
           "canonicalSha256": "1bb55d9d2aceecf4fc34faf0c6c3e898f140b2be5776dd26db2a18cbfc4425af",
           "justification": "Exposes the retained personal-form permission supplied by the native page boundary."
+        },
+        {
+          "runtimeMember": "focusFirstInvalidControl",
+          "canonicalSha256": "3954cee166b07ade4a641a6efc469f157349483c4cf20df9df4dc53c936affb9",
+          "justification": "Filters unavailable candidates, then focuses and centers the first usable invalid retained personal control."
         },
         {
           "runtimeMember": "cipherForSubmit",
@@ -980,15 +990,15 @@
       "kind": "template",
       "authority": "libs/vault/src/cipher-form/components/cipher-form.component.html",
       "runtime": "official-personal-cipher-form.component.html",
-      "runtimeSha256": "8664136cbabfb86dfc9aa60f0775ca9c6135ea400ca7207a6af6b7ea3a1a4234",
-      "operationsSha256": "c33e30cdb340126fb86ca722cbe5c643f1b3ebae26cd4afceedf2b192c395387"
+      "runtimeSha256": "7ef5a58babb1bc8f8e2da87a48080a0680c99bb8ddb8717ba45358431748a4eb",
+      "operationsSha256": "d0dda0d4b80a830c50b8eda83e2402406ff360cb2f043b3539937833a9b5d587"
     },
     {
       "kind": "template",
       "authority": "libs/vault/src/cipher-form/components/item-details/item-details-section.component.html",
       "runtime": "official-personal-item-details.component.html",
-      "runtimeSha256": "85f9a150975ba7cd4afaac6522b4f4ddafdcfd706b197d5ddaffa237438d9b70",
-      "operationsSha256": "72636186621912b40fb1eb954eceedb29744bf193f2ecb391ea9a6bc9fd8c385"
+      "runtimeSha256": "f450fcbf8518da6a177db7cfa5d76bcb2252b992021f23a28066de2a8922bf2d",
+      "operationsSha256": "0b54a29a4668257a0531a2931633956d5a844b48d44f20ad607f54dd04be658d"
     },
     {
       "kind": "template",
@@ -1015,8 +1025,8 @@
       "kind": "template",
       "authority": "libs/vault/src/cipher-form/components/custom-fields/custom-fields.component.html",
       "runtime": "official-personal-custom-fields.component.html",
-      "runtimeSha256": "8b5a69790d76567c53765d1639fbded1896fb1e37765539e44564438e1d47a64",
-      "operationsSha256": "b5d9ec488825bb207ab589bfaf64b5a5cbf6b2e707900c84a21e994190e9f40c"
+      "runtimeSha256": "376a085cac935c7a7edd5616f7c670920f3d76c8d3770c117da7bb178703d977",
+      "operationsSha256": "4ca8cde1442af0b50c11a7445c25279a7230b2b920e2e570c101e86908d6286d"
     },
     {
       "kind": "template",

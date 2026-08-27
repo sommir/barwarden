@@ -1,4 +1,8 @@
 use std::sync::{Mutex, OnceLock};
+use std::time::Instant;
+
+use serde::Serialize;
+use tauri::Manager;
 
 #[cfg(target_os = "macos")]
 use objc2::rc::Retained;
@@ -12,8 +16,16 @@ pub const APP_BUNDLE_ID: &str = crate::brand::BUNDLE_IDENTIFIER;
 #[derive(Clone, Debug)]
 pub struct FrontmostApp {
     pub(crate) bundle_id: String,
+    app_name: String,
     pub(crate) process_id: i32,
     instance: ApplicationInstance,
+    captured_at: Instant,
+}
+
+impl FrontmostApp {
+    pub(crate) fn app_name(&self) -> &str {
+        &self.app_name
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -46,6 +58,7 @@ impl Eq for ApplicationInstance {}
 impl PartialEq for FrontmostApp {
     fn eq(&self, other: &Self) -> bool {
         self.bundle_id == other.bundle_id
+            && self.app_name == other.app_name
             && self.process_id == other.process_id
             && self.instance == other.instance
     }
@@ -55,34 +68,292 @@ impl Eq for FrontmostApp {}
 
 #[derive(Default)]
 pub(crate) struct TargetAppStore {
-    target: Mutex<Option<FrontmostApp>>,
+    state: Mutex<CapturedTargetState>,
+}
+
+#[derive(Clone)]
+struct StoredTargetApp {
+    target: FrontmostApp,
+    fill_context: Option<crate::autofill_ax_context::FillContextPresentation>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CapturedTarget {
+    pub(crate) generation: u64,
+    pub(crate) application: FrontmostApp,
+}
+
+#[derive(Default)]
+struct CapturedTargetState {
+    generation: u64,
+    target: Option<StoredTargetApp>,
 }
 
 impl TargetAppStore {
     pub(crate) fn replace(&self, target: Option<FrontmostApp>) {
         let mut stored = self
-            .target
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *stored = target;
+        stored.generation = stored.generation.checked_add(1).unwrap_or(1);
+        stored.target = target.map(|target| StoredTargetApp {
+            target,
+            fill_context: None,
+        });
+    }
+
+    fn replace_preserving_context(&self, target: FrontmostApp) {
+        let mut stored = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let fill_context = stored
+            .target
+            .as_ref()
+            .filter(|stored| stored.target == target)
+            .and_then(|stored| stored.fill_context.clone());
+        stored.generation = stored.generation.checked_add(1).unwrap_or(1);
+        stored.target = Some(StoredTargetApp {
+            target,
+            fill_context,
+        });
+    }
+
+    fn replace_with_context(
+        &self,
+        target: FrontmostApp,
+        fill_context: crate::autofill_ax_context::FillContextPresentation,
+    ) {
+        let mut stored = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        stored.generation = stored.generation.checked_add(1).unwrap_or(1);
+        stored.target = Some(StoredTargetApp {
+            target,
+            fill_context: Some(fill_context),
+        });
     }
 
     pub(crate) fn current(&self) -> Option<FrontmostApp> {
-        self.target
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
+            .target
+            .as_ref()
+            .map(|stored| stored.target.clone())
+    }
+
+    fn clear_if_matches(&self, target: &FrontmostApp) {
+        let mut stored = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if stored
+            .target
+            .as_ref()
+            .is_some_and(|stored| stored.target == *target)
+        {
+            stored.generation = stored.generation.checked_add(1).unwrap_or(1);
+            stored.target = None;
+        }
+    }
+
+    fn snapshot(
+        &self,
+    ) -> Option<(
+        FrontmostApp,
+        Option<crate::autofill_ax_context::FillContextPresentation>,
+    )> {
+        self.snapshot_with_hook(|| {})
+    }
+
+    fn snapshot_with_hook(
+        &self,
+        hook: impl FnOnce(),
+    ) -> Option<(
+        FrontmostApp,
+        Option<crate::autofill_ax_context::FillContextPresentation>,
+    )> {
+        let stored = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        hook();
+        stored
+            .target
+            .as_ref()
+            .map(|stored| (stored.target.clone(), stored.fill_context.clone()))
+    }
+
+    #[cfg(test)]
+    fn current_fill_context(&self) -> Option<crate::autofill_ax_context::FillContextPresentation> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .target
+            .as_ref()
+            .and_then(|stored| stored.fill_context.clone())
+    }
+
+    pub(crate) fn captured(&self) -> Option<CapturedTarget> {
+        let stored = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        stored.target.as_ref().map(|target| CapturedTarget {
+            generation: stored.generation,
+            application: target.target.clone(),
+        })
+    }
+
+    pub(crate) fn generation(&self) -> u64 {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .generation
     }
 }
 
 static LAST_TARGET_APP: OnceLock<TargetAppStore> = OnceLock::new();
 
-pub fn capture_current_target_app() {
-    capture_current_target_with(target_app_store(), current_frontmost_app, APP_BUNDLE_ID);
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoFillApplicationContext {
+    bundle_id: String,
+    app_name: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
+pub enum AutoFillEntryContextOutcome {
+    Available {
+        application: AutoFillApplicationContext,
+        #[serde(rename = "fillContext", skip_serializing_if = "Option::is_none")]
+        fill_context: Option<crate::autofill_ax_context::FillContextPresentation>,
+    },
+    Unavailable,
+}
+
+pub fn capture_current_target_app(app: &tauri::AppHandle) {
+    let contexts = app.state::<crate::autofill_ax_context::DetectedFillContextStore>();
+    capture_current_target_with_context(
+        target_app_store(),
+        current_frontmost_app,
+        APP_BUNDLE_ID,
+        |target| {
+            fallback_fill_context_with(&contexts, target, |target, generation| {
+                crate::autofill_ax_context::capture_native_fill_context(target, generation)
+                    .map(|captured| (captured.fields, captured.action))
+            })
+        },
+    );
 }
 
 pub(crate) fn last_target_app() -> Option<FrontmostApp> {
     target_app_store().current()
+}
+
+pub(crate) fn replace_target_app(target: FrontmostApp) {
+    target_app_store().replace_preserving_context(target);
+}
+
+pub(crate) fn replace_target_app_with_context(
+    target: FrontmostApp,
+    fill_context: crate::autofill_ax_context::FillContextPresentation,
+) {
+    target_app_store().replace_with_context(target, fill_context);
+}
+
+pub(crate) fn clear_target_app_if_matches(target: &FrontmostApp) {
+    target_app_store().clear_if_matches(target);
+}
+
+#[tauri::command]
+pub fn autofill_entry_context(
+    contexts: tauri::State<'_, crate::autofill_ax_context::DetectedFillContextStore>,
+) -> AutoFillEntryContextOutcome {
+    let Some((target, stored_context)) = target_app_store().snapshot() else {
+        return AutoFillEntryContextOutcome::Unavailable;
+    };
+    let fill_context = stored_context.or_else(|| {
+        if !target_is_running(&target) {
+            return None;
+        }
+        fallback_fill_context_with(&contexts, &target, |target, generation| {
+            crate::autofill_ax_context::capture_native_fill_context(target, generation)
+                .map(|captured| (captured.fields, captured.action))
+        })
+    });
+    autofill_context_with(
+        Some(target),
+        fill_context,
+        Instant::now(),
+        target_is_running,
+    )
+}
+
+fn fallback_fill_context_with<Capture>(
+    contexts: &crate::autofill_ax_context::DetectedFillContextStore,
+    target: &FrontmostApp,
+    mut capture: Capture,
+) -> Option<crate::autofill_ax_context::FillContextPresentation>
+where
+    Capture: FnMut(
+        &FrontmostApp,
+        u64,
+    ) -> Result<
+        (
+            Vec<crate::autofill_ax_context::CapturedFieldFingerprint>,
+            crate::autofill_field_context::DetectedAction,
+        ),
+        crate::autofill_ax_context::AxContextError,
+    >,
+{
+    const CAPTURE_ATTEMPTS: usize = 3;
+
+    for _ in 0..CAPTURE_ATTEMPTS {
+        let generation = contexts.current_observer_generation();
+        let (fields, action) = capture(target, generation).ok()?;
+        match contexts.try_insert(target.clone(), fields, action) {
+            Ok(presentation) => return Some(presentation),
+            Err(crate::autofill_ax_context::DetectedFillError::StaleGeneration) => continue,
+            Err(_) => return None,
+        }
+    }
+    None
+}
+
+fn autofill_context_with<IsRunning>(
+    target: Option<FrontmostApp>,
+    fill_context: Option<crate::autofill_ax_context::FillContextPresentation>,
+    _now: Instant,
+    is_running: IsRunning,
+) -> AutoFillEntryContextOutcome
+where
+    IsRunning: FnOnce(&FrontmostApp) -> bool,
+{
+    let Some(target) = target else {
+        return AutoFillEntryContextOutcome::Unavailable;
+    };
+    if !is_running(&target) {
+        return AutoFillEntryContextOutcome::Unavailable;
+    }
+    AutoFillEntryContextOutcome::Available {
+        application: AutoFillApplicationContext {
+            bundle_id: target.bundle_id,
+            app_name: target.app_name,
+        },
+        fill_context: fill_context.filter(|context| !context.fill_context_token.is_empty()),
+    }
+}
+
+pub(crate) fn captured_target() -> Option<CapturedTarget> {
+    target_app_store().captured()
+}
+
+pub(crate) fn captured_target_generation() -> u64 {
+    target_app_store().generation()
 }
 
 pub(crate) fn current_frontmost_app() -> Result<Option<FrontmostApp>, String> {
@@ -145,6 +416,10 @@ fn capture_running_application(
     let bundle_id = application
         .bundleIdentifier()
         .map(|value| value.to_string());
+    let app_name = application
+        .localizedName()
+        .map(|value| value.to_string())
+        .unwrap_or_default();
     let (bundle_id, process_id) = validated_running_application_identity(
         bundle_id.as_deref(),
         application.processIdentifier(),
@@ -152,8 +427,10 @@ fn capture_running_application(
     )?;
     Some(FrontmostApp {
         bundle_id,
+        app_name,
         process_id,
         instance: ApplicationInstance::Native(application),
+        captured_at: Instant::now(),
     })
 }
 
@@ -198,10 +475,22 @@ pub(crate) fn test_frontmost_app(
     process_id: i32,
     instance_token: u64,
 ) -> FrontmostApp {
+    test_frontmost_app_named(bundle_id, bundle_id, process_id, instance_token)
+}
+
+#[cfg(test)]
+pub(crate) fn test_frontmost_app_named(
+    bundle_id: &str,
+    app_name: &str,
+    process_id: i32,
+    instance_token: u64,
+) -> FrontmostApp {
     FrontmostApp {
         bundle_id: bundle_id.to_owned(),
+        app_name: app_name.to_owned(),
         process_id,
         instance: ApplicationInstance::Test(instance_token),
+        captured_at: Instant::now(),
     }
 }
 
@@ -230,6 +519,30 @@ pub(crate) fn capture_current_target_with<Read>(
     store.replace(target);
 }
 
+fn capture_current_target_with_context<Read, Capture>(
+    store: &TargetAppStore,
+    read_frontmost: Read,
+    self_bundle_id: &str,
+    capture_context: Capture,
+) where
+    Read: FnOnce() -> Result<Option<FrontmostApp>, String>,
+    Capture: FnOnce(&FrontmostApp) -> Option<crate::autofill_ax_context::FillContextPresentation>,
+{
+    let target = read_frontmost()
+        .ok()
+        .flatten()
+        .and_then(|app| valid_external_target(app, self_bundle_id));
+    let Some(target) = target else {
+        store.replace(None);
+        return;
+    };
+    if let Some(fill_context) = capture_context(&target) {
+        store.replace_with_context(target, fill_context);
+    } else {
+        store.replace(Some(target));
+    }
+}
+
 fn target_app_store() -> &'static TargetAppStore {
     LAST_TARGET_APP.get_or_init(TargetAppStore::default)
 }
@@ -237,6 +550,26 @@ fn target_app_store() -> &'static TargetAppStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::autofill_ax_context::{
+        FillContextPresentation, PresentedAction, PresentedActionMode, PresentedField,
+        PresentedFieldConfidence, PresentedFieldKind,
+    };
+    use crate::autofill_contract::AutoFillSecretField;
+    use crate::autofill_field_context::DetectedAction;
+
+    fn fill_context(token: &str) -> FillContextPresentation {
+        FillContextPresentation {
+            fill_context_token: token.to_owned(),
+            focused_field: PresentedField {
+                kind: PresentedFieldKind::Password,
+                confidence: PresentedFieldConfidence::High,
+            },
+            action: PresentedAction {
+                mode: PresentedActionMode::Field,
+                fields: vec![crate::autofill_contract::AutoFillSecretField::Password],
+            },
+        }
+    }
 
     fn app(bundle_id: &str, process_id: i32) -> FrontmostApp {
         test_frontmost_app(bundle_id, process_id, process_id as u64)
@@ -258,6 +591,69 @@ mod tests {
         );
 
         assert_eq!(store.current(), Some(app("com.example.current", 20)));
+    }
+
+    #[test]
+    fn capture_preserves_the_detected_field_context_before_the_popup_takes_focus() {
+        let store = TargetAppStore::default();
+        let expected = app("com.example.current", 20);
+
+        capture_current_target_with_context(
+            &store,
+            || Ok(Some(expected.clone())),
+            APP_BUNDLE_ID,
+            |target| {
+                assert_eq!(target, &expected);
+                Some(fill_context("captured-before-popup"))
+            },
+        );
+
+        assert_eq!(store.current(), Some(expected));
+        assert_eq!(
+            store
+                .current_fill_context()
+                .map(|context| context.fill_context_token),
+            Some("captured-before-popup".to_owned()),
+        );
+    }
+
+    #[test]
+    fn capture_keeps_the_target_when_field_capture_is_unavailable() {
+        let store = TargetAppStore::default();
+        let expected = app("com.example.current", 20);
+
+        capture_current_target_with_context(
+            &store,
+            || Ok(Some(expected.clone())),
+            APP_BUNDLE_ID,
+            |_| None,
+        );
+
+        assert_eq!(store.current(), Some(expected));
+        assert_eq!(store.current_fill_context(), None);
+    }
+
+    #[test]
+    fn replacing_the_target_advances_generation_without_changing_paste_identity() {
+        let store = TargetAppStore::default();
+
+        capture_current_target_with(
+            &store,
+            || Ok(Some(app("com.google.Chrome", 41))),
+            APP_BUNDLE_ID,
+        );
+        let first = store.captured().expect("first captured target");
+
+        capture_current_target_with(
+            &store,
+            || Ok(Some(app("com.apple.Safari", 42))),
+            APP_BUNDLE_ID,
+        );
+        let second = store.captured().expect("second captured target");
+
+        assert!(second.generation > first.generation);
+        assert_eq!(second.application, app("com.apple.Safari", 42));
+        assert_eq!(store.current(), Some(app("com.apple.Safari", 42)));
     }
 
     #[test]
@@ -292,6 +688,222 @@ mod tests {
     }
 
     #[test]
+    fn fill_context_is_preserved_only_for_the_exact_captured_app_instance() {
+        let store = TargetAppStore::default();
+        let captured = app_instance("com.example.target", 42, 100);
+        let context = fill_context("0d5d0471-bb6d-47bf-b4b6-b69640c729df");
+        store.replace_with_context(captured.clone(), context.clone());
+
+        store.replace_preserving_context(captured);
+        assert_eq!(store.current_fill_context(), Some(context));
+
+        store.replace_preserving_context(app_instance("com.example.target", 42, 200));
+        assert_eq!(store.current_fill_context(), None);
+    }
+
+    #[test]
+    fn failed_popup_clears_only_the_exact_target_and_context() {
+        let store = TargetAppStore::default();
+        let original = app_instance("com.example.target", 42, 100);
+        let replacement = app_instance("com.example.target", 42, 200);
+        store.replace_with_context(original.clone(), fill_context("original-token"));
+
+        store.clear_if_matches(&replacement);
+        assert_eq!(store.current(), Some(original.clone()));
+
+        store.clear_if_matches(&original);
+        assert_eq!(store.current(), None);
+        assert_eq!(store.current_fill_context(), None);
+    }
+
+    #[test]
+    fn target_and_context_are_snapshotted_atomically_during_replacement() {
+        use std::sync::{mpsc, Arc};
+
+        let store = Arc::new(TargetAppStore::default());
+        let app_a = app_instance("com.example.a", 41, 100);
+        let context_a = fill_context("0d5d0471-bb6d-47bf-b4b6-b69640c729df");
+        store.replace_with_context(app_a.clone(), context_a.clone());
+
+        let (start_writer, writer_start) = mpsc::channel();
+        let (writer_attempted, observe_attempt) = mpsc::channel();
+        let writer_store = Arc::clone(&store);
+        let writer = std::thread::spawn(move || {
+            writer_start.recv().unwrap();
+            writer_attempted.send(()).unwrap();
+            writer_store.replace_with_context(
+                app_instance("com.example.b", 42, 200),
+                fill_context("4ed01299-ee2f-4878-b62c-4c0a22d05cf2"),
+            );
+        });
+
+        let snapshot = store.snapshot_with_hook(|| {
+            start_writer.send(()).unwrap();
+            observe_attempt.recv().unwrap();
+            std::thread::yield_now();
+        });
+        writer.join().unwrap();
+
+        assert_eq!(snapshot, Some((app_a, Some(context_a))));
+    }
+
+    #[test]
+    fn fallback_preserves_the_detected_action_for_a_valid_focus() {
+        use crate::accessibility_focus::AxFrame;
+        use crate::autofill_ax_context::{
+            CapturedFieldFingerprint, DetectedFillContextStore, ObserverGeneration,
+            OpaqueAxIdentity,
+        };
+        use crate::autofill_field_context::{DetectedFieldKind, FieldConfidence};
+        use std::cell::Cell;
+
+        let generation = ObserverGeneration::new(11);
+        let store = DetectedFillContextStore::for_test_with_generation(
+            generation,
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let observed_generation = Cell::new(0);
+        let target = app_instance("com.example.target", 42, 100);
+        let presentation = fallback_fill_context_with(&store, &target, |_, generation| {
+            observed_generation.set(generation);
+            Ok((
+                vec![CapturedFieldFingerprint {
+                    process_id: 42,
+                    role: "AXSecureTextField".to_owned(),
+                    frame: AxFrame {
+                        x: 100.0,
+                        y: 100.0,
+                        width: 180.0,
+                        height: 24.0,
+                    },
+                    window_frame: AxFrame {
+                        x: 20.0,
+                        y: 20.0,
+                        width: 800.0,
+                        height: 600.0,
+                    },
+                    container_path: vec![1],
+                    traversal_path: vec![1, 1],
+                    window_identity: OpaqueAxIdentity::for_test(1),
+                    element_identity: OpaqueAxIdentity::for_test(2),
+                    kind: DetectedFieldKind::Password,
+                    secret_field: Some(AutoFillSecretField::Password),
+                    confidence: FieldConfidence::High,
+                    focused: true,
+                    observer_generation: generation,
+                }],
+                DetectedAction::Field {
+                    field: AutoFillSecretField::Password,
+                },
+            ))
+        })
+        .expect("valid editable focus");
+
+        assert_eq!(observed_generation.get(), 11);
+        assert_eq!(presentation.action.mode, PresentedActionMode::Field);
+        assert_eq!(
+            presentation.action.fields,
+            vec![AutoFillSecretField::Password]
+        );
+
+        let invalid = fallback_fill_context_with(&store, &target, |_, generation| {
+            Ok((
+                vec![CapturedFieldFingerprint {
+                    process_id: 42,
+                    role: "AXSecureTextField".to_owned(),
+                    frame: AxFrame {
+                        x: 100.0,
+                        y: 100.0,
+                        width: 180.0,
+                        height: 24.0,
+                    },
+                    window_frame: AxFrame {
+                        x: 20.0,
+                        y: 20.0,
+                        width: 800.0,
+                        height: 600.0,
+                    },
+                    container_path: vec![1],
+                    traversal_path: vec![1, 1],
+                    window_identity: OpaqueAxIdentity::for_test(1),
+                    element_identity: OpaqueAxIdentity::for_test(2),
+                    kind: DetectedFieldKind::Password,
+                    secret_field: Some(AutoFillSecretField::Password),
+                    confidence: FieldConfidence::High,
+                    focused: false,
+                    observer_generation: generation,
+                }],
+                DetectedAction::Field {
+                    field: AutoFillSecretField::Password,
+                },
+            ))
+        });
+        assert_eq!(invalid, None);
+    }
+
+    #[test]
+    fn fallback_recaptures_the_same_target_after_a_transient_observer_generation_change() {
+        use crate::accessibility_focus::AxFrame;
+        use crate::autofill_ax_context::{
+            CapturedFieldFingerprint, DetectedFillContextStore, ObserverGeneration,
+            OpaqueAxIdentity,
+        };
+        use crate::autofill_field_context::{DetectedFieldKind, FieldConfidence};
+        use std::cell::Cell;
+
+        let observer_generation = ObserverGeneration::new(11);
+        let store = DetectedFillContextStore::for_test_with_generation(
+            observer_generation.clone(),
+            Instant::now,
+            |_, _, _| Ok(()),
+        );
+        let attempts = Cell::new(0_u8);
+        let target = app_instance("com.example.target", 42, 100);
+
+        let presentation = fallback_fill_context_with(&store, &target, |_, generation| {
+            attempts.set(attempts.get() + 1);
+            if attempts.get() == 1 {
+                observer_generation.set(generation + 1);
+            }
+            Ok((
+                vec![CapturedFieldFingerprint {
+                    process_id: 42,
+                    role: "AXSecureTextField".to_owned(),
+                    frame: AxFrame {
+                        x: 100.0,
+                        y: 100.0,
+                        width: 180.0,
+                        height: 24.0,
+                    },
+                    window_frame: AxFrame {
+                        x: 20.0,
+                        y: 20.0,
+                        width: 800.0,
+                        height: 600.0,
+                    },
+                    container_path: vec![1],
+                    traversal_path: vec![1, 1],
+                    window_identity: OpaqueAxIdentity::for_test(1),
+                    element_identity: OpaqueAxIdentity::for_test(2),
+                    kind: DetectedFieldKind::Password,
+                    secret_field: Some(AutoFillSecretField::Password),
+                    confidence: FieldConfidence::High,
+                    focused: true,
+                    observer_generation: generation,
+                }],
+                DetectedAction::Field {
+                    field: AutoFillSecretField::Password,
+                },
+            ))
+        })
+        .expect("the bounded retry should recover the same live target");
+
+        assert_eq!(attempts.get(), 2);
+        assert_eq!(presentation.action.mode, PresentedActionMode::Field);
+    }
+
+    #[test]
     fn translates_only_live_running_applications_with_a_bundle_and_positive_pid() {
         assert_eq!(
             running_application_identity(Some("com.example.target"), 42, false),
@@ -322,5 +934,94 @@ mod tests {
         assert!(!source.contains(concat!("System", " Events")));
         assert!(!source.contains(concat!("runningApplicationWith", "ProcessIdentifier")));
         assert!(!source.contains(concat!("runningApplicationsWith", "BundleIdentifier")));
+    }
+
+    #[test]
+    fn autofill_context_keeps_the_exact_live_target_available_for_the_picker_session() {
+        let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
+        let captured_at = target.captured_at;
+        let context = fill_context("0d5d0471-bb6d-47bf-b4b6-b69640c729df");
+
+        assert_eq!(
+            autofill_context_with(
+                Some(target.clone()),
+                Some(context.clone()),
+                captured_at + std::time::Duration::from_secs(3_600),
+                |_| true,
+            ),
+            AutoFillEntryContextOutcome::Available {
+                application: AutoFillApplicationContext {
+                    bundle_id: "com.example.target".to_owned(),
+                    app_name: "Example".to_owned(),
+                },
+                fill_context: Some(context),
+            }
+        );
+        assert_eq!(
+            autofill_context_with(
+                Some(target),
+                Some(fill_context("token")),
+                captured_at,
+                |_| false
+            ),
+            AutoFillEntryContextOutcome::Unavailable,
+        );
+    }
+
+    #[test]
+    fn entry_context_nests_the_optional_fill_context_and_exposes_no_private_fingerprint_data() {
+        let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
+
+        let context = fill_context("0d5d0471-bb6d-47bf-b4b6-b69640c729df");
+        let encoded = serde_json::to_value(autofill_context_with(
+            Some(target),
+            Some(context),
+            Instant::now(),
+            |_| true,
+        ))
+        .unwrap();
+        assert_eq!(
+            encoded,
+            serde_json::json!({
+                "status": "available",
+                "application": {
+                    "bundleId": "com.example.target",
+                    "appName": "Example"
+                },
+                "fillContext": {
+                    "fillContextToken": "0d5d0471-bb6d-47bf-b4b6-b69640c729df",
+                    "focusedField": { "kind": "password", "confidence": "high" },
+                    "action": { "mode": "field", "fields": ["password"] }
+                }
+            })
+        );
+        let encoded_text = encoded.to_string();
+        for forbidden in ["secretField", "processId", "frame", "windowFrame", "label"] {
+            assert!(!encoded_text.contains(forbidden));
+        }
+    }
+
+    #[test]
+    fn entry_context_keeps_a_live_application_available_without_a_fill_context() {
+        let target = test_frontmost_app_named("com.example.target", "Example", 42, 7);
+
+        let encoded = serde_json::to_value(autofill_context_with(
+            Some(target),
+            None,
+            Instant::now(),
+            |_| true,
+        ))
+        .unwrap();
+
+        assert_eq!(
+            encoded,
+            serde_json::json!({
+                "status": "available",
+                "application": {
+                    "bundleId": "com.example.target",
+                    "appName": "Example"
+                }
+            })
+        );
     }
 }

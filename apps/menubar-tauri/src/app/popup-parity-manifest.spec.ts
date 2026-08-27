@@ -238,10 +238,10 @@ const expectedInventory = [
     status: "partial",
   },
   {
-    id: "excluded.current-tab",
+    id: "native.current-site-suggestions",
     officialRoutes: ["/tabs/current", "URL ranking"],
-    classification: "excluded-browser",
-    status: "missing",
+    classification: "required-native",
+    status: "partial",
   },
   {
     id: "excluded.dom-autofill",
@@ -525,7 +525,6 @@ const expectedNewItemRemainingGaps = [
 ] as const;
 
 const expectedExcludedReasons = new Map([
-  ["excluded.current-tab", "Browser tab and current-URL detection. Current-site suggestion ranking."],
   ["excluded.dom-autofill", "DOM or multi-field autofill. Content scripts and page-detail parsing."],
   ["excluded.browser-background", "Browser background/service-worker messaging."],
   ["excluded.browser-navigation", "`webRequest`, `webNavigation`, badge, and page-action behavior."],
@@ -876,7 +875,7 @@ describe("popupParityManifest", () => {
         "handoff.products",
       ]),
     );
-    expect(popupParitySummary()).toEqual({ missing: 0, partial: 68, complete: 0 });
+    expect(popupParitySummary()).toEqual({ missing: 0, partial: 69, complete: 0 });
   });
 
   it.skipIf(
@@ -1633,7 +1632,7 @@ describe("popupParityManifest", () => {
   });
 
   it.skipIf(!existsSync(join(process.cwd(), expectedAuditEvidencePath)))(
-    "pins the local audit marker to the exact manifest summary",
+    "pins the audit marker to the exact manifest summary",
     () => {
     const audit = readFileSync(join(process.cwd(), expectedAuditEvidencePath), "utf8");
     const summary = popupParitySummary();

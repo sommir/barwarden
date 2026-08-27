@@ -142,7 +142,7 @@ writeFileSync(process.argv[2], `<?xml version="1.0" encoding="UTF-8"?>
 <key>CFBundleExecutable</key><string>barwarden</string>
 <key>CFBundleIconFile</key><string>icon.icns</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
-<key>NSAppleEventsUsageDescription</key><string>Barwarden may interact with another app only when you invoke a paste action.</string>
+<key>NSAppleEventsUsageDescription</key><string>Barwarden reads the active browser page to suggest matching logins and interacts with the target app only when you invoke a paste action.</string>
 <key>LSUIElement</key><true/>
 </dict></plist>\n`);
 NODE
@@ -286,15 +286,21 @@ target="${@: -1}"
 IFS=: read -r bundle_signature executable_signature <<<"${MOCK_SIGNATURE_STATES:-unsigned:adhoc}"
 if [[ "$target" == *.app ]]; then
   signature="$bundle_signature"
-  entitlements="${MOCK_BUNDLE_ENTITLEMENTS:-empty}"
+  entitlements="${MOCK_BUNDLE_ENTITLEMENTS:-automation}"
 else
   signature="$executable_signature"
-  entitlements="${MOCK_EXECUTABLE_ENTITLEMENTS:-empty}"
+  entitlements="${MOCK_EXECUTABLE_ENTITLEMENTS:-automation}"
 fi
 if [[ "$*" == *"--entitlements :-"* ]]; then
   printf 'Executable=fixture\n' >&2
   [[ "$signature" == "unsigned" ]] && exit 1
-  if [[ "$entitlements" == "nonempty" ]]; then
+  if [[ "$entitlements" == "automation" ]]; then
+    cat <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>com.apple.security.automation.apple-events</key><true/></dict></plist>
+PLIST
+  elif [[ "$entitlements" == "unexpected" ]]; then
     cat <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -478,8 +484,8 @@ writeFileSync(process.argv[2], `<?xml version="1.0" encoding="UTF-8"?>
 `);
 NODE
 assert_rejected_with_exact_diagnostic \
-  "non-empty source entitlements" \
-  "AssertionError [ERR_ASSERTION]: local distribution entitlements must be empty" \
+  "unexpected source entitlements" \
+  "AssertionError [ERR_ASSERTION]: local distribution entitlements must declare only Apple Events automation" \
   "$verifier" --source-root "$fixture_root" --inputs-only
 cp "$repo_root/apps/menubar-tauri/src-tauri/Entitlements.plist" "$entitlements_fixture"
 
@@ -576,6 +582,27 @@ assert_rejected \
   env MOCK_SIGNATURE_STATES=unsigned:adhoc "$verifier" --source-root "$fixture_root" --app "$standalone_app" --dmg "$renamed_dmg"
 rm -f "$renamed_dmg"
 
+autofill_surface_app="$fixture_root/autofill-surface/Barwarden.app"
+autofill_surface_mounted="$fixture_root/autofill-surface-mounted/Barwarden.app"
+mkdir -p "$(dirname "$autofill_surface_app")" "$(dirname "$autofill_surface_mounted")"
+cp -R "$standalone_app" "$autofill_surface_app"
+cp -R "$standalone_app" "$autofill_surface_mounted"
+for app in "$autofill_surface_app" "$autofill_surface_mounted"; do
+  cat > "$app/Contents/MacOS/barwarden" <<'SHIM'
+#!/usr/bin/env bash
+exit 0
+autofill_agent_registration_status
+autofill_agent_register
+autofill_agent_unregister
+SHIM
+  chmod 755 "$app/Contents/MacOS/barwarden"
+done
+assert_rejected \
+  "an AutoFill-capable app bundle without native sidecars" \
+  "native AutoFill sidecar inventory is missing" \
+  env MOCK_SIGNATURE_STATES=unsigned:adhoc MOCK_MOUNTED_APP="$autofill_surface_mounted" \
+  "$verifier" --source-root "$fixture_root" --app "$autofill_surface_app" --dmg "$standalone_dmg"
+
 printf '#!/usr/bin/env bash\nexit 0\n' > "$standalone_app/Contents/MacOS/legacy"
 chmod 755 "$standalone_app/Contents/MacOS/legacy"
 cp "$standalone_app/Contents/MacOS/legacy" "$mounted_template/Contents/MacOS/legacy"
@@ -665,15 +692,15 @@ assert_contains "$adhoc_output" "GATEKEEPER: BLOCKED" "sealed ad-hoc Gatekeeper 
 assert_not_contains "$adhoc_output" "RELEASE: PASS" "sealed ad-hoc artifact must remain release-blocked"
 
 assert_rejected_with_exact_diagnostic \
-  "non-empty sealed bundle entitlements" \
+  "unexpected sealed bundle entitlements" \
   "AssertionError [ERR_ASSERTION]: built application contains unexpected entitlements" \
-  env MOCK_SIGNATURE_STATES=adhoc:adhoc MOCK_BUNDLE_ENTITLEMENTS=nonempty \
+  env MOCK_SIGNATURE_STATES=adhoc:adhoc MOCK_BUNDLE_ENTITLEMENTS=unexpected \
   "$verifier" --source-root "$fixture_root" --app "$standalone_app" --dmg "$standalone_dmg"
 
 assert_rejected_with_exact_diagnostic \
-  "non-empty sealed executable entitlements" \
+  "unexpected sealed executable entitlements" \
   "AssertionError [ERR_ASSERTION]: built application contains unexpected entitlements" \
-  env MOCK_SIGNATURE_STATES=adhoc:adhoc MOCK_EXECUTABLE_ENTITLEMENTS=nonempty \
+  env MOCK_SIGNATURE_STATES=adhoc:adhoc MOCK_EXECUTABLE_ENTITLEMENTS=unexpected \
   "$verifier" --source-root "$fixture_root" --app "$standalone_app" --dmg "$standalone_dmg"
 
 rm -rf "$standalone_app/Contents/_CodeSignature" "$mounted_template/Contents/_CodeSignature"

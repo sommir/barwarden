@@ -33,8 +33,10 @@ describe("PersonalCipherSaveOperation", () => {
       writePort: () => write,
     });
 
+    expect(operation.pending).toBe(false);
     const first = operation.submit(personalSubmit("add", CipherType.Card));
     await vi.waitFor(() => expect(write.createCardCipher).toHaveBeenCalledOnce());
+    expect(operation.pending).toBe(true);
     await expect(operation.submit(personalSubmit("add", CipherType.Card))).resolves.toEqual({
       committed: false,
       reason: "duplicate",
@@ -44,6 +46,7 @@ describe("PersonalCipherSaveOperation", () => {
     pending.resolve(returned);
     await expect(first).resolves.toEqual({ committed: true, item: returned });
 
+    expect(operation.pending).toBe(false);
     expect(store.snapshot().items[0]).toBe(returned);
     expect(operation.submitDisabled).toBe(true);
     expect(store.snapshot().statusMessage).toBe("项目已保存，但无法打开。");
@@ -118,8 +121,16 @@ describe("PersonalCipherSaveOperation", () => {
     const stale = operation.submit(personalSubmit("add", CipherType.Card));
     await vi.waitFor(() => expect(write.createCardCipher).toHaveBeenCalledOnce());
     operation.invalidate();
+    expect(operation.pending).toBe(true);
+    expect(operation.submitDisabled).toBe(true);
+    await expect(operation.submit(personalSubmit("add", CipherType.Card))).resolves.toEqual({
+      committed: false,
+      reason: "duplicate",
+    });
+    expect(write.createCardCipher).toHaveBeenCalledOnce();
     firstPending.resolve({ ...demoVaultItems[1]!, id: "late-id" });
     await expect(stale).resolves.toEqual({ committed: false, reason: "stale" });
+    expect(operation.pending).toBe(false);
 
     vi.mocked(write.createCardCipher).mockResolvedValueOnce({
       ...demoVaultItems.find((item) => item.type === "card")!,

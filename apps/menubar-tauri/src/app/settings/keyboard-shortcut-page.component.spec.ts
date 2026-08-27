@@ -1,13 +1,18 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+import postcss from "postcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -19,6 +24,12 @@ import type {
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { GLOBAL_SHORTCUT_SETTINGS_HOST } from "./global-shortcut-settings.service";
 import { KeyboardShortcutPageComponent } from "./keyboard-shortcut-page.component";
+
+@Component({
+  imports: [KeyboardShortcutPageComponent],
+  template: `<bw-keyboard-shortcut-page />`,
+})
+class KeyboardShortcutPageTestHostComponent {}
 
 const optionB = binding(["option"], "KeyB");
 const optionL = binding(["option"], "KeyL");
@@ -34,23 +45,40 @@ try {
 describe("KeyboardShortcutPageComponent", () => {
   afterEach(() => {
     TestBed.resetTestingModule();
+    document.body.classList.remove("tw-bit-compact");
+    document.body.replaceChildren();
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.style.removeProperty("font-size");
+    document.head.querySelectorAll("style[data-keyboard-shortcut-production-css]")
+      .forEach((node) => node.remove());
   });
 
   it("renders the official page, current shortcut, and stable accessible controls", async () => {
     const { fixture, host } = await renderPage();
+    const page = host.querySelector<HTMLElement>("bw-keyboard-shortcut-page");
     const recorder = shortcutRecorder(host);
+    const surface = shortcutRecorderSurface(host);
     const clear = clearButton(host);
 
+    expect(page).not.toBeNull();
+    expect(page!.matches(".macos-page--settings-detail")).toBe(true);
     expect(host.querySelector("popup-page")).not.toBeNull();
     expect(host.querySelector("popup-header")?.textContent).toContain("快捷键");
-    expect(host.querySelector("bit-card")).not.toBeNull();
-    expect(host.querySelector("bit-form-field")).not.toBeNull();
+    expect(host.querySelector("bit-card")).toBeNull();
+    expect(host.querySelector("section.settings-detail-group.macos-preference-group"))
+      .not.toBeNull();
+    const row = host.querySelector<HTMLElement>("bit-form-field.macos-preference-row");
+    expect(row).not.toBeNull();
+    expect(row!.classList).toContain("shortcut-preference-row");
     expect(host.textContent).toContain("唤出 Barwarden");
     expect(recorder.textContent).toContain("⌥ B");
     expect(recorder.getAttribute("aria-label")).toBe("录制唤出 Barwarden 快捷键");
     expect(clear.getAttribute("aria-label")).toBe("清除快捷键");
     expect(recorder.classList).toContain("macos-form-field__control");
+    expect(recorder.classList).toContain("shortcut-recorder-owner");
+    expect(surface.classList).toContain("macos-control-visible");
     expect(clear.classList).toContain("macos-form-field__suffix");
+    expect(clear.classList).toContain("macos-hit-target");
     expect(clear.hasAttribute("bitSuffix")).toBe(true);
     expect(clear.getAttribute("slot")).toBeNull();
     expect(recorder.getAttribute("style")).toBeNull();
@@ -58,6 +86,87 @@ describe("KeyboardShortcutPageComponent", () => {
 
     fixture.destroy();
   });
+
+  it.each([
+    ["normal", false],
+    ["compact", true],
+  ] as const)(
+    "computes 44px recording and clear targets without collapsing the field in %s mode",
+    async (_mode, compact) => {
+      installProductionCss();
+      document.documentElement.dataset["bwCompactMode"] = String(compact);
+      document.body.classList.toggle("tw-bit-compact", compact);
+      const { host } = await renderPage();
+      const recorder = shortcutRecorder(host);
+      const surface = shortcutRecorderSurface(host);
+      const clear = clearButton(host);
+      const fieldContainer = recorder.closest<HTMLElement>("[bitfieldcontainer]");
+      const scrollRegion = host.querySelector<HTMLElement>(
+        '[data-testid="popup-layout-scroll-region"]',
+      );
+      const group = host.querySelector<HTMLElement>(
+        "section.settings-detail-group.macos-preference-group",
+      );
+
+      expect(fieldContainer).not.toBeNull();
+      expect(scrollRegion).not.toBeNull();
+      expect(group).not.toBeNull();
+      expect(getComputedStyle(scrollRegion!).paddingInline).toBe("16px");
+      expect(getComputedStyle(group!).marginLeft).toBe("0px");
+      expect(getComputedStyle(group!).marginRight).toBe("0px");
+      expect(resolvedMatchedProperty(group!, "margin-top")).toBe("16px");
+      expect(resolvedMatchedProperty(group!, "margin-bottom")).toBe("16px");
+      const recorderStyle = getComputedStyle(recorder);
+      const surfaceStyle = getComputedStyle(surface);
+      const clearStyle = getComputedStyle(clear);
+      const fieldContainerStyle = getComputedStyle(fieldContainer!);
+      const row = host.querySelector<HTMLElement>("bit-form-field.macos-preference-row");
+
+      expect(row).not.toBeNull();
+      expect(Number.parseFloat(getComputedStyle(row!).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(row!).boxShadow).toBe("none");
+      expect(Number.parseFloat(recorderStyle.minWidth)).toBeGreaterThanOrEqual(44);
+      expect(Number.parseFloat(recorderStyle.minHeight)).toBeGreaterThanOrEqual(44);
+      expect(recorderStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(surfaceStyle.height).toBe(compact ? "36px" : "40px");
+      expect(surfaceStyle.minHeight).toBe(compact ? "36px" : "40px");
+      expect(surfaceStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+      expect(Number.parseFloat(clearStyle.minWidth)).toBeGreaterThanOrEqual(44);
+      expect(Number.parseFloat(clearStyle.minHeight)).toBeGreaterThanOrEqual(44);
+      expect(recorderStyle.width).toBe("auto");
+      expect(surfaceStyle.minWidth).toBe("112px");
+      expect(clearStyle.flexBasis).toBe("44px");
+      expect(clearStyle.flexShrink).toBe("0");
+      expect(fieldContainerStyle.gap).toBe("8px");
+      expect(fieldContainerStyle.borderTopWidth).toBe("0px");
+      expect(fieldContainerStyle.borderRadius).toBe("0px");
+      expect(fieldContainerStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(clear.closest("[bitfieldcontainer]")).toBe(fieldContainer);
+      expect(host.querySelectorAll('[aria-busy="true"] [role="progressbar"]').length)
+        .toBeLessThanOrEqual(1);
+
+      document.documentElement.style.fontSize = "200%";
+      const label = host.querySelector<HTMLElement>("bit-label")!;
+      const originalLabel = label.textContent;
+      label.textContent = `${originalLabel} ${originalLabel} ${originalLabel}`;
+      expect(getComputedStyle(row!).height).toBe("auto");
+      expect(getComputedStyle(row!).overflow).toBe("visible");
+      label.textContent = originalLabel;
+      document.documentElement.style.removeProperty("font-size");
+
+      recorder.dataset["testFocusVisible"] = "true";
+      clear.dataset["testFocusVisible"] = "true";
+      const focusedFieldContainerStyle = getComputedStyle(fieldContainer!);
+      expect(getComputedStyle(recorder).outlineWidth).toBe("0px");
+      expect(focusedFieldContainerStyle.outlineWidth).toBe("0px");
+      expect(focusedFieldContainerStyle.outlineStyle).toBe("none");
+      expect(focusedFieldContainerStyle.boxShadow).toBe("none");
+      expect(getComputedStyle(surface).outlineWidth).toBe("2px");
+      expect(getComputedStyle(surface).outlineStyle).toBe("solid");
+      expect(getComputedStyle(clear).outlineWidth).toBe("2px");
+      expect(getComputedStyle(clear).outlineStyle).toBe("solid");
+    },
+  );
 
   it("enters recording mode and waits on modifier-only keydown", async () => {
     const { fixture, host, shortcutHost } = await renderPage();
@@ -244,7 +353,7 @@ describe("KeyboardShortcutPageComponent", () => {
 
 async function renderPage(shortcutHost = new ShortcutHostFake()) {
   await TestBed.configureTestingModule({
-    imports: [KeyboardShortcutPageComponent],
+    imports: [KeyboardShortcutPageTestHostComponent],
     providers: [
       provideRouter([]),
       OfficialI18nService,
@@ -253,7 +362,8 @@ async function renderPage(shortcutHost = new ShortcutHostFake()) {
     ],
   }).compileComponents();
 
-  const fixture = TestBed.createComponent(KeyboardShortcutPageComponent);
+  const fixture = TestBed.createComponent(KeyboardShortcutPageTestHostComponent);
+  document.body.append(fixture.nativeElement as HTMLElement);
   fixture.detectChanges();
   await new Promise((resolve) => setTimeout(resolve));
   await fixture.whenStable();
@@ -272,6 +382,14 @@ function shortcutRecorder(host: HTMLElement): HTMLButtonElement {
   );
   expect(recorder).not.toBeNull();
   return recorder!;
+}
+
+function shortcutRecorderSurface(host: HTMLElement): HTMLElement {
+  const surface = host.querySelector<HTMLElement>(
+    '[data-testid="shortcut-recorder-surface"]',
+  );
+  expect(surface).not.toBeNull();
+  return surface!;
 }
 
 function clearButton(host: HTMLElement): HTMLButtonElement {
@@ -355,4 +473,77 @@ function deferred<T>() {
     resolve = resolver;
   });
   return { promise, resolve };
+}
+
+function installProductionCss(): void {
+  const source = [
+    "macos-tokens.css",
+    "macos-motion.css",
+    "macos-materials.css",
+    "global.css",
+  ]
+    .map((filename) =>
+      readFileSync(
+        join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+        "utf8",
+      ),
+    )
+    .join("\n");
+  const root = postcss.parse(source);
+  root.walkAtRules("import", (rule) => rule.remove());
+  root.walkAtRules("media", (rule) => rule.remove());
+  root.walkAtRules("starting-style", (rule) => rule.remove());
+
+  const style = document.createElement("style");
+  style.dataset["keyboardShortcutProductionCss"] = "true";
+  style.textContent = `
+.shortcut-recorder__surface {
+  height: 18px;
+  min-height: 18px;
+  background: transparent;
+}
+${root.toString()}`
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
+  document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (reference, name) =>
+    resolveCustomProperty(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
+      || reference,
+  );
+}
+
+function resolveCustomProperty(
+  value: string,
+  rootStyle: CSSStyleDeclaration,
+  seen: Set<string>,
+): string {
+  return value.replace(/var\((--[\w-]+)\)/g, (reference, name) => {
+    if (seen.has(name)) {
+      return reference;
+    }
+    const next = rootStyle.getPropertyValue(name).trim();
+    return next
+      ? resolveCustomProperty(next, rootStyle, new Set([...seen, name]))
+      : reference;
+  });
+}
+
+function resolvedMatchedProperty(element: Element, property: string): string {
+  let resolved = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const value = rule.style.getPropertyValue(property).trim();
+      if (!value) continue;
+      const matches = rule.selectorText.split(",").some((selector) => {
+        try {
+          return element.matches(selector.trim());
+        } catch {
+          return false;
+        }
+      });
+      if (matches) resolved = value;
+    }
+  }
+  return resolved;
 }

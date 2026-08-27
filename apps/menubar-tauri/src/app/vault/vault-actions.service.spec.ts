@@ -93,15 +93,19 @@ describe("VaultActionsService", () => {
       .resolves.toBe("已复制用户名");
   });
 
-  it("passes exactly one selected field value to paste", async () => {
+  it("pastes the selected username or password without classifying the focused input", async () => {
     const host = new RecordingHost();
     const service = new VaultActionsService(host, new SettingsService());
 
+    await expect(
+      service.fillField({ id: "username", label: "Username", value: "selected-username" }),
+    ).resolves.toBe("Filled Username");
     await expect(
       service.fillField({ id: "password", label: "Password", value: "selected-password" }),
     ).resolves.toBe("Filled Password");
 
     expect(host.calls).toEqual([
+      { type: "paste", value: "selected-username", clearAfterSeconds: 30 },
       { type: "paste", value: "selected-password", clearAfterSeconds: 30 },
     ]);
   });

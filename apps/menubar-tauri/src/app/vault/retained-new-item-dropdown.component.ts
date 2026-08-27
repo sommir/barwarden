@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, OnDestroy, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, Input, OnDestroy, ViewChild } from "@angular/core";
 
 import {
   NewItemDropdownComponent,
@@ -47,6 +47,8 @@ export class RetainedFolderDialogService {
 export class RetainedNewItemDropdownComponent implements AfterViewInit, OnDestroy {
   @Input() initialValues?: NewItemInitialValues;
   @ViewChild(VaultFolderDialogComponent) private folderDialog?: VaultFolderDialogComponent;
+  @ViewChild(NewItemDropdownComponent, { read: ElementRef })
+  private newItemDropdownHost?: ElementRef<HTMLElement>;
 
   constructor(private readonly retainedDialog: RetainedFolderDialogService) {}
 
@@ -54,6 +56,10 @@ export class RetainedNewItemDropdownComponent implements AfterViewInit, OnDestro
     if (this.folderDialog) {
       this.retainedDialog.bind(this.folderDialog);
     }
+    const trigger = this.newItemDropdownHost?.nativeElement
+      .querySelector<HTMLButtonElement>("button[bitbutton]");
+    if (!trigger) throw new Error("Retained New Item trigger is unavailable.");
+    trigger.dataset["popupFocusKey"] = "vault:new-item";
   }
 
   ngOnDestroy(): void {

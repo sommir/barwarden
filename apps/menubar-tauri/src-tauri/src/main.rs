@@ -1,7 +1,19 @@
+mod accessibility_focus;
+mod autofill_ax_context;
+mod autofill_contract;
+mod autofill_detected_fill;
+mod autofill_field_context;
+mod autofill_floating;
+mod autofill_ipc;
+mod autofill_projection;
+mod autofill_reprompt;
 mod biometric;
 #[cfg(target_os = "macos")]
 mod biometric_macos;
 mod brand;
+mod browser_context;
+#[cfg(target_os = "macos")]
+mod browser_context_macos;
 mod clipboard;
 mod frontmost;
 mod global_shortcut;
@@ -13,6 +25,9 @@ mod login_item;
 mod opener;
 mod paste;
 mod session_broker;
+mod suggestion_count;
+#[cfg(target_os = "macos")]
+mod suggestion_count_macos;
 mod tray;
 mod window;
 
@@ -20,6 +35,25 @@ use std::fs;
 use std::io;
 
 use tauri::Manager;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MaintenanceCommand {
+    RegisterAutoFillAgent,
+}
+
+fn maintenance_command<I, S>(args: I) -> Option<MaintenanceCommand>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    let mut args = args.into_iter();
+    let command = args.next()?;
+    if args.next().is_some() {
+        return None;
+    }
+    (command.as_ref() == "--register-autofill-agent")
+        .then_some(MaintenanceCommand::RegisterAutoFillAgent)
+}
 
 fn should_show_popup_on_reopen(has_visible_windows: bool) -> bool {
     !has_visible_windows
@@ -34,15 +68,48 @@ fn updater_plugin_is_configured(config: &tauri::Config) -> bool {
 }
 
 fn main() {
+    #[cfg(target_os = "macos")]
+    if maintenance_command(std::env::args_os().skip(1))
+        == Some(MaintenanceCommand::RegisterAutoFillAgent)
+    {
+        let result = login_item::autofill_agent_unregister()
+            .and_then(|_| login_item::autofill_agent_register());
+        if result == Ok("enabled") {
+            println!("NATIVE_AUTOFILL_LOCAL_AGENT_REGISTER_PASS");
+            return;
+        }
+        eprintln!("NATIVE_AUTOFILL_LOCAL_AGENT_REGISTER_FAILED");
+        std::process::exit(78);
+    }
+
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    if let Some(output_dir) = std::env::var_os("BARWARDEN_AUTOFILL_PILL_FIXTURE_DIR") {
+        autofill_floating::render_native_pill_fixture(std::path::Path::new(&output_dir))
+            .expect("render deterministic native AutoFill pill fixture");
+        return;
+    }
+
     let context = tauri::generate_context!();
+    let observer_generation = autofill_ax_context::ObserverGeneration::default();
+    let detected_fill_contexts =
+        autofill_ax_context::DetectedFillContextStore::with_observer_generation(
+            observer_generation.clone(),
+        );
+    let floating_controller =
+        autofill_floating::AutoFillFloatingController::with_observer_generation(
+            observer_generation,
+        );
     let mut builder = tauri::Builder::default()
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     if global_shortcut::shortcut_trigger_action(event.state)
-                        == global_shortcut::ShortcutTriggerAction::Toggle
+                        == global_shortcut::ShortcutTriggerAction::OpenAutoFill
                     {
-                        let _ = crate::window::toggle_popup_window(app, None);
+                        let _ = crate::window::show_autofill_picker_window(
+                            app,
+                            crate::window::PopupEntrySource::AutoFillShortcut,
+                        );
                     }
                 })
                 .build(),
@@ -54,9 +121,18 @@ fn main() {
         .manage(clipboard::ClipboardGeneration::default())
         .manage(window::PopupVisibilityHold::default())
         .manage(window::PopupPresentationState::default())
+        .manage(floating_controller)
+        .manage(detected_fill_contexts.clone())
         .manage(session_broker::SessionBroker::new(
             uuid::Uuid::new_v4().to_string(),
-        ));
+        ))
+        .manage(std::sync::Arc::new(
+            autofill_reprompt::AutoFillRepromptReceiptStore::default(),
+        ))
+        .manage(
+            autofill_projection::system_projection_manager()
+                .unwrap_or_else(|_| panic!("failed to initialize native AutoFill projection")),
+        );
 
     if updater_plugin_is_configured(context.config()) {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
@@ -79,7 +155,24 @@ fn main() {
             app.manage(shortcut_state);
             #[cfg(target_os = "macos")]
             window::configure_native_popup_window(app.handle())?;
+            let floating = app
+                .state::<autofill_floating::AutoFillFloatingController>()
+                .inner()
+                .clone();
+            autofill_floating::start_native_observer(app.handle().clone(), floating);
             tray::setup_tray(app.handle())?;
+            let title_app = app.handle().clone();
+            let context_app = app.handle().clone();
+            let suggestion_monitor = suggestion_count::SuggestionCountMonitor::with_sinks(
+                move |title| {
+                    let count = title.parse::<usize>().ok();
+                    let _ = suggestion_count::apply_tray_title(&title_app, count);
+                },
+                move |revision| window::refresh_popup_suggestions(&context_app, revision),
+            );
+            app.manage(suggestion_monitor.clone());
+            #[cfg(target_os = "macos")]
+            suggestion_count_macos::start(app.handle().clone(), suggestion_monitor);
             Ok(())
         })
         .on_window_event(window::handle_window_event)
@@ -89,10 +182,32 @@ fn main() {
             window::popup_window_metrics,
             window::pop_out,
             window::set_popup_height,
+            frontmost::autofill_entry_context,
+            autofill_floating::autofill_accessibility_status,
+            autofill_floating::autofill_set_accessibility_fallback,
+            autofill_floating::autofill_set_floating_icon_enabled,
+            autofill_floating::autofill_request_accessibility_permission,
             biometric::biometric_status,
             biometric::biometric_enable,
             biometric::biometric_unlock,
+            biometric::autofill_biometric_reprompt,
             biometric::biometric_disable,
+            autofill_ipc::autofill_agent_probe,
+            autofill_ipc::autofill_agent_status,
+            autofill_ipc::autofill_agent_lock,
+            autofill_ipc::autofill_agent_session,
+            autofill_ipc::autofill_query_candidates,
+            autofill_ipc::autofill_release_secret,
+            autofill_detected_fill::autofill_fill_detected,
+            autofill_reprompt::autofill_begin_reprompt,
+            autofill_reprompt::autofill_cancel_reprompt,
+            autofill_reprompt::autofill_begin_batch_reprompt,
+            autofill_reprompt::autofill_cancel_batch_reprompt,
+            autofill_projection::autofill_capture_projection_binding,
+            autofill_projection::autofill_replace_projection,
+            autofill_projection::autofill_clear_projection,
+            autofill_projection::autofill_lock_projection,
+            autofill_projection::autofill_reset_projection_for_reprojection,
             clipboard::copy_text,
             paste::paste_text,
             keychain::secure_get,
@@ -112,8 +227,12 @@ fn main() {
             global_shortcut::get_global_shortcut,
             global_shortcut::set_global_shortcut,
             global_shortcut::clear_global_shortcut,
+            browser_context::captured_website_context,
             login_item::get_launch_at_login,
             login_item::set_launch_at_login,
+            login_item::autofill_agent_registration_status,
+            login_item::autofill_agent_register,
+            login_item::autofill_agent_unregister,
         ])
         .build(context)
         .unwrap_or_else(|error| panic!("failed to run {}: {error}", brand::PRODUCT_NAME));
@@ -134,7 +253,21 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{should_show_popup_on_reopen, updater_plugin_is_configured};
+    use super::{
+        maintenance_command, should_show_popup_on_reopen, updater_plugin_is_configured,
+        MaintenanceCommand,
+    };
+
+    #[test]
+    fn maintenance_command_accepts_only_the_single_agent_registration_flag() {
+        assert_eq!(
+            maintenance_command(["--register-autofill-agent"]),
+            Some(MaintenanceCommand::RegisterAutoFillAgent),
+        );
+        assert_eq!(maintenance_command(std::iter::empty::<&str>()), None);
+        assert_eq!(maintenance_command(["--unknown"]), None);
+        assert_eq!(maintenance_command(["--register-autofill-agent", "extra"]), None);
+    }
 
     #[test]
     fn reopen_recovers_a_hidden_menu_bar_popup() {

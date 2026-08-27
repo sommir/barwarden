@@ -101,6 +101,28 @@ describe("RetainedTextSendFormService", () => {
     expect(form.draft(now)).not.toHaveProperty("password");
   });
 
+  it("returns stable field errors in visual focus order", () => {
+    const form = new RetainedTextSendFormService({ hideEmailAllowed: true });
+    form.initialize(validValue());
+    form.patch({
+      name: " ",
+      text: "",
+      authType: "password",
+      password: "",
+      maxAccessCount: "1.5",
+    });
+
+    expect(form.errors()).toEqual({
+      name: "required",
+      text: "required",
+      password: "required",
+      maxAccessCount: "invalid-positive-integer",
+    });
+
+    form.patch({ name: "Name", text: "Body", password: "secret", maxAccessCount: "2" });
+    expect(form.errors()).toEqual({});
+  });
+
   it("resets plaintext on destroy", () => {
     const form = new RetainedTextSendFormService({ hideEmailAllowed: true });
     form.initialize({ ...validValue(), password: "plain-secret", text: "plain-text" });

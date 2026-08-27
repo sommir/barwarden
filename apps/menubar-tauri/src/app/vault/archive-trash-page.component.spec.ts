@@ -351,7 +351,6 @@ describe("Archive and Trash pages", () => {
     const fixture = TestBed.createComponent(TrashPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-
     host.querySelector<HTMLButtonElement>("[aria-label='回收站选项 Deleted login']")!.click();
     clickMenuAction("恢复");
     await fixture.whenStable();
@@ -377,6 +376,235 @@ describe("Archive and Trash pages", () => {
     expect(actions.permanentlyDeleteItemWithOutcome).toHaveBeenCalledWith(discardItem, expect.any(Function));
     expect(store.snapshot().deletedItems).toEqual([]);
     expect(store.snapshot().statusMessage).toBe("Item permanently deleted");
+  });
+
+  it("keeps a failed permanent-delete Sheet open and permits retry", async () => {
+    const store = new PopupStateStore();
+    const item = { ...demoVaultItems[0], id: "deleted-retry", name: "Retry login" };
+    unlock(store);
+    store.setDeletedItems([item]);
+    const actions = {
+      permanentlyDeleteItemWithOutcome: vi.fn()
+        .mockResolvedValueOnce({ committed: false, reason: "failure", status: "无法永久删除项目，请重试。" })
+        .mockResolvedValueOnce(committed(item, "Item permanently deleted")),
+    };
+    await TestBed.configureTestingModule({
+      imports: [TrashPageComponent],
+      providers: [provideRouter([]), { provide: Router, useValue: routeRouter("/trash") },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultActionsService, useValue: actions }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TrashPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>("[aria-label='回收站选项 Retry login']")!.click();
+    clickMenuAction("永久删除");
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const sheet = host.querySelector<HTMLDialogElement>("[data-testid='permanent-delete-confirmation']")!;
+    const submit = sheet.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const cancel = sheet.querySelector<HTMLButtonElement>("[data-testid='permanent-delete-cancel']")!;
+    expect(document.activeElement).toBe(cancel);
+    submit.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(sheet.open).toBe(true);
+    expect(sheet.closest("bw-app-bottom-sheet")?.getAttribute("aria-busy")).toBe("false");
+    expect(sheet.querySelectorAll("[role='alert']")).toHaveLength(1);
+    expect(sheet.textContent).toContain("无法永久删除项目，请重试。");
+    submit.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(sheet.open).toBe(false);
+    expect(actions.permanentlyDeleteItemWithOutcome).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes an English Archive confirmation silently for a stale typed outcome", async () => {
+    const i18n = new OfficialI18nService();
+    await i18n.setLocale("en-US");
+    const store = new PopupStateStore();
+    const item = { ...demoVaultItems[0], id: "archive-stale-en", name: "Stale archive" };
+    unlock(store);
+    store.setArchivedItems([item]);
+    const actions = {
+      deleteArchivedItemWithOutcome: vi.fn(async () => ({
+        committed: false as const,
+        reason: "stale" as const,
+        status: i18n.t("i18nVaultChangedActionNotApplied"),
+      })),
+    };
+    await TestBed.configureTestingModule({
+      imports: [ArchivePageComponent],
+      providers: [provideRouter([]), { provide: Router, useValue: routeRouter("/archive") },
+        { provide: OfficialI18nService, useValue: i18n },
+        { provide: I18nService, useValue: i18n },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultActionsService, useValue: actions }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ArchivePageComponent);
+    fixture.detectChanges();
+    const sheet = (fixture.nativeElement as HTMLElement).querySelector<HTMLDialogElement>(
+      "[data-testid='archive-delete-confirmation']",
+    )!;
+    Object.defineProperty(sheet, "showModal", {
+      configurable: true,
+      value: vi.fn(() => sheet.setAttribute("open", "")),
+    });
+
+    await fixture.componentInstance.requestDelete(item.id);
+    fixture.detectChanges();
+    sheet.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(actions.deleteArchivedItemWithOutcome).toHaveBeenCalledOnce();
+    expect(sheet.open).toBe(false);
+    expect(sheet.querySelector("[role='alert']")).toBeNull();
+  });
+
+  it("closes a Chinese Trash confirmation silently for a stale typed outcome", async () => {
+    const i18n = new OfficialI18nService();
+    await i18n.setLocale("zh-CN");
+    const store = new PopupStateStore();
+    const item = { ...demoVaultItems[0], id: "trash-stale-zh", name: "Stale trash" };
+    unlock(store);
+    store.setDeletedItems([item]);
+    const actions = {
+      permanentlyDeleteItemWithOutcome: vi.fn(async () => ({
+        committed: false as const,
+        reason: "stale" as const,
+        status: i18n.t("i18nVaultChangedActionNotApplied"),
+      })),
+    };
+    await TestBed.configureTestingModule({
+      imports: [TrashPageComponent],
+      providers: [provideRouter([]), { provide: Router, useValue: routeRouter("/trash") },
+        { provide: OfficialI18nService, useValue: i18n },
+        { provide: I18nService, useValue: i18n },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultActionsService, useValue: actions }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TrashPageComponent);
+    fixture.detectChanges();
+    const sheet = (fixture.nativeElement as HTMLElement).querySelector<HTMLDialogElement>(
+      "[data-testid='permanent-delete-confirmation']",
+    )!;
+    Object.defineProperty(sheet, "showModal", {
+      configurable: true,
+      value: vi.fn(() => sheet.setAttribute("open", "")),
+    });
+
+    await fixture.componentInstance.deleteForever(item.id);
+    fixture.detectChanges();
+    sheet.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(actions.permanentlyDeleteItemWithOutcome).toHaveBeenCalledOnce();
+    expect(sheet.open).toBe(false);
+    expect(sheet.querySelector("[role='alert']")).toBeNull();
+  });
+
+  it("blocks every Sheet dismissal path while a permanent delete is busy and enables retry after failure", async () => {
+    const store = new PopupStateStore();
+    const item = { ...demoVaultItems[0], id: "deleted-busy", name: "Busy login" };
+    const completion = deferred<{
+      committed: false;
+      reason: "failure";
+      status: string;
+    }>();
+    unlock(store);
+    store.setDeletedItems([item]);
+    const actions = {
+      permanentlyDeleteItemWithOutcome: vi.fn(() => completion.promise),
+    };
+    await TestBed.configureTestingModule({
+      imports: [TrashPageComponent],
+      providers: [provideRouter([]), { provide: Router, useValue: routeRouter("/trash") },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultActionsService, useValue: actions }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TrashPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const sheet = host.querySelector<HTMLDialogElement>("[data-testid='permanent-delete-confirmation']")!;
+    Object.defineProperty(sheet, "showModal", {
+      configurable: true,
+      value: vi.fn(() => sheet.setAttribute("open", "")),
+    });
+    await fixture.componentInstance.deleteForever(item.id);
+    fixture.detectChanges();
+    const submit = sheet.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+
+    submit.click();
+    await vi.waitFor(() => expect(actions.permanentlyDeleteItemWithOutcome).toHaveBeenCalledOnce());
+    fixture.detectChanges();
+    submit.click();
+    sheet.dispatchEvent(new Event("cancel", { bubbles: true, cancelable: true }));
+    sheet.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    sheet.querySelector<HTMLButtonElement>("button:has(.bwi-close)")!.click();
+    fixture.detectChanges();
+
+    expect(sheet.open).toBe(true);
+    expect(actions.permanentlyDeleteItemWithOutcome).toHaveBeenCalledOnce();
+
+    completion.resolve({ committed: false, reason: "failure", status: "Retry permanent delete." });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(sheet.open).toBe(true);
+    expect(sheet.closest("bw-app-bottom-sheet")?.getAttribute("aria-busy")).toBe("false");
+    expect(sheet.querySelectorAll("[role='alert']")).toHaveLength(1);
+    expect(submit.disabled).toBe(false);
+    submit.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(actions.permanentlyDeleteItemWithOutcome).toHaveBeenCalledTimes(2);
+    const cancel = sheet.querySelector<HTMLButtonElement>("[data-testid='permanent-delete-cancel']")!;
+    expect(cancel.disabled).toBe(false);
+    cancel.click();
+    fixture.detectChanges();
+    expect(sheet.open).toBe(false);
+  });
+
+  it("ignores a late failed completion after destroying a busy Archive confirmation", async () => {
+    const store = new PopupStateStore();
+    const item = { ...demoVaultItems[0], id: "archive-destroy", name: "Destroyed archive" };
+    const completion = deferred<{
+      committed: false;
+      reason: "failure";
+      status: string;
+    }>();
+    unlock(store);
+    store.setArchivedItems([item]);
+    const actions = { deleteArchivedItemWithOutcome: vi.fn(() => completion.promise) };
+    await TestBed.configureTestingModule({
+      imports: [ArchivePageComponent],
+      providers: [provideRouter([]), { provide: Router, useValue: routeRouter("/archive") },
+        { provide: PopupStateStore, useValue: store },
+        { provide: VaultActionsService, useValue: actions }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ArchivePageComponent);
+    fixture.detectChanges();
+    const sheet = (fixture.nativeElement as HTMLElement).querySelector<HTMLDialogElement>(
+      "[data-testid='archive-delete-confirmation']",
+    )!;
+    Object.defineProperty(sheet, "showModal", {
+      configurable: true,
+      value: vi.fn(() => sheet.setAttribute("open", "")),
+    });
+    await fixture.componentInstance.requestDelete(item.id);
+    fixture.detectChanges();
+    sheet.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await vi.waitFor(() => expect(actions.deleteArchivedItemWithOutcome).toHaveBeenCalledOnce());
+
+    fixture.destroy();
+    completion.resolve({ committed: false, reason: "failure", status: "Late failure" });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sheet.open).toBe(false);
+    expect(sheet.querySelector("[role='alert']")).toBeNull();
   });
 
   it("renders official empty states for Archive and Trash", async () => {
@@ -434,4 +662,12 @@ function routeRouter(url: string) {
 
 function committed(item: (typeof demoVaultItems)[number], status: string) {
   return { committed: true as const, status, result: { kind: "removed" as const, item } };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }

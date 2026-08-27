@@ -7,12 +7,15 @@ import { PopupPageComponent } from "../layout/popup-page.component";
 import { VaultFolderDialogComponent } from "./vault-folder-dialog.component";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 interface NewItemOption {
   readonly label: string;
   readonly description: string;
   readonly icon: string;
   readonly link: string;
+  readonly focusKey: "new-item:type:1" | "new-item:type:2" |
+    "new-item:type:3" | "new-item:type:4" | "new-item:folder";
   readonly queryParams?: Record<string, string>;
   readonly opensFolderDialog?: boolean;
 }
@@ -28,6 +31,7 @@ const NEW_ITEM_OPTIONS: readonly NewItemOptionSource[] = [
     descriptionKey: "i18nLoginDescription",
     icon: "bwi-globe",
     link: "/add-cipher",
+    focusKey: "new-item:type:1",
     queryParams: { type: "1" },
   },
   {
@@ -35,6 +39,7 @@ const NEW_ITEM_OPTIONS: readonly NewItemOptionSource[] = [
     descriptionKey: "i18nSaveCardDescription",
     icon: "bwi-credit-card",
     link: "/add-cipher",
+    focusKey: "new-item:type:3",
     queryParams: { type: "3" },
   },
   {
@@ -42,6 +47,7 @@ const NEW_ITEM_OPTIONS: readonly NewItemOptionSource[] = [
     descriptionKey: "i18nSaveIdentityDescription",
     icon: "bwi-id-card",
     link: "/add-cipher",
+    focusKey: "new-item:type:4",
     queryParams: { type: "4" },
   },
   {
@@ -49,6 +55,7 @@ const NEW_ITEM_OPTIONS: readonly NewItemOptionSource[] = [
     descriptionKey: "i18nSaveSecureNoteDescription",
     icon: "bwi-sticky-note",
     link: "/add-cipher",
+    focusKey: "new-item:type:2",
     queryParams: { type: "2" },
   },
   {
@@ -56,6 +63,7 @@ const NEW_ITEM_OPTIONS: readonly NewItemOptionSource[] = [
     descriptionKey: "i18nFolderDescription",
     icon: "bwi-folder",
     link: "",
+    focusKey: "new-item:folder",
     opensFolderDialog: true,
   },
 ];
@@ -70,29 +78,31 @@ const NEW_ITEM_OPTIONS: readonly NewItemOptionSource[] = [
       <popup-header slot="header" [pageTitle]="'i18nChooseItemToAdd' | i18n" [showBackButton]="true" [backAction]="backAction" />
 
       <section class="new-item-page" [attr.aria-label]="'i18nChooseItemToAdd' | i18n">
-        <div class="new-item-grid">
-          @for (item of items; track item.label) {
-            @if (item.opensFolderDialog) {
-              <button class="new-item-option" type="button" [attr.aria-label]="'i18nNewFolder' | i18n" (click)="openFolderDialog()">
-                <span class="new-item-icon" aria-hidden="true">
-                  <i class="bwi {{ item.icon }}" aria-hidden="true"></i>
-                </span>
-                <span class="new-item-text">
-                  <span class="new-item-label">{{ item.label }}</span>
-                  <span class="new-item-description">{{ item.description }}</span>
-                </span>
-              </button>
-            } @else {
-              <a class="new-item-option" [routerLink]="item.link" [queryParams]="item.queryParams ?? null">
-                <span class="new-item-icon" aria-hidden="true">
-                  <i class="bwi {{ item.icon }}" aria-hidden="true"></i>
-                </span>
-                <span class="new-item-text">
-                  <span class="new-item-label">{{ item.label }}</span>
-                  <span class="new-item-description">{{ item.description }}</span>
-                </span>
-              </a>
-            }
+        <div class="new-item-grid" role="list">
+          @for (item of items; track item.focusKey) {
+            <div class="new-item-option-row" role="listitem">
+              @if (item.opensFolderDialog) {
+                <button class="new-item-option macos-row macos-row--double macos-pressable macos-hit-target" type="button"
+                  [attr.aria-label]="'i18nNewFolder' | i18n"
+                  [attr.data-popup-focus-key]="item.focusKey"
+                  [attr.aria-describedby]="item.focusKey + '-description'"
+                  (click)="openFolderDialog($event.currentTarget)">
+                  <span class="new-item-icon" aria-hidden="true"><i class="bwi {{ item.icon }}" aria-hidden="true"></i></span>
+                  <span class="new-item-text"><span class="new-item-label">{{ item.label }}</span>
+                    <span class="new-item-description" [id]="item.focusKey + '-description'">{{ item.description }}</span>
+                  </span>
+                </button>
+              } @else {
+                <a class="new-item-option macos-row macos-row--double macos-pressable macos-hit-target" [routerLink]="item.link" [queryParams]="item.queryParams ?? null"
+                  [attr.data-popup-focus-key]="item.focusKey"
+                  [attr.aria-describedby]="item.focusKey + '-description'">
+                  <span class="new-item-icon" aria-hidden="true"><i class="bwi {{ item.icon }}" aria-hidden="true"></i></span>
+                  <span class="new-item-text"><span class="new-item-label">{{ item.label }}</span>
+                    <span class="new-item-description" [id]="item.focusKey + '-description'">{{ item.description }}</span>
+                  </span>
+                </a>
+              }
+            </div>
           }
         </div>
       </section>
@@ -108,6 +118,7 @@ export class NewItemPageComponent {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly router: Router,
+    private readonly routeCache: PopupRouterCacheService,
   ) {
     this.folderId = this.route.snapshot.queryParamMap.get("folderId") ?? "";
     this.route.queryParamMap
@@ -128,8 +139,8 @@ export class NewItemPageComponent {
     });
   }
 
-  openFolderDialog(): void {
-    this.folderDialog?.openFor();
+  openFolderDialog(trigger: EventTarget | null): void {
+    this.folderDialog?.openFor(undefined, trigger instanceof HTMLElement ? trigger : null);
   }
 
   async onFolderCreated(): Promise<void> {
@@ -137,6 +148,6 @@ export class NewItemPageComponent {
   }
 
   async back(): Promise<void> {
-    await this.router.navigateByUrl("/tabs/vault");
+    await this.routeCache.back();
   }
 }

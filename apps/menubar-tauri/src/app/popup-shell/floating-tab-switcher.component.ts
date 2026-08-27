@@ -35,6 +35,7 @@ export interface FloatingTab {
         <button
           type="button"
           class="floating-tab-switcher__segment macos-pressable"
+          [attr.data-popup-focus-key]="'tab:' + tab.path"
           [attr.aria-current]="isCurrent(tab.path) ? 'page' : null"
           (click)="activate(tab, $event)"
         >

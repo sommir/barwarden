@@ -67,6 +67,10 @@ describe("OfficialLoginDetailComponent", () => {
     expect(host.textContent).not.toMatch(/通行密钥|附件|SSH|高级版|自动填充按钮/);
     expect(host.querySelector("bw-vault-detail-section")).toBeNull();
     expect(host.querySelector("bw-vault-detail-field")).toBeNull();
+    expect(root.querySelector("official-item-details")?.classList)
+      .toContain("official-detail-identity-duplicate");
+    expect(root.querySelector("[data-testid='official-item-identity']")?.getAttribute("aria-hidden"))
+      .toBe("true");
   });
 
   it("preserves official field IDs, test IDs, hidden defaults, order, and metadata", async () => {

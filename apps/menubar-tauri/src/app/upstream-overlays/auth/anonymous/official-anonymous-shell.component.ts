@@ -40,7 +40,8 @@ import { OfficialI18nService } from "../../../official-ui/official-i18n.service"
   templateUrl: "./official-anonymous-shell.component.html",
 })
 export class OfficialAnonymousShellComponent {
-  readonly showBackButton = false;
+  @Input() showBackButton = false;
+  @Input() backAction: () => void | Promise<void> = () => undefined;
   @Input() pageTitle = "";
   @Input() pageSubtitle = "";
   readonly pageIcon: BitSvg | null = null;

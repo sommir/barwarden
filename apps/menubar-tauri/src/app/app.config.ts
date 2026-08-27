@@ -44,6 +44,19 @@ import {
   POPUP_ROUTER_CACHE_LIFECYCLE_PORT,
   POPUP_ROUTER_CACHE_ROUTE_GRAPH,
 } from "./platform/popup-router-cache.lifecycle";
+import {
+  AUTOFILL_PROJECTION_HOST,
+  AutoFillProjectionService,
+  NativeAutoFillProjectionHost,
+} from "./autofill/autofill-projection.service";
+import { AUTOFILL_PROJECTION_LIFECYCLE_PORT } from "./auth/autofill-projection-lifecycle.port";
+import { AUTOFILL_CANDIDATE_HOST } from "./autofill/autofill-candidate.service";
+import { AUTOFILL_NATIVE_HOST } from "./autofill/autofill-native.host";
+import { TauriHostService } from "../host/tauri-host.service";
+import { AUTOFILL_SETUP_HOST, AutoFillSetupService } from "./autofill/autofill-setup.service";
+import { AutoFillVaultContextService } from "./autofill/autofill-vault-context.service";
+import { VaultAutoFillSuggestionsComponent } from "./vault/vault-autofill-suggestions.component";
+import { VAULT_CONTEXTUAL_SECTION } from "./vault/vault-contextual-section-outlet.component";
 
 const evidenceSearch = globalThis.location?.search ?? "";
 const settingsEvidencePreview = createSettingsEvidencePreview(evidenceSearch);
@@ -59,8 +72,17 @@ export const appConfig: ApplicationConfig = {
     { provide: DialogService, useExisting: AppBottomSheetDialogService },
     OfficialI18nService,
     { provide: I18nService, useExisting: OfficialI18nService },
+    { provide: AUTOFILL_PROJECTION_LIFECYCLE_PORT, useExisting: AutoFillProjectionService },
+    { provide: AUTOFILL_PROJECTION_HOST, useClass: NativeAutoFillProjectionHost },
+    { provide: AUTOFILL_CANDIDATE_HOST, useFactory: () => new TauriHostService() },
+    { provide: AUTOFILL_NATIVE_HOST, useFactory: () => new TauriHostService() },
+    { provide: AUTOFILL_SETUP_HOST, useFactory: () => new TauriHostService() },
+    AutoFillSetupService,
+    AutoFillVaultContextService,
+    { provide: VAULT_CONTEXTUAL_SECTION, useValue: VaultAutoFillSuggestionsComponent },
     provideAppInitializer(() => {
       inject(SettingsService);
+      inject(AutoFillProjectionService);
     }),
     { provide: RETAINED_LOGIN_FORM_GENERATOR, useExisting: GeneratorService },
     { provide: RETAINED_LOGIN_FORM_STATUS_STORE, useExisting: PopupStateStore },

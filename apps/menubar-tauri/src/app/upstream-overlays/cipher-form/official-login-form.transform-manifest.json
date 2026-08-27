@@ -79,7 +79,7 @@
     }
   ],
   "license": {
-    "rootPackageSha256": "b670e31d191e75483aec74a3f424d0f438e0d396e6f66ec216aacebc42e6fa99",
+    "rootPackageSha256": "c1a93edc30ab20f6c7ea825f06339118fdf6bbb874765dbbefd0fd308a5e5f29",
     "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
     "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
     "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"
@@ -87,11 +87,11 @@
   "runtimes": [
     {
       "path": "official-login-cipher-form.component.ts",
-      "sha256": "1dcbc1e1c7023737bba5698cac2557828867a253a7d5aa8aca59ebe4d16a1537"
+      "sha256": "85b029024e00b6aa2e30d5f25b1f24058f3eadb59abaced2817d9c2442d9c1f7"
     },
     {
       "path": "official-login-cipher-form.component.html",
-      "sha256": "4bdf9bad15504e9c213f85de0b16240acfb69cfe964f7e3e6f9785331c5f853b"
+      "sha256": "4a4cb234bacf2ec23635eb65ffec04e72e0b8dcec57bb6e102a726337e5f0026"
     },
     {
       "path": "official-login-form-container.ts",
@@ -103,7 +103,7 @@
     },
     {
       "path": "official-login-item-details.component.html",
-      "sha256": "85f9a150975ba7cd4afaac6522b4f4ddafdcfd706b197d5ddaffa237438d9b70"
+      "sha256": "f450fcbf8518da6a177db7cfa5d76bcb2252b992021f23a28066de2a8922bf2d"
     },
     {
       "path": "official-login-details.component.ts",
@@ -151,7 +151,7 @@
     },
     {
       "path": "official-custom-fields.component.html",
-      "sha256": "0ec8bd45b87cfc38e4312a784dff5f34d2d8fcc9c64a145b2cb9d00ff200b633"
+      "sha256": "29a1d46c175d53aa02e06964f54db28401de1cd234ac8eca96fad8269a10491d"
     },
     {
       "path": "official-add-edit-custom-field-dialog.component.ts",

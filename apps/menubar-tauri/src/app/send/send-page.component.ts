@@ -54,6 +54,7 @@ export { SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
       [sends]="sends"
       [query]="query"
       [filtersVisible]="filtersVisible"
+      [filterType]="filterType"
       [loading]="loading"
       [disabled]="disabled"
       [state]="state"
@@ -64,6 +65,17 @@ export { SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
       (copyLink)="copy($event)"
       (delete)="requestDelete($event)"
     />
+    <span
+      class="tw-sr-only"
+      data-testid="result-announcement"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      @for (publication of resultAnnouncementPublications; track publication.revision) {
+        <span [attr.data-result-announcement-revision]="publication.revision">{{ resultAnnouncement }}</span>
+      }
+    </span>
     <bw-app-bottom-sheet
       #deleteDialog
       testId="send-permanent-delete-confirmation"
@@ -97,9 +109,12 @@ export { SEND_ACTION_PORT, type SendActionPort } from "./send-actions.service";
 export class SendPageComponent implements OnDestroy {
   @ViewChild("deleteDialog") private deleteDialog?: AppBottomSheetComponent;
 
+  resultAnnouncement = "";
+  resultAnnouncementPublications: readonly { readonly revision: number }[] = [];
   private readonly host: HostApi;
   private readonly operation: TextSendOperation;
   private pendingDelete: SendItem | null = null;
+  private resultAnnouncementRevision = 0;
   private sendsCache?: {
     readonly source: readonly SendItem[];
     readonly now: number;
@@ -165,6 +180,10 @@ export class SendPageComponent implements OnDestroy {
     return this.sendFacade.filtersVisible();
   }
 
+  get filterType(): "" | "text" {
+    return this.sendFacade.filterType() === "text" ? "text" : "";
+  }
+
   get loading(): boolean {
     return this.sendFacade.showSkeletons();
   }
@@ -178,7 +197,9 @@ export class SendPageComponent implements OnDestroy {
   }
 
   setSearch(query: string): void {
+    const previousIdentity = visibleSendResultIdentity(this.sends);
     this.sendFacade.setSearch(query);
+    this.updateResultAnnouncement(previousIdentity, visibleSendResultIdentity(this.sends));
   }
 
   toggleFilters(): void {
@@ -186,7 +207,9 @@ export class SendPageComponent implements OnDestroy {
   }
 
   setType(type: "" | "text"): void {
+    const previousIdentity = visibleSendResultIdentity(this.sends);
     this.sendFacade.setTypeFilter(type);
+    this.updateResultAnnouncement(previousIdentity, visibleSendResultIdentity(this.sends));
   }
 
   open(send: OfficialTextSendListItem | undefined): void {
@@ -274,6 +297,28 @@ export class SendPageComponent implements OnDestroy {
   private source(send: OfficialTextSendListItem): SendItem | undefined {
     return this.store.snapshot().sends.find((candidate) => candidate.id === send.id && isTextSend(candidate));
   }
+
+  private updateResultAnnouncement(
+    previousIdentity: readonly string[],
+    identity: readonly string[],
+  ): void {
+    if (sameResultIdentity(previousIdentity, identity)) {
+      return;
+    }
+    this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", identity.length);
+    this.resultAnnouncementRevision += 1;
+    this.resultAnnouncementPublications = [{ revision: this.resultAnnouncementRevision }];
+  }
+}
+
+function visibleSendResultIdentity(
+  sends: readonly OfficialTextSendListItem[],
+): readonly string[] {
+  return sends.map((send) => send.id);
+}
+
+function sameResultIdentity(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
 function isTextSend(send: SendItem): boolean {

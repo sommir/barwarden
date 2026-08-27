@@ -1,5 +1,5 @@
 import { Component } from "@angular/core";
-import { Router, RouterLink } from "@angular/router";
+import { RouterLink } from "@angular/router";
 
 import { PopOutComponent } from "@bitwarden/browser-popup/components/pop-out.component";
 import { PopupHeaderComponent } from "../layout/popup-header.component";
@@ -8,6 +8,7 @@ import { EnvironmentHandoffService } from "./environment-handoff.service";
 import { MacosAlertStripComponent } from "../official-ui/macos-alert-strip.component";
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Component({
   selector: "bw-settings-password-page",
@@ -27,13 +28,15 @@ import { I18nPipe } from "../official-ui/official-ui-common";
         <app-pop-out slot="end" />
       </popup-header>
 
-      <section class="settings-password-handoff">
-        <p class="empty-inline">
-          {{ "i18nPasswordHandoffDescription" | i18n }}
-        </p>
-        <button class="primary-action web-vault-action" type="button" (click)="openWebVaultChangePassword()">
-          {{ "i18nOpenWebVaultChangePassword" | i18n }}
-        </button>
+      <section class="settings-password-handoff settings-detail-group macos-preference-group">
+        <div class="macos-preference-row">
+          <p class="empty-inline macos-preference-row__copy">
+            {{ "i18nPasswordHandoffDescription" | i18n }}
+          </p>
+          <button class="primary-action web-vault-action macos-button-owner" type="button" (click)="openWebVaultChangePassword()">
+            {{ "i18nOpenWebVaultChangePassword" | i18n }}
+          </button>
+        </div>
       </section>
 
       @if (handoffError) {
@@ -47,24 +50,38 @@ import { I18nPipe } from "../official-ui/official-ui-common";
   `,
   styles: `
     .settings-password-handoff {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+      display: grid;
+      gap: 12px;
+      padding-top: 12px;
+      padding-right: 0;
+      padding-bottom: 12px;
+      padding-left: 0;
+    }
+
+    .settings-password-handoff .empty-inline {
+      margin: 0;
+      font-size: 14px;
+      line-height: 20px;
     }
 
     .web-vault-action {
-      width: calc(100% - 32px);
-      margin: 0 16px;
+      min-height: var(--mac-hit-size);
+      margin: 0;
+      justify-self: start;
+    }
+
+    .web-vault-action::before {
+      inset-block: 2px;
     }
   `,
 })
 export class SettingsPasswordPageComponent {
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.router.navigateByUrl("/account-security");
+    this.routeCache.back();
   handoffError = "";
 
   constructor(
-    private readonly router: Router,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly handoff: EnvironmentHandoffService,
   ) {}
 

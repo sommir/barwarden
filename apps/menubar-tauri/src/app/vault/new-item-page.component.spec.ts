@@ -24,6 +24,33 @@ try {
 }
 
 describe("NewItemPageComponent", () => {
+  it("renders a continuous semantic list with exact keys", async () => {
+    await TestBed.configureTestingModule({
+      imports: [NewItemPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(NewItemPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector(".new-item-grid")?.getAttribute("role")).toBe("list");
+    expect(Array.from(host.querySelectorAll<HTMLElement>(".new-item-option"), (node) => [
+      node.dataset["popupFocusKey"],
+      node.tagName,
+    ])).toEqual([
+      ["new-item:type:1", "A"],
+      ["new-item:type:3", "A"],
+      ["new-item:type:4", "A"],
+      ["new-item:type:2", "A"],
+      ["new-item:folder", "BUTTON"],
+    ]);
+    expect(Array.from(host.querySelectorAll(".new-item-option"))
+      .every((node) => node.getAttribute("aria-describedby"))).toBe(true);
+  });
+
   it("renders the official choose-item add flow entries", async () => {
     await TestBed.configureTestingModule({
       imports: [NewItemPageComponent],
@@ -160,5 +187,32 @@ describe("NewItemPageComponent", () => {
     await fixture.componentInstance.back();
 
     expect(calls).toEqual(["/tabs/vault"]);
+  });
+
+  it("returns focus to the New Item folder trigger when the Sheet is cancelled", async () => {
+    await TestBed.configureTestingModule({
+      imports: [NewItemPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(NewItemPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector<HTMLButtonElement>(
+      "[data-popup-focus-key='new-item:folder']",
+    )!;
+    trigger.focus();
+    trigger.click();
+    fixture.detectChanges();
+    await Promise.resolve();
+    const cancel = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "取消")!;
+    cancel.click();
+    fixture.detectChanges();
+    await new Promise((resolve) => window.setTimeout(resolve));
+    expect(document.activeElement).toBe(trigger);
   });
 });

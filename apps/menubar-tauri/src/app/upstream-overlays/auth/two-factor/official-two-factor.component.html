@@ -54,7 +54,7 @@
         buttonType="primary"
         bitButton
         bitFormButton
-        class="macos-primary-action"
+        class="macos-primary-action macos-button-owner"
         data-testid="two-factor-continue"
         [disabled]="submitting"
         *ngIf="providers.length > 0 && showContinueButton()"
@@ -62,30 +62,20 @@
         <span>{{ "continueLoggingIn" | i18n }}</span>
       </button>
 
-      <p *ngIf="providers.length > 0" class="tw-text-center tw-mb-0">{{ "or" | i18n }}</p>
-
-      <button
-        type="button"
-        buttonType="secondary"
-        bitButton
-        bitFormButton
-        data-testid="two-factor-other-method"
-        *ngIf="providers.length > 1"
-        [disabled]="submitting"
-        (click)="selectOtherTwoFactorMethod($event)"
-      >
-        <span>{{ "selectAnotherMethod" | i18n }}</span>
-      </button>
-
-      <button
-        type="button"
-        buttonType="secondary"
-        bitButton
-        data-testid="two-factor-back"
-        (click)="back()"
-      >
-        <span>{{ "back" | i18n }}</span>
-      </button>
+      <div class="macos-auth-alternatives" *ngIf="providers.length > 1">
+        <button
+          type="button"
+          buttonType="secondary"
+          bitButton
+          bitFormButton
+          class="macos-auth-alternative macos-hit-target macos-pressable"
+          data-testid="two-factor-other-method"
+          [disabled]="submitting"
+          (click)="selectOtherTwoFactorMethod($event)"
+        >
+          <span>{{ "selectAnotherMethod" | i18n }}</span>
+        </button>
+      </div>
     </div>
   </form>
 </ng-container>

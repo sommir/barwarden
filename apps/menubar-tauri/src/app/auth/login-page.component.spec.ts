@@ -9,6 +9,7 @@ import { By } from "@angular/platform-browser";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 import { provideRouter, Router } from "@angular/router";
 import { BehaviorSubject, Observable, of } from "rxjs";
+import postcss from "postcss";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PopupStateStore } from "../popup-state";
@@ -33,6 +34,64 @@ function deferred<T>() {
     reject = nextReject;
   });
   return { promise, resolve, reject };
+}
+
+function installLoginVisualCss(media: { readonly forcedColors?: boolean } = {}): {
+  readonly exposeFocusVisible: (element: HTMLElement) => void;
+  readonly cleanup: () => void;
+} {
+  const style = document.createElement("style");
+  const productionCascade = postcss.root();
+  for (const filename of ["macos-tokens.css", "global.css"]) {
+    const stylesheet = postcss.parse(
+      readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles", filename), "utf8"),
+    );
+    productionCascade.append(
+      stylesheet.nodes.filter(
+        (node) => !(node.type === "atrule" && node.name.toLowerCase() === "import"),
+      ),
+    );
+  }
+  productionCascade.walkAtRules("media", (rule) => {
+    const active = rule.params === "(forced-colors: active)" && media.forcedColors === true;
+    if (active) {
+      rule.replaceWith(...(rule.nodes ?? []).map((node) => node.clone()));
+    } else {
+      rule.remove();
+    }
+  });
+  productionCascade.walkAtRules("starting-style", (rule) => rule.remove());
+  style.textContent = productionCascade.toString()
+    .replace(/:focus-visible/g, '[data-production-focus-visible="true"]');
+  document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
+    resolveCustomProperty(rootStyle.getPropertyValue(name).trim(), rootStyle, new Set([name]))
+      || value,
+  );
+
+  return {
+    exposeFocusVisible: (element) => element.dataset["productionFocusVisible"] = "true",
+    cleanup: () => style.remove(),
+  };
+}
+
+function resolveCustomProperty(
+  value: string,
+  rootStyle: CSSStyleDeclaration,
+  seen: Set<string>,
+): string {
+  return value.replace(/var\((--[\w-]+)\)/g, (reference, name) => {
+    if (seen.has(name)) return reference;
+    const next = rootStyle.getPropertyValue(name).trim();
+    if (!next) return reference;
+    return resolveCustomProperty(next, rootStyle, new Set([...seen, name]));
+  });
+}
+
+function visualCssHasRule(selector: string): boolean {
+  return [...document.querySelectorAll<HTMLStyleElement>("style")]
+    .some((style) => style.textContent?.includes(selector));
 }
 
 describe("LoginPageComponent", () => {
@@ -123,6 +182,130 @@ describe("LoginPageComponent", () => {
     expect(host.querySelector("form [data-testid=login-email-input]")).not.toBeNull();
   });
 
+  it("mounts the active login stage with 44px owners, scalable visible paint, and one primary action", async () => {
+    const visualCss = installLoginVisualCss();
+    const { fixture, official } = await createPage();
+    const host = fixture.nativeElement as HTMLElement;
+
+    const assertActiveStage = (visiblePaint: "40px" | "36px") => {
+      const activeStage = Array.from(
+        host.querySelectorAll<HTMLElement>("form.macos-auth-card > div"),
+      ).find((stage) => !stage.classList.contains("tw-hidden"))!;
+      const field = activeStage.querySelector<HTMLElement>("bit-form-field")!;
+      const owner = field.querySelector<HTMLElement>("[bitfieldcontainer]")!;
+      const input = field.querySelector<HTMLInputElement>("input[bitinput]")!;
+      const primary = activeStage.querySelector<HTMLButtonElement>(".macos-primary-action")!;
+
+      expect(field.classList).toContain("macos-field-owner");
+      expect(input.classList).toContain("macos-control-visible");
+      expect(parseFloat(getComputedStyle(owner).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(input).height).toBe(visiblePaint);
+      expect(primary.classList).toContain("macos-button-owner");
+      expect(parseFloat(getComputedStyle(primary).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(activeStage.querySelectorAll(".macos-primary-action")).toHaveLength(1);
+    };
+
+    try {
+      assertActiveStage("40px");
+
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      assertActiveStage("36px");
+
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+      official.formGroup.controls.email.setValue("person@example.com");
+      await official.continuePressed();
+      fixture.detectChanges();
+      assertActiveStage("40px");
+
+      document.documentElement.style.fontSize = "200%";
+      const scaledInput = host.querySelector<HTMLInputElement>(
+        '[data-testid="login-master-password-input"]',
+      )!;
+      expect(parseFloat(getComputedStyle(scaledInput).minHeight)).toBeGreaterThanOrEqual(40);
+      expect(getComputedStyle(scaledInput).overflow).not.toBe("hidden");
+    } finally {
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+      document.documentElement.style.removeProperty("font-size");
+      fixture.destroy();
+      visualCss.cleanup();
+    }
+  });
+
+  it("keeps the focused login action owner ringless so the visible fill owns the single ring", async () => {
+    const visualCss = installLoginVisualCss();
+    const { fixture } = await createPage();
+    const action = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      '[data-testid="login-continue-button"]',
+    );
+
+    try {
+      expect(action).not.toBeNull();
+      action!.focus();
+      expect(document.activeElement).toBe(action);
+      visualCss.exposeFocusVisible(action!);
+      const styles = getComputedStyle(action!);
+      expect(styles.outlineWidth).toBe("0px");
+      expect(styles.outlineStyle).toBe("none");
+      expect(styles.boxShadow).toBe("none");
+      expect(visualCssHasRule(".macos-auth-card .macos-button-owner[data-production-focus-visible=\"true\"]")).toBe(true);
+      expect(visualCssHasRule(".macos-button-owner[data-production-focus-visible=\"true\"]::before")).toBe(true);
+    } finally {
+      fixture.destroy();
+      visualCss.cleanup();
+    }
+  });
+
+  it("renders one 2px production focus ring on the real auth field container", async () => {
+    const visualCss = installLoginVisualCss();
+    const { fixture } = await createPage();
+    const input = fixture.nativeElement.querySelector<HTMLInputElement>(
+      '[data-testid="login-email-input"]',
+    )!;
+    const field = input.closest<HTMLElement>("[bitfieldcontainer]")!;
+
+    try {
+      input.focus();
+      expect([
+        getComputedStyle(input).outlineWidth,
+        getComputedStyle(field).outlineWidth,
+      ]).not.toContain("2px");
+      visualCss.exposeFocusVisible(input);
+      const inputStyle = getComputedStyle(input);
+      const fieldStyle = getComputedStyle(field);
+      expect(fieldStyle.outlineWidth).toBe("2px");
+      expect(fieldStyle.outlineStyle).toBe("solid");
+      expect(fieldStyle.outlineOffset).toBe("2px");
+      expect(fieldStyle.boxShadow).toBe("none");
+      expect(inputStyle.outlineStyle).toBe("none");
+    } finally {
+      fixture.destroy();
+      visualCss.cleanup();
+    }
+  });
+
+  it("keeps the real auth field focus ring visible in forced colors", async () => {
+    const visualCss = installLoginVisualCss({ forcedColors: true });
+    const { fixture } = await createPage();
+    const input = fixture.nativeElement.querySelector<HTMLInputElement>(
+      '[data-testid="login-email-input"]',
+    )!;
+    const field = input.closest<HTMLElement>("[bitfieldcontainer]")!;
+    const probe = document.createElement("span");
+    probe.style.outlineColor = "Highlight";
+    document.body.append(probe);
+
+    try {
+      input.focus();
+      visualCss.exposeFocusVisible(input);
+      expect(getComputedStyle(field).outlineWidth).toBe("2px");
+      expect(getComputedStyle(field).outlineColor).toBe(getComputedStyle(probe).outlineColor);
+    } finally {
+      probe.remove();
+      fixture.destroy();
+      visualCss.cleanup();
+    }
+  });
+
   it("renders one large Barwarden product title without a provider subtitle", async () => {
     const { fixture } = await createPage();
     const host = fixture.nativeElement as HTMLElement;
@@ -151,7 +334,7 @@ describe("LoginPageComponent", () => {
     expect(styles).toContain("background: var(--mac-canvas);");
     expect(styles).toContain(".macos-auth-card {");
     expect(styles).toContain("width: min(100%, 360px);");
-    expect(styles).toContain(".macos-field :is(input, select, textarea):focus-visible");
+    expect(styles).toContain("bit-form-field [bitfieldcontainer]:has(:focus-visible)");
     expect(styles).toContain(".macos-auth-validation");
     expect(styles).toContain("min-block-size:");
     expect(styles).toContain(".macos-auth-identity");
@@ -163,21 +346,64 @@ describe("LoginPageComponent", () => {
     );
   });
 
-  it("presents the environment selector as a centered secondary control below the auth card", () => {
-    const styles = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
+  it("uses a flat auth form and a continuous 52px environment row", () => {
+    const stylesheet = document.createElement("style");
+    const stylesheetSource = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+      "utf8",
+    );
+    const fixtureSelectors = [
+      ".macos-auth-card",
+      ".macos-auth-card input",
+      "bw-login-environment-selector",
+      'bw-login-environment-selector [bitTypography="body2"]',
+      'bw-login-environment-selector [bitTypography="body2"] button',
+    ];
+    const fixtureStyles = postcss.parse(stylesheetSource).nodes
+      .filter(
+        (node) =>
+          node.type === "rule" &&
+          fixtureSelectors.some((selector) => (node as postcss.Rule).selector.includes(selector)),
+      )
+      .map((node) => node.toString())
+      .join("\n");
+    stylesheet.textContent = fixtureStyles;
+    document.head.append(stylesheet);
 
-    expect(styles).toMatch(
-      /bw-login-environment-selector\s*{[^}]*margin:\s*var\(--mac-space-3\) auto 0;/s,
-    );
-    expect(styles).toMatch(
-      /bw-login-environment-selector\s*>\s*\.tw-mb-1\s*{[^}]*display:\s*flex;[^}]*justify-content:\s*center;/s,
-    );
-    expect(styles).toMatch(
-      /bw-login-environment-selector\s+\[bitTypography="body2"\]\s*{[^}]*border-radius:\s*999px;[^}]*font-size:\s*12px;[^}]*text-align:\s*center;/s,
-    );
-    expect(styles).toMatch(
-      /bw-login-environment-selector\s+\[bitTypography="body2"\]\s+button\s*{[^}]*font-weight:\s*600;/s,
-    );
+    const authCard = document.createElement("form");
+    authCard.className = "macos-auth-card";
+    const input = document.createElement("input");
+    const action = document.createElement("button");
+    authCard.append(input, action);
+
+    const environmentSelector = document.createElement("bw-login-environment-selector");
+    const environmentRow = document.createElement("div");
+    environmentRow.setAttribute("bitTypography", "body2");
+    const environmentButton = document.createElement("button");
+    environmentRow.append(environmentButton);
+    environmentSelector.append(environmentRow);
+    document.body.append(authCard, environmentSelector);
+
+    try {
+      const cardStyles = getComputedStyle(authCard);
+      const inputStyles = getComputedStyle(input);
+      const rowStyles = getComputedStyle(environmentRow);
+      const environmentButtonStyles = getComputedStyle(environmentButton);
+
+      expect(cardStyles.borderTopWidth).toBe("0px");
+      expect(cardStyles.borderTopLeftRadius).toBe("0");
+      expect(cardStyles.boxShadow).toBe("none");
+      expect(cardStyles.paddingTop).toBe("0px");
+      expect(inputStyles.borderRadius).toBe("10px");
+      expect(getComputedStyle(environmentSelector).display).toBe("block");
+      expect(rowStyles.minHeight).toBe("52px");
+      expect(rowStyles.borderTopLeftRadius).toBe("0");
+      expect(environmentButtonStyles.minHeight).toBe("44px");
+    } finally {
+      authCard.remove();
+      environmentSelector.remove();
+      stylesheet.remove();
+    }
   });
 
   it("keeps invalid email on the email stage and focuses the master-password field after a valid email submit", async () => {
@@ -298,6 +524,34 @@ describe("LoginPageComponent", () => {
     expect(email.untouched).toBe(true);
     expect(email.pristine).toBe(true);
     expect(host.textContent).not.toContain("必须输入内容");
+  });
+
+  it("returns focus to the master-password field after the environment menu closes on the password step", async () => {
+    const { fixture, official } = await createPage();
+    const host = fixture.nativeElement as HTMLElement;
+
+    official.formGroup.controls.email.setValue("person@example.com");
+    await official.continuePressed();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const environmentTrigger = host.querySelector<HTMLButtonElement>(
+      'bw-login-environment-selector button[aria-haspopup="menu"]',
+    )!;
+    const masterPassword = host.querySelector<HTMLInputElement>(
+      "[data-testid=login-master-password-input]",
+    )!;
+    environmentTrigger.focus();
+    expect(document.activeElement).toBe(environmentTrigger);
+
+    official.captureEmailValidationState();
+    official.restoreEmailValidationState();
+    await Promise.resolve();
+    await new Promise((resolve) => window.setTimeout(resolve));
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(masterPassword);
   });
 
   it("keeps the active login email when opting out of remembered-email persistence", async () => {

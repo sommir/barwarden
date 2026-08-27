@@ -1,6 +1,9 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -83,4 +86,43 @@ describe("VaultDetailFieldComponent", () => {
     expect(filled).toEqual([password]);
     expect(launched).toEqual([password.value]);
   });
+
+  it("keeps the real Fill field action at least 44px in both axes", async () => {
+    const cleanupCss = installInteractionCss();
+    await TestBed.configureTestingModule({
+      imports: [VaultDetailFieldComponent],
+      providers: [OfficialI18nService, { provide: I18nService, useExisting: OfficialI18nService }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(VaultDetailFieldComponent);
+    fixture.componentRef.setInput("field", password);
+    fixture.componentRef.setInput("value", password.value);
+    fixture.componentRef.setInput("canFill", true);
+    fixture.detectChanges();
+
+    try {
+      const action = fixture.nativeElement.querySelector<HTMLElement>(".field-action")!;
+      expect(getComputedStyle(action).minWidth).toBe("44px");
+      expect(getComputedStyle(action).minHeight).toBe("44px");
+    } finally {
+      fixture.destroy();
+      cleanupCss();
+    }
+  });
 });
+
+function installInteractionCss(): () => void {
+  const style = document.createElement("style");
+  style.textContent = ["macos-tokens.css", "global.css"]
+    .map((filename) => readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+      "utf8",
+    ))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  document.head.append(style);
+  const rootStyle = getComputedStyle(document.documentElement);
+  style.textContent = style.textContent.replace(/var\((--[\w-]+)\)/g, (value, name) =>
+    rootStyle.getPropertyValue(name).trim() || value,
+  );
+  return () => style.remove();
+}

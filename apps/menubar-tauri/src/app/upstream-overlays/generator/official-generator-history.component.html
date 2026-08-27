@@ -5,8 +5,14 @@
     </ng-container>
   </popup-header>
   @if (!(loading$ | async)) {
-    <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />
-    <bit-credential-generator-history [account]="account$ | async" *ngIf="hasHistory$ | async" />
+    <section class="macos-generator-history__content" data-testid="generator-history-content">
+      <bit-empty-credential-history *ngIf="!(hasHistory$ | async)" style="display: contents" />
+      <bit-credential-generator-history
+        role="list"
+        [account]="account$ | async"
+        *ngIf="hasHistory$ | async"
+      />
+    </section>
   }
   @if (statusMessage$ | async; as statusMessage) {
     <bw-macos-alert-strip
@@ -19,6 +25,8 @@
     <popup-footer slot="footer">
       <button
         #clearTrigger
+        class="macos-generator-history__clear-action"
+        data-testid="generator-history-clear"
         [disabled]="clearing$ | async"
         bitButton
         type="submit"
@@ -49,16 +57,9 @@
       </div>
       <footer class="app-bottom-sheet-footer">
         <button
-          #clearConfirm
-          bitButton
-          buttonType="danger"
-          type="button"
-          [disabled]="confirming || (clearing$ | async)"
-          (click)="confirmClear()"
-        >
-          {{ "clearHistory" | i18n }}
-        </button>
-        <button
+          #clearCancel
+          class="macos-generator-history__sheet-action"
+          data-testid="generator-history-clear-cancel"
           bitButton
           buttonType="secondary"
           type="button"
@@ -66,6 +67,17 @@
           (click)="cancelClear()"
         >
           {{ "cancel" | i18n }}
+        </button>
+        <button
+          class="macos-generator-history__sheet-action"
+          data-testid="generator-history-clear-confirm"
+          bitButton
+          buttonType="danger"
+          type="button"
+          [disabled]="confirming || (clearing$ | async)"
+          (click)="confirmClear()"
+        >
+          {{ "clearHistory" | i18n }}
         </button>
       </footer>
     </form>

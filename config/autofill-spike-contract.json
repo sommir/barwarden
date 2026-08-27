@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "productVersion": "0.1.2",
+  "appGroup": "K7LY92JY96.com.sommir.barwarden.autofill",
+  "teamId": "K7LY92JY96",
+  "deploymentTarget": "13.0",
+  "components": {
+    "app": {
+      "bundleId": "com.sommir.barwarden"
+    },
+    "credentialProvider": {
+      "bundleId": "com.sommir.barwarden.credential-provider"
+    },
+    "safariExtension": {
+      "bundleId": "com.sommir.barwarden.safari-web-extension"
+    },
+    "agent": {
+      "bundleId": "com.sommir.barwarden.autofill-agent"
+    },
+    "nativeMessagingHost": {
+      "bundleId": "com.sommir.barwarden.native-messaging"
+    }
+  },
+  "chromium": {
+    "chromeExtensionId": null,
+    "edgeExtensionId": null
+  }
+}

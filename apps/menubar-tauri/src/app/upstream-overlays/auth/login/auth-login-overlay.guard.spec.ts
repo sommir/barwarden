@@ -17,7 +17,7 @@ import {
 
 const root = process.cwd();
 const transformationManifestSha256 =
-  "3145a3abbb315e440c2c5f6faa39313f3c89b56b5d414b7d347d193c3afe792a";
+  "d9e940cd513ed2cc820718810c0e6e0040c117c4b952805b29a10b2836e41512";
 const pinned = (path: string) => join(root, "vendor/bitwarden-clients", path);
 const overlay = (path: string) =>
   join(root, "apps/menubar-tauri/src/app/upstream-overlays/auth/login", path);
@@ -414,18 +414,29 @@ describe("official password authentication overlays", () => {
         '<form [bitSubmit]="submit" [formGroup]="formGroup">',
         '<form [bitSubmit]="submit" [formGroup]="formGroup" class="macos-auth-card">',
       )
-      .replace("    <bit-form-field>\n", "    <bit-form-field class=\"macos-field\">\n")
+      .replace(
+        "    <bit-form-field>\n",
+        '    <bit-form-field class="macos-field macos-field-owner">\n',
+      )
       .replace(
         '    <bit-form-field class="!tw-mb-1">\n',
-        '    <bit-form-field class="!tw-mb-1 macos-field">\n',
+        '    <bit-form-field class="!tw-mb-1 macos-field macos-field-owner">\n',
       )
       .replace(
         '        buttonType="primary"\n        data-testid="login-continue-button"',
-        '        buttonType="primary"\n        class="macos-primary-action"\n        data-testid="login-continue-button"',
+        '        buttonType="primary"\n        class="macos-primary-action macos-button-owner"\n        data-testid="login-continue-button"',
       )
       .replace(
         '        buttonType="primary"\n        data-testid="login-submit-button"',
-        '        buttonType="primary"\n        class="macos-primary-action"\n        [disabled]="submitting"\n        data-testid="login-submit-button"',
+        '        buttonType="primary"\n        class="macos-primary-action macos-button-owner"\n        [disabled]="submitting"\n        data-testid="login-submit-button"',
+      )
+      .replace(
+        '        bitInput\n        appAutofocus',
+        '        bitInput\n        class="macos-control-visible"\n        appAutofocus',
+      )
+      .replace(
+        '        bitInput\n        data-testid="login-master-password-input"',
+        '        bitInput\n        class="macos-control-visible"\n        data-testid="login-master-password-input"',
       )
       .replace(
         '          buttonType="secondary"\n          data-testid="login-back-button"',
@@ -505,6 +516,17 @@ describe("official password authentication overlays", () => {
       "utf8",
     );
     const expected = authority
+      .replace(
+        '<form [bitSubmit]="submit" [formGroup]="formGroup">',
+        '<form [bitSubmit]="submit" [formGroup]="formGroup" class="macos-auth-card">',
+      )
+      .replace("    <bit-form-field>\n", '    <bit-form-field class="macos-field-owner">\n')
+      .replace("        bitInput\n", '        bitInput\n        class="macos-control-visible"\n')
+      .replace('      class="tw-mb-2"', '      class="tw-mb-2 macos-primary-action macos-button-owner"')
+      .replace(
+        '    <button type="button" bitButton buttonType="secondary" (click)="cancel()" [block]="true">\n      {{ "cancel" | i18n }}\n    </button>',
+        '    <div class="macos-auth-alternatives">\n      <button\n        type="button"\n        bitButton\n        buttonType="secondary"\n        class="macos-auth-alternative macos-hit-target macos-pressable"\n        (click)="cancel()"\n        [block]="true"\n      >\n        {{ "cancel" | i18n }}\n      </button>\n    </div>',
+      )
       .replace('        appInputVerbatim="false"\n', "")
       .replace(
         /\n  <!-- Browser -->[\s\S]*?<ng-container \*ngIf=\"clientType !== 'browser'\">\n    <ng-container \*ngTemplateOutlet=\"formContentTemplate\"><\/ng-container>\n  <\/ng-container>/,

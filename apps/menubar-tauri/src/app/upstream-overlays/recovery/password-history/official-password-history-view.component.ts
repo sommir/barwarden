@@ -7,6 +7,7 @@ import {
   BitIconButtonComponent,
   ItemActionComponent,
   ItemComponent,
+  ItemGroupComponent,
 } from "../../../official-ui/official-components";
 import { OfficialColorPasswordComponent } from "../../cipher-detail/official-color-password.component";
 import { translateOfficialMessage } from "../../../official-ui/official-i18n.service";
@@ -21,7 +22,14 @@ export interface OfficialPasswordHistoryCopyRequest {
 @Component({
   selector: "bw-official-password-history-view",
   standalone: true,
-  imports: [BitIconButtonComponent, I18nPipe, ItemActionComponent, ItemComponent, OfficialColorPasswordComponent],
+  imports: [
+    BitIconButtonComponent,
+    I18nPipe,
+    ItemActionComponent,
+    ItemComponent,
+    ItemGroupComponent,
+    OfficialColorPasswordComponent,
+  ],
   templateUrl: "./official-password-history-view.component.html",
 })
 export class OfficialPasswordHistoryViewComponent implements OnInit {

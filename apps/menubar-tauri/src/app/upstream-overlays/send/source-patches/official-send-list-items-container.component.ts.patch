@@ -8,7 +8,7 @@
 -import { RouterLink } from "@angular/router";
 -import { firstValueFrom } from "rxjs";
 +import { ChangeDetectionStrategy, Component, input, output } from "@angular/core";
-@@ -8,22 +4,9 @@
+@@ -8,9 +4,8 @@
 -import { JslibModule } from "@bitwarden/angular/jslib.module";
 -import { EnvironmentService } from "@bitwarden/common/platform/abstractions/environment.service";
 -import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
@@ -18,7 +18,15 @@
 -import { SendApiService } from "@bitwarden/common/tools/send/services/send-api.service.abstraction";
 -import { AuthType } from "@bitwarden/common/tools/send/types/auth-type";
 -import { SendType } from "@bitwarden/common/tools/send/types/send-type";
--import {
++import { BitIconButtonComponent } from "@bitwarden/components/icon-button/icon-button.component";
++import { IconComponent } from "@bitwarden/components/icon/icon.component";
++import { ItemActionComponent } from "@bitwarden/components/item/item-action.component";
++import { ItemComponent } from "@bitwarden/components/item/item.component";
++import { ItemContentComponent } from "@bitwarden/components/item/item-content.component";
++import { ItemGroupComponent } from "@bitwarden/components/item/item-group.component";
++import { SectionComponent } from "@bitwarden/components/section/section.component";
++import { SectionHeaderComponent } from "@bitwarden/components/section/section-header.component";
+@@ -18,12 +13,5 @@
 -  BadgeModule,
 -  ButtonModule,
 -  DialogService,
@@ -31,16 +39,12 @@
 -  TooltipDirective,
 -  TypographyModule,
 -} from "@bitwarden/components";
-+import { BitIconButtonComponent } from "@bitwarden/components/icon-button/icon-button.component";
-+import { IconComponent } from "@bitwarden/components/icon/icon.component";
-+import { ItemActionComponent } from "@bitwarden/components/item/item-action.component";
-+import { ItemComponent } from "@bitwarden/components/item/item.component";
-+import { ItemContentComponent } from "@bitwarden/components/item/item-content.component";
-+import { ItemGroupComponent } from "@bitwarden/components/item/item-group.component";
-+import { SectionComponent } from "@bitwarden/components/section/section.component";
-+import { SectionHeaderComponent } from "@bitwarden/components/section/section-header.component";
++  MenuComponent,
++  MenuItemComponent,
++  MenuTriggerForDirective,
++} from "../../official-ui/official-components";
 +import { I18nPipe } from "../../official-ui/official-ui-common";
-@@ -31,2 +14,15 @@
+@@ -31,2 +19,15 @@
 -// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
 -// eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
 +export interface OfficialTextSendListItem {
@@ -58,12 +62,12 @@
 +  readonly trigger: Event;
 +}
 +
-@@ -33,0 +30,2 @@
+@@ -33,0 +35,2 @@
 +  selector: "bw-official-send-list-items-container",
 +  standalone: true,
-@@ -34,0 +33 @@
+@@ -34,0 +38 @@
 +    BitIconButtonComponent,
-@@ -36,4 +35,6 @@
+@@ -36,4 +40,9 @@
 -    ItemModule,
 -    ButtonModule,
 -    BadgeModule,
@@ -74,19 +78,22 @@
 +    ItemComponent,
 +    ItemContentComponent,
 +    ItemGroupComponent,
-@@ -41,2 +41,0 @@
++    MenuComponent,
++    MenuItemComponent,
++    MenuTriggerForDirective,
+@@ -41,2 +49,0 @@
 -    TypographyModule,
 -    JslibModule,
-@@ -44,3 +42,0 @@
+@@ -44,3 +50,0 @@
 -    RouterLink,
 -    IconComponent,
 -    TooltipDirective,
-@@ -48,2 +44,2 @@
+@@ -48,2 +52,2 @@
 -  selector: "app-send-list-items-container",
 -  templateUrl: "send-list-items-container.component.html",
 +  templateUrl: "./official-send-list-items-container.component.html",
 +  changeDetection: ChangeDetectionStrategy.OnPush,
-@@ -51,10 +47,3 @@
+@@ -51,10 +55,3 @@
 -export class SendListItemsContainerComponent {
 -  sendType = SendType;
 -  authType = AuthType;
@@ -100,7 +107,7 @@
 +export class OfficialSendListItemsContainerComponent {
 +  readonly sends = input.required<readonly OfficialTextSendListItem[]>();
 +  readonly headerText = input.required<string>();
-@@ -62,4 +51,3 @@
+@@ -62,4 +59,3 @@
 -  // FIXME(https://bitwarden.atlassian.net/browse/CL-903): Migrate to Signals
 -  // eslint-disable-next-line @angular-eslint/prefer-signals
 -  @Input()
@@ -108,7 +115,7 @@
 +  readonly open = output<OfficialTextSendListItem>();
 +  readonly copyLink = output<OfficialTextSendCopyRequest>();
 +  readonly delete = output<OfficialTextSendListItem>();
-@@ -67,32 +55,2 @@
+@@ -67,32 +63,3 @@
 -  constructor(
 -    protected dialogService: DialogService,
 -    protected environmentService: EnvironmentService,
@@ -141,10 +148,10 @@
 -    } catch (e) {
 -      this.logService.error(e);
 -    }
-+  trackById(_index: number, send: OfficialTextSendListItem): string {
-+    return send.id;
-@@ -100,11 +57,0 @@
--
++  requestDelete(send: OfficialTextSendListItem, trigger: BitIconButtonComponent): void {
++    trigger.getFocusTarget().focus();
++    this.delete.emit(send);
+@@ -101,9 +68,2 @@
 -  async copySendLink(send: SendView) {
 -    const env = await firstValueFrom(this.environmentService.environment$);
 -    const link = env.getSendUrl() + send.accessId + "/" + send.urlB64Key;
@@ -154,4 +161,5 @@
 -      title: null,
 -      message: this.i18nService.t("valueCopied", this.i18nService.t("sendLink")),
 -    });
--  }
++  trackById(_index: number, send: OfficialTextSendListItem): string {
++    return send.id;

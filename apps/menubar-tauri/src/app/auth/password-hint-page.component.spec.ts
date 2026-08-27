@@ -9,6 +9,7 @@ import { of } from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 
 import { PopupStateStore } from "../popup-state";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { OfficialPasswordHintComponent } from "../upstream-overlays/auth/login/official-password-hint.component";
 import { OfficialPasswordAuthAdapter } from "./official-password-auth.adapter";
 import { OfficialPasswordHintApiAdapter } from "./official-password-hint-api.adapter";
@@ -76,6 +77,44 @@ describe("PasswordHintPageComponent", () => {
     expect(host.querySelector("bit-form-field input[bitinput][formcontrolname=email]")).not.toBeNull();
     expect(host.querySelector("button[bitbutton][bitformbutton][type=submit]")).not.toBeNull();
     expect(official.formGroup.controls.email.value).toBe("route-only@example.com");
+  });
+
+  it("renders the secondary hint route with the shared popup back control", async () => {
+    const { fixture, auth, router } = await createPage();
+    const host = fixture.nativeElement as HTMLElement;
+    const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+
+    expect(host.querySelectorAll("popup-page")).toHaveLength(1);
+    expect(host.querySelectorAll("popup-header")).toHaveLength(1);
+    expect(host.querySelector('[data-testid$="-back"]')).toBeNull();
+    expect(host.querySelector("popup-page h1")?.textContent?.trim()).toBe("请求密码提示");
+    expect(host.querySelector(
+      'button[type="submit"].macos-primary-action.macos-button-owner',
+    )).not.toBeNull();
+    expect(host.querySelector(
+      'button[type="button"].macos-auth-alternative.macos-hit-target.macos-pressable',
+    )).not.toBeNull();
+    const headerBack = host.querySelector<HTMLButtonElement>(
+      'popup-header button[aria-label="返回"], popup-header button[aria-label="Back"]',
+    );
+    expect(headerBack).not.toBeNull();
+    headerBack!.click();
+    await fixture.whenStable();
+
+    expect(auth.cancel).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/login");
+  });
+
+  it("lets the mounted route owner handle secondary Escape through the popup navigator", async () => {
+    const { fixture, auth, router } = await createPage();
+    const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+
+    await TestBed.inject(PopupRouterCacheService).back();
+    await fixture.whenStable();
+
+    expect(auth.cancel).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/login");
+    expect(navigate).not.toHaveBeenCalledWith("/tabs/vault", expect.anything());
   });
 
   it.each([

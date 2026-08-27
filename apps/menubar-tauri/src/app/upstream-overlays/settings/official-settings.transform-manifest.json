@@ -8,7 +8,7 @@
   },
   "transformContract": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/official-settings-member-transforms.ts",
-    "sha256": "f663285b1731eec3af034b099334a5b2706c8bdb2ab580d623007b11408b4469"
+    "sha256": "37b2ed2a7ef95740f898e829d2c01cf3cf43b6b9f23fb5de774886d60cdd368a"
   },
   "authorities": [
     {
@@ -16,7 +16,7 @@
       "upstreamSha256": "136e314d8d9994668986f26108e8c5050dd1215529a942373bd75cc867d0b720",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__tools__popup__settings__settings-v2.component.ts.patch",
-        "sha256": "05f540742684390cab67649176471b1cac119a4c49959b91f3bcb810d8f427bc"
+        "sha256": "1eeb0c85edf7d0e5efb7e2c7021fbc1127d2676321df5b8c552953e99830c619"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/tools/popup/settings/settings-v2.component.ts",
@@ -28,11 +28,11 @@
       "upstreamSha256": "a1c5f137034c226b628a6718207a9b16fcd685c67b9d11f973d45a609fc3bd62",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__tools__popup__settings__settings-v2.component.html.patch",
-        "sha256": "2ce1678c1fc26dbe90d95e4647a5ee5a0b9c935e5c5e2e888ac97fb21e8b6c3a"
+        "sha256": "36148f761440c587b65a5ff5b847be6645b8155a7ba608cd2d558946999c039d"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/tools/popup/settings/settings-v2.component.html",
-        "sha256": "07a31c1f79d205b3cfe16fa5555ceef6230c344aa067a6fa31bbc277a8e7a59b"
+        "sha256": "67fc4fe525e837ba91b1b63312ff9ccf6287698f13d22bf9582e344fd0ec3a32"
       }
     },
     {
@@ -52,11 +52,11 @@
       "upstreamSha256": "8297a762f1225cab9463b409ad88783eb6faea08f798dfa940bcacdeeb309ec3",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__auth__popup__settings__account-security.component.html.patch",
-        "sha256": "cf080471e534b6e2b0ca8c90bf08b5b5799e7a3bfdb3cc4ae836daf0bf7a105c"
+        "sha256": "26125570a5625604eea61d09b12c9dfb05e37a892c2a9a54ba47625849265844"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/auth/popup/settings/account-security.component.html",
-        "sha256": "6467b0d6436db9a6e4544431cd1d75f67f7623638c998d37416861519555b78c"
+        "sha256": "4ea4c4b3bf09ce1e957bd41a3f6a283e647905ec2b5a57ffa4706f27a9467ba4"
       }
     },
     {
@@ -76,11 +76,11 @@
       "upstreamSha256": "6f7c3686602eeac8a18badcf9fddfc62f65ff65f68cd0d866d6422ac67cb4775",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__vault__popup__settings__vault-settings.component.html.patch",
-        "sha256": "e812fe6ce8a65cc99f0b0c78853142caef2cd347fab3a874127cce706a13cf3e"
+        "sha256": "4968b94f6bcce37c2a1ed069ad9162a9db4c25a233698e658d5e3bd84e394181"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/vault/popup/settings/vault-settings.component.html",
-        "sha256": "f08f6a2fc01b143af808102dba1f9654f7ad59aa7fef86d4a7ea4d7575692cf7"
+        "sha256": "d04b96b2abae438500969b177ad1bf2fa2934423bf0d11b9dffd58d05731873b"
       }
     },
     {
@@ -100,11 +100,11 @@
       "upstreamSha256": "0f27d507dac569ff92efd951c113c091709655da59fd2d26e587283e30daa60c",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__vault__popup__settings__appearance.component.html.patch",
-        "sha256": "06bb6005ab0a940e44471974717e7c143991af79b2c227467402fc7cc5b41dae"
+        "sha256": "a61399420abf042c24885072dd4ae16a0939e6c32b5ac6e87b24e1382b1031e2"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/vault/popup/settings/appearance.component.html",
-        "sha256": "81c9316f0f0f2197775180fe356a0154953c2672b96fa36edfbfde4b8e698888"
+        "sha256": "51410ee76d6cbb1cd0290472bd8cea1b9d734e37b4d398e8253beb895cbbf7de"
       }
     },
     {
@@ -124,11 +124,11 @@
       "upstreamSha256": "7e5e47b1f8d8e5d57053eae036be0bcb1fa7fa57a029ea5dffdc97a058f6a9df",
       "patch": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/source-patches/apps__browser__src__tools__popup__settings__about-page__about-page-v2.component.html.patch",
-        "sha256": "3564a4ea0b47b7a24dc6132843ee0d4504e03c6e3e03330aa881ffe5d6191f61"
+        "sha256": "f0e54ed14c764b1dbc30161f61afe7bec7716cdb59c869ab31553586db12f9ff"
       },
       "output": {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/settings/generated/apps/browser/src/tools/popup/settings/about-page/about-page-v2.component.html",
-        "sha256": "ee5e4431ec5599cd0136e9115db2e95289c648b9f4bf506836c75a87664f7b1a"
+        "sha256": "8586ac7e6531a950c1bc9009fb734066d4fd71ad8088858ceb9cc8c0c8e7b2a6"
       }
     },
     {

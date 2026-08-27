@@ -34,7 +34,7 @@ const overlays = [
   {
     path: "menu/menu-trigger-for.directive.ts",
     authority: "88abc9a938a639a49664ab683ea0919e265b35691ff0bd9f862e648039e804c2",
-    local: "ac9aff42b909c2174f891b9c610dbbd4caa9d26ac0c3de89438eab147157a16f",
+    local: "4d89a61678c0decb92e44b2c9c326f681e14b70121e4d6a644a3877eaa679e7c",
     marker: "bit-menu-panel--closing",
   },
 ] as const;

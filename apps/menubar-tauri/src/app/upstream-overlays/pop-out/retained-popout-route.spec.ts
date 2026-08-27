@@ -30,6 +30,7 @@ describe("retained pop-out route matcher", () => {
     "/cipher-password-history?cipherId=cipher_1",
     "/edit-send?sendId=send_1&type=text",
     "/send-created?sendId=send_1",
+    "/send-created?sendId=send_1&type=text",
   ])("retains supported route %s", (route) => {
     expect(normalizeRetainedPopoutRoute(route)).toBe(route);
   });

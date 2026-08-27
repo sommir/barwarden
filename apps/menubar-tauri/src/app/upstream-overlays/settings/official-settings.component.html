@@ -5,55 +5,39 @@
     </ng-container>
   </popup-header>
 
-  <div class="tw-px-4 tw-pt-4">
-    <h2 bitTypography="h6" class="tw-mb-2">{{ "i18nGeneral" | i18n }}</h2>
-
-    <bit-item-group>
-      <bit-item>
-        <label
-          bit-item-content
-          class="settings-row official-settings-row"
-          data-testid="launch-at-login-row"
-        >
-          <input
-            slot="start"
-            bitCheckbox
-            id="launch-at-login"
-            type="checkbox"
-            [attr.aria-label]="'i18nLaunchAtLogin' | i18n"
-            [checked]="launchAtLoginEnabled"
-            [disabled]="launchAtLoginBusy"
-            (change)="requestLaunchAtLoginChange($event)"
-          />
-          <span
-            class="launch-at-login-row__copy tw-inline-flex tw-max-w-full tw-items-baseline tw-gap-2 tw-whitespace-nowrap"
-          >
-            <span class="launch-at-login-row__title tw-font-medium">
-              {{ "i18nLaunchAtLogin" | i18n }}
-            </span>
-            <span class="launch-at-login-row__hint tw-truncate tw-text-sm tw-text-muted">
-              {{ "i18nLaunchAtLoginHint" | i18n }}
-            </span>
-          </span>
-        </label>
-      </bit-item>
-
-      @for (item of items; track item.route) {
-        <bit-item>
-          <button
-            type="button"
-            bit-item-content
-            class="settings-row official-settings-row"
-            [truncate]="false"
-            (click)="navigate.emit(item.route)"
-          >
-            <i slot="start" class="bwi" [class]="item.icon" aria-hidden="true"></i>
-            {{ item.label }}
-            <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
-          </button>
-        </bit-item>
-      }
-    </bit-item-group>
+  <div class="tw-pt-4">
+    @for (group of groups; track group.id) {
+      <section class="macos-preference-group" [attr.aria-labelledby]="group.id + '-title'"
+        [attr.data-settings-group]="group.id">
+        <h2 class="settings-group__title" [id]="group.id + '-title'"
+          [attr.data-settings-group-title]="group.id">{{ group.label }}</h2>
+        <bit-item-group class="settings-group__items">
+          @if (group.id === "general") {
+            <bit-item>
+              <div bit-item-content [truncate]="false" class="macos-preference-row" data-testid="launch-at-login-row">
+                <span id="launch-at-login-label" class="macos-preference-row__copy">{{ "i18nLaunchAtLogin" | i18n }}</span>
+                <button type="button" class="macos-switch-owner macos-hit-target" role="switch"
+                  aria-labelledby="launch-at-login-label" [attr.aria-checked]="launchAtLoginEnabled"
+                  [disabled]="launchAtLoginBusy"
+                  (click)="requestLaunchAtLoginChange(!launchAtLoginEnabled)">
+                  <span aria-hidden="true"></span>
+                </button>
+              </div>
+            </bit-item>
+          }
+          @for (item of group.items; track item.route) {
+            <bit-item>
+              <button type="button" bit-item-content [truncate]="false" class="macos-preference-row macos-hit-target macos-pressable"
+                [attr.data-settings-route]="item.route" (click)="navigate.emit(item.route)">
+                <i slot="start" class="bwi" [class]="item.icon" aria-hidden="true"></i>
+                <span class="macos-preference-row__copy">{{ item.label }}</span>
+                <i slot="end" class="bwi bwi-angle-right macos-preference-row__value" aria-hidden="true"></i>
+              </button>
+            </bit-item>
+          }
+        </bit-item-group>
+      </section>
+    }
 
     @if (launchAtLoginError) {
       <bw-macos-alert-strip

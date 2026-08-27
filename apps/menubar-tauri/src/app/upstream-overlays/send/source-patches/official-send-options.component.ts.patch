@@ -14,11 +14,11 @@
 -  ValidatorFn,
 -  Validators,
 -} from "@angular/forms";
-+import { ChangeDetectionStrategy, Component, input, output } from "@angular/core";
-+import { BitFormFieldComponent, BitHintDirective, BitInputDirective, BitLabelComponent, CheckboxComponent, FormControlComponent, CardComponent, SectionComponent, SectionHeaderComponent, TypographyDirective } from "../../official-ui/official-components";
-+import type { RetainedTextSendFormValue } from "../../send/retained-text-send-form.service";
++import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inject, input, output } from "@angular/core";
++import { BitFormFieldComponent, BitHintDirective, BitInputDirective, BitLabelComponent, CheckboxComponent, FormControlComponent, SectionComponent, SectionHeaderComponent, TypographyDirective } from "../../official-ui/official-components";
++import type { RetainedTextSendErrors, RetainedTextSendField, RetainedTextSendFormValue } from "../../send/retained-text-send-form.service";
 +import { I18nPipe } from "../../official-ui/official-ui-common";
-@@ -15,148 +6,10 @@
+@@ -15,69 +6,7 @@
 -import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 -import {
 -  TypographyModule,
@@ -88,12 +88,31 @@
 -      this.sendFormService.sendFormConfig.mode === "edit" &&
 -      this.sendOptionsForm.value.maxAccessCount !== null
 -    );
--  }
--
++@Component({ selector: "bw-official-send-options", standalone: true, imports: [BitFormFieldComponent, BitHintDirective, BitInputDirective, BitLabelComponent, CheckboxComponent, FormControlComponent, I18nPipe, SectionComponent, SectionHeaderComponent, TypographyDirective], templateUrl: "./official-send-options.component.html", changeDetection: ChangeDetectionStrategy.OnPush })
++export class OfficialSendOptionsComponent {
++  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
++  readonly editing = input.required<boolean>(); readonly hideEmailAllowed = input.required<boolean>(); readonly value = input.required<RetainedTextSendFormValue>(); readonly errors = input.required<RetainedTextSendErrors>(); readonly touched = input.required<ReadonlySet<RetainedTextSendField>>();
++  readonly valueChange = output<Partial<RetainedTextSendFormValue>>(); readonly fieldBlur = output<RetainedTextSendField>();
++  constructor() {
++    afterRenderEffect(() => this.syncMaxAccessCountAccessibility());
+@@ -84,0 +14,6 @@
++  inputValue(event: Event): string { return event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement ? event.target.value : ""; }
++  checked(event: Event): boolean { return event.target instanceof HTMLInputElement && event.target.checked; }
++  anyOptionFieldVisible(): boolean { return true; }
++  maxAccessCountVisible(): boolean { return true; }
++  hideEmailVisible(): boolean { return this.hideEmailAllowed(); }
++  privateNoteVisible(): boolean { return true; }
+@@ -86,3 +21,6 @@
 -  readonly showAccessCount = computed(
 -    () => this.sendFormService.originalSendView()?.maxAccessCount != null,
 -  );
--
++  private syncMaxAccessCountAccessibility(): void {
++    const invalid = this.touched().has("maxAccessCount") && Boolean(this.errors().maxAccessCount);
++    const control = this.host.nativeElement.querySelector<HTMLElement>("#send-maxAccessCount");
++    if (!control) return;
++    if (invalid) control.setAttribute("aria-invalid", "true");
++    else control.removeAttribute("aria-invalid");
+@@ -90,55 +27,0 @@
 -  readonly viewsLeft = computed(() => {
 -    const maxAccessCount = this.sendFormService.originalSendView()?.maxAccessCount ?? 0;
 -    const accessCount = this.sendFormService.originalSendView()?.accessCount ?? 0;
@@ -149,7 +168,7 @@
 -        });
 -      });
 -    });
--  }
+@@ -146,17 +28,0 @@
 -
 -  isIntegerValidator(): ValidatorFn {
 -    return (control: FormControl): ValidationErrors | null => {
@@ -167,13 +186,3 @@
 -      return null;
 -    };
 -  }
-+@Component({ selector: "bw-official-send-options", standalone: true, imports: [BitFormFieldComponent, BitHintDirective, BitInputDirective, BitLabelComponent, CheckboxComponent, FormControlComponent, CardComponent, I18nPipe, SectionComponent, SectionHeaderComponent, TypographyDirective], templateUrl: "./official-send-options.component.html", changeDetection: ChangeDetectionStrategy.OnPush })
-+export class OfficialSendOptionsComponent {
-+  readonly editing = input.required<boolean>(); readonly hideEmailAllowed = input.required<boolean>(); readonly value = input.required<RetainedTextSendFormValue>();
-+  readonly valueChange = output<Partial<RetainedTextSendFormValue>>();
-+  inputValue(event: Event): string { return event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement ? event.target.value : ""; }
-+  checked(event: Event): boolean { return event.target instanceof HTMLInputElement && event.target.checked; }
-+  anyOptionFieldVisible(): boolean { return true; }
-+  maxAccessCountVisible(): boolean { return true; }
-+  hideEmailVisible(): boolean { return this.hideEmailAllowed(); }
-+  privateNoteVisible(): boolean { return true; }

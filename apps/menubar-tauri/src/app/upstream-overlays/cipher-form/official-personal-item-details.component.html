@@ -1,10 +1,11 @@
-<section [formGroup]="itemDetailsForm" class="tw-mb-5 bit-compact:tw-mb-4">
+<section [formGroup]="itemDetailsForm" class="tw-mb-5 bit-compact:tw-mb-4 macos-form-section">
   <bit-section-header>
     <h2 bitTypography="h6">{{ "itemDetails" | i18n }}</h2>
     <button
       slot="end"
       type="button"
       size="small"
+      class="macos-hit-target"
       [bitIconButton]="favoriteIcon"
       role="checkbox"
       [attr.aria-checked]="itemDetailsForm.value.favorite"
@@ -13,14 +14,14 @@
       [disabled]="favoriteButtonDisabled"
     ></button>
   </bit-section-header>
-  <bit-card>
-    <bit-form-field>
+  <bit-card class="macos-form-group">
+    <bit-form-field class="macos-field-owner">
       <bit-label>{{ "itemName" | i18n }}</bit-label>
-      <input bitInput formControlName="name" />
+      <input class="macos-control-visible" bitInput formControlName="name" />
     </bit-form-field>
-    <bit-form-field disableMargin>
+    <bit-form-field class="macos-field-owner" disableMargin>
       <bit-label>{{ "folder" | i18n }}</bit-label>
-      <bit-select formControlName="folderId">
+      <bit-select class="macos-control-visible" formControlName="folderId">
         @for (folder of config.folders; track folder.id) {
           <bit-option [value]="folder.id" [label]="folder.name"></bit-option>
         }

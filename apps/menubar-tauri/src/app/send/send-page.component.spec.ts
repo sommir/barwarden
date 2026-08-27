@@ -9,7 +9,8 @@ import {
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { TestBed } from "@angular/core/testing";
-import { ActivatedRoute, provideRouter, Router } from "@angular/router";
+import { Component } from "@angular/core";
+import { ActivatedRoute, NavigationEnd, provideRouter, Router, RouterOutlet } from "@angular/router";
 import { of, Subject } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,6 +21,7 @@ import type { AuthSession } from "../../auth/auth-session-store";
 import { buildSelfHostedEnvironmentFromServerUrl } from "../../bitwarden-api/bitwarden-api";
 import type { HostApi } from "../../host/host-api";
 import { PopupStateStore } from "../popup-state";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { AppFeedbackService } from "../official-ui/app-feedback.service";
 import { LocalCopyFeedbackService } from "../official-ui/local-copy-feedback.service";
 import {
@@ -44,6 +46,19 @@ try {
 
 const openSimpleDialog = vi.fn(async () => true);
 
+@Component({
+  standalone: true,
+  template: '<button data-popup-focus-key="send:search">Search Sends</button>',
+})
+class CreatedRouteStubComponent {}
+
+@Component({
+  standalone: true,
+  imports: [RouterOutlet],
+  template: "<router-outlet />",
+})
+class RealSendRouteHostComponent {}
+
 beforeEach(() => {
   openSimpleDialog.mockReset();
   openSimpleDialog.mockResolvedValue(true);
@@ -56,6 +71,133 @@ beforeEach(() => {
 });
 
 describe("SendPageComponent", () => {
+  it("uses the immediate displayed Send count after silent external churn", async () => {
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [PopupStateStore, provideRouter([])],
+    }).compileComponents();
+    const store = TestBed.inject(PopupStateStore);
+    store.setSends([
+      demoSend({ id: "send-1", name: "Account Alpha", type: "text" }),
+      demoSend({ id: "send-2", name: "Account Beta", type: "text" }),
+    ]);
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const resultStatus = host.querySelectorAll(
+      '[data-testid="result-announcement"][role="status"]',
+    );
+    const resultText = () =>
+      host.querySelector<HTMLElement>('[data-testid="result-announcement"]')?.textContent
+        ?.trim() ?? "";
+    expect(resultStatus).toHaveLength(1);
+    expect(resultStatus[0]!.getAttribute("aria-live")).toBe("polite");
+    expect(resultStatus[0]!.getAttribute("aria-atomic")).toBe("true");
+    expect(resultText()).toBe("");
+
+    const search = host.querySelector<HTMLInputElement>('bit-search input')!;
+    search.value = "Account Alpha";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const announcedOne = translateOfficialMessage("i18nItemsCount", 1);
+    expect(resultText()).toBe(announcedOne);
+
+    store.setSends([
+      demoSend({ id: "send-1", name: "Account Alpha", type: "text" }),
+      demoSend({ id: "send-3", name: "Account Alpha Two", type: "text" }),
+      demoSend({ id: "send-2", name: "Account Beta", type: "text" }),
+    ]);
+    fixture.detectChanges(false);
+    expect(resultText()).toBe(announcedOne);
+
+    search.value = "Alpha";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(resultText()).toBe(announcedOne);
+
+    search.value = "Account";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(resultText()).toBe(translateOfficialMessage("i18nItemsCount", 3));
+    expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
+  });
+
+  it("announces same-count Send identity changes once without exposing Send data", async () => {
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [PopupStateStore, provideRouter([])],
+    }).compileComponents();
+    const store = TestBed.inject(PopupStateStore);
+    store.setSends([
+      demoSend({
+        id: "send-alpha-private-id",
+        name: "Alpha Send Private Name",
+        text: "alpha-send-text-must-not-leak",
+        notes: "alpha-send-notes-must-not-leak",
+        accessId: "alpha-access-token-must-not-leak",
+      }),
+      demoSend({
+        id: "send-beta-private-id",
+        name: "Beta Send Private Name",
+        text: "beta-send-text-must-not-leak",
+        notes: "beta-send-notes-must-not-leak",
+        accessId: "beta-access-token-must-not-leak",
+      }),
+    ]);
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const region = host.querySelector<HTMLElement>('[data-testid="result-announcement"]')!;
+    const publication = () =>
+      region.querySelector<HTMLElement>("[data-result-announcement-revision]");
+    const search = host.querySelector<HTMLInputElement>('bit-search input')!;
+    const searchFor = async (query: string) => {
+      search.value = query;
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
+
+    await searchFor("Alpha Send Private Name");
+    const first = publication();
+    expect(first?.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+
+    await searchFor("Beta Send Private Name");
+    const second = publication();
+    expect(second).not.toBe(first);
+    expect(first?.isConnected).toBe(false);
+    expect(second?.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+    expect(second?.getAttribute("data-result-announcement-revision")).not.toBe(
+      first?.getAttribute("data-result-announcement-revision"),
+    );
+    expect(region.getAttribute("aria-label")).toBeNull();
+    expect(region.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+    expect(region.textContent).not.toContain(
+      second?.getAttribute("data-result-announcement-revision") ?? "revision-missing",
+    );
+    expect(region.outerHTML).not.toContain("Alpha Send Private Name");
+    expect(region.outerHTML).not.toContain("Beta Send Private Name");
+    expect(region.outerHTML).not.toContain("alpha-send-text-must-not-leak");
+    expect(region.outerHTML).not.toContain("beta-send-text-must-not-leak");
+    expect(region.outerHTML).not.toContain("alpha-send-notes-must-not-leak");
+    expect(region.outerHTML).not.toContain("beta-send-notes-must-not-leak");
+    expect(region.outerHTML).not.toContain("alpha-access-token-must-not-leak");
+    expect(region.outerHTML).not.toContain("beta-access-token-must-not-leak");
+    expect(region.outerHTML).not.toContain("send-alpha-private-id");
+    expect(region.outerHTML).not.toContain("send-beta-private-id");
+
+    await searchFor("Beta Send Private Name");
+    expect(publication()).toBe(second);
+    expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
+  });
+
   it("marks Send form and confirmation subroutes as in-flow pages without the main switcher", () => {
     const root = resolve(process.cwd(), "apps/menubar-tauri/src/app/send");
     const form = readFileSync(resolve(root, "send-add-edit-page.component.ts"), "utf8");
@@ -126,10 +268,10 @@ describe("SendPageComponent", () => {
     expect(host.querySelector("bit-search")).toBeNull();
     expect(host.querySelector("bit-no-items")).not.toBeNull();
     expect(host.textContent).toContain("安全地发送敏感信息");
-    expect(host.textContent).toContain("创建 Send");
+    expect(host.textContent).toContain("新建 Send");
     expect(host.textContent).not.toContain("not connected");
     expect(host.querySelector(".send-unavailable")).toBeNull();
-    expect(host.querySelector('[aria-label="新增文本 Send"]')?.hasAttribute("disabled")).toBe(false);
+    expect(host.querySelector('[aria-label="新建 Send"]')?.hasAttribute("disabled")).toBe(false);
   });
 
   it("renders the official loading skeleton during initial Send sync", async () => {
@@ -168,7 +310,7 @@ describe("SendPageComponent", () => {
     expect(host.textContent).toContain("Send 已禁用");
     expect(host.textContent).toContain("组织策略已关闭 Bitwarden Send。");
     expect(host.querySelector(".primary-action")).toBeNull();
-    expect(host.querySelector('[aria-label="新增文本 Send"]')).toBeNull();
+    expect(host.querySelector('[aria-label="新建 Send"]')).toBeNull();
   });
 
   it("routes the official Text-only new action to the add host", async () => {
@@ -186,7 +328,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label="新增文本 Send"]')?.click();
+    host.querySelector<HTMLButtonElement>('[aria-label="新建 Send"]')?.click();
 
     expect(navigations).toEqual([
       { commands: ["/add-send"], extras: { queryParams: { type: "text" } } },
@@ -339,7 +481,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     buttonByText(host, "永久删除").click();
     await fixture.whenStable();
@@ -371,7 +513,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
 
     const confirmation = host.querySelector<HTMLDialogElement>(
@@ -380,6 +522,103 @@ describe("SendPageComponent", () => {
     expect(confirmation?.hasAttribute("open")).toBe(true);
     expect(confirmation?.textContent).toContain("Payroll token");
     expect(sendActions.calls).toEqual([]);
+  });
+
+  it.each(["Cancel", "Escape"] as const)(
+    "restores the same More trigger after %s once the Delete menu item is detached",
+    async (dismissal) => {
+      const sendActions = new RecordingSendActions();
+      await TestBed.configureTestingModule({
+        imports: [SendPageComponent],
+        providers: [
+          PopupStateStore,
+          provideRouter([]),
+          { provide: SEND_ACTION_PORT, useValue: sendActions },
+        ],
+      }).compileComponents();
+      const store = TestBed.inject(PopupStateStore);
+      unlockForSendOperation(store);
+      store.setSends([demoSend({ id: "send-1", name: "Payroll token", type: "text" })]);
+      const fixture = TestBed.createComponent(SendPageComponent);
+      const requestDelete = vi.spyOn(fixture.componentInstance, "requestDelete");
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      document.body.append(host);
+      const more = host.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+      more.focus();
+      more.click();
+      await fixture.whenStable();
+      const staleDeleteItem = document.querySelector<HTMLButtonElement>(
+        '[role="menuitem"].tw-text-fg-danger',
+      )!;
+      expect(staleDeleteItem.isConnected).toBe(true);
+
+      staleDeleteItem.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const confirmation = host.querySelector<HTMLDialogElement>(
+        '[data-testid="send-permanent-delete-confirmation"]',
+      )!;
+      expect(requestDelete).toHaveBeenCalledTimes(1);
+      expect(host.querySelectorAll('[data-testid="send-permanent-delete-confirmation"]'))
+        .toHaveLength(1);
+      expect(confirmation.hasAttribute("open")).toBe(true);
+      expect(document.activeElement).toBe(more);
+
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
+      expect(staleDeleteItem.isConnected).toBe(false);
+      expect(document.querySelector('[role="menuitem"].tw-text-fg-danger')).toBeNull();
+
+      if (dismissal === "Cancel") {
+        buttonByText(host, "取消").click();
+      } else {
+        confirmation.dispatchEvent(new Event("cancel", { cancelable: true }));
+      }
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(confirmation.hasAttribute("open")).toBe(false);
+      expect(document.activeElement).toBe(more);
+      expect(requestDelete).toHaveBeenCalledTimes(1);
+      expect(confirmation.hasAttribute("open")).toBe(false);
+      expect(sendActions.calls).toEqual([]);
+
+      fixture.destroy();
+      host.remove();
+    },
+  );
+
+  it("keeps mounted Send focus keys structural and secret-free", async () => {
+    await TestBed.configureTestingModule({
+      imports: [SendPageComponent],
+      providers: [PopupStateStore, provideRouter([])],
+    }).compileComponents();
+    const store = TestBed.inject(PopupStateStore);
+    store.setSends([demoSend({
+      id: "send-1",
+      name: "private-name-must-not-be-a-focus-key",
+      text: "private-body-must-not-be-a-focus-key",
+      notes: "private-notes-must-not-be-a-focus-key",
+      accessId: "private-access-token-must-not-be-a-focus-key",
+    })]);
+    const fixture = TestBed.createComponent(SendPageComponent);
+    fixture.detectChanges();
+
+    const keys = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>("[data-popup-focus-key]"),
+      (element) => element.getAttribute("data-popup-focus-key"),
+    );
+    expect(keys).toEqual([
+      "send:search",
+      "send-item:send-1",
+      "send-item:send-1:copy",
+      "send-item:send-1:more",
+    ]);
+    expect(keys.join(" ")).not.toContain("private-name");
+    expect(keys.join(" ")).not.toContain("private-body");
+    expect(keys.join(" ")).not.toContain("private-notes");
+    expect(keys.join(" ")).not.toContain("private-access-token");
   });
 
   it("clears the pending Send when Escape dismisses the permanent deletion confirmation", async () => {
@@ -399,7 +638,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     const confirmation = host.querySelector<HTMLDialogElement>(
       '[data-testid="send-permanent-delete-confirmation"]',
@@ -435,7 +674,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     const first = fixture.componentInstance.confirmDelete();
     await vi.waitFor(() => expect(sendActions.calls).toHaveLength(1));
@@ -479,7 +718,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
 
     const confirmation = host.querySelector<HTMLDialogElement>(
@@ -507,7 +746,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     const confirmation = host.querySelector<HTMLDialogElement>(
       '[data-testid="send-permanent-delete-confirmation"]',
@@ -543,7 +782,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     const first = fixture.componentInstance.confirmDelete();
     await vi.waitFor(() => expect(sendActions.calls).toHaveLength(1));
@@ -588,7 +827,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     buttonByText(host, "永久删除").click();
     await fixture.whenStable();
@@ -615,7 +854,7 @@ describe("SendPageComponent", () => {
     const fixture = TestBed.createComponent(SendPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    clickSendDelete(host);
     fixture.detectChanges();
     buttonByText(host, "取消").click();
     await fixture.whenStable();
@@ -739,6 +978,7 @@ class RecordingSendActions implements SendActionPort {
       }
   > = [];
   failWith: Error | null = null;
+  createWait: Promise<void> | null = null;
   deleteWait: Promise<void> | null = null;
   refreshedSend: SendItem | undefined;
   createResult: SendItem = demoSend({
@@ -809,6 +1049,7 @@ class RecordingSendActions implements SendActionPort {
     },
   ): Promise<SendItem> {
     this.calls.push({ type: "createText", session, draft });
+    await this.createWait;
     if (this.failWith) {
       throw this.failWith;
     }
@@ -883,6 +1124,22 @@ function unlockForSendOperation(store: PopupStateStore): AuthSession {
   store.setUnlocked("user@example.test");
   store.setActiveSession(session);
   return session;
+}
+
+function clickSendDelete(host: HTMLElement): void {
+  const more = host.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]');
+  expect(more).not.toBeNull();
+  more!.click();
+
+  const menu = document.querySelector<HTMLElement>(
+    '[role="menu"][aria-label*="Payroll token"]',
+  );
+  expect(menu).not.toBeNull();
+  const danger = menu!.querySelector<HTMLButtonElement>(
+    '[role="menuitem"].tw-text-fg-danger',
+  );
+  expect(danger).not.toBeNull();
+  danger!.click();
 }
 
 function demoSend(overrides: Partial<SendItem>): SendItem {
@@ -980,7 +1237,7 @@ describe("SendAddEditPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector("popup-page > main")).not.toBeNull();
     expect(host.querySelector("main.detail-page")).toBeNull();
-    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("新增文本 Send");
+    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("新建 Send");
     expect(host.textContent).toContain("Send 详细信息");
     expect(host.querySelector('input[bitinput][type="text"]')).not.toBeNull();
     expect(host.querySelector('textarea[bitinput]')).not.toBeNull();
@@ -989,16 +1246,116 @@ describe("SendAddEditPageComponent", () => {
     expect(host.textContent).not.toContain("谁可以查看");
     expect(host.textContent).toContain("附加选项");
     expect(host.querySelector('input[type="password"]')).toBeNull();
-    expect(host.querySelector("footer button[bitbutton]")?.getAttribute("aria-disabled")).toBe("true");
+    expect(host.querySelector('[data-testid="save-send"]')?.getAttribute("aria-disabled")).not.toBe("true");
     expect(host.querySelectorAll("bit-section").length).toBeGreaterThanOrEqual(2);
-    expect(host.querySelector("bit-card")).not.toBeNull();
+    expect(host.querySelector("bit-card")).toBeNull();
+    expect(host.querySelectorAll(".macos-send-form__group").length).toBeGreaterThanOrEqual(2);
     expect(host.querySelector("bit-form-field")).not.toBeNull();
     expect(host.querySelector("input[bitinput]")).not.toBeNull();
-    expect(host.querySelector("input[bitcheckbox]")).not.toBeNull();
+    expect(host.querySelectorAll('button.macos-switch-owner[role="switch"]')).toHaveLength(2);
+    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
     expect(host.querySelector("bit-select")).not.toBeNull();
     expect(textSendDeletionPresetHours).toEqual([1, 24, 48, 72, 7 * 24, 14 * 24, 30 * 24]);
     expect(host.querySelector(".send-form-field")).toBeNull();
     expect(host.querySelector(".detail-card")).toBeNull();
+  });
+
+  it.each(["back", "cancel"] as const)(
+    "keeps a dirty mounted add Send on the form when %s is declined",
+    async (action) => {
+      openSimpleDialog.mockResolvedValueOnce(false);
+      const fixture = await createAddEditFixture("text");
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      fixture.componentInstance.name = "Unsaved Send";
+
+      if (action === "back") {
+        await fixture.componentInstance.back();
+      } else {
+        await fixture.componentInstance.cancelEditing();
+      }
+
+      expect(openSimpleDialog).toHaveBeenCalledOnce();
+      expect(navigate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("routes secondary Escape through the mounted dirty Send owner", async () => {
+    openSimpleDialog.mockResolvedValueOnce(false);
+    const fixture = await createAddEditFixture("text");
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, "navigate").mockResolvedValue(true);
+    fixture.componentInstance.text = "Unsaved secret";
+
+    await TestBed.inject(PopupRouterCacheService).back();
+
+    expect(openSimpleDialog).toHaveBeenCalledOnce();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("reveals all submit errors, focuses name first, and clears a corrected blur error", async () => {
+    const sendActions = new RecordingSendActions();
+    const fixture = await createAddEditFixture("text", {
+      session: fakeAuthSession(),
+      sendActions,
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const name = host.querySelector<HTMLInputElement>("#send-name")!;
+
+    name.focus();
+    name.blur();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="send-error-name"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="send-error-text"]')).toBeNull();
+
+    host.querySelector<HTMLButtonElement>('[data-testid="save-send"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(document.activeElement).toBe(name);
+    expect(host.querySelector('#send-text[aria-invalid="true"]')).not.toBeNull();
+    expect(host.querySelectorAll('[data-testid^="send-error-"]')).toHaveLength(2);
+    expect(sendActions.calls).toEqual([]);
+
+    name.value = "Valid";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    name.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(host.querySelector('[data-testid="send-error-name"]')).toBeNull();
+    expect(host.querySelector('#send-name[aria-invalid="true"]')).toBeNull();
+  });
+
+  it("keeps the max-access helper through invalid and corrected field states", async () => {
+    const fixture = await createAddEditFixture("text");
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const control = host.querySelector<HTMLInputElement>("#send-maxAccessCount")!;
+    const field = control.closest("bit-form-field")!;
+    const hint = field.querySelector<HTMLElement>("bit-hint")!;
+    expect(hint).not.toBeNull();
+    expect(control.getAttribute("aria-describedby")).toBe(hint.id);
+
+    control.value = "0";
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+    control.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(field.querySelector('[data-testid="send-error-maxAccessCount"]')).not.toBeNull();
+    expect(control.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(control.getAttribute("aria-errormessage")).toBe("send-error-maxAccessCount");
+
+    control.value = "2";
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+    control.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(field.querySelector('[data-testid="send-error-maxAccessCount"]')).toBeNull();
+    expect(control.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(control.getAttribute("aria-errormessage")).toBeNull();
   });
 
   it("normalizes a file Send route to the text Send form", async () => {
@@ -1007,7 +1364,7 @@ describe("SendAddEditPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("新增文本 Send");
+    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("新建 Send");
     expect(host.querySelector('textarea[bitinput]')).not.toBeNull();
     expect(host.querySelector(".file-send-picker")).toBeNull();
   });
@@ -1061,6 +1418,36 @@ describe("SendAddEditPageComponent", () => {
     expect(store.snapshot().sends).toEqual([]);
     expect(store.snapshot().statusMessage).toBe("请先解锁密码库，再创建 Send。");
     expect(navigations).toEqual([]);
+  });
+
+  it("exposes pending ownership on Save and disables competing form actions", async () => {
+    const gate = deferred<void>();
+    const sendActions = new RecordingSendActions();
+    sendActions.createWait = gate.promise;
+    const fixture = await createAddEditFixture("text", {
+      session: sendSession(),
+      sendActions,
+    });
+    TestBed.inject(Router).navigate = async () => true;
+    fixture.componentInstance.name = "Pending secret";
+    fixture.componentInstance.text = "pending value";
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    const saving = fixture.componentInstance.save();
+    await Promise.resolve();
+    expect(fixture.componentInstance.operation.pending).toBe(true);
+    fixture.detectChanges(false);
+    const save = host.querySelector<HTMLButtonElement>('[data-testid="save-send"]')!;
+    const cancel = host.querySelector<HTMLButtonElement>('[data-testid="cancel-send-edit"]')!;
+    expect(save.getAttribute("aria-busy")).toBe("true");
+    expect(save.getAttribute("aria-disabled")).toBe("true");
+    expect(cancel.getAttribute("aria-disabled")).toBe("true");
+
+    gate.resolve(undefined);
+    await saving;
+    fixture.detectChanges(false);
+    expect(save.getAttribute("aria-busy")).toBeNull();
   });
 
   it("creates active session text Sends through Bitwarden before showing the created route", async () => {
@@ -1145,12 +1532,12 @@ describe("SendAddEditPageComponent", () => {
     TestBed.inject(Router).navigate = async () => true;
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    const hiddenInput = host.querySelector<HTMLInputElement>('bw-official-send-text-details input[bitcheckbox]')!;
-    hiddenInput.checked = true;
-    hiddenInput.dispatchEvent(new Event("change"));
-    const hideEmailInput = host.querySelector<HTMLInputElement>('bw-official-send-options input[bitcheckbox]')!;
-    hideEmailInput.checked = true;
-    hideEmailInput.dispatchEvent(new Event("change"));
+    const hiddenSwitch = host.querySelector<HTMLButtonElement>('bw-official-send-text-details button[role="switch"]')!;
+    expect(hiddenSwitch.getAttribute("aria-checked")).toBe("false");
+    hiddenSwitch.click();
+    const hideEmailSwitch = host.querySelector<HTMLButtonElement>('bw-official-send-options button[role="switch"]')!;
+    expect(hideEmailSwitch.getAttribute("aria-checked")).toBe("false");
+    hideEmailSwitch.click();
     fixture.detectChanges();
     fixture.componentInstance.setDeletionHoursValue(30 * 24);
     fixture.componentInstance.name = "Configured secret";
@@ -1231,6 +1618,30 @@ describe("SendAddEditPageComponent", () => {
 
     expect(store.snapshot().sends).toEqual([]);
     expect(store.snapshot().statusMessage).toBe("请先解锁密码库，再创建 Send。");
+  });
+
+  it("gives every mounted Send form icon action a localized accessible name", async () => {
+    const addFixture = await createAddEditFixture("text");
+    addFixture.componentInstance.form.patch({ authType: "password", password: "copy me" });
+    addFixture.detectChanges();
+    const addHost = addFixture.nativeElement as HTMLElement;
+    for (const action of addHost.querySelectorAll<HTMLButtonElement>(
+      '[data-testid="generate-password"], button[biticonbutton="bwi-clone"]',
+    )) {
+      expect(action.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
+    }
+
+    const editFixture = await createAddEditFixture("text", {
+      send: demoSend({ id: "send-1", text: "value", hasPassword: true }),
+    });
+    editFixture.componentInstance.beginEditing();
+    editFixture.detectChanges();
+    const editHost = editFixture.nativeElement as HTMLElement;
+    for (const action of editHost.querySelectorAll<HTMLButtonElement>(
+      'button[biticonbutton="bwi-minus-circle"], button[biticonbutton="bwi-trash"]',
+    )) {
+      expect(action.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
+    }
   });
 
   it("reports Send password generation failures without leaking generated values", async () => {
@@ -1355,14 +1766,16 @@ describe("SendAddEditPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(fixture.componentInstance.editing).toBe(false);
     expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("查看文本 Send");
-    expect((host.querySelector('input[bitinput][type="text"]') as HTMLInputElement).value).toBe("Old secret");
-    expect((host.querySelector('textarea[bitinput]') as HTMLTextAreaElement).value).toBe("old value");
+    expect(Array.from(
+      host.querySelectorAll<HTMLElement>('.macos-send-readonly-value[role="textbox"]'),
+      (value) => value.textContent?.trim(),
+    )).toEqual(expect.arrayContaining(["Old secret", "old value"]));
 
     host.querySelector<HTMLButtonElement>('[data-testid="edit-send"]')?.click();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.editing).toBe(true);
-    expect((host.querySelector('input[bitinput][type="text"]') as HTMLInputElement).value).toBe("Old secret");
+    expect((host.querySelector('#send-name') as HTMLInputElement).value).toBe("Old secret");
     expect((host.querySelector('textarea[bitinput]') as HTMLTextAreaElement).value).toBe("old value");
     expect((host.querySelector('input[type="password"]') as HTMLInputElement).value).toBe("");
 
@@ -1370,7 +1783,8 @@ describe("SendAddEditPageComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.editing).toBe(false);
-    expect((host.querySelector('input[bitinput][type="text"]') as HTMLInputElement).readOnly).toBe(true);
+    expect(host.querySelector('#send-name')).toBeNull();
+    expect(host.querySelector('.macos-send-readonly-value')?.textContent?.trim()).toBe("Old secret");
     expect(TestBed.inject(PopupStateStore).snapshot().sends[0]).toEqual(existing);
   });
 
@@ -1535,13 +1949,13 @@ describe("SendAddEditPageComponent", () => {
     fixture.componentInstance.hideEmail = true;
     fixture.detectChanges(false);
     expect((fixture.nativeElement as HTMLElement)
-      .querySelector('bw-official-send-options input[bitcheckbox]')).not.toBeNull();
+      .querySelector('bw-official-send-options button[role="switch"]')).not.toBeNull();
 
     store.setSends([], { disabled: false, hideEmailAllowed: false });
     fixture.detectChanges(false);
     expect(fixture.componentInstance.hideEmailAllowed).toBe(false);
     expect((fixture.nativeElement as HTMLElement)
-      .querySelector('bw-official-send-options input[bitcheckbox]')).toBeNull();
+      .querySelector('bw-official-send-options button[role="switch"]')).toBeNull();
 
     await fixture.componentInstance.save();
     expect(sendActions.calls[0]).toMatchObject({ draft: { hideEmail: false } });
@@ -1721,7 +2135,11 @@ describe("SendCreatedPageComponent", () => {
     await TestBed.configureTestingModule({
       imports: [SendCreatedPageComponent],
       providers: [
-        provideRouter([]),
+        provideRouter([
+          { path: "tabs/send", component: CreatedRouteStubComponent },
+          { path: "add-send", component: CreatedRouteStubComponent },
+          { path: "send-created", component: CreatedRouteStubComponent },
+        ]),
         { provide: PopupStateStore, useValue: store },
         {
           provide: SEND_CREATED_HOST,
@@ -1756,9 +2174,12 @@ describe("SendCreatedPageComponent", () => {
     expect(host.textContent).toContain("已创建 Send");
     expect(host.textContent).toContain("Send 创建成功");
     expect(host.textContent).toContain("复制链接");
-    expect(host.querySelectorAll("button[bitbutton]")).toHaveLength(3);
+    expect(host.querySelectorAll("button[bitbutton]")).toHaveLength(2);
     expect(host.querySelector(".primary-action")).toBeNull();
     expect(host.querySelector(".secondary-action")).toBeNull();
+    const link = host.querySelector<HTMLInputElement>('[data-testid="created-link"]')!;
+    expect(link.readOnly).toBe(true);
+    expect(link.value).toBe("https://vault.example.test/#/send/access-token/url-key");
 
     host.querySelector<HTMLButtonElement>('[data-testid="created-copy"]')!.click();
     await fixture.whenStable();
@@ -1773,6 +2194,109 @@ describe("SendCreatedPageComponent", () => {
     });
   });
 
+  it("routes the mounted created header Back through the shared navigation owner", async () => {
+    const fixture = await createCreatedFixture("send-created");
+    const routeCache = TestBed.inject(PopupRouterCacheService);
+    const back = vi.spyOn(routeCache, "back").mockResolvedValue(true);
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[aria-label="返回"]')!
+      .click();
+    await fixture.whenStable();
+
+    expect(back).toHaveBeenCalledOnce();
+  });
+
+  it("registers the created page as an Escape owner that returns to the Send list", async () => {
+    const fixture = await createCreatedFixture("send-created");
+    const router = TestBed.inject(Router);
+    Object.defineProperty(router, "url", { value: "/send-created?sendId=send-created", configurable: true });
+    const navigateByUrl = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+    fixture.detectChanges();
+
+    await TestBed.inject(PopupRouterCacheService).back();
+
+    expect(navigateByUrl).toHaveBeenCalledWith("/tabs/send", { replaceUrl: true });
+  });
+
+  it.each(["Close", "Escape"] as const)(
+    "%s destroys and rebuilds real Send routes while consuming the add-Send predecessor",
+    async (action) => {
+      TestBed.resetTestingModule();
+      const store = new PopupStateStore();
+      unlockForSendOperation(store);
+      store.setSends([demoSend({
+        id: "send-created",
+        accessId: "access-token",
+        urlB64Key: "url-key",
+        type: "text",
+      })]);
+      await TestBed.configureTestingModule({
+        imports: [RealSendRouteHostComponent],
+        providers: [
+          OfficialI18nService,
+          { provide: I18nService, useExisting: OfficialI18nService },
+          provideRouter([
+            { path: "tabs/send", component: SendPageComponent },
+            { path: "add-send", component: SendAddEditPageComponent },
+            { path: "send-created", component: SendCreatedPageComponent },
+          ]),
+          { provide: PopupStateStore, useValue: store },
+          { provide: GeneratorService, useValue: generatorService() },
+          { provide: DialogService, useValue: { openSimpleDialog } },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(RealSendRouteHostComponent);
+      const router = TestBed.inject(Router);
+      const routeCache = TestBed.inject(PopupRouterCacheService);
+      const ends: string[] = [];
+      const subscription = router.events.subscribe((event) => {
+        if (event instanceof NavigationEnd) ends.push(event.urlAfterRedirects);
+      });
+      await router.navigateByUrl("/tabs/send");
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const initialSearch = (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>('[data-popup-focus-key="send:search"] input')!;
+      expect(initialSearch).not.toBeNull();
+      initialSearch.focus();
+      initialSearch.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      await router.navigateByUrl("/add-send");
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector("bw-send-add-edit-page")).not.toBeNull();
+      await router.navigateByUrl("/send-created?sendId=send-created&type=text");
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector("bw-send-created-page")).not.toBeNull();
+
+      if (action === "Close") {
+        (fixture.nativeElement as HTMLElement)
+          .querySelector<HTMLButtonElement>('[data-testid="created-close"]')!
+          .click();
+        await fixture.whenStable();
+      } else {
+        await routeCache.back();
+      }
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(ends.filter((url) => url === "/tabs/send")).toHaveLength(2);
+      expect(router.url).toBe("/tabs/send");
+      expect(routeCache.history()).not.toContain("/add-send");
+      expect(routeCache.history()).not.toContain("/send-created");
+      expect((fixture.nativeElement as HTMLElement).querySelector("bw-send-created-page")).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector("bw-send-page")).not.toBeNull();
+      const restoredSearch = (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>('[data-popup-focus-key="send:search"] input')!;
+      expect(restoredSearch).not.toBe(initialSearch);
+      await vi.waitFor(() => expect(document.activeElement).toBe(restoredSearch));
+      subscription.unsubscribe();
+      fixture.destroy();
+    },
+  );
+
   it("maps the official Send created pop-out action to the native menubar window command", async () => {
     const calls: string[] = [];
     const fixture = await createCreatedFixture("send-created", [], {
@@ -1782,7 +2306,7 @@ describe("SendCreatedPageComponent", () => {
     });
     const router = TestBed.inject(Router);
     Object.defineProperty(router, "url", {
-      value: "/send-created?sendId=send-created",
+      value: "/send-created?sendId=send-created&type=text",
       configurable: true,
     });
 
@@ -1796,7 +2320,7 @@ describe("SendCreatedPageComponent", () => {
     popOut!.click();
     await fixture.whenStable();
 
-    expect(calls).toEqual(["/send-created?sendId=send-created"]);
+    expect(calls).toEqual(["/send-created?sendId=send-created&type=text"]);
   });
 
   it("does not expose or copy a File Send through the created route", async () => {
@@ -1848,12 +2372,17 @@ describe("SendCreatedPageComponent", () => {
     const store = TestBed.inject(PopupStateStore);
 
     fixture.detectChanges();
+    const router = TestBed.inject(Router);
+    const recover = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
     invalidate(store);
     fixture.detectChanges();
+    await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).querySelector("bw-official-send-created")).toBeNull();
     await fixture.componentInstance.copyLink();
     expect(copied).toEqual([]);
+    expect(recover).toHaveBeenCalledOnce();
+    expect(recover).toHaveBeenCalledWith("/tabs/send", { replaceUrl: true });
   });
 
   it("does not render or copy a created Send replaced under the same id", async () => {

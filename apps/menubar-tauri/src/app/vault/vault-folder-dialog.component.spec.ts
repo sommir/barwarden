@@ -181,6 +181,299 @@ describe("VaultFolderDialogComponent", () => {
     expect(document.activeElement).toBe(deleteFolder);
   });
 
+  it("focuses Cancel in delete confirmation and returns to the invoking Delete button", async () => {
+    const store = unlockedStore();
+    const folder = store.saveFolder({ id: "work", name: "Work" });
+    const fixture = await setup(store, { create: vi.fn(), update: vi.fn(), delete: vi.fn() });
+    const host = fixture.nativeElement as HTMLElement;
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    fixture.componentInstance.openFor(folder, opener);
+    fixture.detectChanges(false);
+    await Promise.resolve();
+
+    const deleteButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.getAttribute("aria-label") === "删除文件夹")!;
+    deleteButton.focus();
+    deleteButton.click();
+    fixture.detectChanges(false);
+    await Promise.resolve();
+
+    const cancel = host.querySelector<HTMLButtonElement>("[data-testid='delete-folder-cancel']")!;
+    expect(document.activeElement).toBe(cancel);
+    cancel.click();
+    fixture.detectChanges(false);
+    await Promise.resolve();
+    expect(document.activeElement).toBe(deleteButton);
+    opener.remove();
+  });
+
+  it.each([
+    {
+      timing: "before the edit Sheet close settles",
+      settleEditBeforeDeleteDismissal: false,
+      deleteDismissal: "cancel" as const,
+      editDismissal: "escape" as const,
+    },
+    {
+      timing: "after the edit Sheet close settles",
+      settleEditBeforeDeleteDismissal: true,
+      deleteDismissal: "escape" as const,
+      editDismissal: "cancel" as const,
+    },
+  ])("preserves the outer opener across the nested delete focus stack $timing", async ({
+    settleEditBeforeDeleteDismissal,
+    deleteDismissal,
+    editDismissal,
+  }) => {
+    const store = unlockedStore();
+    const folder = store.saveFolder({ id: "work", name: "Work" });
+    const fixture = await setup(store, { create: vi.fn(), update: vi.fn(), delete: vi.fn() });
+    const host = fixture.nativeElement as HTMLElement;
+    const opener = document.createElement("button");
+    const nextOpener = document.createElement("button");
+    document.body.append(opener, nextOpener);
+    const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+    const transitionStyles = vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+      element instanceof HTMLDialogElement
+        ? {
+            transitionProperty: "transform",
+            transitionDuration: "200ms",
+            transitionDelay: "0s",
+          } as CSSStyleDeclaration
+        : nativeGetComputedStyle(element));
+
+    try {
+      opener.focus();
+      fixture.componentInstance.openFor(folder, opener);
+      fixture.detectChanges(false);
+      await Promise.resolve();
+
+      const folderSheet = host.querySelector<HTMLDialogElement>("[data-testid='folder-dialog']")!;
+      const deleteSheet = host.querySelector<HTMLDialogElement>("[data-testid='delete-folder-confirmation']")!;
+      const deleteButton = Array.from(folderSheet.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.getAttribute("aria-label") === "删除文件夹")!;
+      deleteButton.focus();
+      deleteButton.click();
+      fixture.detectChanges(false);
+      await Promise.resolve();
+
+      const deleteCancel = deleteSheet.querySelector<HTMLButtonElement>(
+        "[data-testid='delete-folder-cancel']",
+      )!;
+      expect(document.activeElement).toBe(deleteCancel);
+      if (settleEditBeforeDeleteDismissal) {
+        dispatchTransformTransitionEnd(folderSheet);
+      }
+
+      if (deleteDismissal === "escape") {
+        deleteSheet.dispatchEvent(new Event("cancel", { cancelable: true }));
+      } else {
+        deleteCancel.click();
+      }
+      fixture.detectChanges(false);
+      await Promise.resolve();
+      if (deleteSheet.open) {
+        dispatchTransformTransitionEnd(deleteSheet);
+      }
+      await Promise.resolve();
+
+      expect(folderSheet.open).toBe(true);
+      expect(document.activeElement).toBe(deleteButton);
+      if (editDismissal === "escape") {
+        folderSheet.dispatchEvent(new Event("cancel", { cancelable: true }));
+      } else {
+        const editCancel = Array.from(folderSheet.querySelectorAll<HTMLButtonElement>("button"))
+          .find((button) => button.textContent?.trim() === "取消")!;
+        editCancel.click();
+      }
+      fixture.detectChanges(false);
+      if (folderSheet.open) {
+        dispatchTransformTransitionEnd(folderSheet);
+      }
+      await nextTask();
+
+      expect(document.activeElement).toBe(opener);
+
+      nextOpener.focus();
+      fixture.componentInstance.openFor(folder, nextOpener);
+      fixture.detectChanges(false);
+      await Promise.resolve();
+      fixture.componentInstance.close();
+      if (folderSheet.open) {
+        dispatchTransformTransitionEnd(folderSheet);
+      }
+      await nextTask();
+      expect(document.activeElement).toBe(nextOpener);
+    } finally {
+      transitionStyles.mockRestore();
+      opener.remove();
+      nextOpener.remove();
+    }
+  });
+
+  it.each(["save", "delete"] as const)(
+    "restores the outer opener after a successful terminal %s",
+    async (operation) => {
+      const store = unlockedStore();
+      const folder = operation === "delete"
+        ? store.saveFolder({ id: "work", name: "Work" })
+        : undefined;
+      const folderService = {
+        create: vi.fn(async () => ({
+          committed: true as const,
+          folder: { id: "server-projects", name: "Projects" },
+          status: "",
+        })),
+        update: vi.fn(),
+        delete: vi.fn(async () => ({ committed: true as const, status: "" })),
+      };
+      const fixture = await setup(store, folderService);
+      const host = fixture.nativeElement as HTMLElement;
+      const opener = document.createElement("button");
+      document.body.append(opener);
+
+      try {
+        opener.focus();
+        fixture.componentInstance.openFor(folder, opener);
+        fixture.detectChanges(false);
+        await Promise.resolve();
+
+        if (operation === "save") {
+          fixture.componentInstance.folderName = "Projects";
+          await fixture.componentInstance.save();
+        } else {
+          const deleteButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+            .find((button) => button.getAttribute("aria-label") === "删除文件夹")!;
+          deleteButton.focus();
+          deleteButton.click();
+          fixture.detectChanges(false);
+          await Promise.resolve();
+          host.querySelector<HTMLFormElement>("[data-testid='delete-folder-confirmation'] form")!
+            .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+          await fixture.whenStable();
+        }
+        fixture.detectChanges(false);
+        await nextTask();
+
+        expect(document.activeElement).toBe(opener);
+      } finally {
+        opener.remove();
+      }
+    },
+  );
+
+  it.each(["folder-first", "delete-first"] as const)(
+    "waits for both terminal Sheets before restoring the outer opener when %s settles",
+    async (closeOrder) => {
+      const store = unlockedStore();
+      const folder = store.saveFolder({ id: "work", name: "Work" });
+      const folderService = {
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(async () => ({ committed: true as const, status: "" })),
+      };
+      const fixture = await setup(store, folderService);
+      const host = fixture.nativeElement as HTMLElement;
+      const opener = document.createElement("button");
+      const focusSentinel = document.createElement("button");
+      const nextOpener = document.createElement("button");
+      document.body.append(opener, focusSentinel, nextOpener);
+      const outerFocus = vi.spyOn(opener, "focus");
+      let outerFocusEvents = 0;
+      opener.addEventListener("focus", () => {
+        outerFocusEvents += 1;
+      });
+      const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+      const transitionStyles = vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+        element instanceof HTMLDialogElement
+          ? {
+              transitionProperty: "transform",
+              transitionDuration: "200ms",
+              transitionDelay: "0s",
+            } as CSSStyleDeclaration
+          : nativeGetComputedStyle(element));
+
+      try {
+        opener.focus();
+        fixture.componentInstance.openFor(folder, opener);
+        fixture.detectChanges(false);
+        await Promise.resolve();
+
+        const folderSheet = host.querySelector<HTMLDialogElement>("[data-testid='folder-dialog']")!;
+        const deleteSheet = host.querySelector<HTMLDialogElement>(
+          "[data-testid='delete-folder-confirmation']",
+        )!;
+        const deleteButton = Array.from(folderSheet.querySelectorAll<HTMLButtonElement>("button"))
+          .find((button) => button.getAttribute("aria-label") === "删除文件夹")!;
+        deleteButton.focus();
+        deleteButton.click();
+        fixture.detectChanges(false);
+        await Promise.resolve();
+
+        expect(folderSheet.open).toBe(true);
+        expect(deleteSheet.open).toBe(true);
+        outerFocus.mockClear();
+        outerFocusEvents = 0;
+        await fixture.componentInstance.confirmDelete();
+        fixture.detectChanges(false);
+
+        const [firstSheet, secondSheet] = closeOrder === "folder-first"
+          ? [folderSheet, deleteSheet]
+          : [deleteSheet, folderSheet];
+        dispatchTransformTransitionEnd(firstSheet);
+        await nextTask();
+
+        expect(firstSheet.open).toBe(false);
+        expect(secondSheet.open).toBe(true);
+        expect(document.activeElement).not.toBe(opener);
+        expect(outerFocus).not.toHaveBeenCalled();
+        expect(outerFocusEvents).toBe(0);
+
+        dispatchTransformTransitionEnd(secondSheet);
+        expect(folderSheet.open).toBe(false);
+        expect(deleteSheet.open).toBe(false);
+        expect(document.activeElement).not.toBe(opener);
+        expect(outerFocus).not.toHaveBeenCalled();
+        expect(outerFocusEvents).toBe(0);
+
+        focusSentinel.focus();
+        await nextTask();
+        expect(document.activeElement).toBe(opener);
+        expect(outerFocus).toHaveBeenCalledTimes(1);
+        expect(outerFocusEvents).toBe(1);
+
+        nextOpener.focus();
+        fixture.componentInstance.openFor(undefined, nextOpener);
+        fixture.detectChanges(false);
+        await Promise.resolve();
+        const folderName = folderSheet.querySelector<HTMLInputElement>("#folderName")!;
+        expect(document.activeElement).toBe(folderName);
+
+        fixture.componentInstance.close();
+        dispatchTransformTransitionEnd(folderSheet);
+        fixture.componentInstance.openFor(undefined, nextOpener);
+        fixture.detectChanges(false);
+        await Promise.resolve();
+        expect(document.activeElement).toBe(folderName);
+        await nextTask();
+        expect(document.activeElement).toBe(folderName);
+        expect(outerFocus).toHaveBeenCalledTimes(1);
+        expect(outerFocusEvents).toBe(1);
+
+        fixture.componentInstance.close();
+        dispatchTransformTransitionEnd(folderSheet);
+        await nextTask();
+        expect(document.activeElement).toBe(nextOpener);
+      } finally {
+        transitionStyles.mockRestore();
+        opener.remove();
+        focusSentinel.remove();
+        nextOpener.remove();
+      }
+    },
+  );
+
   it("returns to the edit dialog with a fixed error when deletion fails", async () => {
     const store = unlockedStore();
     store.saveFolder({ id: "work", name: "Work" });
@@ -648,4 +941,14 @@ function deferred<T>() {
 
 function ownershipGuardMatcher() {
   return expect.objectContaining({ isCurrent: expect.any(Function) });
+}
+
+function dispatchTransformTransitionEnd(dialog: HTMLDialogElement): void {
+  dialog.dispatchEvent(new TransitionEvent("transitionend", {
+    propertyName: "transform",
+  }));
+}
+
+function nextTask(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve));
 }

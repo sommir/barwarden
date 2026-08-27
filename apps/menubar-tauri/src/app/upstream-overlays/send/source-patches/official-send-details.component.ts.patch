@@ -24,15 +24,15 @@
 -  ValidationErrors,
 -} from "@angular/forms";
 -import { combineLatest, map, startWith, switchMap, tap } from "rxjs";
-+import { ChangeDetectionStrategy, Component, input, output } from "@angular/core";
++import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inject, input, output } from "@angular/core";
 +import { FormsModule } from "@angular/forms";
-+import { BitFormFieldComponent, BitHintDirective, BitIconButtonComponent, BitInputDirective, BitLabelComponent, BitSuffixDirective, ButtonComponent, CardComponent, OptionComponent, SectionComponent, SectionHeaderComponent, SelectComponent, TypographyDirective } from "../../official-ui/official-components";
-+import type { RetainedTextSendFormValue } from "../../send/retained-text-send-form.service";
++import { BitFormFieldComponent, BitHintDirective, BitIconButtonComponent, BitInputDirective, BitLabelComponent, BitSuffixDirective, ButtonComponent, OptionComponent, SectionComponent, SectionHeaderComponent, SelectComponent, TypographyDirective } from "../../official-ui/official-components";
++import type { RetainedTextSendErrors, RetainedTextSendField, RetainedTextSendFormValue } from "../../send/retained-text-send-form.service";
 +import { OfficialSendOptionsComponent } from "./official-send-options.component";
 +import { OfficialSendTextDetailsComponent } from "./official-send-text-details.component";
 +import { translateOfficialMessage } from "../../official-ui/official-i18n.service";
 +import { I18nPipe } from "../../official-ui/official-ui-common";
-@@ -25,56 +10,11 @@
+@@ -25,56 +10,12 @@
 -import { OrganizationService } from "@bitwarden/common/admin-console/abstractions/organization/organization.service.abstraction";
 -import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
 -import { getUserId } from "@bitwarden/common/auth/services/account.service";
@@ -89,18 +89,19 @@
 -    return authTypeWithValue
 -      ? this.i18nSvc.t(authTypeWithValue.nameKey)
 -      : this.i18nSvc.t("unknown");
-+@Component({ selector: "bw-official-send-details", standalone: true, imports: [FormsModule, I18nPipe, BitFormFieldComponent, BitHintDirective, BitIconButtonComponent, BitInputDirective, BitLabelComponent, BitSuffixDirective, ButtonComponent, CardComponent, OptionComponent, SectionComponent, SectionHeaderComponent, SelectComponent, TypographyDirective, OfficialSendOptionsComponent, OfficialSendTextDetailsComponent], templateUrl: "./official-send-details.component.html", changeDetection: ChangeDetectionStrategy.OnPush })
++@Component({ selector: "bw-official-send-details", standalone: true, imports: [FormsModule, I18nPipe, BitFormFieldComponent, BitHintDirective, BitIconButtonComponent, BitInputDirective, BitLabelComponent, BitSuffixDirective, ButtonComponent, OptionComponent, SectionComponent, SectionHeaderComponent, SelectComponent, TypographyDirective, OfficialSendOptionsComponent, OfficialSendTextDetailsComponent], templateUrl: "./official-send-details.component.html", changeDetection: ChangeDetectionStrategy.OnPush })
 +export class OfficialSendDetailsComponent {
-+  readonly editing = input.required<boolean>(); readonly disabled = input.required<boolean>(); readonly originalHadPassword = input.required<boolean>(); readonly hideEmailAllowed = input.required<boolean>(); readonly value = input.required<RetainedTextSendFormValue>();
-+  readonly valueChange = output<Partial<RetainedTextSendFormValue>>(); readonly removePassword = output<void>(); readonly generatePassword = output<void>(); readonly copyPassword = output<Event>();
-+  get datePresetOptions() {
-+    return [1, 24, 48, 72, 168, 336, 720].map((value) => ({
-+      value,
-+      label: value < 24
-+        ? translateOfficialMessage("i18nHours", value)
-+        : translateOfficialMessage("i18nDays", value / 24),
-+    }));
-@@ -82,112 +22,5 @@
++  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
++  readonly editing = input.required<boolean>(); readonly disabled = input.required<boolean>(); readonly originalHadPassword = input.required<boolean>(); readonly hideEmailAllowed = input.required<boolean>(); readonly value = input.required<RetainedTextSendFormValue>(); readonly errors = input.required<RetainedTextSendErrors>(); readonly touched = input.required<ReadonlySet<RetainedTextSendField>>();
++  readonly valueChange = output<Partial<RetainedTextSendFormValue>>(); readonly fieldBlur = output<RetainedTextSendField>(); readonly removePassword = output<void>(); readonly generatePassword = output<void>(); readonly copyPassword = output<Event>();
++  constructor() {
++    afterRenderEffect(() => {
++      const errors = this.errors();
++      const touched = this.touched();
++      setErrorAttributes(this.host.nativeElement, "name", touched.has("name") && Boolean(errors.name));
++      setErrorAttributes(this.host.nativeElement, "password", touched.has("password") && Boolean(errors.password));
++    });
+@@ -82,112 +23,7 @@
 -}
 -
 -// FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
@@ -213,12 +214,14 @@
 -
 -  get originalHadPassword(): boolean {
 -    return this.sendFormService.originalSendView()?.password != null;
-+  get authorizationOptions() {
-+    return [
-+      { value: "none" as const, label: this.authOptions[0] },
-+      { value: "password" as const, label: this.authOptions[1] },
-+    ];
-@@ -195,144 +28,5 @@
++  get datePresetOptions() {
++    return [1, 24, 48, 72, 168, 336, 720].map((value) => ({
++      value,
++      label: value < 24
++        ? translateOfficialMessage("i18nHours", value)
++        : translateOfficialMessage("i18nDays", value / 24),
++    }));
+@@ -195,144 +31,5 @@
 -
 -  constructor(
 -    protected formBuilder: FormBuilder,
@@ -363,12 +366,12 @@
 -    });
 -
 -    this.sendFormService.registerChildForm("sendDetailsForm", this.sendDetailsForm);
-+  get authOptions() {
++  get authorizationOptions() {
 +    return [
-+      translateOfficialMessage("i18nAnyoneWithLink"),
-+      translateOfficialMessage("i18nAnyoneWithPassword"),
-+    ] as const;
-@@ -340,123 +34,5 @@
++      { value: "none" as const, label: this.authOptions[0] },
++      { value: "password" as const, label: this.authOptions[1] },
++    ];
+@@ -340,20 +37,5 @@
 -
 -  async ngOnInit() {
 -    const updatedSendView = this.sendFormService.updatedSendView();
@@ -389,8 +392,19 @@
 -    if (!this.sendFormService.sendFormConfig.areSendsAllowed) {
 -      this.sendDetailsForm.disable();
 -    }
--  }
--
++  get authOptions() {
++    return [
++      translateOfficialMessage("i18nAnyoneWithLink"),
++      translateOfficialMessage("i18nAnyoneWithPassword"),
++    ] as const;
+@@ -360,0 +43,6 @@
++  inputValue(event: Event): string { return event.target instanceof HTMLInputElement ? event.target.value : ""; }
++  deletionPreset(value: unknown): RetainedTextSendFormValue["deletionPresetHours"] { return Number(typeof value === "number" || typeof value === "string" ? value : 168) as RetainedTextSendFormValue["deletionPresetHours"]; }
++  authType(value: unknown): RetainedTextSendFormValue["authType"] { return value === "password" ? "password" : "none"; }
++  deletionLabel(): string { return this.datePresetOptions.find(({ value }) => value === this.value().deletionPresetHours)?.label ?? translateOfficialMessage("i18nDays", 7); }
++  authTypeLabel(): string { return this.authorizationOptions.find(({ value }) => value === this.value().authType)?.label ?? translateOfficialMessage("i18nAnyoneWithLink"); }
++}
+@@ -362,8 +50,9 @@
 -  private initializeFormFromOriginal(originalSendView: SendView) {
 -    this.sendDetailsForm.patchValue({
 -      name: originalSendView.name,
@@ -399,7 +413,16 @@
 -      authType: originalSendView.authType,
 -      emails: originalSendView.emails?.join(", ") ?? null,
 -    });
--  }
++function setErrorAttributes(host: HTMLElement, field: RetainedTextSendField, invalid: boolean): void {
++  const control = host.querySelector<HTMLElement>(`#send-${field}`);
++  if (!control) return;
++  if (invalid) {
++    control.setAttribute("aria-invalid", "true");
++    control.setAttribute("aria-describedby", `send-error-${field}`);
++  } else {
++    control.removeAttribute("aria-invalid");
++    control.removeAttribute("aria-describedby");
+@@ -371,92 +59,0 @@
 -
 -  get formattedDeletionDate(): string {
 -    const now = new Date();
@@ -492,8 +515,3 @@
 -      });
 -    }
 -  };
-+  inputValue(event: Event): string { return event.target instanceof HTMLInputElement ? event.target.value : ""; }
-+  deletionPreset(value: unknown): RetainedTextSendFormValue["deletionPresetHours"] { return Number(typeof value === "number" || typeof value === "string" ? value : 168) as RetainedTextSendFormValue["deletionPresetHours"]; }
-+  authType(value: unknown): RetainedTextSendFormValue["authType"] { return value === "password" ? "password" : "none"; }
-+  deletionLabel(): string { return this.datePresetOptions.find(({ value }) => value === this.value().deletionPresetHours)?.label ?? translateOfficialMessage("i18nDays", 7); }
-+  authTypeLabel(): string { return this.authorizationOptions.find(({ value }) => value === this.value().authType)?.label ?? translateOfficialMessage("i18nAnyoneWithLink"); }

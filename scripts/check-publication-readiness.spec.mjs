@@ -77,6 +77,13 @@ test("reports a prohibited legacy keyword assembled in source content", () => {
   ]);
 });
 
+test("does not reject longer words that merely contain the legacy token", () => {
+  const root = createValidFixture();
+  write(root, "src/domain-rules.json", JSON.stringify(["saves-the-whales.com"]));
+
+  assert.deepEqual(checkPublicationReadiness(root).errors, []);
+});
+
 test("reports credential file extensions even when their contents are empty", () => {
   const root = createValidFixture();
   write(root, "certificates/release.p8", "");
@@ -116,6 +123,7 @@ test("does not scan ignored local evidence but does scan vendored upstream sourc
   const root = createValidFixture();
   const privateKeyHeader = "-----BEGIN " + "PRIVATE KEY-----";
   write(root, "docs/superpowers/local.md", "/" + "Users/alice/private\n");
+  write(root, ".playwright-cli/console.log", "/" + "Users/alice/private\n");
   write(root, "vendor/bitwarden-clients/example.ts", privateKeyHeader);
   write(root, "output/playwright/console.log", "/" + "Users/alice/private\n");
   write(root, "test-results/trace.log", privateKeyHeader);

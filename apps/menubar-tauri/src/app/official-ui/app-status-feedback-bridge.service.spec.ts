@@ -80,17 +80,24 @@ describe("AppStatusFeedbackBridgeService", () => {
     bridge.destroy();
   });
 
-  it("requests accessibility authorization instead of showing a paste warning toast", () => {
+  it("requests accessibility authorization from the initiating quick action instead of showing a toast", () => {
     const store = new PopupStateStore();
     const feedback = new AppFeedbackService();
-    const permissionDialog = { present: vi.fn() } as unknown as AccessibilityPermissionDialogService;
+    const permissionDialog = new AccessibilityPermissionDialogService({ openUrl: vi.fn() });
     const bridge = new AppStatusFeedbackBridgeService(store, feedback, permissionDialog);
+    const trigger = document.createElement("button");
+    document.body.append(trigger);
     bridge.start();
+    feedback.show(ACCESSIBILITY_PERMISSION_STATUS, { kind: "warning" });
 
+    trigger.focus();
     store.setStatus(ACCESSIBILITY_PERMISSION_STATUS);
 
-    expect(permissionDialog.present).toHaveBeenCalledOnce();
+    expect(permissionDialog.isOpen()).toBe(true);
+    expect(permissionDialog.trigger()).toBe(trigger);
+    expect(document.activeElement).toBe(trigger);
     expect(feedback.snapshot()).toBeNull();
     bridge.destroy();
+    trigger.remove();
   });
 });

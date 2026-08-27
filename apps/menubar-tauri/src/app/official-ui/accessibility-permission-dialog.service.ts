@@ -21,36 +21,74 @@ export class AccessibilityPermissionDialogService {
   readonly isOpen = signal(false);
   readonly openingSettings = signal(false);
   readonly launchFailed = signal(false);
+  private readonly triggerState = signal<HTMLElement | null>(null);
+  readonly trigger = this.triggerState.asReadonly();
+
+  private presentationActive = false;
+  private presentationEpoch = 0;
 
   constructor(
     @Inject(ACCESSIBILITY_SETTINGS_HOST)
     private readonly host: Pick<HostApi, "openUrl">,
   ) {}
 
-  present(): void {
+  present(trigger: HTMLElement | null = activeHTMLElement()): void {
+    if (this.presentationActive) {
+      return;
+    }
+    this.presentationActive = true;
+    this.presentationEpoch += 1;
     this.launchFailed.set(false);
+    this.triggerState.set(trigger);
     this.isOpen.set(true);
   }
 
   dismiss(): void {
-    if (!this.openingSettings()) {
+    if (this.presentationActive && !this.openingSettings()) {
       this.isOpen.set(false);
     }
   }
 
-  async openSystemSettings(): Promise<void> {
-    if (this.openingSettings()) {
+  sheetClosed(): void {
+    if (!this.presentationActive) {
       return;
     }
+    this.presentationActive = false;
+    this.presentationEpoch += 1;
+    this.isOpen.set(false);
+    this.openingSettings.set(false);
+    this.launchFailed.set(false);
+    this.triggerState.set(null);
+  }
+
+  async openSystemSettings(): Promise<void> {
+    if (!this.presentationActive || !this.isOpen() || this.openingSettings()) {
+      return;
+    }
+    const epoch = this.presentationEpoch;
     this.openingSettings.set(true);
     this.launchFailed.set(false);
     try {
       await this.host.openUrl(ACCESSIBILITY_SETTINGS_URL);
-      this.isOpen.set(false);
+      if (this.isCurrentPresentation(epoch)) {
+        this.isOpen.set(false);
+      }
     } catch {
-      this.launchFailed.set(true);
+      if (this.isCurrentPresentation(epoch)) {
+        this.launchFailed.set(true);
+      }
     } finally {
-      this.openingSettings.set(false);
+      if (this.isCurrentPresentation(epoch)) {
+        this.openingSettings.set(false);
+      }
     }
   }
+
+  private isCurrentPresentation(epoch: number): boolean {
+    return this.presentationActive && this.presentationEpoch === epoch;
+  }
+}
+
+function activeHTMLElement(): HTMLElement | null {
+  return document.activeElement instanceof HTMLElement ? document.activeElement : null;
 }

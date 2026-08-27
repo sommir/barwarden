@@ -22,6 +22,7 @@ import { DialogModule } from "@bitwarden/components/dialog/dialog.module";
 import type { AuthSession } from "../../auth/auth-session-store";
 import { buildSelfHostedEnvironmentFromServerUrl } from "../../bitwarden-api/bitwarden-api";
 import { PopupStateStore } from "../popup-state";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 import { POP_OUT_HOST, type PopOutHost } from "../popup-header-actions.component";
 import { demoFolders, demoVaultItems } from "../vault-demo";
 import type { VaultItem } from "./vault-item.model";
@@ -392,6 +393,153 @@ describe("VaultAddEditPageComponent", () => {
     await first;
   });
 
+  it("exposes polite pending feedback, suppresses duplicate writes, and retains Login data after failure", async () => {
+    await new OfficialI18nService().setLocale("zh-CN");
+    const cipherWrite = new RecordingCipherWrite();
+    const pending = deferred<VaultItem>();
+    vi.spyOn(cipherWrite, "createLoginCipher").mockReturnValue(pending.promise);
+    const session = fakeAuthSession(TEST_USER_KEY);
+    const { fixture } = await createFixture("1", "add-cipher", "", demoVaultItems, {
+      session,
+      cipherWrite,
+    });
+    const official = await initializeOfficialForm(fixture, "Retained typed Login");
+
+    const first = official.submit();
+    await vi.waitFor(() => expect(cipherWrite.createLoginCipher).toHaveBeenCalledOnce());
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const scroll = host.querySelector<HTMLElement>(".cipher-form-scroll")!;
+    const status = host.querySelector<HTMLElement>('[data-testid="vault-save-status"]')!;
+    const submitButton = host.querySelector<HTMLButtonElement>(
+      'button[form="official-login-cipher-form"]',
+    )!;
+    expect(scroll.getAttribute("aria-busy")).toBe("true");
+    expect(submitButton.getAttribute("aria-busy")).toBe("true");
+    expect(submitButton.getAttribute("aria-disabled")).toBe("true");
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(submitButton.querySelector("bit-spinner")).not.toBeNull();
+    });
+    expect(status.getAttribute("role")).toBe("status");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.textContent).toContain("保存中");
+
+    await official.submit();
+    expect(cipherWrite.createLoginCipher).toHaveBeenCalledOnce();
+
+    pending.reject(new Error("private transport failure"));
+    await first;
+    fixture.detectChanges();
+
+    expect(
+      host.querySelector<HTMLInputElement>('input[formcontrolname="name"]')?.value,
+    ).toBe("Retained typed Login");
+    expect(scroll.getAttribute("aria-busy")).toBe("false");
+    expect(submitButton.getAttribute("aria-busy")).toBe("false");
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(submitButton.querySelector("bit-spinner")).toBeNull();
+    });
+    expect(status.textContent?.trim()).toBe("");
+  });
+
+  it("keeps a pending Login transport locked when dirty navigation is cancelled", async () => {
+    const cipherWrite = new RecordingCipherWrite();
+    const pending = deferred<VaultItem>();
+    vi.spyOn(cipherWrite, "createLoginCipher").mockReturnValue(pending.promise);
+    const { fixture, store, navigateByUrl } = await createFixture(
+      "1",
+      "add-cipher",
+      "",
+      demoVaultItems,
+      { session: fakeAuthSession(TEST_USER_KEY), cipherWrite },
+    );
+    const official = await initializeOfficialForm(fixture, "Retained pending Login");
+
+    const submitting = official.submit();
+    await vi.waitFor(() => expect(cipherWrite.createLoginCipher).toHaveBeenCalledOnce());
+    const leaving = fixture.componentInstance.backToVault();
+    await vi.waitFor(() => expect(TestBed.inject(CdkDialog).openDialogs.length).toBe(1));
+    detectOpenDialogs();
+    clickDialogButton("取消");
+    await leaving;
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const submitButton = host.querySelector<HTMLButtonElement>(
+      'button[form="official-login-cipher-form"]',
+    )!;
+    expect(fixture.componentInstance.savePending).toBe(true);
+    expect(submitButton.getAttribute("aria-disabled")).toBe("true");
+    expect(submitButton.getAttribute("aria-busy")).toBe("true");
+    await expect(fixture.componentInstance.saveOfficialLogin(
+      loginSubmit("add", "Retained pending Login"),
+    )).resolves.toEqual({ committed: false, reason: "duplicate" });
+    expect(cipherWrite.createLoginCipher).toHaveBeenCalledOnce();
+
+    const returned = savedLogin("cancelled-dirty-pending", "Retained pending Login");
+    pending.resolve(returned);
+    await submitting;
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.savePending).toBe(false);
+    expect(submitButton.getAttribute("aria-busy")).toBe("false");
+    expect(store.snapshot().items).not.toContain(returned);
+    expect(navigateByUrl).not.toHaveBeenCalledWith("/view-cipher/cancelled-dirty-pending");
+  });
+
+  it("exposes the real Personal submit loading state and retains its draft after failure", async () => {
+    await new OfficialI18nService().setLocale("zh-CN");
+    const write = new RecordingCipherWrite();
+    const pending = deferred<VaultItem>();
+    mockPersonalWrite(write, "card", "add", pending.promise);
+    const { fixture } = await createFixture("3", "add-cipher", "", demoVaultItems, {
+      session: fakeAuthSession(TEST_USER_KEY),
+      cipherWrite: write,
+    });
+    const official = await initializeOfficialPersonalForm(fixture, "Retained typed Card");
+
+    const submitting = official.submit();
+    await vi.waitFor(() => expect(personalCallsFor(write, "card")).toBe(1));
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const scroll = host.querySelector<HTMLElement>(".cipher-form-scroll")!;
+    const status = host.querySelector<HTMLElement>('[data-testid="vault-save-status"]')!;
+    const submitButton = host.querySelector<HTMLButtonElement>(
+      'button[form="official-personal-cipher-form"]',
+    )!;
+    expect(fixture.componentInstance.savePending).toBe(true);
+    expect(scroll.getAttribute("aria-busy")).toBe("true");
+    expect(submitButton.getAttribute("aria-busy")).toBe("true");
+    expect(submitButton.getAttribute("aria-disabled")).toBe("true");
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(submitButton.querySelector("bit-spinner")).not.toBeNull();
+    });
+    expect(status.textContent).toContain("保存中");
+    await expect(fixture.componentInstance.saveOfficialPersonal(
+      personalSubmit("card", "add", "Retained typed Card"),
+    )).resolves.toEqual({ committed: false, reason: "duplicate" });
+    expect(personalCallsFor(write, "card")).toBe(1);
+
+    pending.reject(new Error("private personal transport failure"));
+    await submitting;
+    fixture.detectChanges();
+
+    expect(personalNameInput(fixture).value).toBe("Retained typed Card");
+    expect(fixture.componentInstance.savePending).toBe(false);
+    expect(scroll.getAttribute("aria-busy")).toBe("false");
+    expect(submitButton.getAttribute("aria-busy")).toBe("false");
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(submitButton.querySelector("bit-spinner")).toBeNull();
+    });
+    expect(status.textContent?.trim()).toBe("");
+  });
+
   it("keeps a committed result and fixed feedback when navigation returns false", async () => {
     const cipherWrite = new RecordingCipherWrite();
     const returned = savedLogin("committed-navigation-false");
@@ -496,7 +644,7 @@ describe("VaultAddEditPageComponent", () => {
       } else {
         await fixture.componentInstance.cancel(document.body);
       }
-      expect(navigateByUrl).toHaveBeenLastCalledWith("/tabs/vault");
+      expect(navigateByUrl).toHaveBeenLastCalledWith("/tabs/vault", { replaceUrl: true });
       expect(fixture.componentInstance.canSubmitOfficialLogin).toBe(false);
 
       await expect(
@@ -1285,6 +1433,22 @@ describe("VaultAddEditPageComponent", () => {
     },
   );
 
+  it("routes secondary Escape through the mounted dirty form owner before cache navigation", async () => {
+    const { fixture, navigateByUrl } = await createFixture("3", "add-cipher", "", demoVaultItems, {
+      session: fakeAuthSession(TEST_USER_KEY),
+      cipherWrite: new RecordingCipherWrite(),
+    });
+    await initializeOfficialPersonalForm(fixture, "Unsaved card");
+
+    const leaving = TestBed.inject(PopupRouterCacheService).back();
+    await vi.waitFor(() => expect(TestBed.inject(CdkDialog).openDialogs.length).toBe(1));
+    detectOpenDialogs();
+    clickDialogButton("取消");
+    await leaving;
+
+    expect(navigateByUrl).not.toHaveBeenCalledWith("/tabs/vault");
+  });
+
   it.each(PERSONAL_DIRTY_CASES)(
     "invalidates pending $label save before awaiting dirty $action confirmation",
     async ({ type, queryType, action }) => {
@@ -1313,13 +1477,21 @@ describe("VaultAddEditPageComponent", () => {
       await vi.waitFor(() => expect(TestBed.inject(CdkDialog).openDialogs.length).toBe(1));
       detectOpenDialogs();
 
-      expect((Reflect.get(official, "cipherForm") as { enabled: boolean }).enabled).toBe(true);
+      expect((Reflect.get(official, "cipherForm") as { disabled: boolean }).disabled).toBe(true);
+      expect(fixture.componentInstance.savePending).toBe(true);
       expect(personalNameInput(fixture).value).toBe("Retained dialog draft");
       expect((fixture.componentInstance as unknown as { canSubmitOfficialPersonal: boolean })
-        .canSubmitOfficialPersonal).toBe(true);
+        .canSubmitOfficialPersonal).toBe(false);
+      await expect(saveOfficialPersonal(
+        fixture.componentInstance,
+        personalSubmit(type, "add", "Retained dialog draft"),
+      )).resolves.toEqual({ committed: false, reason: "duplicate" });
+      expect(personalCallsFor(write, type)).toBe(1);
 
       pending.resolve(returned);
       await submitting;
+      fixture.detectChanges();
+      expect(fixture.componentInstance.savePending).toBe(false);
       expect(store.snapshot().items).not.toContain(returned);
       expect(navigateByUrl).not.toHaveBeenCalledWith(
         `/view-cipher/${encodeURIComponent(returned.id)}`,

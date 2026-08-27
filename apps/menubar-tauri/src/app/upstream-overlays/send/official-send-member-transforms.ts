@@ -71,9 +71,9 @@ const replaceSendItemsServiceStateWithTypedInputs = [
     />
   }
   @if (loading()) {
-    <bit-item-group [attr.aria-label]="'i18nLoadingSends' | i18n">
+    <bit-item-group class="macos-send-list" [attr.aria-label]="'i18nLoadingSends' | i18n">
       @for (row of [0, 1, 2, 3, 4]; track row) {
-        <div class="tw-flex tw-items-center tw-gap-3 tw-h-[59px] tw-px-3">
+        <div class="macos-send-skeleton-row tw-flex tw-items-center tw-gap-3 tw-px-3">
           <bit-skeleton edgeShape="circle" class="tw-size-8 tw-flex-none" />
           <bit-skeleton class="tw-h-4 tw-flex-1" />
         </div>
@@ -95,8 +95,11 @@ const replaceBrowserAccountAndPopOutWithExistingPopupHeaderSlots = [
     replacement: `  <popup-header slot="header" pageTitle="Send">
     <ng-container slot="end">
       @if (!disabled()) {
-        <button bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
-          {{ "new" | i18n }}
+        <button class="macos-send__new-action macos-header-primary-action macos-hit-target" data-testid="send-new-action" bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+          <span class="macos-header-action-disc" aria-hidden="true">
+            <i class="bwi bwi-plus"></i>
+          </span>
+          <span class="tw-sr-only">{{ "i18nAddTextSend" | i18n }}</span>
         </button>
       }
     </ng-container>
@@ -124,6 +127,7 @@ const retainOfficialPolicySearchFilterLoadingEmptyAndNoResultsBlocks = [
     @if (state() !== "empty") {
       <div class="tw-flex tw-gap-1 tw-items-center">
         <bit-search
+          data-popup-focus-key="send:search"
           class="tw-flex-1"
           autocomplete="off"
           [placeholder]="'i18nSearchSend' | i18n"
@@ -131,6 +135,8 @@ const retainOfficialPolicySearchFilterLoadingEmptyAndNoResultsBlocks = [
           (ngModelChange)="queryChange.emit($event ?? '')"
         />
         <button
+          class="macos-send__filter-action macos-hit-target"
+          data-testid="send-filter-action"
           bitIconButton="bwi-sliders"
           buttonType="primaryGhost"
           type="button"
@@ -140,8 +146,8 @@ const retainOfficialPolicySearchFilterLoadingEmptyAndNoResultsBlocks = [
         ></button>
       </div>
       @if (filtersVisible()) {
-        <div class="send-filter-disclosure">
-          <select [attr.aria-label]="'type' | i18n" (change)="filterChange.emit(inputValue($event))">
+        <div class="send-filter-disclosure macos-field-owner">
+          <select class="macos-control-visible" [attr.aria-label]="'type' | i18n" [value]="filterType()" (change)="filterChange.emit(inputValue($event))">
             <option value="">{{ "type" | i18n }}</option>
             <option value="text">{{ "i18nTextSend" | i18n }}</option>
           </select>
@@ -173,14 +179,14 @@ const removeFileNewSendChoice = [
   </div>`,
     replacement: `  @if (state() === "empty" && !loading()) {
     <div class="tw-flex tw-flex-col tw-h-full tw-justify-center">
-      <bit-no-items class="tw-text-main">
+      <bit-no-items [icon]="noItemIcon" class="tw-text-main">
         <ng-container slot="title">{{ "i18nSendEmptyTitle" | i18n }}</ng-container>
         <ng-container slot="description">
           <p bitTypography="body2" class="tw-mx-6 tw-mt-2">{{ "i18nSendEmptyDescription" | i18n }}</p>
         </ng-container>
         @if (!disabled()) {
-          <button slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
-            {{ "i18nCreateSend" | i18n }}
+          <button class="macos-send__empty-create-action macos-hit-target" data-testid="send-empty-create-action" slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+            {{ "i18nAddTextSend" | i18n }}
           </button>
         }
       </bit-no-items>
@@ -204,7 +210,7 @@ const removeSendTypeFileIconBlock = [
           @if (send.type === sendType.File) {
             <bit-icon name="bwi-file" class="bwi-lg tw-text-muted tw-w-6" />
           }`,
-    replacement: '          <bit-icon name="bwi-file-text" class="bwi-lg tw-text-muted tw-w-6" />',
+    replacement: '          <bit-icon name="bwi-file-text" class="bwi-lg tw-text-muted tw-w-6 macos-icon-plate" />',
   },
 ] as const;
 
@@ -226,15 +232,18 @@ const replaceRouterLinkWithOpenOutput = [
     </h2>
     <span bitTypography="body1" slot="end">{{ sends().length }}</span>
   </bit-section-header>
-  <bit-item-group>
-    <bit-item *ngFor="let send of sends(); trackBy: trackById">`,
+  <bit-item-group class="macos-send-list">
+    <bit-item class="macos-send-row macos-row macos-row--double" *ngFor="let send of sends(); trackBy: trackById">`,
   },
   {
     search: `        appA11yTitle="{{ 'edit' | i18n }} - {{ send.name }}"
         routerLink="/edit-send"
         [queryParams]="{ sendId: send.id, type: send.type }"
         appStopClick`,
-    replacement: `        [attr.aria-label]="'i18nViewItem' | i18n: send.name"
+    replacement: `        class="macos-hit-target"
+        [truncate]="false"
+        [attr.aria-label]="'i18nViewItem' | i18n: send.name"
+        [attr.data-popup-focus-key]="'send-item:' + send.id"
         (click)="open.emit(send)"`,
   },
 ] as const;
@@ -282,16 +291,62 @@ const replaceClipboardAndDeleteServicesWithTypedOutputs = [
     replacement: '{{ "i18nDeleteDateValue" | i18n: (send.deletionDate | date: "mediumDate") }}',
   },
   {
-    search: `            (click)="copySendLink(send)"
-            label="{{ 'copyLink' | i18n }} - {{ send.name }}"`,
-    replacement: `            (click)="copyLink.emit({ send, trigger: $event })"
-            [attr.aria-label]="'i18nCopySendLinkFor' | i18n: send.name"`,
+    search: `        <bit-item-action>
+          <button
+            class="tw-p-1"
+            bitIconButton="bwi-clone"
+            size="small"
+            type="button"
+            (click)="copySendLink(send)"
+            label="{{ 'copyLink' | i18n }} - {{ send.name }}"
+          ></button>
+        </bit-item-action>`,
+    replacement: `        <bit-item-action class="macos-send-row__actions">
+          <button
+            class="tw-p-1 macos-hit-target"
+            [attr.data-popup-focus-key]="'send-item:' + send.id + ':copy'"
+            bitIconButton="bwi-clone"
+            size="small"
+            type="button"
+            (click)="copyLink.emit({ send, trigger: $event })"
+            [attr.aria-label]="'i18nCopySendLinkFor' | i18n: send.name"
+          ></button>
+        </bit-item-action>`,
   },
   {
-    search: `            (click)="deleteSend(send)"
-            label="{{ 'delete' | i18n }} - {{ send.name }}"`,
-    replacement: `            (click)="delete.emit(send)"
-            [attr.aria-label]="'i18nDeleteSendFor' | i18n: send.name"`,
+    search: `        <bit-item-action>
+          <button
+            bitIconButton="bwi-trash"
+            size="small"
+            type="button"
+            (click)="deleteSend(send)"
+            label="{{ 'delete' | i18n }} - {{ send.name }}"
+          ></button>
+        </bit-item-action>`,
+    replacement: `        <bit-item-action class="macos-send-row__actions">
+          <button
+            #moreTrigger
+            class="macos-hit-target"
+            [attr.data-popup-focus-key]="'send-item:' + send.id + ':more'"
+            bitIconButton="bwi-ellipsis-v"
+            size="small"
+            type="button"
+            [label]="(('i18nMore' | i18n) + ' - ' + send.name)"
+            [bitMenuTriggerFor]="sendActions"
+          ></button>
+          <bit-menu #sendActions [ariaLabel]="(('i18nMore' | i18n) + ' - ' + send.name)">
+            <button
+              class="macos-send-row__delete-action macos-hit-target"
+              data-testid="send-delete-action"
+              type="button"
+              bitMenuItem
+              variant="danger"
+              (click)="requestDelete(send, moreTrigger)"
+            >
+              {{ "i18nDelete" | i18n }}
+            </button>
+          </bit-menu>
+        </bit-item-action>`,
   },
 ] as const;
 
@@ -315,6 +370,19 @@ const sendCreatedTemplateTransforms = [
     replacement: '      <button bitIconButton="bwi-popout" type="button" [attr.aria-label]="\'i18nPopOut\' | i18n" (click)="popOut.emit()"></button>',
   },
   {
+    search: `  <div
+    class="tw-flex tw-bg-background-alt tw-flex-col tw-justify-center tw-items-center tw-gap-2 tw-h-full tw-px-5"
+  >`,
+    replacement: `  <section class="macos-send-created__summary" aria-labelledby="send-created-title">`,
+  },
+  {
+    search: `    <div class="tw-size-[95px] tw-content-center">
+      <bit-svg [content]="sendCreatedIcon"></bit-svg>
+    </div>
+`,
+    replacement: "",
+  },
+  {
     search: `    <h3 tabindex="0" appAutofocus class="tw-font-medium">
       {{ "createdSendSuccessfully" | i18n }}
     </h3>
@@ -330,19 +398,27 @@ const sendCreatedTemplateTransforms = [
     <button bitButton type="button" buttonType="primary" (click)="copyLink()">
       <b>{{ "copyLink" | i18n }}</b>
     </button>`,
-    replacement: `    <h3 tabindex="0" class="tw-font-medium">
-      {{ "i18nSendCreatedSuccess" | i18n }}
-    </h3>
-    <p class="tw-text-center">
+    replacement: `    <div class="macos-send-created__icon" aria-hidden="true">
+      <bit-svg [content]="sendCreatedIcon" />
+    </div>
+    <h2 id="send-created-title" tabindex="-1">{{ "i18nSendCreatedSuccess" | i18n }}</h2>
+    <p>
       @if (send().hasPassword) {
         {{ "i18nSendPasswordExpires" | i18n: formattedExpiration() }}
       } @else {
         {{ "i18nSendExpires" | i18n: formattedExpiration() }}
       }
     </p>
-    <button data-testid="created-copy" bitButton type="button" buttonType="primary" (click)="copyLink.emit($event)">
-      <b>{{ "i18nCopySendLink" | i18n }}</b>
-    </button>`,
+    <label class="macos-field-owner macos-send-created__link-owner" for="send-created-link">
+      <span>{{ "i18nCopySendLink" | i18n }}</span>
+      <input id="send-created-link" data-testid="created-link" class="macos-control-visible" type="text" readonly [value]="link()" [attr.aria-label]="'i18nCopySendLink' | i18n" />
+    </label>`,
+  },
+  {
+    search: `  </div>
+  <popup-footer slot="footer">`,
+    replacement: `  </section>
+  <popup-footer slot="footer">`,
   },
   {
     search: `    <button bitButton type="button" buttonType="primary" (click)="copyLink()">
@@ -351,10 +427,10 @@ const sendCreatedTemplateTransforms = [
     <button bitButton type="button" buttonType="secondary" (click)="goBack()">
       {{ "close" | i18n }}
     </button>`,
-    replacement: `    <button data-testid="created-footer-copy" bitButton type="button" buttonType="primary" (click)="copyLink.emit($event)">
-      <b>{{ "i18nCopySendLink" | i18n }}</b>
+    replacement: `    <button data-testid="created-copy" class="macos-primary-action macos-button-owner" bitButton type="button" buttonType="primary" (click)="copyLink.emit($event)">
+      {{ "i18nCopySendLink" | i18n }}
     </button>
-    <button data-testid="created-close" bitButton type="button" buttonType="secondary" (click)="close.emit()">
+    <button data-testid="created-close" class="macos-secondary-action macos-hit-target" bitButton type="button" buttonType="secondary" (click)="close.emit()">
       {{ "close" | i18n }}
     </button>`,
   },
@@ -550,8 +626,8 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
     authorityClass: "SendListComponent", runtimeClass: "OfficialSendListComponent",
     authoritySha256: "34992501db328590360fa2dc4b9e935ce399afa3451757da4e5a17dba8c03aac",
-    requiredRuntimeMembers: ["sends", "query", "filtersVisible", "loading", "disabled", "state", "queryChange", "toggleFilters", "filterChange", "open", "copyLink", "delete", "inputValue"],
-    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "@angular/forms", bindings: ["FormsModule"] }, { module: "./official-send-list-items-container.component", bindings: ["OfficialSendListItemsContainerComponent", "OfficialTextSendListItem"] }],
+    requiredRuntimeMembers: ["noItemIcon", "sends", "query", "filtersVisible", "filterType", "loading", "disabled", "state", "queryChange", "toggleFilters", "filterChange", "open", "copyLink", "delete", "inputValue"],
+    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "@angular/forms", bindings: ["FormsModule"] }, { module: "@bitwarden/assets/svg", bindings: ["NoSendsIcon"] }, { module: "./official-send-list-items-container.component", bindings: ["OfficialSendListItemsContainerComponent", "OfficialTextSendListItem"] }],
     mutationSearch: "readonly queryChange", mutationReplacement: "readonly damagedQueryChange",
     patch: listTypeScriptPatch, transforms: staticPatchTransforms(listTypeScriptPatch),
   },
@@ -560,8 +636,8 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list-items-container.component.ts",
     authorityClass: "SendListItemsContainerComponent", runtimeClass: "OfficialSendListItemsContainerComponent",
     authoritySha256: "e341b2b8bfec76b52003a91186e05dcfee16ec9e403be658d18ac4d189c8a24b",
-    requiredRuntimeMembers: ["sends", "headerText", "open", "copyLink", "delete", "trackById"],
-    requiredImports: [{ module: "@angular/common", bindings: ["CommonModule"] }, { module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }],
+    requiredRuntimeMembers: ["sends", "headerText", "open", "copyLink", "delete", "requestDelete", "trackById"],
+    requiredImports: [{ module: "@angular/common", bindings: ["CommonModule"] }, { module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "../../official-ui/official-components", bindings: ["MenuComponent", "MenuItemComponent", "MenuTriggerForDirective"] }],
     mutationSearch: "readonly copyLink", mutationReplacement: "readonly damagedCopyLink",
     patch: listItemsTypeScriptPatch, transforms: staticPatchTransforms(listItemsTypeScriptPatch),
   },
@@ -570,7 +646,7 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-created.component.ts",
     authorityClass: "SendCreatedComponent", runtimeClass: "OfficialSendCreatedComponent",
     authoritySha256: "84f5fa48f78a9b9d52189fb43812ed7bd638f17e9f9f0f77d057a0911e27e5ae",
-    requiredRuntimeMembers: ["send", "formattedExpiration", "copyLink", "close", "popOut", "sendCreatedIcon", "backAction"],
+    requiredRuntimeMembers: ["send", "formattedExpiration", "link", "copyLink", "close", "popOut", "sendCreatedIcon", "backAction"],
     requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "@bitwarden/assets/svg", bindings: ["ActiveSendIcon"] }, { module: "@bitwarden/components", bindings: ["SvgModule"] }],
     mutationSearch: "readonly backAction", mutationReplacement: "readonly damagedBackAction",
     patch: createdTypeScriptPatch, transforms: staticPatchTransforms(createdTypeScriptPatch),
@@ -580,8 +656,8 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-details.component.ts",
     authorityClass: "SendDetailsComponent", runtimeClass: "OfficialSendDetailsComponent",
     authoritySha256: "6eec99e7e0d83214b0b88cb3c55702d85ee518e0b58e89c059cfe1bc70293012",
-    requiredRuntimeMembers: ["editing", "disabled", "originalHadPassword", "hideEmailAllowed", "value", "valueChange", "removePassword", "generatePassword", "copyPassword", "datePresetOptions:get", "authOptions:get", "authorizationOptions:get", "inputValue", "deletionPreset", "authType", "deletionLabel", "authTypeLabel"],
-    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "@angular/forms", bindings: ["FormsModule"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendFormValue"] }, { module: "./official-send-options.component", bindings: ["OfficialSendOptionsComponent"] }, { module: "./official-send-text-details.component", bindings: ["OfficialSendTextDetailsComponent"] }],
+    requiredRuntimeMembers: ["editing", "disabled", "originalHadPassword", "hideEmailAllowed", "value", "errors", "touched", "valueChange", "fieldBlur", "removePassword", "generatePassword", "copyPassword", "datePresetOptions:get", "authOptions:get", "authorizationOptions:get", "inputValue", "deletionPreset", "authType", "deletionLabel", "authTypeLabel"],
+    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "ElementRef", "afterRenderEffect", "inject", "input", "output"] }, { module: "@angular/forms", bindings: ["FormsModule"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendErrors", "RetainedTextSendField", "RetainedTextSendFormValue"] }, { module: "./official-send-options.component", bindings: ["OfficialSendOptionsComponent"] }, { module: "./official-send-text-details.component", bindings: ["OfficialSendTextDetailsComponent"] }],
     mutationSearch: "get authorizationOptions()", mutationReplacement: "get damagedAuthorizationOptions()",
     patch: detailsTypeScriptPatch, transforms: staticPatchTransforms(detailsTypeScriptPatch),
   },
@@ -590,8 +666,8 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-text-details.component.ts",
     authorityClass: "SendTextDetailsComponent", runtimeClass: "OfficialSendTextDetailsComponent",
     authoritySha256: "25925ca466087bdc3604462cec5db5409f375a4dd1c0494b7ab4fe936197db8d",
-    requiredRuntimeMembers: ["editing", "value", "valueChange", "inputValue", "checked", "showHiddenCheckbox"],
-    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendFormValue"] }],
+    requiredRuntimeMembers: ["editing", "value", "errors", "touched", "valueChange", "fieldBlur", "inputValue", "checked", "showHiddenCheckbox"],
+    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "ElementRef", "afterRenderEffect", "inject", "input", "output"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendErrors", "RetainedTextSendField", "RetainedTextSendFormValue"] }],
     mutationSearch: "showHiddenCheckbox", mutationReplacement: "damagedShowHiddenCheckbox",
     patch: textDetailsTypeScriptPatch, transforms: staticPatchTransforms(textDetailsTypeScriptPatch),
   },
@@ -600,8 +676,8 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.ts",
     authorityClass: "SendOptionsComponent", runtimeClass: "OfficialSendOptionsComponent",
     authoritySha256: "b8d23cdecd7b7df82ef54e072628b668e0fae78faf47237f5a8b10015b1b950c",
-    requiredRuntimeMembers: ["editing", "hideEmailAllowed", "value", "valueChange", "inputValue", "checked", "anyOptionFieldVisible", "maxAccessCountVisible", "hideEmailVisible", "privateNoteVisible"],
-    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendFormValue"] }],
+    requiredRuntimeMembers: ["editing", "hideEmailAllowed", "value", "errors", "touched", "valueChange", "fieldBlur", "inputValue", "checked", "anyOptionFieldVisible", "maxAccessCountVisible", "hideEmailVisible", "privateNoteVisible", "syncMaxAccessCountAccessibility"],
+    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "ElementRef", "afterRenderEffect", "inject", "input", "output"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendErrors", "RetainedTextSendField", "RetainedTextSendFormValue"] }],
     mutationSearch: "privateNoteVisible", mutationReplacement: "damagedPrivateNoteVisible",
     patch: optionsTypeScriptPatch, transforms: staticPatchTransforms(optionsTypeScriptPatch),
   },
@@ -610,8 +686,8 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-add-edit.component.ts",
     authorityClass: "SendAddEditComponent", runtimeClass: "OfficialSendAddEditComponent",
     authoritySha256: "5da4021ac7001642173b7e7ae8771adf67b8e50590ca7d6c88d720d67f9823de",
-    requiredRuntimeMembers: ["mode", "editing", "disabled", "pending", "valid", "unavailable", "value", "originalHadPassword", "hideEmailAllowed", "status", "backAction", "edit", "save", "cancel", "back", "delete", "removePassword", "generatePassword", "copyPassword", "valueChange", "editingChange", "title:get"],
-    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendFormValue"] }, { module: "./official-send-details.component", bindings: ["OfficialSendDetailsComponent"] }],
+    requiredRuntimeMembers: ["mode", "editing", "disabled", "pending", "valid", "unavailable", "value", "errors", "touched", "originalHadPassword", "hideEmailAllowed", "status", "backAction", "edit", "save", "cancel", "back", "delete", "removePassword", "generatePassword", "copyPassword", "valueChange", "fieldBlur", "editingChange", "focusFirstError", "title:get"],
+    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "../../send/retained-text-send-form.service", bindings: ["RetainedTextSendErrors", "RetainedTextSendField", "RetainedTextSendFormValue"] }, { module: "./official-send-details.component", bindings: ["OfficialSendDetailsComponent"] }],
     mutationSearch: "readonly backAction", mutationReplacement: "readonly damagedBackAction",
     patch: addEditTypeScriptPatch, transforms: staticPatchTransforms(addEditTypeScriptPatch),
   },

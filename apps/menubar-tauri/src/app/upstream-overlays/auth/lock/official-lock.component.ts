@@ -69,6 +69,7 @@ export class OfficialLockComponent implements OnDestroy, OnInit {
   protected alternativeErrorMessage = "";
   protected credentialResetEpoch = 0;
   private accountId: string | null = null;
+  private biometricInFlight = false;
   private initializationTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
 
@@ -126,14 +127,6 @@ export class OfficialLockComponent implements OnDestroy, OnInit {
     this.initialized = true;
     this.refreshView();
 
-    if (this.activeMethod !== "biometric") {
-      return;
-    }
-    const epoch = this.unlockMethods.currentLockEpoch(this.accountId)
-      ?? this.unlockMethods.beginLockEpoch(this.accountId);
-    if (this.unlockMethods.consumeAutomaticBiometricPrompt(this.accountId, epoch)) {
-      await this.unlockWithBiometric();
-    }
   }
 
   async unlockSucceeded(result: AuthUnlockResult): Promise<void> {
@@ -185,11 +178,20 @@ export class OfficialLockComponent implements OnDestroy, OnInit {
     }
   }
 
-  async unlockWithBiometric(): Promise<void> {
-    if (this.destroyed || this.submitting || !this.methodAvailable("biometric")) {
+  async unlockWithBiometric(options: { readonly automatic?: boolean } = {}): Promise<void> {
+    const automatic = options.automatic === true;
+    if (
+      this.destroyed
+      || this.biometricInFlight
+      || (!automatic && this.submitting)
+      || !this.methodAvailable("biometric")
+    ) {
       return;
     }
-    this.submitting = true;
+    this.biometricInFlight = true;
+    if (!automatic) {
+      this.submitting = true;
+    }
     this.alternativeErrorMessage = "";
     let transitionAccepted = false;
     try {
@@ -200,8 +202,11 @@ export class OfficialLockComponent implements OnDestroy, OnInit {
     } catch (error) {
       this.handleAlternativeFailure(error);
     } finally {
+      this.biometricInFlight = false;
       if (!transitionAccepted) {
-        this.submitting = false;
+        if (!automatic) {
+          this.submitting = false;
+        }
         this.refreshView();
       }
     }

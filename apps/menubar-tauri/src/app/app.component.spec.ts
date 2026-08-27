@@ -3,7 +3,8 @@ import "zone.js";
 
 import { TestBed } from "@angular/core/testing";
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
-import { provideRouter, Router } from "@angular/router";
+import { LiveAnnouncer } from "@angular/cdk/a11y";
+import { NavigationEnd, NavigationStart, provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 
@@ -12,6 +13,7 @@ import { OfficialI18nService } from "./official-ui/official-i18n.service";
 import {
   AppComponent,
   routeHasMainSwitcher,
+  routeUsesAuthenticationLayout,
   startupFailurePresentation,
 } from "./app.component";
 import { AUTH_EVIDENCE_STATE, type AuthEvidenceState } from "./auth/auth-evidence-preview";
@@ -31,6 +33,8 @@ import type {
 } from "../host/host-api";
 import { ReplaySubject } from "rxjs";
 import * as bitwardenApiModule from "../bitwarden-api/bitwarden-api";
+import { AutoFillSetupService } from "./autofill/autofill-setup.service";
+import { PopupRouteAnnouncerService } from "./platform/popup-route-announcer.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -82,6 +86,41 @@ describe("AppComponent", () => {
     });
   });
 
+  it("starts and destroys the real route announcer once with the app lifecycle", async () => {
+    const live = { announce: vi.fn(async () => undefined), clear: vi.fn() };
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: LiveAnnouncer, useValue: live },
+      ],
+    });
+    const routeAnnouncer = TestBed.inject(PopupRouteAnnouncerService);
+    const start = vi.spyOn(routeAnnouncer, "start");
+    const destroy = vi.spyOn(routeAnnouncer, "destroy");
+    const store = new PopupStateStore();
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn(async () => "login") },
+      {
+        navigateByUrl: vi.fn(async () => true),
+        url: "/",
+        events: { subscribe: () => ({ unsubscribe() {} }) },
+      },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null,
+      { hidePopup: vi.fn(async () => undefined) },
+      null, null, null, null, null, null, null, null, null,
+      routeAnnouncer,
+    ]) as AppComponent;
+
+    await component.ngOnInit();
+    component.ngOnDestroy();
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(destroy).toHaveBeenCalledOnce();
+    expect(live.clear).toHaveBeenCalledOnce();
+  });
+
   it("immediately routes an active popup to unlock when the vault locks", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
@@ -102,6 +141,456 @@ describe("AppComponent", () => {
     await vi.waitFor(() =>
       expect(navigateByUrl).toHaveBeenCalledWith("/lock", { replaceUrl: true }),
     );
+    component.ngOnDestroy();
+  });
+
+  it("burns the integrated AutoFill journey before routing a locked vault", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const invalidate = vi.fn();
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), invalidate },
+    ]) as AppComponent;
+
+    store.setLocked();
+
+    await vi.waitFor(() => expect(invalidate).toHaveBeenCalledWith("lock"));
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith("/lock", { replaceUrl: true }));
+    component.ngOnDestroy();
+  });
+
+  it.each(["autofill-menu", "autofill-shortcut", "autofill-floating"])(
+    "routes the dedicated %s entry to the normal vault after contextual initialization",
+    async (entrySource) => {
+      const store = new PopupStateStore();
+      const navigateByUrl = vi.fn().mockResolvedValue(true);
+      const beginFromEntry = vi.fn(async () => ({ status: "ready" as const }));
+      const component = Reflect.construct(AppComponent, [
+        { restoreStartup: vi.fn() } as any,
+        {
+          navigateByUrl,
+          url: "/tabs/vault",
+          events: { subscribe: () => ({ unsubscribe() {} }) },
+        } as any,
+        { recordActivity: vi.fn() } as any,
+        store,
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+        { recoverAtStartup: vi.fn() },
+        { beginFromEntry },
+      ]) as AppComponent;
+
+      component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+        detail: { reset: true, entrySource },
+      }));
+
+      await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+        "/tabs/vault",
+        { replaceUrl: true },
+      ));
+      expect(beginFromEntry).toHaveBeenCalledOnce();
+      expect(store.snapshot().activeTab).toBe("vault");
+      component.ngOnDestroy();
+    },
+  );
+
+  it("awaits the complete contextual AutoFill snapshot before opening a dedicated entry", async () => {
+    const store = new PopupStateStore();
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    let finishContext: (() => void) | undefined;
+    const beginFromEntry = vi.fn(() => new Promise<{ status: "ready" }>((resolve) => {
+      finishContext = () => resolve({ status: "ready" });
+    }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { entrySource: "autofill-shortcut" },
+    }));
+    await vi.waitFor(() => expect(beginFromEntry).toHaveBeenCalledOnce());
+    expect(navigateByUrl).not.toHaveBeenCalled();
+
+    finishContext?.();
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+      "/tabs/vault",
+      { replaceUrl: true },
+    ));
+    component.ngOnDestroy();
+  });
+
+  it("keeps the vault usable without input-field feedback when contextual initialization is unavailable", async () => {
+    const store = new PopupStateStore();
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const beginFromEntry = vi.fn(async () => ({ status: "unavailable" as const, reason: "setup" as const }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { entrySource: "autofill-shortcut" },
+    }));
+    await vi.waitFor(() => expect(beginFromEntry).toHaveBeenCalledOnce());
+
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+      "/tabs/vault",
+      { replaceUrl: true },
+    ));
+    expect(store.snapshot().statusMessage).toBe("");
+    component.ngOnDestroy();
+  });
+
+  it("falls back to the vault and retries suggestions when dedicated AutoFill initialization throws", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const navigateByUrl = vi.fn().mockImplementation(async (url: string) => {
+      router.url = url;
+      return true;
+    });
+    const router = {
+      navigateByUrl,
+      url: "/tabs/generator",
+      events: { subscribe: () => ({ unsubscribe() {} }) },
+    };
+    const beginFromEntry = vi.fn(async () => {
+      throw new Error("temporary context failure");
+    });
+    const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      router,
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry, beginFromVaultOpen },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { entrySource: "autofill-shortcut", suggestionRevision: "31" },
+    }));
+
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+      "/tabs/vault",
+      { replaceUrl: true },
+    ));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
+    component.ngOnDestroy();
+  });
+
+  it("shows a fixed no-match result when the captured field is valid but Agent ranking is empty", async () => {
+    const store = new PopupStateStore();
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const beginFromEntry = vi.fn(async () => ({
+      status: "ready" as const,
+      candidates: Object.freeze([]),
+    }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { entrySource: "autofill-shortcut" },
+    }));
+    await vi.waitFor(() => expect(beginFromEntry).toHaveBeenCalledOnce());
+
+    expect(store.snapshot().statusMessage).toBe("没有找到匹配的账户");
+    expect(navigateByUrl).toHaveBeenCalledWith("/tabs/vault", { replaceUrl: true });
+    component.ngOnDestroy();
+  });
+
+  it("shows the normal vault immediately and discovers the captured frontmost app in the background", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const beginFromEntry = vi.fn();
+    const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry, beginFromVaultOpen },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: true, entrySource: "vault", suggestionRevision: "1" },
+    }));
+
+    await vi.waitFor(() => expect(navigateByUrl).toHaveBeenCalledWith(
+      "/tabs/vault",
+      { replaceUrl: true },
+    ));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
+    expect(beginFromEntry).not.toHaveBeenCalled();
+    component.ngOnDestroy();
+  });
+
+  it("does not refresh an already-consumed suggestion revision when the popup is shown again", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault", suggestionRevision: "7" },
+    }));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(1));
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault", suggestionRevision: "7" },
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(beginFromVaultOpen).toHaveBeenCalledTimes(1);
+
+    expect(navigateByUrl).not.toHaveBeenCalled();
+    component.ngOnDestroy();
+  });
+
+  it("refreshes a native revision once and does not repeat it on popup entry", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn(), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+    ]) as AppComponent;
+
+    component.handleSuggestionContextChanged(new CustomEvent(
+      "barwarden:suggestion-context-changed",
+      { detail: { suggestionRevision: "8" } },
+    ));
+
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault", suggestionRevision: "8" },
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(beginFromVaultOpen).toHaveBeenCalledOnce();
+    component.ngOnDestroy();
+  });
+
+  it("catches up exactly once when popup entry reports a newer missed revision", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn(), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault", suggestionRevision: "11" },
+    }));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault", suggestionRevision: "12" },
+    }));
+
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(2));
+    component.ngOnDestroy();
+  });
+
+  it("serializes a newer revision that arrives while a suggestion refresh is running", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    let finishFirst: (() => void) | undefined;
+    const beginFromVaultOpen = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<{ status: "ready" }>((resolve) => {
+        finishFirst = () => resolve({ status: "ready" });
+      }))
+      .mockResolvedValue({ status: "ready" as const });
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn(), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+    ]) as AppComponent;
+
+    component.handleSuggestionContextChanged(new CustomEvent(
+      "barwarden:suggestion-context-changed",
+      { detail: { suggestionRevision: "20" } },
+    ));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
+    component.handleSuggestionContextChanged(new CustomEvent(
+      "barwarden:suggestion-context-changed",
+      { detail: { suggestionRevision: "21" } },
+    ));
+    expect(beginFromVaultOpen).toHaveBeenCalledOnce();
+
+    finishFirst?.();
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(2));
+    component.ngOnDestroy();
+  });
+
+  it("uses a missing or invalid revision only for the initial suggestion load", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn(), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault" },
+    }));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault", suggestionRevision: "not-a-revision" },
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(beginFromVaultOpen).toHaveBeenCalledOnce();
+    component.ngOnDestroy();
+  });
+
+  it("does not burn a prepared AutoFill context on NavigationStart before the vault route commits", () => {
+    const store = new PopupStateStore();
+    const events = new ReplaySubject<unknown>();
+    const router = {
+      url: "/tabs/generator",
+      events,
+      navigateByUrl: vi.fn().mockResolvedValue(true),
+    };
+    const navigationChanged = vi.fn();
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      router,
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      { beginFromEntry: vi.fn(), beginFromVaultOpen: vi.fn(), navigationChanged },
+    ]) as AppComponent;
+
+    events.next(new NavigationStart(1, "/tabs/vault"));
+    expect(navigationChanged).not.toHaveBeenCalled();
+
+    router.url = "/tabs/vault";
+    events.next(new NavigationEnd(1, "/tabs/vault", "/tabs/vault"));
+    expect(navigationChanged).toHaveBeenCalledOnce();
+    expect(navigationChanged).toHaveBeenCalledWith("/tabs/vault");
+    component.ngOnDestroy();
+  });
+
+  it("releases the fixed authentication layout when unlock navigation commits", () => {
+    const store = new PopupStateStore();
+    const events = new ReplaySubject<unknown>();
+    const router = {
+      url: "/lock",
+      events,
+      navigateByUrl: vi.fn().mockResolvedValue(true),
+    };
+    const component = new AppComponent(
+      { restoreStartup: vi.fn() } as any,
+      router as any,
+      { recordActivity: vi.fn() } as any,
+      store,
+    );
+
+    expect(routeUsesAuthenticationLayout("/lock")).toBe(true);
+    expect(routeUsesAuthenticationLayout("/tabs/vault")).toBe(false);
+    expect((component as any).authenticationLayoutActive()).toBe(true);
+
+    router.url = "/tabs/vault";
+    events.next(new NavigationEnd(1, "/lock", "/tabs/vault"));
+
+    expect((component as any).authenticationLayoutActive()).toBe(false);
+    component.ngOnDestroy();
+  });
+
+  it("retries pending AutoFill cleanup after a cold locked restore with no vault owner", async () => {
+    const store = new PopupStateStore();
+    const restoreStartup = vi.fn(async () => "locked" as const);
+    const recoverAtStartup = vi.fn(async () => "disabled" as const);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup },
+      { navigateByUrl: vi.fn().mockResolvedValue(true), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup },
+    ]) as AppComponent;
+
+    await component.ngOnInit();
+
+    expect(restoreStartup.mock.invocationCallOrder[0]).toBeLessThan(
+      recoverAtStartup.mock.invocationCallOrder[0],
+    );
+    expect(store.snapshot().vaultOwnerAccountId).toBeNull();
+    component.ngOnDestroy();
+  });
+
+  it("retries AutoFill setup when a locked vault becomes unlocked", async () => {
+    const store = new PopupStateStore();
+    const recoverAtStartup = vi.fn(async () => "ready" as const);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn().mockResolvedValue(true), url: "/lock", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup },
+    ]) as AppComponent;
+
+    store.setUnlocked("user@example.com");
+
+    await vi.waitFor(() => expect(recoverAtStartup).toHaveBeenCalledOnce());
     component.ngOnDestroy();
   });
 
@@ -273,6 +762,7 @@ describe("AppComponent", () => {
 
     expect(host.querySelectorAll(".app-startup-alert .macos-alert-strip")).toHaveLength(1);
     expect(host.querySelectorAll("[role='alert'], [role='status'], [aria-live]")).toHaveLength(1);
+    expect(host.querySelector("bw-app-update-notice")).not.toBeNull();
     expect(host.textContent).toContain("窗口会话不可用");
   });
 
@@ -1231,6 +1721,28 @@ describe("AppComponent", () => {
     expect(hidePopup).not.toHaveBeenCalled();
   });
 
+  it("closes an overlay, then returns a secondary route, then hides the base popup", () => {
+    const overlayStack = {
+      consumeEscape: vi.fn().mockReturnValueOnce(true).mockReturnValue(false),
+    };
+    const routeCache = {
+      hasBackTarget: vi.fn().mockReturnValueOnce(true).mockReturnValue(false),
+      back: vi.fn(async () => true),
+    };
+    const hidePopup = vi.fn(async () => undefined);
+    const component = appComponentForEscape(hidePopup, routeCache, overlayStack);
+
+    component.hideOnEscape(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+    component.hideOnEscape(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+
+    expect(routeCache.back).toHaveBeenCalledOnce();
+    expect(hidePopup).not.toHaveBeenCalled();
+
+    component.hideOnEscape(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+
+    expect(hidePopup).toHaveBeenCalledOnce();
+  });
+
   it("keeps the popup visible while a menu or native select owns Escape", () => {
     const hidePopup = vi.fn().mockResolvedValue(undefined);
     const component = appComponentForEscape(hidePopup);
@@ -1276,7 +1788,11 @@ describe("AppComponent", () => {
   it("preserves native macOS Escape behavior in a popout window", () => {
     window.history.replaceState({}, "", "/?uilocation=popout");
     const hidePopup = vi.fn().mockResolvedValue(undefined);
-    const component = appComponentForEscape(hidePopup);
+    const routeCache = {
+      hasBackTarget: vi.fn().mockReturnValue(true),
+      back: vi.fn(async () => true),
+    };
+    const component = appComponentForEscape(hidePopup, routeCache);
     const event = new KeyboardEvent("keydown", {
       key: "Escape",
       cancelable: true,
@@ -1285,12 +1801,18 @@ describe("AppComponent", () => {
     component.hideOnEscape(event);
 
     expect(event.defaultPrevented).toBe(false);
+    expect(routeCache.hasBackTarget).not.toHaveBeenCalled();
+    expect(routeCache.back).not.toHaveBeenCalled();
     expect(hidePopup).not.toHaveBeenCalled();
     window.history.replaceState({}, "", "/");
   });
 });
 
-function appComponentForEscape(hidePopup: ReturnType<typeof vi.fn>): AppComponent {
+function appComponentForEscape(
+  hidePopup: ReturnType<typeof vi.fn>,
+  routeCache: unknown = null,
+  overlayStack?: unknown,
+): AppComponent {
   return new AppComponent(
     { restoreStartup: vi.fn() } as any,
     { navigateByUrl: vi.fn() } as any,
@@ -1301,8 +1823,10 @@ function appComponentForEscape(hidePopup: ReturnType<typeof vi.fn>): AppComponen
     null,
     null,
     null,
-    null,
+    routeCache as any,
     { hidePopup } as any,
+    null,
+    overlayStack as any,
   );
 }
 

@@ -12,6 +12,7 @@ import { demoVaultItems, type VaultItem } from "../vault-demo";
 import { toRecoveryPopupCipherView } from "./popup-cipher-view.adapter";
 import {
   RecoveryPageActionsAdapter,
+  type RecoveryPageActionResult,
   type RecoveryConfirmationRequest,
   type RecoveryRepromptRequest,
 } from "./recovery-page-actions.adapter";
@@ -80,7 +81,7 @@ describe("RecoveryPageActionsAdapter", () => {
       const retry = setup({ location: "trash", item, failFirst: "restore" });
       const restore = { command: "restore", location: "trash", item: retry.view } as const;
       await expect(retry.adapter.execute(restore))
-        .resolves.toEqual({ terminal: false, status: "Unable to restore item." });
+        .resolves.toEqual({ terminal: false, reason: "failure", status: "Unable to restore item." });
       expect(retry.store.snapshot().deletedItems).toEqual([retry.item]);
       await expect(retry.adapter.execute(restore))
         .resolves.toEqual({ terminal: true, status: "Item restored" });
@@ -132,7 +133,7 @@ describe("RecoveryPageActionsAdapter", () => {
         completion.resolve();
 
         await expect(pending)
-          .resolves.toEqual({ terminal: false, status: "Vault changed; action not applied." });
+          .resolves.toEqual({ terminal: false, reason: "stale", status: "Vault changed; action not applied." });
         const after = stale.store.snapshot();
         expect(after.activeSession).toBe(newer.activeSession);
         expect(after.items).toBe(newer.items);
@@ -233,7 +234,7 @@ describe("RecoveryPageActionsAdapter", () => {
   it.each(["soft-delete", "permanent-delete"] as const)(
     "requires explicit confirmation before %s",
     async (command) => {
-      let continuation: (() => Promise<void>) | undefined;
+      let continuation: (() => Promise<RecoveryPageActionResult>) | undefined;
       const requestConfirmation: RecoveryConfirmationRequest = (_command, _item, next) => {
         continuation = next;
         return true;
@@ -257,21 +258,24 @@ describe("RecoveryPageActionsAdapter", () => {
     },
   );
 
-  it("shows the destructive warning before reprompting a protected permanent delete", async () => {
+  it("reprompts before opening permanent-delete confirmation and forwards the trigger", async () => {
     const sequence: string[] = [];
-    let confirmationContinuation: (() => Promise<void>) | undefined;
+    const trigger = document.createElement("button");
+    let confirmationTrigger: HTMLElement | undefined;
+    let confirmationContinuation: (() => Promise<RecoveryPageActionResult>) | undefined;
     let repromptContinuation: (() => Promise<void>) | undefined;
     const harness = setup({
       location: "trash",
       reprompt: true,
-      requestConfirmation: (_command, _item, next) => {
-        sequence.push("confirmation");
-        confirmationContinuation = next;
-        return true;
-      },
       requestReprompt: (_itemId, next) => {
         sequence.push("reprompt");
         repromptContinuation = next;
+        return true;
+      },
+      requestConfirmation: (_command, _item, next, invokingTrigger) => {
+        sequence.push("confirmation");
+        confirmationContinuation = next;
+        confirmationTrigger = invokingTrigger;
         return true;
       },
     });
@@ -280,15 +284,15 @@ describe("RecoveryPageActionsAdapter", () => {
       command: "permanent-delete",
       location: "trash",
       item: harness.view,
-    })).resolves.toEqual({ terminal: false, status: "Confirmation required." });
-    expect(sequence).toEqual(["confirmation"]);
+      trigger,
+    })).resolves.toEqual({ terminal: false, status: "Verification required." });
+    expect(sequence).toEqual(["reprompt"]);
     expect(harness.server.deleteCipher).not.toHaveBeenCalled();
-
-    await confirmationContinuation!();
-    expect(sequence).toEqual(["confirmation", "reprompt"]);
-    expect(harness.server.deleteCipher).not.toHaveBeenCalled();
-
     await repromptContinuation!();
+    expect(sequence).toEqual(["reprompt", "confirmation"]);
+    expect(confirmationTrigger).toBe(trigger);
+    await expect(confirmationContinuation!())
+      .resolves.toEqual({ terminal: true, status: "Item permanently deleted" });
     expect(harness.server.deleteCipher).toHaveBeenCalledOnce();
   });
 
@@ -298,17 +302,17 @@ describe("RecoveryPageActionsAdapter", () => {
     const replaced = toRecoveryPopupCipherView({ ...harness.item })!;
 
     await expect(harness.adapter.execute({ command: "restore", location: "archive", item: harness.view }))
-      .resolves.toEqual({ terminal: false, status: "Vault changed; action not applied." });
+      .resolves.toEqual({ terminal: false, reason: "stale", status: "Vault changed; action not applied." });
     await expect(harness.adapter.execute({ command: "unarchive", location: "trash", item: harness.view }))
-      .resolves.toEqual({ terminal: false, status: "Vault changed; action not applied." });
+      .resolves.toEqual({ terminal: false, reason: "stale", status: "Vault changed; action not applied." });
     await expect(harness.adapter.execute({ command: "unarchive", location: "archive", item: forged }))
-      .resolves.toEqual({ terminal: false, status: "Vault changed; action not applied." });
+      .resolves.toEqual({ terminal: false, reason: "stale", status: "Vault changed; action not applied." });
     await expect(harness.adapter.execute({ command: "unarchive", location: "archive", item: replaced }))
-      .resolves.toEqual({ terminal: false, status: "Vault changed; action not applied." });
+      .resolves.toEqual({ terminal: false, reason: "stale", status: "Vault changed; action not applied." });
 
     harness.store.setArchivedItems([{ ...harness.item, name: "Synced replacement" }]);
     await expect(harness.adapter.execute({ command: "unarchive", location: "archive", item: harness.view }))
-      .resolves.toEqual({ terminal: false, status: "Vault changed; action not applied." });
+      .resolves.toEqual({ terminal: false, reason: "stale", status: "Vault changed; action not applied." });
     expect(harness.server.unarchiveCipher).not.toHaveBeenCalled();
   });
 
@@ -323,11 +327,35 @@ describe("RecoveryPageActionsAdapter", () => {
     harness.store.setStatus("Newer status");
     completion.resolve();
 
-    await expect(pending).resolves.toEqual({ terminal: false, status: "Vault changed; action not applied." });
+    await expect(pending).resolves.toEqual({
+      terminal: false,
+      reason: "stale",
+      status: "Vault changed; action not applied.",
+    });
     expect(harness.store.snapshot().deletedItems).toEqual([harness.item]);
     expect(harness.store.snapshot().items).toEqual([]);
     expect(harness.store.snapshot().statusMessage).toBe("Newer status");
     expect(harness.router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it("returns a locale-independent stale reason with the localized lifecycle status", async () => {
+    await new OfficialI18nService().setLocale("zh-CN");
+    const completion = deferred<void>();
+    const harness = setup({ location: "trash", lifecycleCompletion: completion.promise });
+    const pending = harness.adapter.execute({
+      command: "restore",
+      location: "trash",
+      item: harness.view,
+    });
+    await vi.waitFor(() => expect(harness.server.restoreCipher).toHaveBeenCalledOnce());
+    harness.store.setDeletedItems([{ ...harness.item, name: "Fresh sync replacement" }]);
+    completion.resolve();
+
+    await expect(pending).resolves.toEqual({
+      terminal: false,
+      reason: "stale",
+      status: "密码库已变更，未应用此操作。",
+    });
   });
 
   it("returns a restored archived Trash item to Archive", async () => {
@@ -360,7 +388,7 @@ describe("RecoveryPageActionsAdapter", () => {
       expect(harness.store.snapshot().statusMessage).toBe("Item unarchived");
 
       await expect(harness.adapter.execute(command))
-        .resolves.toEqual({ terminal: false, status: "Vault changed; action not applied." });
+        .resolves.toEqual({ terminal: false, reason: "stale", status: "Vault changed; action not applied." });
       expect(harness.store.snapshot().archivedItems).not.toContain(harness.item);
       expect(harness.store.snapshot().items).toContain(harness.item);
       expect(harness.store.snapshot().statusMessage).toBe("Item unarchived");

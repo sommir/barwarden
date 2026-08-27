@@ -1,46 +1,59 @@
-diff --git a/apps/browser/src/vault/popup/settings/appearance.component.html b/apps/browser/src/vault/popup/settings/appearance.component.html
 --- a/apps/browser/src/vault/popup/settings/appearance.component.html
 +++ b/apps/browser/src/vault/popup/settings/appearance.component.html
-@@ -1,6 +1,5 @@
-+<!-- Official Settings overlay source; generated. -->
- <popup-page [loading]="formLoading">
+@@ -1,74 +1,78 @@
+-<popup-page [loading]="formLoading">
 -  @let isPremium = isPremiumUser();
 -
-   <popup-header slot="header" [pageTitle]="'appearance' | i18n" showBackButton>
-     <ng-container slot="end">
-       <app-pop-out></app-pop-out>
-@@ -18,21 +17,11 @@
-         </bit-select>
-       </bit-form-field>
-
+-  <popup-header slot="header" [pageTitle]="'appearance' | i18n" showBackButton>
+-    <ng-container slot="end">
+-      <app-pop-out></app-pop-out>
+-    </ng-container>
+-  </popup-header>
+-
+-  <form [formGroup]="appearanceForm">
+-    <bit-card>
+-      <bit-form-field>
+-        <bit-label>{{ "theme" | i18n }}</bit-label>
+-        <bit-select formControlName="theme">
+-          @for (o of themeOptions; track o.value) {
+-            <bit-option [value]="o.value" [label]="o.name"></bit-option>
+-          }
+-        </bit-select>
+-      </bit-form-field>
+-
 -      <bit-form-field>
 -        <bit-label>{{ "extensionWidth" | i18n }}</bit-label>
 -        <bit-select formControlName="width" [items]="widthOptions"></bit-select>
 -      </bit-form-field>
 -
-       <bit-form-control>
-         <input bitCheckbox formControlName="enableCompactMode" type="checkbox" />
+-      <bit-form-control>
+-        <input bitCheckbox formControlName="enableCompactMode" type="checkbox" />
 -        <bit-label>{{ "compactMode" | i18n }} </bit-label>
-+        <bit-label>{{ "compactMode" | i18n }}</bit-label>
-       </bit-form-control>
-
+-      </bit-form-control>
+-
 -      <bit-form-control>
 -        <input bitCheckbox formControlName="enableBadgeCounter" type="checkbox" />
 -        <bit-label>{{ "showNumberOfAutofillSuggestions" | i18n }}</bit-label>
 -      </bit-form-control>
 -
-       <bit-form-control disableMargin>
-         <input bitCheckbox formControlName="enableAnimations" type="checkbox" />
-         <bit-label>{{ "showAnimations" | i18n }}</bit-label>
-@@ -47,28 +36,10 @@
-           <vault-permit-cipher-details-popover></vault-permit-cipher-details-popover>
-         </bit-label>
-       </bit-form-control>
+-      <bit-form-control disableMargin>
+-        <input bitCheckbox formControlName="enableAnimations" type="checkbox" />
+-        <bit-label>{{ "showAnimations" | i18n }}</bit-label>
+-      </bit-form-control>
+-    </bit-card>
+-    <h2 bitTypography="h6" class="tw-font-medium tw-mt-4">{{ "vaultCustomization" | i18n }}</h2>
+-    <bit-card>
+-      <bit-form-control>
+-        <input bitCheckbox formControlName="enableFavicon" type="checkbox" />
+-        <bit-label>
+-          {{ "showIconsChangePasswordUrls" | i18n }}
+-          <vault-permit-cipher-details-popover></vault-permit-cipher-details-popover>
+-        </bit-label>
+-      </bit-form-control>
 -      <bit-form-control [disableMargin]="simplifiedItemActionEnabled() && !isPremium">
-+      <bit-form-control disableMargin>
-         <input bitCheckbox formControlName="showQuickCopyActions" type="checkbox" />
-         <bit-label>{{ "showQuickCopyActions" | i18n }}</bit-label>
-       </bit-form-control>
+-        <input bitCheckbox formControlName="showQuickCopyActions" type="checkbox" />
+-        <bit-label>{{ "showQuickCopyActions" | i18n }}</bit-label>
+-      </bit-form-control>
 -
 -      @if (!simplifiedItemActionEnabled()) {
 -        <bit-form-control [disableMargin]="!isPremium">
@@ -59,6 +72,83 @@ diff --git a/apps/browser/src/vault/popup/settings/appearance.component.html b/a
 -          </bit-label>
 -        </bit-form-control>
 -      }
-     </bit-card>
-   </form>
+-    </bit-card>
+-  </form>
++<!-- Official Settings overlay source; generated. -->
++<popup-page [loading]="formLoading">
++  <popup-header slot="header" [pageTitle]="'appearance' | i18n" showBackButton>
++    <ng-container slot="end">
++      <app-pop-out></app-pop-out>
++    </ng-container>
++  </popup-header>
++
++  <form [formGroup]="appearanceForm">
++    <section class="macos-preference-group" aria-labelledby="appearance-interface">
++      <h2 id="appearance-interface" class="settings-group__title">{{ "appearance" | i18n }}</h2>
++      <bit-form-field class="macos-preference-row" disableMargin>
++        <bit-label class="macos-preference-row__copy">{{ "theme" | i18n }}</bit-label>
++        <bit-select class="macos-control-visible" formControlName="theme">
++          @for (o of themeOptions; track o.value) {
++            <bit-option [value]="o.value" [label]="o.name"></bit-option>
++          }
++        </bit-select>
++      </bit-form-field>
++    </section>
++
++    <section class="macos-preference-group" aria-labelledby="appearance-behavior">
++      <h2 id="appearance-behavior" class="settings-group__title">{{ "general" | i18n }}</h2>
++      <div class="macos-preference-row">
++        <span id="appearance-compact-label" class="macos-preference-row__copy">{{ "compactMode" | i18n }}</span>
++        <button
++          type="button"
++          class="macos-switch-owner macos-hit-target"
++          role="switch"
++          data-setting="compactMode"
++          aria-labelledby="appearance-compact-label"
++          [attr.aria-checked]="appearanceForm.controls.enableCompactMode.value"
++          (click)="appearanceForm.controls.enableCompactMode.setValue(!appearanceForm.controls.enableCompactMode.value)"
++        ><span aria-hidden="true"></span></button>
++      </div>
++      <div class="macos-preference-row">
++        <span id="appearance-animations-label" class="macos-preference-row__copy">{{ "showAnimations" | i18n }}</span>
++        <button
++          type="button"
++          class="macos-switch-owner macos-hit-target"
++          role="switch"
++          data-setting="animations"
++          aria-labelledby="appearance-animations-label"
++          [attr.aria-checked]="appearanceForm.controls.enableAnimations.value"
++          (click)="appearanceForm.controls.enableAnimations.setValue(!appearanceForm.controls.enableAnimations.value)"
++        ><span aria-hidden="true"></span></button>
++      </div>
++    </section>
++
++    <section class="macos-preference-group" aria-labelledby="appearance-vault">
++      <h2 id="appearance-vault" class="settings-group__title">{{ "vaultCustomization" | i18n }}</h2>
++      <div class="macos-preference-row">
++        <span id="appearance-favicons-label" class="macos-preference-row__copy">{{ "showIconsChangePasswordUrls" | i18n }}</span>
++        <button
++          type="button"
++          class="macos-switch-owner macos-hit-target"
++          role="switch"
++          data-setting="showFavicons"
++          aria-labelledby="appearance-favicons-label"
++          [attr.aria-checked]="appearanceForm.controls.enableFavicon.value"
++          (click)="appearanceForm.controls.enableFavicon.setValue(!appearanceForm.controls.enableFavicon.value)"
++        ><span aria-hidden="true"></span></button>
++      </div>
++      <div class="macos-preference-row">
++        <span id="appearance-quick-actions-label" class="macos-preference-row__copy">{{ "showQuickCopyActions" | i18n }}</span>
++        <button
++          type="button"
++          class="macos-switch-owner macos-hit-target"
++          role="switch"
++          data-setting="showQuickCopyActions"
++          aria-labelledby="appearance-quick-actions-label"
++          [attr.aria-checked]="appearanceForm.controls.showQuickCopyActions.value"
++          (click)="appearanceForm.controls.showQuickCopyActions.setValue(!appearanceForm.controls.showQuickCopyActions.value)"
++        ><span aria-hidden="true"></span></button>
++      </div>
++    </section>
++  </form>
  </popup-page>

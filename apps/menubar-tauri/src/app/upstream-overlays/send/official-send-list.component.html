@@ -2,8 +2,11 @@
   <popup-header slot="header" pageTitle="Send">
     <ng-container slot="end">
       @if (!disabled()) {
-        <button bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
-          {{ "new" | i18n }}
+        <button class="macos-send__new-action macos-header-primary-action macos-hit-target" data-testid="send-new-action" bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+          <span class="macos-header-action-disc" aria-hidden="true">
+            <i class="bwi bwi-plus"></i>
+          </span>
+          <span class="tw-sr-only">{{ "i18nAddTextSend" | i18n }}</span>
         </button>
       }
     </ng-container>
@@ -17,6 +20,7 @@
     @if (state() !== "empty") {
       <div class="tw-flex tw-gap-1 tw-items-center">
         <bit-search
+          data-popup-focus-key="send:search"
           class="tw-flex-1"
           autocomplete="off"
           [placeholder]="'i18nSearchSend' | i18n"
@@ -24,6 +28,8 @@
           (ngModelChange)="queryChange.emit($event ?? '')"
         />
         <button
+          class="macos-send__filter-action macos-hit-target"
+          data-testid="send-filter-action"
           bitIconButton="bwi-sliders"
           buttonType="primaryGhost"
           type="button"
@@ -33,8 +39,8 @@
         ></button>
       </div>
       @if (filtersVisible()) {
-        <div class="send-filter-disclosure">
-          <select [attr.aria-label]="'type' | i18n" (change)="filterChange.emit(inputValue($event))">
+        <div class="send-filter-disclosure macos-field-owner">
+          <select class="macos-control-visible" [attr.aria-label]="'type' | i18n" [value]="filterType()" (change)="filterChange.emit(inputValue($event))">
             <option value="">{{ "type" | i18n }}</option>
             <option value="text">{{ "i18nTextSend" | i18n }}</option>
           </select>
@@ -45,14 +51,14 @@
 
   @if (state() === "empty" && !loading()) {
     <div class="tw-flex tw-flex-col tw-h-full tw-justify-center">
-      <bit-no-items class="tw-text-main">
+      <bit-no-items [icon]="noItemIcon" class="tw-text-main">
         <ng-container slot="title">{{ "i18nSendEmptyTitle" | i18n }}</ng-container>
         <ng-container slot="description">
           <p bitTypography="body2" class="tw-mx-6 tw-mt-2">{{ "i18nSendEmptyDescription" | i18n }}</p>
         </ng-container>
         @if (!disabled()) {
-          <button slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
-            {{ "i18nCreateSend" | i18n }}
+          <button class="macos-send__empty-create-action macos-hit-target" data-testid="send-empty-create-action" slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+            {{ "i18nAddTextSend" | i18n }}
           </button>
         }
       </bit-no-items>
@@ -77,9 +83,9 @@
     />
   }
   @if (loading()) {
-    <bit-item-group [attr.aria-label]="'i18nLoadingSends' | i18n">
+    <bit-item-group class="macos-send-list" [attr.aria-label]="'i18nLoadingSends' | i18n">
       @for (row of [0, 1, 2, 3, 4]; track row) {
-        <div class="tw-flex tw-items-center tw-gap-3 tw-h-[59px] tw-px-3">
+        <div class="macos-send-skeleton-row tw-flex tw-items-center tw-gap-3 tw-px-3">
           <bit-skeleton edgeShape="circle" class="tw-size-8 tw-flex-none" />
           <bit-skeleton class="tw-h-4 tw-flex-1" />
         </div>

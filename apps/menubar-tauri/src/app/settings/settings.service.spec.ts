@@ -35,6 +35,7 @@ describe("SettingsService", () => {
     service.setAnimations(false);
     service.setShowFavicons(false);
     service.setShowQuickCopyActions(false);
+    service.setShowInputFieldIcon(false);
     service.setVaultTimeoutMinutes(15);
     service.setVaultTimeoutAction("logout");
 
@@ -46,10 +47,23 @@ describe("SettingsService", () => {
       language: null,
       showFavicons: false,
       showQuickCopyActions: false,
+      showInputFieldIcon: false,
       theme: "system",
       vaultTimeoutMinutes: 15,
       vaultTimeoutAction: "logout",
       biometricEnabled: false,
+    });
+  });
+
+  it("defaults the focused-field icon on and persists an explicit opt-out", () => {
+    const service = new SettingsService();
+    expect(service.snapshot().showInputFieldIcon).toBe(true);
+
+    service.setShowInputFieldIcon(false);
+
+    expect(new SettingsService().snapshot().showInputFieldIcon).toBe(false);
+    expect(JSON.parse(localStorage.getItem("barwarden.settings") ?? "{}")).toMatchObject({
+      showInputFieldIcon: false,
     });
   });
 
@@ -239,6 +253,7 @@ describe("SettingsService", () => {
       fillMode: "clipboard-paste",
       language: null,
       showFavicons: true,
+      showInputFieldIcon: true,
       showQuickCopyActions: true,
       theme: "dark",
     });

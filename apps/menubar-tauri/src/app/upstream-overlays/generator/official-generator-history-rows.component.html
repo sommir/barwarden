@@ -1,5 +1,9 @@
-@for (credential of credentials$ | async; track credential) {
-  <bit-item>
+@for (credential of credentials$ | async; track credential; let historyIndex = $index) {
+  <bit-item
+    class="macos-generator-history__row macos-row macos-row--double"
+    role="listitem"
+    [attr.aria-label]="getGeneratedValueText(credential)"
+  >
     <bit-item-content>
       <bit-color-password class="tw-font-mono" [password]="credential.credential" />
       <div slot="secondary">
@@ -11,6 +15,7 @@
         <button
           type="button"
           bitIconButton="bwi-clone"
+          [attr.data-popup-focus-key]="'generator-history:' + credential.generationDate.getTime() + ':' + historyIndex"
           [label]="getCopyText(credential)"
           (click)="copy(credential, $event.currentTarget)"
         >

@@ -1,5 +1,6 @@
 use std::{fs, path::PathBuf};
 
+use objc2_foundation::NSString;
 use objc2_service_management::{SMAppService, SMAppServiceStatus};
 use tauri::Manager;
 
@@ -9,6 +10,17 @@ enum ServiceStatus {
     Enabled,
     RequiresApproval,
     NotFound,
+}
+
+impl ServiceStatus {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::NotRegistered => "notRegistered",
+            Self::Enabled => "enabled",
+            Self::RequiresApproval => "requiresApproval",
+            Self::NotFound => "notFound",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,6 +66,72 @@ impl LoginItemBackend for MainAppService {
         // SAFETY: The generated binding owns the NSError out parameter and
         // returns it as a retained Rust error value.
         unsafe { Self::service().unregisterAndReturnError() }.map_err(|_| LoginItemError)
+    }
+}
+
+const AUTOFILL_AGENT_PLIST_NAME: &str = "com.sommir.barwarden.autofill-agent.plist";
+
+struct AutoFillAgentService;
+
+impl AutoFillAgentService {
+    fn service() -> objc2::rc::Retained<SMAppService> {
+        let plist_name = NSString::from_str(AUTOFILL_AGENT_PLIST_NAME);
+        // SAFETY: The plist name is a fixed NSString naming a LaunchAgent plist
+        // embedded in the calling app's Contents/Library/LaunchAgents directory.
+        unsafe { SMAppService::agentServiceWithPlistName(&plist_name) }
+    }
+}
+
+impl LoginItemBackend for AutoFillAgentService {
+    fn status(&self) -> Result<ServiceStatus, LoginItemError> {
+        let status = unsafe { Self::service().status() };
+        match status {
+            SMAppServiceStatus::NotRegistered => Ok(ServiceStatus::NotRegistered),
+            SMAppServiceStatus::Enabled => Ok(ServiceStatus::Enabled),
+            SMAppServiceStatus::RequiresApproval => Ok(ServiceStatus::RequiresApproval),
+            SMAppServiceStatus::NotFound => Ok(ServiceStatus::NotFound),
+            _ => Err(LoginItemError),
+        }
+    }
+
+    fn register(&self) -> Result<(), LoginItemError> {
+        unsafe { Self::service().registerAndReturnError() }.map_err(|_| LoginItemError)
+    }
+
+    fn unregister(&self) -> Result<(), LoginItemError> {
+        unsafe { Self::service().unregisterAndReturnError() }.map_err(|_| LoginItemError)
+    }
+}
+
+struct AgentServiceController<B> {
+    backend: B,
+}
+
+impl<B: LoginItemBackend> AgentServiceController<B> {
+    fn new(backend: B) -> Self {
+        Self { backend }
+    }
+
+    fn status(&self) -> Result<ServiceStatus, LoginItemError> {
+        self.backend.status()
+    }
+
+    fn register(&self) -> Result<ServiceStatus, LoginItemError> {
+        match self.backend.status()? {
+            ServiceStatus::Enabled | ServiceStatus::RequiresApproval => {}
+            ServiceStatus::NotRegistered | ServiceStatus::NotFound => self.backend.register()?,
+        }
+        self.backend.status()
+    }
+
+    fn unregister(&self) -> Result<ServiceStatus, LoginItemError> {
+        match self.backend.status()? {
+            ServiceStatus::Enabled | ServiceStatus::RequiresApproval => {
+                self.backend.unregister()?
+            }
+            ServiceStatus::NotRegistered | ServiceStatus::NotFound => {}
+        }
+        self.backend.status()
     }
 }
 
@@ -167,6 +245,30 @@ pub(crate) fn set_launch_at_login(
         .map_err(|_| "login-item-unavailable")
 }
 
+#[tauri::command]
+pub(crate) fn autofill_agent_registration_status() -> Result<&'static str, &'static str> {
+    AgentServiceController::new(AutoFillAgentService)
+        .status()
+        .map(ServiceStatus::as_str)
+        .map_err(|_| "autofill-agent-registration-unavailable")
+}
+
+#[tauri::command]
+pub(crate) fn autofill_agent_register() -> Result<&'static str, &'static str> {
+    AgentServiceController::new(AutoFillAgentService)
+        .register()
+        .map(ServiceStatus::as_str)
+        .map_err(|_| "autofill-agent-registration-unavailable")
+}
+
+#[tauri::command]
+pub(crate) fn autofill_agent_unregister() -> Result<&'static str, &'static str> {
+    AgentServiceController::new(AutoFillAgentService)
+        .unregister()
+        .map(ServiceStatus::as_str)
+        .map_err(|_| "autofill-agent-registration-unavailable")
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -177,7 +279,10 @@ mod tests {
         sync::atomic::{AtomicU64, Ordering},
     };
 
-    use super::{LoginItemBackend, LoginItemController, LoginItemError, ServiceStatus};
+    use super::{
+        AgentServiceController, LoginItemBackend, LoginItemController, LoginItemError,
+        ServiceStatus,
+    };
 
     static NEXT_TEMP_DIR: AtomicU64 = AtomicU64::new(0);
 
@@ -289,5 +394,35 @@ mod tests {
         assert_eq!(controller.set_enabled(true), Ok(true));
         assert_eq!(backend.status.get(), ServiceStatus::Enabled);
         assert_eq!(backend.register_calls.get(), 1);
+    }
+
+    #[test]
+    fn autofill_agent_registration_returns_requires_approval_as_explicit_state() {
+        let backend = FakeBackend::new(ServiceStatus::RequiresApproval);
+        let controller = AgentServiceController::new(backend.clone());
+
+        assert_eq!(controller.register(), Ok(ServiceStatus::RequiresApproval));
+        assert_eq!(backend.register_calls.get(), 0);
+    }
+
+    #[test]
+    fn autofill_agent_registration_uses_the_agent_service_backend() {
+        let backend = FakeBackend::new(ServiceStatus::NotRegistered);
+        let controller = AgentServiceController::new(backend.clone());
+
+        assert_eq!(controller.register(), Ok(ServiceStatus::Enabled));
+        assert_eq!(backend.register_calls.get(), 1);
+        assert_eq!(backend.unregister_calls.get(), 0);
+    }
+
+    #[test]
+    fn autofill_agent_unregister_removes_enabled_or_pending_registration() {
+        for initial in [ServiceStatus::Enabled, ServiceStatus::RequiresApproval] {
+            let backend = FakeBackend::new(initial);
+            let controller = AgentServiceController::new(backend.clone());
+
+            assert_eq!(controller.unregister(), Ok(ServiceStatus::NotRegistered));
+            assert_eq!(backend.unregister_calls.get(), 1);
+        }
     }
 }

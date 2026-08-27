@@ -46,6 +46,9 @@ Barwarden 是客户端，不包含服务端。你可以连接：
 ## 主要功能
 
 - 常驻菜单栏，快速唤出保险库、搜索条目并使用所需字段。
+- 根据当前应用和域名提供自动填充建议，并将用户名、密码或验证码填入先前聚焦的
+  输入区域。
+- 支持 macOS 系统密码自动填充、输入框建议图标，以及复制或复制并粘贴两种填充模式。
 - 登录、解锁、锁定、退出和保险库同步。
 - 浏览和管理个人保险库条目，快速复制或粘贴所需字段。
 - 生成密码、通行短语和用户名。
@@ -61,49 +64,24 @@ Barwarden 是客户端，不包含服务端。你可以连接：
 
 请只使用本仓库发布的安装包。签名与 Apple 公证状态以对应 Release 的说明为准。
 
-## 支持范围
+## 首次设置
 
-| 项目 | 当前支持 |
-| --- | --- |
-| 系统 | macOS 13.0（Ventura）及更高版本 |
-| 服务 | Bitwarden 云服务或自托管、Vaultwarden |
-| 保险库 | 个人登录、卡片、身份和安全笔记 |
-| 分发 | GitHub Releases DMG、应用内更新 |
+1. 登录 Bitwarden 兼容服务；使用自托管服务时，先在登录页面设置 HTTPS 服务地址。
+2. 在 Barwarden 的“设置 > 填充”中选择复制模式，并按需开启输入框建议图标。
+3. 需要识别当前应用、域名或先前聚焦的输入区域时，按应用内提示在“系统设置 >
+   隐私与安全性 > 辅助功能”中允许 Barwarden。
+4. 需要使用系统密码自动填充时，在当前 macOS 版本的密码或自动填充设置中启用
+   Barwarden。不同 macOS 版本的设置入口名称可能不同。
+5. 如果应用提示后台自动填充服务需要处理，请前往“系统设置 > 通用 > 登录项”允许
+   Barwarden AutoFill，然后重试。
+6. 可在“设置 > 快捷键”中录制或清除唤出 Barwarden 的全局快捷键。
 
-当前不支持浏览器自动填充、附件、文件 Send、SSO、导入/导出、组织管理和通行密钥。
-第三方服务端的兼容性取决于其 API 实现。
-
-## 本地开发
-
-需要 macOS 13+、Node.js 22+、npm、Rust stable 和 Xcode Command Line Tools。
-
-```bash
-npm ci
-npm run tauri:dev
-```
-
-构建 DMG：
-
-```bash
-npm run tauri:build
-```
-
-常用检查：
-
-```bash
-npm run test:brand
-npm test
-npm run build:web
-npm run check:publication
-```
-
-构建输出位于 `apps/menubar-tauri/src-tauri/target/release/bundle/`，请勿提交。
+辅助功能权限用于识别当前应用和输入区域，并把已选择的字段填入先前聚焦的位置。
 
 ## 文档
 
 - [参与开发](CONTRIBUTING.md)
 - [隐私说明](PRIVACY.md)
-- [安全漏洞报告](SECURITY.md)
 - [许可证](LICENSE)
 - [上游与版权声明](NOTICE.md)
 - [第三方开源组件](THIRD_PARTY_NOTICES.md)

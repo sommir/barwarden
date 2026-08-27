@@ -1,0 +1,19 @@
+:host {
+  display: contents;
+}
+
+.vault-autofill-suggestions {
+  display: block;
+  width: 100%;
+  background: color-mix(in srgb, var(--mac-surface-contextual) 62%, transparent);
+}
+
+.vault-autofill-suggestions__layout {
+  padding-bottom: 0;
+}
+
+.vault-autofill-suggestions__fill {
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
+  margin-inline-end: 0.25rem;
+}

@@ -1,6 +1,9 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -11,7 +14,7 @@ import { provideNoopAnimations } from "@angular/platform-browser/animations";
 import { By } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
 import { firstValueFrom, type Observable } from "rxjs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 import { NoResults, VaultOpen } from "@bitwarden/assets/svg";
@@ -39,6 +42,7 @@ import {
   applyVaultMainEvidenceState,
 } from "./vault-main-evidence-preview";
 import { VAULT_MAIN_EVIDENCE_STATE } from "./vault-main-evidence-state";
+import { CurrentWebsiteContextService } from "./current-website-context.service";
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -46,6 +50,31 @@ try {
   if (!(error instanceof Error) || !error.message.includes("Cannot set base providers")) {
     throw error;
   }
+}
+
+function installVaultVisualCss(): () => void {
+  const style = document.createElement("style");
+  const source = ["macos-tokens.css", "global.css"]
+    .map((filename) =>
+      readFileSync(
+        join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+        "utf8",
+      ),
+    )
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = source.match(/^:root\s*{([\s\S]*?)^}/m)?.[1] ?? "";
+  const macTokens = new Map(
+    [...rootDeclarations.matchAll(/(--mac-[\w-]+):\s*([^;]+);/g)].map(([, token, value]) => [
+      token,
+      value.trim(),
+    ]),
+  );
+  style.textContent = source.replace(/var\((--mac-[\w-]+)\)/g, (reference, token) =>
+    macTokens.get(token) ?? reference,
+  );
+  document.head.append(style);
+  return () => style.remove();
 }
 
 describe("VaultListPageComponent", () => {
@@ -58,6 +87,132 @@ describe("VaultListPageComponent", () => {
         ...officialCurrentAccountTestProviders(),
       ],
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("uses the immediate displayed Vault count after silent external churn", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    const alpha = { ...demoVaultItems[0]!, name: "Account Alpha" };
+    const beta = { ...demoVaultItems[1]!, name: "Account Beta" };
+    store.setItems([alpha, beta], demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const resultStatus = host.querySelectorAll(
+      '[data-testid="result-announcement"][role="status"]',
+    );
+    const resultText = () =>
+      host.querySelector<HTMLElement>('[data-testid="result-announcement"]')?.textContent
+        ?.trim() ?? "";
+    expect(resultStatus).toHaveLength(1);
+    expect(resultStatus[0]!.getAttribute("aria-live")).toBe("polite");
+    expect(resultStatus[0]!.getAttribute("aria-atomic")).toBe("true");
+    expect(resultText()).toBe("");
+
+    fixture.componentInstance.setSearch("Account Alpha");
+    fixture.detectChanges();
+    const announcedOne = translateOfficialMessage("i18nItemsCount", 1);
+    expect(resultText()).toBe(announcedOne);
+
+    store.setItems([
+      alpha,
+      { ...alpha, id: "alpha-two", name: "Account Alpha Two" },
+      beta,
+    ], demoFolders);
+    fixture.detectChanges(false);
+    expect(resultText()).toBe(announcedOne);
+
+    fixture.componentInstance.setSearch("Alpha");
+    fixture.detectChanges(false);
+    expect(resultText()).toBe(announcedOne);
+
+    fixture.componentInstance.setSearch("Account");
+    fixture.detectChanges(false);
+    expect(resultText()).toBe(translateOfficialMessage("i18nItemsCount", 3));
+    expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
+  });
+
+  it("announces same-count Vault identity changes once without exposing item data", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    const alpha = {
+      ...demoVaultItems[0]!,
+      id: "vault-alpha-private-id",
+      name: "Alpha Private Name",
+      uri: "https://alpha-private.example/login",
+    };
+    const beta = {
+      ...demoVaultItems[0]!,
+      id: "vault-beta-private-id",
+      name: "Beta Private Name",
+      uri: "https://beta-private.example/login",
+      fields: demoVaultItems[0]!.fields.map((field) =>
+        field.id === "password" ? { ...field, value: "vault-password-must-not-leak" } : field
+      ),
+    };
+    store.setItems([alpha, beta], demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const region = host.querySelector<HTMLElement>('[data-testid="result-announcement"]')!;
+    const publication = () =>
+      region.querySelector<HTMLElement>("[data-result-announcement-revision]");
+
+    fixture.componentInstance.setSearch("Alpha Private Name");
+    fixture.detectChanges();
+    const first = publication();
+    expect(first?.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+
+    fixture.componentInstance.setSearch("Beta Private Name");
+    fixture.detectChanges();
+    const second = publication();
+    expect(second).not.toBe(first);
+    expect(first?.isConnected).toBe(false);
+    expect(second?.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+    expect(second?.getAttribute("data-result-announcement-revision")).not.toBe(
+      first?.getAttribute("data-result-announcement-revision"),
+    );
+    expect(region.getAttribute("aria-label")).toBeNull();
+    expect(region.textContent?.trim()).toBe(translateOfficialMessage("i18nItemsCount", 1));
+    expect(region.textContent).not.toContain(
+      second?.getAttribute("data-result-announcement-revision") ?? "revision-missing",
+    );
+    expect(region.outerHTML).not.toContain("Alpha Private Name");
+    expect(region.outerHTML).not.toContain("Beta Private Name");
+    expect(region.outerHTML).not.toContain("vault-password-must-not-leak");
+    expect(region.outerHTML).not.toContain("alpha-private.example");
+    expect(region.outerHTML).not.toContain("beta-private.example");
+    expect(region.outerHTML).not.toContain("vault-alpha-private-id");
+    expect(region.outerHTML).not.toContain("vault-beta-private-id");
+
+    fixture.componentInstance.setSearch("Beta Private Name");
+    fixture.detectChanges();
+    expect(publication()).toBe(second);
+    expect(host.querySelectorAll('[data-testid="result-announcement"]')).toHaveLength(1);
   });
 
   it("uses the native root header, peer hierarchy, and title-bar add control", async () => {
@@ -97,6 +252,145 @@ describe("VaultListPageComponent", () => {
     expect(host.querySelector("popup-page > popup-header h1")?.textContent).toContain("密码库");
   });
 
+  it("keeps the Vault header actions peer-sized and separates the header and root groups", async () => {
+    const cleanupVisualCss = installVaultVisualCss();
+    const hostileFabCss = document.createElement("style");
+    hostileFabCss.textContent = `
+      popup-page.macos-page--vault-list
+        > popup-header
+        bw-retained-new-item-dropdown
+        app-new-item-dropdown
+        button[bitbutton] {
+          width: 86px;
+          min-width: 86px;
+          height: 86px;
+          min-height: 86px;
+          border-radius: 999px;
+        }
+    `;
+    document.head.append(hostileFabCss);
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems(demoVaultItems, demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    try {
+      const fixture = TestBed.createComponent(VaultListPageComponent);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const header = host.querySelector<HTMLElement>(
+        "popup-page.macos-page--vault-list > popup-header > header",
+      )!;
+      const addButton = header.querySelector<HTMLButtonElement>(
+        "bw-retained-new-item-dropdown app-new-item-dropdown button[bitbutton]",
+      )!;
+      const accountButton = header.querySelector<HTMLButtonElement>("app-current-account button")!;
+      const rootGroups = host.querySelectorAll<HTMLElement>(
+        ".vault-hierarchy > bw-vault-disclosure-group",
+      );
+      const secondRootGroup = rootGroups[1]!;
+
+      expect(addButton).not.toBeNull();
+      expect(accountButton).not.toBeNull();
+      expect(rootGroups.length).toBeGreaterThan(1);
+
+      const addStyle = getComputedStyle(addButton);
+      const accountStyle = getComputedStyle(accountButton);
+      expect(addStyle.width).toBe(accountStyle.width);
+      expect(addStyle.height).toBe(accountStyle.height);
+      expect(addStyle.width).toBe("44px");
+      expect(addStyle.borderRadius).toBe("999px");
+      expect(addStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      const addPaintLayer = addButton.querySelector<HTMLElement>(":scope > span > span")!;
+      const addPaint = getComputedStyle(addPaintLayer);
+      expect(addPaint.width).toBe("32px");
+      expect(addPaint.height).toBe("32px");
+      expect(addPaint.borderRadius).toBe("999px");
+      const headerDivider = host.querySelector<HTMLElement>(
+        'popup-page.macos-page--vault-list > popup-header > [data-testid="popup-header-divider"]',
+      )!;
+      expect(headerDivider).not.toBeNull();
+      expect(getComputedStyle(header).borderBottomWidth).toBe("0px");
+      expect(getComputedStyle(headerDivider).height).toBe("1px");
+      expect(getComputedStyle(secondRootGroup).borderTopWidth).toBe("1px");
+
+      fixture.destroy();
+    } finally {
+      hostileFabCss.remove();
+      cleanupVisualCss();
+    }
+  });
+
+  it("shows contextual suggestions only while the Vault search is empty", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems(demoVaultItems, demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector("bw-vault-contextual-section-outlet")).not.toBeNull();
+
+    fixture.componentInstance.setSearch("github");
+    fixture.detectChanges();
+    expect(host.querySelector("bw-vault-contextual-section-outlet")).toBeNull();
+
+    fixture.componentInstance.setSearch("   ");
+    fixture.detectChanges();
+    expect(host.querySelector("bw-vault-contextual-section-outlet")).not.toBeNull();
+  });
+
+  it("does not render a second vault-list suggestion section for the current website", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.com");
+    store.setItems(demoVaultItems, demoFolders);
+    const website = {
+      url: () => "https://github.com/settings/profile",
+      refresh: vi.fn(async () => undefined),
+      clear: vi.fn(),
+    };
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        { provide: CurrentWebsiteContextService, useValue: website },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector("[data-testid='autofill-suggestions']")).toBeNull();
+    expect(host.textContent).not.toContain("自动填充建议");
+
+    fixture.destroy();
+  });
+
   it("keeps the title-bar add control available when the unlocked vault is empty", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
@@ -118,11 +412,17 @@ describe("VaultListPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector("popup-page")?.getAttribute("data-vault-state")).toBe("empty");
-    expect(
-      host.querySelector<HTMLButtonElement>(
-        "popup-header bw-retained-new-item-dropdown app-new-item-dropdown button[bitbutton]",
-      ),
-    ).not.toBeNull();
+    const newItemTrigger = host.querySelector<HTMLButtonElement>(
+      "popup-header bw-retained-new-item-dropdown app-new-item-dropdown button[bitbutton]",
+    )!;
+    expect(newItemTrigger).not.toBeNull();
+    expect(newItemTrigger.dataset["popupFocusKey"]).toBe("vault:new-item");
+    const cleanupVisualCss = installVaultVisualCss();
+    const computedTrigger = getComputedStyle(newItemTrigger);
+    expect(computedTrigger.width).toBe("44px");
+    expect(computedTrigger.height).toBe("44px");
+    cleanupVisualCss();
+    fixture.destroy();
   });
 
   it("does not archive a protected Login from the row menu before reprompt", async () => {
@@ -397,7 +697,8 @@ describe("VaultListPageComponent", () => {
     expect(host.textContent).toContain("GitHub");
   });
 
-  it("applies native search immediately while the initial vault is loading", async () => {
+  it("keeps native search typing immediate while the initial vault is loading", async () => {
+    vi.useFakeTimers();
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
     store.setSyncing(true);
@@ -421,10 +722,17 @@ describe("VaultListPageComponent", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
 
+    expect(input.value).toBe("github");
+    expect(vault.queryValue()).toBe("");
+
+    await vi.advanceTimersByTimeAsync(120);
+    fixture.detectChanges();
+
     expect(vault.queryValue()).toBe("github");
   });
 
   it("shows focused search results and restores the hierarchy after clearing", async () => {
+    vi.useFakeTimers();
     const store = new PopupStateStore();
     store.setItems(demoVaultItems, demoFolders);
     await TestBed.configureTestingModule({
@@ -444,6 +752,11 @@ describe("VaultListPageComponent", () => {
     input.value = "card";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
+    expect(host.querySelector("bw-vault-hierarchy")).not.toBeNull();
+
+    await vi.advanceTimersByTimeAsync(120);
+    fixture.detectChanges();
+
     expect(host.querySelector("bw-vault-hierarchy")).toBeNull();
     expect(fixture.componentInstance.sections.flatMap((section) => section.items)
       .map((item) => item.name)).toEqual(["Travel card"]);
@@ -451,7 +764,52 @@ describe("VaultListPageComponent", () => {
     input.value = "";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
+    expect(host.querySelector("bw-vault-hierarchy")).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(120);
+    fixture.detectChanges();
+
     expect(host.querySelector("bw-vault-hierarchy")).not.toBeNull();
+  });
+
+  it("keeps typing responsive by deferring Vault filtering until search input settles", async () => {
+    vi.useFakeTimers();
+    const store = new PopupStateStore();
+    store.setItems(demoVaultItems, demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    const vault = TestBed.inject(VaultFacade);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const input = host.querySelector<HTMLInputElement>('[aria-label="搜索密码库"]')!;
+
+    input.value = "card";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(input.value).toBe("card");
+    expect(vault.queryValue()).toBe("");
+    expect(host.querySelector("bw-vault-hierarchy")).not.toBeNull();
+
+    await vi.advanceTimersByTimeAsync(119);
+    fixture.detectChanges();
+    expect(vault.queryValue()).toBe("");
+
+    await vi.advanceTimersByTimeAsync(1);
+    fixture.detectChanges();
+
+    expect(vault.queryValue()).toBe("card");
+    expect(host.querySelector("bw-vault-hierarchy")).toBeNull();
+    expect(fixture.componentInstance.sections.flatMap((section) => section.items)
+      .map((item) => item.name)).toEqual(["Travel card"]);
   });
 
   it("places the root header in the above-scroll slot and marks the macOS surface", async () => {
@@ -478,6 +836,44 @@ describe("VaultListPageComponent", () => {
     expect(page?.classList).toContain("macos-page--vault-list");
     expect(page?.dataset.vaultState).toBe("ready");
     expect(host.querySelector("bw-vault-hierarchy")).not.toBeNull();
+  });
+
+  it("keeps scrolling Vault rows behind an opaque search layer", async () => {
+    const cleanupVisualCss = installVaultVisualCss();
+    const store = new PopupStateStore();
+    store.setItems(demoVaultItems, demoFolders);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [VaultListPageComponent],
+        providers: [
+          provideRouter([]),
+          { provide: PopupStateStore, useValue: store },
+          VaultFacade,
+          { provide: VaultActionsService, useValue: {} },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(VaultListPageComponent);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const searchLayer = host.querySelector<HTMLElement>(
+        "popup-page.macos-page--vault-list > main > div:has(> bw-root-search)",
+      )!;
+      const searchLayerStyle = getComputedStyle(searchLayer);
+
+      expect(searchLayer).not.toBeNull();
+      expect(searchLayerStyle.position).toBe("relative");
+      expect(searchLayerStyle.zIndex).toBe("2");
+      expect(searchLayerStyle.isolation).toBe("isolate");
+      expect(searchLayerStyle.paddingBottom).toBe("8px");
+      expect(searchLayerStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+
+      fixture.destroy();
+    } finally {
+      cleanupVisualCss();
+    }
   });
 
   it("renders the title-bar New menu without legacy filter context", async () => {
@@ -610,9 +1006,9 @@ describe("VaultListPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('[aria-label="打开"]')).not.toBeNull();
     expect(host.querySelector('[aria-label="更多"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入用户名"]')).toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入密码"]')).toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入验证码"]')).toBeNull();
+    expect(host.querySelector('[data-field="username"]')).toBeNull();
+    expect(host.querySelector('[data-field="password"]')).toBeNull();
+    expect(host.querySelector('[data-field="totp"]')).toBeNull();
   });
 
   it("keeps at most one row overflow menu open", async () => {
@@ -646,7 +1042,7 @@ describe("VaultListPageComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.openMenuRowId).not.toBe(firstOpenRowId);
-    await new Promise((resolve) => setTimeout(resolve, 110));
+    await new Promise((resolve) => setTimeout(resolve, 170));
     fixture.detectChanges();
     expect(document.querySelectorAll('[role="menu"][aria-label="更多"]')).toHaveLength(1);
     expect(
@@ -681,6 +1077,8 @@ describe("VaultListPageComponent", () => {
       .componentInstance as { readonly itemHeight$: Observable<number> };
 
     expect(await firstValueFrom(container.itemHeight$)).toBe(expectedPitch);
+    fixture.destroy();
+    settings.setCompactMode(false);
   });
 
   it("keeps a 229-item hierarchy bounded to the virtual viewport while scrolling", async () => {
@@ -825,9 +1223,79 @@ describe("VaultListPageComponent", () => {
     }
     expect(host.textContent?.includes("没有搜索到匹配的项目")).toBe(hasNoResults);
     if (evidenceState === "search-results") {
+      const sections = host.querySelector<HTMLElement>(".vault-sections");
+
+      expect(sections?.classList.contains("tw-gap-3")).toBe(false);
+      expect(sections?.classList.contains("tw-px-4")).toBe(true);
+      expect(sections?.classList.contains("tw-pb-4")).toBe(true);
       expect(host.textContent).toContain("搜索结果");
       expect(host.textContent).toContain("Example Calendar");
       expect(host.textContent).not.toContain("Example Mail");
+    }
+  });
+
+  it("renders real search results as one continuous Vault list", async () => {
+    const cleanupCss = installVaultVisualCss();
+    new SettingsService().setCompactMode(false);
+    const store = new PopupStateStore();
+    store.setItems(
+      [
+        {
+          ...demoVaultItems[0]!,
+          id: "search-one",
+          name: "Search One With An Intentionally Long Vault Item Name That Must Truncate",
+          favorite: false,
+        },
+        { ...demoVaultItems[0]!, id: "search-two", name: "Search Two", favorite: false },
+      ],
+      demoFolders,
+    );
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [VaultListPageComponent],
+        providers: [
+          provideRouter([]),
+          { provide: PopupStateStore, useValue: store },
+          VaultFacade,
+          { provide: VaultActionsService, useValue: {} },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(VaultListPageComponent);
+      fixture.detectChanges();
+      fixture.componentInstance.setSearch("Search");
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const searchResults = host.querySelector<HTMLElement>(".vault-sections");
+      const group = searchResults?.querySelector<HTMLElement>("bit-item-group");
+      const rows = searchResults?.querySelectorAll<HTMLElement>(".vault-list-row");
+
+      expect(searchResults?.classList).toContain("vault-search-results");
+      expect(rows).toHaveLength(2);
+      expect(getComputedStyle(group!).borderTopWidth).toBe("0px");
+      expect(getComputedStyle(group!).borderRadius).toBe("0px");
+      expect(getComputedStyle(rows![0]!).minHeight).toBe("52px");
+      expect(getComputedStyle(rows![0]!).marginBottom).toBe("0px");
+      expect(getComputedStyle(rows![0]!).borderTopWidth).toBe("0px");
+      expect(getComputedStyle(rows![0]!).borderRightWidth).toBe("0px");
+      expect(getComputedStyle(rows![0]!).borderBottomWidth).toBe("1px");
+      expect(getComputedStyle(rows![0]!).borderLeftWidth).toBe("0px");
+      expect(getComputedStyle(rows![0]!).borderRadius).toBe("0px");
+      expect(getComputedStyle(rows![0]!).boxShadow).toBe("none");
+      const itemName = rows![0]!.querySelector<HTMLElement>('[data-testid="item-name"]')!;
+      expect(itemName.textContent).toContain("Intentionally Long Vault Item Name");
+      expect(getComputedStyle(itemName).overflow).toBe("hidden");
+      expect(getComputedStyle(itemName).textOverflow).toBe("ellipsis");
+      expect(getComputedStyle(itemName).whiteSpace).toBe("nowrap");
+      document.body.classList.add("tw-bit-compact");
+      expect(getComputedStyle(rows![0]!).minHeight).toBe("44px");
+      document.body.classList.remove("tw-bit-compact");
+
+      fixture.destroy();
+    } finally {
+      cleanupCss();
     }
   });
 
@@ -858,6 +1326,7 @@ describe("VaultListPageComponent", () => {
   });
 
   it("clears row menu ownership when search hides the open row", async () => {
+    vi.useFakeTimers();
     const store = new PopupStateStore();
     store.setItems(demoVaultItems, demoFolders);
     await TestBed.configureTestingModule({
@@ -885,10 +1354,14 @@ describe("VaultListPageComponent", () => {
     search.dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
     expect(fixture.componentInstance.openMenuRowId).toBeNull();
+    await vi.advanceTimersByTimeAsync(120);
+    fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
     search.value = "";
     search.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(120);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -1152,7 +1625,7 @@ describe("VaultListPageComponent", () => {
     await clickMenuAction("查看");
     await clickMenuAction("编辑");
     await clickMenuAction("克隆");
-    const fillButton = row.querySelector<HTMLButtonElement>('[aria-label="复制并填入用户名"]')!;
+    const fillButton = row.querySelector<HTMLButtonElement>('[data-field="username"]')!;
     fillButton.click();
     row.querySelector<HTMLButtonElement>('[aria-label="打开"]')!.click();
     await fixture.whenStable();

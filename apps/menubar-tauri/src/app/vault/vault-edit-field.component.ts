@@ -15,9 +15,10 @@ type VaultEditFieldType = "text" | "password" | "url" | "email" | "tel" | "numbe
           <span class="cipher-form-required" aria-hidden="true">*</span>
         }
       </label>
-      <div class="cipher-form-control">
+      <div class="cipher-form-control macos-field-owner">
         @if (textarea) {
           <textarea
+            class="macos-textarea-visible"
             [id]="controlId"
             [value]="value"
             [required]="required"
@@ -27,6 +28,7 @@ type VaultEditFieldType = "text" | "password" | "url" | "email" | "tel" | "numbe
           ></textarea>
         } @else {
           <input
+            class="macos-control-visible"
             [id]="controlId"
             [type]="inputType"
             [value]="value"
@@ -39,11 +41,11 @@ type VaultEditFieldType = "text" | "password" | "url" | "email" | "tel" | "numbe
         @if (revealable && type === "password") {
           <button
             type="button"
-            class="icon-action cipher-form-suffix"
+            class="icon-action cipher-form-suffix macos-hit-target"
             [attr.aria-label]="revealed ? ('i18nHideField' | i18n: label) : ('i18nShowField' | i18n: label)"
             (click)="revealed = !revealed"
           >
-            <i class="bwi" [class.bwi-eye]="!revealed" [class.bwi-eye-slash]="revealed" aria-hidden="true"></i>
+            <i class="bwi macos-icon-plate" [class.bwi-eye]="!revealed" [class.bwi-eye-slash]="revealed" aria-hidden="true"></i>
           </button>
         }
         <ng-content select="[slot=suffix]" />

@@ -354,7 +354,7 @@ export const loginFormMemberContracts: readonly MemberContractEntry[] = [
               search:
                 '!this.config.organizationDataOwnershipDisabled && this.config.organizations.length === 0) {\n    this.toastService.showToast({\n        variant: "error",\n        message: this.i18nService.t("cannotSaveItemNoConfirmedOrgs"),\n    });\n    return;\n}\n[[/statement:0]]\n[[statement:1]]\nlet successToast: string = "editedItem";\n[[/statement:1]]\n[[statement:2]]\nif (this.cipherForm.invalid) {\n    this.cipherForm.markAllAsTouched();\n    const invalidFieldsCount = this.countInvalidFields(this.cipherForm);\n    if (invalidFieldsCount > 0) {\n        this.toastService.showToast({\n            variant: "error",\n            title: null,\n            message: invalidFieldsCount === 1\n                ? this.i18nService.t("singleFieldNeedsAttention")\n                : this.i18nService.t("multipleFieldsNeedAttention", invalidFieldsCount),\n        });\n    }\n    return;\n}\n[[/statement:2]]\n[[statement:3]]\nif (this.beforeSubmit) {\n    const shouldSubmit = await this.beforeSubmit();\n    if (!shouldSubmit) {\n        return;\n    }\n}\n[[/statement:3]]\n[[statement:4]]\nconst userCanArchive = await firstValueFrom(this.accountService.activeAccount$.pipe(getUserId, switchMap((userId) => this.cipherArchiveService.userCanArchive$(userId))));\n[[/statement:4]]\n[[statement:5]]\nif (!userCanArchive && this.updatedCipherView.archivedDate) {\n    this.updatedCipherView.archivedDate = null;\n    successToast = "itemRestored";\n}\n[[/statement:5]]\n[[statement:6]]\nconst savedCipher = await this.addEditFormService.saveCipher(this.updatedCipherView, this.config);\n[[/statement:6]]\n[[statement:7]]\nthis.cipherFormCacheService.clearCache();\n[[/statement:7]]\n[[statement:8]]\nthis.toastService.showToast({\n    variant: "success",\n    title: null,\n    message: this.i18nService.t(this.config.mode === "edit" || this.config.mode === "partial-edit"\n        ? successToast\n        : "addedItem"),\n});\n[[/statement:8]]\n[[statement:9]]\nthis.cipherSaved.emit(savedCipher);\n[[/statement:9',
               replacement:
-                'this.cipherForm.invalid) {\n    this.cipherForm.markAllAsTouched();\n    const invalidFieldsCount = this.countInvalidFields(this.cipherForm);\n    if (invalidFieldsCount > 0) {\n        this.toastService.showToast({\n            variant: "error",\n            title: null,\n            message: invalidFieldsCount === 1\n                ? this.i18nService.t("singleFieldNeedsAttention")\n                : this.i18nService.t("multipleFieldsNeedAttention", invalidFieldsCount),\n        });\n    }\n    return;\n}\n[[/statement:0]]\n[[statement:1]]\nif (this.beforeSubmit) {\n    const shouldSubmit = await this.beforeSubmit();\n    if (!shouldSubmit) {\n        return;\n    }\n}\n[[/statement:1]]\n[[statement:2]]\nconst savedCipher = await this.addEditFormService.saveCipher(this.updatedCipherView, this.config);\n[[/statement:2]]\n[[statement:3]]\nthis.cipherFormCacheService.clearCache();\n[[/statement:3]]\n[[statement:4]]\nthis.toastService.showToast({\n    variant: "success",\n    title: null,\n    message: this.i18nService.t(this.config.mode === "edit" ? "editedItem" : "addedItem"),\n});\n[[/statement:4]]\n[[statement:5]]\nthis.cipherSaved.emit(savedCipher);\n[[/statement:5',
+                'this.cipherForm.invalid) {\n    this.cipherForm.markAllAsTouched();\n    this.focusFirstInvalidControl();\n    const invalidFieldsCount = this.countInvalidFields(this.cipherForm);\n    if (invalidFieldsCount > 0) {\n        this.toastService.showToast({\n            variant: "error",\n            title: null,\n            message: invalidFieldsCount === 1\n                ? this.i18nService.t("singleFieldNeedsAttention")\n                : this.i18nService.t("multipleFieldsNeedAttention", invalidFieldsCount),\n        });\n    }\n    return;\n}\n[[/statement:0]]\n[[statement:1]]\nif (this.beforeSubmit) {\n    const shouldSubmit = await this.beforeSubmit();\n    if (!shouldSubmit) {\n        return;\n    }\n}\n[[/statement:1]]\n[[statement:2]]\nconst savedCipher = await this.addEditFormService.saveCipher(this.updatedCipherView, this.config);\n[[/statement:2]]\n[[statement:3]]\nthis.cipherFormCacheService.clearCache();\n[[/statement:3]]\n[[statement:4]]\nthis.toastService.showToast({\n    variant: "success",\n    title: null,\n    message: this.i18nService.t(this.config.mode === "edit" ? "editedItem" : "addedItem"),\n});\n[[/statement:4]]\n[[statement:5]]\nthis.cipherSaved.emit(savedCipher);\n[[/statement:5',
             },
             ...renumberStatement(5, 6),
             ...renumberStatement(4, 5),
@@ -381,11 +381,25 @@ export const loginFormMemberContracts: readonly MemberContractEntry[] = [
       ],
       runtimeOnlyMembers: [
         {
+          runtimeMember: "formElement",
+          justification:
+            "Scopes invalid-control lookup to this retained form element.",
+          canonicalSha256:
+            "c89eadf07e48038831dda4127f5ea1df54899956419e826b69b39013c5f287a9",
+        },
+        {
           runtimeMember: "canViewSecrets:get",
           justification:
             "Exposes the retained permission flag to official child sections.",
           canonicalSha256:
             "1bb55d9d2aceecf4fc34faf0c6c3e898f140b2be5776dd26db2a18cbfc4425af",
+        },
+        {
+          runtimeMember: "focusFirstInvalidControl",
+          justification:
+            "Filters unavailable candidates, then focuses and centers the first usable invalid retained control.",
+          canonicalSha256:
+            "3954cee166b07ade4a641a6efc469f157349483c4cf20df9df4dc53c936affb9",
         },
         {
           runtimeMember: "cipherForSubmit",
@@ -1777,7 +1791,7 @@ export const loginFormTemplateContracts: readonly TemplateContract[] = [
         search:
           '@if (!loading) {\n  <vault-new-item-nudge [configType]="config.cipherType"> </vault-new-item-nudge>\n}\n<form [id]="formId" [formGroup]="cipherForm" [bitSubmit]="submit">\n  @if (!loading) {\n    <!-- TODO: Should we show a loading spinner here? Or emit a ready event for the container to handle loading state -->\n    <vault-item-details-section\n      [config]="config"\n      [originalCipherView]="originalCipherView"\n    ></vault-item-details-section>\n\n    @if (config.cipherType === CipherType.Login) {\n      <vault-login-details-section></vault-login-details-section>\n    }\n\n    @if (config.cipherType === CipherType.Identity) {\n      <vault-identity-section\n        [disabled]="config.mode === \'partial-edit\'"\n        [originalCipherView]="originalCipherView"\n      ></vault-identity-section>\n    }\n\n    @if (config.cipherType === CipherType.Card) {\n      <vault-card-details-section\n        [originalCipherView]="originalCipherView"\n        [disabled]="config.mode === \'partial-edit\'"\n      ></vault-card-details-section>\n    }\n\n    @if (config.cipherType === CipherType.SshKey) {\n      <vault-sshkey-section [originalCipherView]="originalCipherView"></vault-sshkey-section>\n    }\n\n    @if (config.cipherType === CipherType.BankAccount) {\n      <vault-bank-account-section\n        [disabled]="config.mode === \'partial-edit\'"\n        [originalCipherView]="originalCipherView"\n      ></vault-bank-account-section>\n    }\n\n    @if (config.cipherType === CipherType.DriversLicense) {\n      <vault-drivers-license-section\n        [disabled]="config.mode === \'partial-edit\'"\n        [originalCipherView]="originalCipherView"\n      ></vault-drivers-license-section>\n    }\n\n    @if (config.cipherType === CipherType.Passport) {\n      <vault-passport-section\n        [disabled]="config.mode === \'partial-edit\'"\n        [originalCipherView]="originalCipherView"\n      ></vault-passport-section>\n    }\n\n    <vault-additional-options-section\n      [disableSectionMargin]="config.mode !== \'edit\'"\n    ></vault-additional-options-section>\n\n    <!-- Attachments are only available for existing ciphers -->\n    @if (config.mode == "edit") {\n      <ng-content select="[slot=attachment-button]"></ng-content>\n    }',
         replacement:
-          '<form [id]="formId" [formGroup]="cipherForm" [bitSubmit]="submit">\n  @if (!loading) {\n    <!-- TODO: Should we show a loading spinner here? Or emit a ready event for the container to handle loading state -->\n    <vault-item-details-section\n      [config]="config"\n      [originalCipherView]="originalCipherView"\n    ></vault-item-details-section>\n\n    <vault-login-details-section></vault-login-details-section>\n\n    <vault-additional-options-section\n      [disableSectionMargin]="config.mode !== \'edit\'"\n    ></vault-additional-options-section>',
+          '<form #formElement class="macos-cipher-form" [id]="formId" [formGroup]="cipherForm" [bitSubmit]="submit">\n  @if (!loading) {\n    <!-- TODO: Should we show a loading spinner here? Or emit a ready event for the container to handle loading state -->\n    <vault-item-details-section\n      [config]="config"\n      [originalCipherView]="originalCipherView"\n    ></vault-item-details-section>\n\n    <vault-login-details-section></vault-login-details-section>\n\n    <vault-additional-options-section\n      [disableSectionMargin]="config.mode !== \'edit\'"\n    ></vault-additional-options-section>',
       },
     ],
   },
@@ -1791,6 +1805,26 @@ export const loginFormTemplateContracts: readonly TemplateContract[] = [
           '@if (showArchiveBadge()) {\n      <button type="button" bit-chip-action [label]="\'archived\' | i18n"></button>\n    }\n    @if (!config.hideIndividualVaultFields) {\n      <button\n        slot="end"\n        type="button"\n        size="small"\n        [bitIconButton]="favoriteIcon"\n        role="checkbox"\n        [attr.aria-checked]="itemDetailsForm.value.favorite"\n        [label]="\'favorite\' | i18n"\n        (click)="toggleFavorite()"\n        [disabled]="favoriteButtonDisabled"\n      ></button>\n    }\n  </bit-section-header>\n  <bit-card>\n    <bit-form-field>\n      <bit-label>{{ "itemName" | i18n }}</bit-label>\n      <input bitInput formControlName="name" />\n    </bit-form-field>\n    @if (showOwnership) {\n      <bit-form-field>\n        <bit-label>{{ "owner" | i18n }}</bit-label>\n        <bit-select formControlName="organizationId">\n          @if (showPersonalOwnershipOption) {\n            <bit-option [value]="null" [label]="userEmail$ | async"></bit-option>\n          }\n          @for (org of organizations; track org.id) {\n            <bit-option [value]="org.id" [label]="org.name"></bit-option>\n          }\n        </bit-select>\n      </bit-form-field>\n    }\n    @if (showCollectionsControl) {\n      <ng-container>\n        <bit-form-field class="tw-w-full" [disableMargin]="config.hideIndividualVaultFields">\n          <bit-label>{{ "collections" | i18n }}</bit-label>\n          <bit-multi-select\n            class="tw-w-full"\n            formControlName="collectionIds"\n            [baseItems]="collectionOptions"\n          ></bit-multi-select>\n          @if (readOnlyCollectionsNames.length > 0) {\n            <bit-hint data-testid="view-only-hint">\n              {{ "cannotRemoveViewOnlyCollections" | i18n: readOnlyCollectionsNames.join(", ") }}\n            </bit-hint>\n          }\n        </bit-form-field>\n      </ng-container>\n    }\n    @if (!config.hideIndividualVaultFields) {\n      <bit-form-field disableMargin>\n        <bit-label>{{ "folder" | i18n }}</bit-label>\n        <bit-select formControlName="folderId">\n          @for (folder of config.folders; track folder.id) {\n            <bit-option [value]="folder.id" [label]="folder.name"></bit-option>\n          }\n        </bit-select>\n      </bit-form-field>\n    }',
         replacement:
           '<button\n      slot="end"\n      type="button"\n      size="small"\n      [bitIconButton]="favoriteIcon"\n      role="checkbox"\n      [attr.aria-checked]="itemDetailsForm.value.favorite"\n      [label]="\'favorite\' | i18n"\n      (click)="toggleFavorite()"\n      [disabled]="favoriteButtonDisabled"\n    ></button>\n  </bit-section-header>\n  <bit-card>\n    <bit-form-field>\n      <bit-label>{{ "itemName" | i18n }}</bit-label>\n      <input bitInput formControlName="name" />\n    </bit-form-field>\n    <bit-form-field disableMargin>\n      <bit-label>{{ "folder" | i18n }}</bit-label>\n      <bit-select formControlName="folderId">\n        @for (folder of config.folders; track folder.id) {\n          <bit-option [value]="folder.id" [label]="folder.name"></bit-option>\n        }\n      </bit-select>\n    </bit-form-field>',
+      },
+      {
+        search: '<section [formGroup]="itemDetailsForm" class="tw-mb-5 bit-compact:tw-mb-4">',
+        replacement: '<section [formGroup]="itemDetailsForm" class="tw-mb-5 bit-compact:tw-mb-4 macos-form-section">',
+      },
+      {
+        search: 'size="small"\n',
+        replacement: 'size="small"\n      class="macos-hit-target"\n',
+      },
+      {
+        search: '<bit-card>\n    <bit-form-field>\n      <bit-label>{{ "itemName" | i18n }}</bit-label>\n      <input bitInput formControlName="name" />',
+        replacement: '<bit-card class="macos-form-group">\n    <bit-form-field class="macos-field-owner">\n      <bit-label>{{ "itemName" | i18n }}</bit-label>\n      <input class="macos-control-visible" bitInput formControlName="name" />',
+      },
+      {
+        search: '<bit-form-field disableMargin>\n',
+        replacement: '<bit-form-field class="macos-field-owner" disableMargin>\n',
+      },
+      {
+        search: '<bit-select formControlName="folderId">',
+        replacement: '<bit-select class="macos-control-visible" formControlName="folderId">',
       },
     ],
   },
@@ -1854,6 +1888,46 @@ export const loginFormTemplateContracts: readonly TemplateContract[] = [
           '  (toggledChange)="logHiddenEvent($event)"\n                  ></button>\n                }\n              </bit-form-field>\n            }\n\n            <!-- Boolean Field -->\n            @if (field.value.type === FieldType.Boolean) {\n              <bit-form-control class="tw-flex-1" disableMargin>\n                <input\n                  bitCheckbox\n                  formControlName="value"\n                  type="checkbox"\n                  data-testid="custom-boolean-field"\n                />\n                <bit-label>{{ field.value.name }}</bit-label>\n              </bit-form-control>\n            }\n\n            <!-- Linked Field -->\n            @if (field.value.type === FieldType.Linked) {\n              <bit-form-field class="tw-flex-1" disableMargin>\n                <bit-label>{{ field.value.name }}</bit-label>\n                <bit-select formControlName="linkedId" data-testid="custom-linked-field">\n                  @for (option of linkedFieldOptions; track $index) {\n                    <bit-option [value]="option.value" [label]="option.name"></bit-option>\n                  }\n                </bit-select>\n              </bit-form-field',
         replacement:
           '></button>\n                }\n              </bit-form-field>\n            }\n\n            <!-- Boolean Field -->\n            @if (field.value.type === FieldType.Boolean) {\n              <bit-form-control class="tw-flex-1" disableMargin>\n                <input\n                  bitCheckbox\n                  formControlName="value"\n                  type="checkbox"\n                  data-testid="custom-boolean-field"\n                />\n                <bit-label>{{ field.value.name }}</bit-label>\n              </bit-form-control',
+      },
+      {
+        search: '<section class="tw-mb-5 bit-compact:tw-mb-4" [ngClass]="{ \'tw-mb-0\': disableSectionMargin }">',
+        replacement: '<section class="tw-mb-5 bit-compact:tw-mb-4 macos-form-section" [ngClass]="{ \'tw-mb-0\': disableSectionMargin }">',
+      },
+      {
+        search: '<bit-card\n        formArrayName="fields"',
+        replacement: '<bit-card\n        class="macos-form-group macos-custom-fields"\n        formArrayName="fields"',
+      },
+      {
+        search: 'class="tw-flex tw-p-3 -tw-mx-3 tw-gap-4 tw-bg-background tw-rounded-lg first:-tw-mt-3 last-of-type:tw-mb-0"',
+        replacement: 'class="tw-flex tw-p-3 -tw-mx-3 tw-gap-4 tw-bg-background tw-rounded-lg first:-tw-mt-3 last-of-type:tw-mb-0 macos-custom-field-row"',
+      },
+      {
+        search: '<!-- Text Field -->\n            @if (field.value.type === FieldType.Text) {\n              <bit-form-field class="tw-flex-1" disableMargin>',
+        replacement: '<!-- Text Field -->\n            @if (field.value.type === FieldType.Text) {\n              <bit-form-field class="tw-flex-1 macos-field-owner" disableMargin>',
+      },
+      {
+        search: '<input bitInput formControlName="value" data-testid="custom-text-field" />',
+        replacement: '<input class="macos-control-visible" bitInput formControlName="value" data-testid="custom-text-field" />',
+      },
+      {
+        search: '<!-- Hidden Field -->\n            @if (field.value.type === FieldType.Hidden) {\n              <bit-form-field class="tw-flex-1" disableMargin>',
+        replacement: '<!-- Hidden Field -->\n            @if (field.value.type === FieldType.Hidden) {\n              <bit-form-field class="tw-flex-1 macos-field-owner" disableMargin>',
+      },
+      {
+        search: 'data-testid="custom-hidden-field"\n                  class="tw-font-mono"',
+        replacement: 'data-testid="custom-hidden-field"\n                  class="tw-font-mono macos-control-visible"',
+      },
+      {
+        search: '<!-- Boolean Field -->\n            @if (field.value.type === FieldType.Boolean) {\n              <bit-form-control class="tw-flex-1" disableMargin>',
+        replacement: '<!-- Boolean Field -->\n            @if (field.value.type === FieldType.Boolean) {\n              <bit-form-control class="tw-flex-1 macos-field-owner" disableMargin>',
+      },
+      {
+        search: 'class="tw-self-center tw-mt-2"\n                data-testid="edit-custom-field-button"',
+        replacement: 'class="tw-self-center tw-mt-2 macos-hit-target macos-custom-field-action"\n                data-testid="edit-custom-field-button"',
+      },
+      {
+        search: 'class="tw-self-center tw-mt-2"\n                cdkDragHandle',
+        replacement: 'class="tw-self-center tw-mt-2 macos-hit-target macos-custom-field-action"\n                cdkDragHandle',
       },
     ],
   },

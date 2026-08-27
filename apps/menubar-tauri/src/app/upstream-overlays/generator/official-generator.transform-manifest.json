@@ -91,7 +91,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-credential-generator.component.html",
-      "sha256": "e6dc89bd308984a70a942c7423af4c70f24639c24529b7ec988e113dc3a79039"
+      "sha256": "aa11e74cf44ffdbbf7a098fd28ed2c9d783148dbe46d55429e2354de7601945f"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-core.component.ts",
@@ -99,7 +99,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-core.component.html",
-      "sha256": "8791ed33f4ab1da0b0f118237353b50cc275bd087784b008bb51127344eff555"
+      "sha256": "c49ce8b4790bdb9d24a51e29a1f0447f36e7024e6e67c8fe96f8151193ad1c9d"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-header-actions.component.ts",
@@ -143,11 +143,11 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history.component.ts",
-      "sha256": "ef28dcdefea252d7f35236b1da197985b3143972d6e52ba56a4fa04631cc7c5a"
+      "sha256": "668687d73bc71160df018a2ebdd746e183a904930b899358cdbeb8fc5374b91a"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history.component.html",
-      "sha256": "5fa7482e615bd8abd5928e2a9f6aaa48e197dcf2e79a2912549407541bd74035"
+      "sha256": "f22dd3b0aa521ffdeda8a7f94deb19a310c1844f01910fd0e1e28498e8001476"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history-rows.component.ts",
@@ -155,7 +155,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history-rows.component.html",
-      "sha256": "f4e515def7103c8b73320f377e03fdfaeb75bd9c144214fbf6b1fff10e01ad66"
+      "sha256": "14070a68e58a24f0b423c4443070fb84f761c2bef76c33739a4b30773b2d0d79"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-empty-generator-history.component.ts",
@@ -242,7 +242,7 @@
   ],
   "ancestryGuard": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-member-transforms.ts",
-    "sha256": "8f738bbd2844977a60dea26a9c8748bf9f309c24c21609eb8d584fa4bb2378ee"
+    "sha256": "0abc218b73ca8dd785785ccea7ca62d8815674b64af46b1399445d6ee6bf76fd"
   },
   "internalBarrelBoundary": {
     "path": "apps/menubar-tauri/official-generator-internal-boundary.json",
@@ -293,6 +293,7 @@
       "apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
       "apps/menubar-tauri/src/app/official-ui/official-state-types.adapter.ts",
       "apps/menubar-tauri/src/app/official-ui/official-ui-common.ts",
+      "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts",
       "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
       "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
       "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
@@ -317,6 +318,7 @@
       "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.html",
       "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
       "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts",
+      "apps/menubar-tauri/src/app/vault/otp.facade.ts",
       "apps/menubar-tauri/src/auth/account-session-errors.ts",
       "apps/menubar-tauri/src/auth/account-session-port.ts",
       "apps/menubar-tauri/src/auth/account-session-store.ts",
@@ -326,7 +328,9 @@
       "apps/menubar-tauri/src/host/default-host.service.ts",
       "apps/menubar-tauri/src/host/global-shortcut.ts",
       "apps/menubar-tauri/src/host/host-api.ts",
+      "apps/menubar-tauri/src/host/launch-at-login.ts",
       "apps/menubar-tauri/src/host/tauri-host.service.ts",
+      "apps/menubar-tauri/src/host/website-context.ts",
       "apps/menubar-tauri/src/sdk/bitwarden-sdk-core.service.ts",
       "apps/menubar-tauri/src/sdk/bitwarden-sdk-runtime.ts",
       "vendor/bitwarden-clients/apps/browser/src/_locales/en/messages.json",
@@ -1663,6 +1667,18 @@
       {
         "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
         "kind": "import",
+        "specifier": "../vault/otp.facade",
+        "target": "apps/menubar-tauri/src/app/vault/otp.facade.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "./popup-route-metadata",
+        "target": "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
         "specifier": "./popup-route-reuse.strategy",
         "target": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts"
       },
@@ -1671,6 +1687,12 @@
         "kind": "import",
         "specifier": "./popup-router-cache.lifecycle",
         "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
+        "kind": "import",
+        "specifier": "@angular/common",
+        "target": null
       },
       {
         "from": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
@@ -2195,6 +2217,12 @@
         "target": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts"
       },
       {
+        "from": "apps/menubar-tauri/src/app/vault/otp.facade.ts",
+        "kind": "import",
+        "specifier": "@angular/core",
+        "target": null
+      },
+      {
         "from": "apps/menubar-tauri/src/auth/account-session-port.ts",
         "kind": "import",
         "specifier": "../host/default-host.service",
@@ -2243,6 +2271,12 @@
         "target": "apps/menubar-tauri/src/host/tauri-host.service.ts"
       },
       {
+        "from": "apps/menubar-tauri/src/host/launch-at-login.ts",
+        "kind": "import",
+        "specifier": "@tauri-apps/api/core",
+        "target": null
+      },
+      {
         "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
         "kind": "import",
         "specifier": "../bitwarden-api/bitwarden-api",
@@ -2265,6 +2299,18 @@
         "kind": "import",
         "specifier": "./host-api",
         "target": "apps/menubar-tauri/src/host/host-api.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "./launch-at-login",
+        "target": "apps/menubar-tauri/src/host/launch-at-login.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
+        "kind": "import",
+        "specifier": "./website-context",
+        "target": "apps/menubar-tauri/src/host/website-context.ts"
       },
       {
         "from": "apps/menubar-tauri/src/host/tauri-host.service.ts",
@@ -4534,7 +4580,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
-        "sha256": "e1f1fcc6b4e001b0d6fbd55065485a5ac929722d33288722505e326ec00139db"
+        "sha256": "00292096156701dba09b30c085a3f337f35a8edaa7829b64ab0f2f51ce2b2749"
       },
       {
         "path": "apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
@@ -4549,8 +4595,12 @@
         "sha256": "e70e118273a93443d77485c86c51748030d1b9478989ba25d2877ef82d0e6fd2"
       },
       {
+        "path": "apps/menubar-tauri/src/app/platform/popup-route-metadata.ts",
+        "sha256": "766f226fe8608ce3d0125b6a2d7a0200865b2dfc851dbdacd7218bba6d5c13b9"
+      },
+      {
         "path": "apps/menubar-tauri/src/app/platform/popup-route-reuse.strategy.ts",
-        "sha256": "c9468edb3890792fc36b9bb4423635586a2ae572b8af523bde8351f78a1eb987"
+        "sha256": "1136b4e6e91486ec6d8b43a676f39d423155d887062c74fd84d4b8797026e806"
       },
       {
         "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.lifecycle.ts",
@@ -4558,11 +4608,11 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/platform/popup-router-cache.service.ts",
-        "sha256": "9af20e663db06c66b1b34c07b75806d7a3d95b9a4738d0a87bf93a1820fa99f5"
+        "sha256": "25a64309f590bdbf6933974d0b16d21b338506093d092ddd14c3d1d2cf21b447"
       },
       {
         "path": "apps/menubar-tauri/src/app/popup-state.ts",
-        "sha256": "76812973a090ca21464ca3d184446abb92b8bed48d0ae2b1946078a84ca4bada"
+        "sha256": "5526f3d5e5b1b673ae687b43551176be60d5a3b97c0ca57dc128340f0618251c"
       },
       {
         "path": "apps/menubar-tauri/src/app/settings/clipboard-policy.service.ts",
@@ -4570,7 +4620,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-credential-generator.component.html",
-        "sha256": "e6dc89bd308984a70a942c7423af4c70f24639c24529b7ec988e113dc3a79039"
+        "sha256": "aa11e74cf44ffdbbf7a098fd28ed2c9d783148dbe46d55429e2354de7601945f"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-credential-generator.component.ts",
@@ -4586,7 +4636,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-core.component.html",
-        "sha256": "8791ed33f4ab1da0b0f118237353b50cc275bd087784b008bb51127344eff555"
+        "sha256": "c49ce8b4790bdb9d24a51e29a1f0447f36e7024e6e67c8fe96f8151193ad1c9d"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-core.component.ts",
@@ -4598,7 +4648,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history-rows.component.html",
-        "sha256": "f4e515def7103c8b73320f377e03fdfaeb75bd9c144214fbf6b1fff10e01ad66"
+        "sha256": "14070a68e58a24f0b423c4443070fb84f761c2bef76c33739a4b30773b2d0d79"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history-rows.component.ts",
@@ -4606,11 +4656,11 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history.component.html",
-        "sha256": "5fa7482e615bd8abd5928e2a9f6aaa48e197dcf2e79a2912549407541bd74035"
+        "sha256": "f22dd3b0aa521ffdeda8a7f94deb19a310c1844f01910fd0e1e28498e8001476"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/generator/official-generator-history.component.ts",
-        "sha256": "ef28dcdefea252d7f35236b1da197985b3143972d6e52ba56a4fa04631cc7c5a"
+        "sha256": "668687d73bc71160df018a2ebdd746e183a904930b899358cdbeb8fc5374b91a"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/pop-out/browser-popup-utils.adapter.ts",
@@ -4618,7 +4668,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/pop-out/platform-utils.adapter.ts",
-        "sha256": "05bc25a08d5a7d9e4a9266d254d81604c2e48c740b4748c1dddd026d51fa8ce7"
+        "sha256": "346423f0be177e1859ff6acbcdc78c09fbd7c184a84698aa86f70812b957e529"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/pop-out/pop-out.component.html",
@@ -4634,7 +4684,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.html",
-        "sha256": "b5c92e658a6039b261d4d926c6f8c0f5a4636d2af2671cb51c3d84652c69aa86"
+        "sha256": "8b542ba9fc231a351e7561857d574f19185d1dc8d91fea28aa42d24c6b8af375"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
@@ -4643,6 +4693,10 @@
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-router-cache.adapter.ts",
         "sha256": "ed5394784e2bb82aaaac11b36f5a854cbfdeb9c22d8df68cc253a17f90e490f7"
+      },
+      {
+        "path": "apps/menubar-tauri/src/app/vault/otp.facade.ts",
+        "sha256": "0308a95fb20d0e2f45657d518adda08bc0843f2737c0da957f253c499e6f45b2"
       },
       {
         "path": "apps/menubar-tauri/src/auth/account-session-errors.ts",
@@ -4658,7 +4712,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/bitwarden-api/bitwarden-api.ts",
-        "sha256": "71d605c5f0b19b8bbfdf822e22d2641cad3cad5a077908468f6304c44d483ad8"
+        "sha256": "3f8373aac00a383b7379b40e2a5b1aba4873218d535cd6c717fef673e008c8e6"
       },
       {
         "path": "apps/menubar-tauri/src/host/biometric-host.ts",
@@ -4666,11 +4720,11 @@
       },
       {
         "path": "apps/menubar-tauri/src/host/browser-host.service.ts",
-        "sha256": "769ec3449edf1a20d3389fc33c9962b5f9472e470c3dcb0a2cb003281493cd6d"
+        "sha256": "bca2995316fa954d476d355114068a4db8d5921f5514b1795052d7e4adb1eb3e"
       },
       {
         "path": "apps/menubar-tauri/src/host/default-host.service.ts",
-        "sha256": "f8a0bc971e8255a41307375173a792d03ddc6b40f987cadcccca0a556b728970"
+        "sha256": "d159150e916d7cd96855bc9a791de08141c13b71b8d9d6c7b664d8136c92d19b"
       },
       {
         "path": "apps/menubar-tauri/src/host/global-shortcut.ts",
@@ -4681,8 +4735,16 @@
         "sha256": "07a4b241baed77b0ce4bc4343d86a1bfdaea65a4177267d861c0e7583843cc83"
       },
       {
+        "path": "apps/menubar-tauri/src/host/launch-at-login.ts",
+        "sha256": "590ff4252a132957531b5313152a17f2bbaacf3ffa92e07268018af21a0c1d90"
+      },
+      {
         "path": "apps/menubar-tauri/src/host/tauri-host.service.ts",
-        "sha256": "a813933a3b9d94a48b16b774038c7714f34314ece9cbf725bf5058fa11993fd2"
+        "sha256": "ec5fda3bed24e8b3ba1b522adbd6d6c543358565a5a4de7d651bc2e4cc21d33d"
+      },
+      {
+        "path": "apps/menubar-tauri/src/host/website-context.ts",
+        "sha256": "1f0fa6071992aef6f0d26031465ba64a79bf96e1eae5553c12285c5037c13476"
       },
       {
         "path": "apps/menubar-tauri/src/sdk/bitwarden-sdk-core.service.ts",
@@ -5353,7 +5415,7 @@
         "sha256": "162dd777bc2ad6abcd19e7ce8c6c78463ebabf63a73bd22ecf6cf8a9558f5286"
       }
     ],
-    "sha256": "b5174eabba6822ee462def68cca0400cea85b6b1ec26598fdd93e62af599ce09"
+    "sha256": "38c31142c1aba455abb0c4db673a35bb24183ae8a8348bc8032cccfe725205f8"
   },
   "removedDependencies": [
     "forwarded-email provider graph",

@@ -1,16 +1,19 @@
 import "zone.js";
 import "@angular/compiler";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { Location } from "@angular/common";
 import { OverlayContainer } from "@angular/cdk/overlay";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { ActivatedRoute, provideRouter, Router } from "@angular/router";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { BehaviorSubject, firstValueFrom } from "rxjs";
 
 import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
@@ -27,6 +30,7 @@ import { AuthFacade } from "./auth/auth.facade";
 import { OfficialAccountSwitcherAdapter } from "./auth/official-account-switcher.adapter";
 import { PopupStateStore } from "./popup-state";
 import { AvatarComponent } from "./official-ui/official-components";
+import { TooltipDirective } from "@bitwarden/components/tooltip/tooltip.directive";
 import { OfficialI18nService } from "./official-ui/official-i18n.service";
 import { PopupHeaderActionsComponent } from "./popup-header-actions.component";
 import { RetainedFolderDialogService } from "./vault/retained-new-item-dropdown.component";
@@ -59,12 +63,60 @@ const officialPopOutProviders = [
   },
 ];
 
+@Component({
+  standalone: true,
+  imports: [TooltipDirective],
+  template: `
+    <button type="button" bitTooltip="First tooltip">First</button>
+    <button type="button" bitTooltip="Second tooltip">Second</button>
+  `,
+})
+class TooltipLifecycleHarnessComponent {}
+
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 } catch (error) {
   if (!(error instanceof Error) || !error.message.includes("Cannot set base providers")) {
     throw error;
   }
+}
+
+let accessibilityStyle: HTMLStyleElement;
+
+beforeAll(() => {
+  accessibilityStyle = document.createElement("style");
+  accessibilityStyle.textContent = ["macos-tokens.css", "macos-motion.css", "global.css"]
+    .map((filename) => readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles", filename),
+      "utf8",
+    ))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  document.head.append(accessibilityStyle);
+  const rootStyle = getComputedStyle(document.documentElement);
+  accessibilityStyle.textContent = accessibilityStyle.textContent.replace(
+    /var\((--[\w-]+)\)/g,
+    (value, name) => resolveCustomProperty(
+      rootStyle.getPropertyValue(name).trim(),
+      rootStyle,
+      new Set([name]),
+    ) || value,
+  );
+});
+
+afterAll(() => accessibilityStyle.remove());
+
+function resolveCustomProperty(
+  value: string,
+  rootStyle: CSSStyleDeclaration,
+  seen: Set<string>,
+): string {
+  return value.replace(/var\((--[\w-]+)\)/g, (reference, name) => {
+    if (seen.has(name)) return reference;
+    const next = rootStyle.getPropertyValue(name).trim();
+    if (!next) return reference;
+    return resolveCustomProperty(next, rootStyle, new Set([...seen, name]));
+  });
 }
 
 describe("PopupHeaderActionsComponent", () => {
@@ -93,12 +145,30 @@ describe("PopupHeaderActionsComponent", () => {
     expect(newAction.textContent).toContain("新增");
     expect(newAction.tagName).toBe("BUTTON");
     expect(newAction.querySelector(".bwi-plus")).not.toBeNull();
+    const headerTargets = [
+      newAction,
+      host.querySelector<HTMLButtonElement>("app-pop-out button"),
+      host.querySelector<HTMLButtonElement>("app-current-account button"),
+    ];
+    expect(headerTargets.every(Boolean)).toBe(true);
+    const resolvedHeaderTargets = headerTargets as HTMLButtonElement[];
+    expect(resolvedHeaderTargets.map((target) => [
+      getComputedStyle(target).minWidth,
+      getComputedStyle(target).minHeight,
+    ])).toEqual([
+      ["44px", "44px"],
+      ["44px", "44px"],
+      ["44px", "44px"],
+    ]);
 
     newAction.click();
     fixture.detectChanges();
 
     const menu = document.querySelector<HTMLElement>('.bit-menu-panel [role="menu"]')!;
     const menuItems = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+    expect(getComputedStyle(menu).animationDuration).toBe("160ms");
+    expect(Array.from(menuItems, (item) => getComputedStyle(item).minHeight))
+      .toEqual(Array.from(menuItems, () => "44px"));
     expect(menuItems.map((item) => item.textContent?.trim())).toEqual([
       "登录",
       "支付卡",
@@ -246,6 +316,44 @@ describe("PopupHeaderActionsComponent", () => {
     expect(overlay.querySelector('[role="tooltip"]')).toBeNull();
   });
 
+  it("keeps only the most recently requested tooltip", async () => {
+    await TestBed.configureTestingModule({
+      imports: [TooltipLifecycleHarnessComponent],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(TooltipLifecycleHarnessComponent);
+    fixture.detectChanges();
+    const overlay = TestBed.inject(OverlayContainer).getContainerElement();
+    const [first, second] = fixture.nativeElement.querySelectorAll("button") as NodeListOf<HTMLButtonElement>;
+
+    first.dispatchEvent(new Event("mouseenter"));
+    second.dispatchEvent(new Event("mouseenter"));
+    fixture.detectChanges();
+
+    expect(overlay.querySelectorAll('[role="tooltip"]')).toHaveLength(1);
+    expect(overlay.querySelector('[role="tooltip"]')?.textContent?.trim())
+      .toBe("Second tooltip");
+  });
+
+  it("removes a tooltip as soon as its scrolling context moves", async () => {
+    await TestBed.configureTestingModule({
+      imports: [TooltipLifecycleHarnessComponent],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(TooltipLifecycleHarnessComponent);
+    fixture.detectChanges();
+    const overlay = TestBed.inject(OverlayContainer).getContainerElement();
+    fixture.nativeElement.querySelector("button")
+      .dispatchEvent(new Event("mouseenter"));
+    fixture.detectChanges();
+    expect(overlay.querySelector('[role="tooltip"]')).not.toBeNull();
+
+    document.dispatchEvent(new Event("scroll"));
+    fixture.detectChanges();
+
+    expect(overlay.querySelector('[role="tooltip"]')).toBeNull();
+  });
+
   it("uses the official current account button behavior", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
@@ -275,6 +383,8 @@ describe("PopupHeaderActionsComponent", () => {
 
     const host = fixture.nativeElement as HTMLElement;
     expect(fixture.debugElement.query(By.directive(AvatarComponent))).not.toBeNull();
+    expect(host.querySelector("app-current-account")?.getAttribute("data-popup-focus-key"))
+      .toBe("account-switcher");
     const accountButton = host.querySelector("app-current-account button") as HTMLButtonElement;
     expect(accountButton).not.toBeNull();
     expect(accountButton.querySelector("svg text")?.textContent?.trim()).toBe("US");

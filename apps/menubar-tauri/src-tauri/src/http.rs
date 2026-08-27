@@ -1,8 +1,11 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use crate::autofill_reprompt::AutoFillRepromptReceiptStore;
 use reqwest::{header::HeaderMap, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+pub const AUTOFILL_REPROMPT_HEADER: &str = "x-barwarden-autofill-reprompt";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,7 +25,11 @@ pub struct HttpJsonResponse {
 }
 
 #[tauri::command]
-pub async fn http_fetch_json(request: HttpJsonRequest) -> Result<HttpJsonResponse, String> {
+pub async fn http_fetch_json(
+    mut request: HttpJsonRequest,
+    receipts: tauri::State<'_, Arc<AutoFillRepromptReceiptStore>>,
+) -> Result<HttpJsonResponse, String> {
+    let reprompt_receipt = prepare_reprompt_verification(&mut request, &receipts)?;
     let method = request
         .method
         .parse::<Method>()
@@ -33,10 +40,60 @@ pub async fn http_fetch_json(request: HttpJsonRequest) -> Result<HttpJsonRespons
         .build()
         .map_err(|error| format!("HTTP client failed: {error}"))?;
 
-    let (status, text) =
-        send_json_request(&client, method, headers, &request.url, request.body).await?;
+    let sent = send_json_request(&client, method, headers, &request.url, request.body).await;
+    let (status, text) = match sent {
+        Ok(response) => response,
+        Err(error) => {
+            if let Some(receipt) = reprompt_receipt.as_deref() {
+                receipts.complete_verification(receipt, false);
+            }
+            return Err(error);
+        }
+    };
+    if let Some(receipt) = reprompt_receipt.as_deref() {
+        receipts.complete_verification(receipt, status.is_success());
+    }
 
     parse_http_json_response(status, &text)
+}
+
+fn prepare_reprompt_verification(
+    request: &mut HttpJsonRequest,
+    receipts: &AutoFillRepromptReceiptStore,
+) -> Result<Option<String>, String> {
+    let receipt_key = request
+        .headers
+        .keys()
+        .find(|key| key.eq_ignore_ascii_case(AUTOFILL_REPROMPT_HEADER))
+        .cloned();
+    let Some(receipt_key) = receipt_key else {
+        return Ok(None);
+    };
+    let receipt = request.headers.remove(&receipt_key).unwrap_or_default();
+    let authorization = request.headers.iter().find_map(|(key, value)| {
+        key.eq_ignore_ascii_case("authorization")
+            .then_some(value.as_str())
+    });
+    let valid_body = request
+        .body
+        .as_deref()
+        .and_then(|body| {
+            let value: Value = serde_json::from_str(body).ok()?;
+            let object = value.as_object()?;
+            let hash = object.get("masterPasswordHash")?.as_str()?;
+            Some(object.len() == 1 && !hash.is_empty() && hash.len() <= 4_096)
+        })
+        .unwrap_or(false);
+    if request.method != "POST"
+        || authorization.is_none_or(|value| !value.starts_with("Bearer ") || value.len() <= 7)
+        || !valid_body
+        || receipts
+            .begin_http_verification(&receipt, &request.url)
+            .is_err()
+    {
+        return Err("HTTP request failed".to_owned());
+    }
+    Ok(Some(receipt))
 }
 
 async fn send_json_request(
@@ -106,7 +163,9 @@ fn build_headers(headers: &HashMap<String, String>) -> Result<HeaderMap, String>
 mod tests {
     use std::collections::HashMap;
 
-    use super::{build_headers, parse_http_json_response};
+    use super::*;
+    use crate::autofill_contract::AutoFillSecretField;
+    use crate::autofill_reprompt::{AutoFillRepromptReceiptStore, AutoFillRepromptScope};
 
     #[test]
     fn builds_reqwest_headers_from_plain_records() {
@@ -140,5 +199,39 @@ mod tests {
         assert!(!response.ok);
         assert_eq!(response.status, 401);
         assert!(response.response_json.is_null());
+    }
+
+    #[test]
+    fn native_http_marks_only_an_exact_password_verification_and_strips_the_local_receipt() {
+        let store = AutoFillRepromptReceiptStore::default();
+        let scope = AutoFillRepromptScope {
+            account_id: "account-a".to_owned(),
+            candidate_id: "cipher-a".to_owned(),
+            field: AutoFillSecretField::Password,
+            generation: "00000000-0000-4000-8000-000000000004".to_owned(),
+            context_token: "context-a".to_owned(),
+        };
+        let url = "https://api.example/accounts/verify-password";
+        let receipt = store.begin(scope.clone(), url.to_owned()).unwrap();
+        let mut request = HttpJsonRequest {
+            url: url.to_owned(),
+            method: "POST".to_owned(),
+            headers: HashMap::from([
+                ("Authorization".to_owned(), "Bearer opaque".to_owned()),
+                (AUTOFILL_REPROMPT_HEADER.to_owned(), receipt.clone()),
+            ]),
+            body: Some("{\"masterPasswordHash\":\"opaque-hash\"}".to_owned()),
+        };
+
+        assert_eq!(
+            prepare_reprompt_verification(&mut request, &store).unwrap(),
+            Some(receipt.clone())
+        );
+        assert!(!request
+            .headers
+            .keys()
+            .any(|key| key.eq_ignore_ascii_case(AUTOFILL_REPROMPT_HEADER)));
+        assert!(store.complete_verification(&receipt, true));
+        assert!(store.consume_verified(&receipt, &scope));
     }
 }

@@ -14,7 +14,7 @@ const overlayRoot = join(
   "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching",
 );
 const manifestPath = join(overlayRoot, "official-account-switcher.transform-manifest.json");
-const manifestDigest = "117820b9a0d0b5865d0c470ba1fb95d93bdfed8a6b72b7ce7ab75f485c82f18b";
+const manifestDigest = "9e754d731923bd708c05b79e9f91390b4816c3b84e7dc9c0918ad7f0f6fa8a65";
 const expectedRevision = [
   "https://github.com/bitwarden/clients.git",
   "f47b6946e01aed474875789081966d311d5b8289",
@@ -92,7 +92,7 @@ const localGraph = {
   "official-account-switcher.component.ts": {
     path: "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
     classes: { OfficialAccountSwitcherComponent: ["lockedStatus", "enableAccountSwitching$", "activeUserCanLock", "loading", "error$", "currentAccount$", "currentAuthorization$", "availableAccounts$", "showLockAll$", "accountLimit", "specialAddAccountId", "ngOnInit", "lock", "lockAll", "recover", "logOut"] },
-    imports: ["@angular/common", "@angular/core", "@angular/core/rxjs-interop", "rxjs", "@bitwarden/angular/jslib.module", "@bitwarden/components", "@bitwarden/official-auth-popup/account-switching/current-account.component", "@bitwarden/browser-popup/components/pop-out.component", "@bitwarden/ui-common", "../../../auth/official-account-switcher.adapter", "../../../../auth/account-session-store", "../../../layout/popup-header.component", "../../../layout/popup-page.component", "../../../official-ui/official-components", "./official-account.component"],
+    imports: ["@angular/common", "@angular/core", "@angular/core/rxjs-interop", "rxjs", "@bitwarden/angular/jslib.module", "@bitwarden/components", "@bitwarden/official-auth-popup/account-switching/current-account.component", "@bitwarden/browser-popup/components/pop-out.component", "@bitwarden/ui-common", "../../../auth/official-account-switcher.adapter", "../../../../auth/account-session-store", "../../../platform/popup-router-cache.service", "../../../popup-state", "../../../layout/popup-header.component", "../../../layout/popup-page.component", "../../../official-ui/official-components", "./official-account.component"],
   },
 } as const;
 
@@ -157,11 +157,23 @@ function transformSwitcherTemplate(authority: string): string {
     )
     .replace(
       '  <div *ngIf="currentAccount$ | async as currentAccount">\n',
-      '  <div *ngIf="currentAccount$ | async as currentAccount">\n    <bit-callout\n      *ngIf="(currentAuthorization$ | async) === \'recovery-required\'"\n      type="warning"\n      urgency="assertive"\n    >\n      <p role="status">{{ "i18nSessionRestoreStatus" | i18n }}</p>\n      <button type="button" bitButton buttonType="secondary" (click)="recover(currentAccount.id)">\n        {{ "i18nRetrySession" | i18n }}\n      </button>\n    </bit-callout>\n',
+      '  <div *ngIf="currentAccount$ | async as currentAccount">\n    <bit-callout\n      *ngIf="(currentAuthorization$ | async) === \'recovery-required\'"\n      type="warning"\n      urgency="assertive"\n    >\n      <p role="status">{{ "i18nSessionRestoreStatus" | i18n }}</p>\n      <button type="button" bitButton buttonType="secondary" class="macos-hit-target" (click)="recover(currentAccount.id)">\n        {{ "i18nRetrySession" | i18n }}\n      </button>\n    </bit-callout>\n',
     )
     .replace(
       "[disabled]=\"currentAccount.status === lockedStatus || !activeUserCanLock\"",
       "[disabled]=\"(currentAuthorization$ | async) !== 'unlocked' || !activeUserCanLock\"",
+    )
+    .replace(
+      '          bit-item-content\n          (click)="lock(currentAccount.id)"',
+      '          bit-item-content\n          class="macos-hit-target"\n          (click)="lock(currentAccount.id)"',
+    )
+    .replace(
+      '<button type="button" bit-item-content (click)="logOut(currentAccount.id)">',
+      '<button type="button" bit-item-content class="macos-hit-target" (click)="logOut(currentAccount.id)">',
+    )
+    .replace(
+      '<button type="button" bit-item-content (click)="lockAll()">',
+      '<button type="button" bit-item-content class="macos-hit-target" (click)="lockAll()">',
     );
 }
 
@@ -171,6 +183,17 @@ function transformAccountTemplate(authority: string): string {
   return authority
     .replaceAll("status.text === 'active'", "account.isActive")
     .replaceAll("status.text !== 'active'", "!account.isActive")
+    .replace(
+      '<bit-item *ngIf="account.id !== specialAccountAddId">',
+      '<bit-item *ngIf="account.id !== specialAccountAddId" class="macos-row macos-row--double">',
+    )
+    .replace(
+      '<bit-item *ngIf="account.id === specialAccountAddId">',
+      '<bit-item *ngIf="account.id === specialAccountAddId" class="macos-row macos-row--double">',
+    )
+    .replaceAll('<button bit-item-content type="button"', '<button bit-item-content type="button" class="macos-hit-target"')
+    .replaceAll('<button type="button" bit-item-content', '<button type="button" bit-item-content class="macos-hit-target"')
+    .replace("<bit-avatar\n      slot=\"start\"", "<bit-avatar\n      slot=\"start\"\n      class=\"account-avatar\"")
     .replaceAll('class="tw-max-w-64 tw-truncate"', 'class="tw-max-w-64 tw-truncate macos-account-label"')
     .replaceAll('class="tw-max-w-64 tw-truncate tw-text-sm"', 'class="tw-max-w-64 tw-truncate tw-text-sm macos-account-label"')
     .replace(' [attr.aria-hidden]="account.isActive"', "");

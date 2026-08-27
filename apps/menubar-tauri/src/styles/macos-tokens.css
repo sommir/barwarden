@@ -2,42 +2,33 @@
   color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
-  --mac-canvas: #f6f6f8;
-  /* One continuous tint for the menu-bar surface. It deliberately carries a
-   * little of the cool macOS popover material from the top edge into the
-   * neutral canvas below, rather than restarting a gradient in every route. */
-  --mac-popup-material: linear-gradient(
-    180deg,
-    #d5f5fc 0%,
-    #e8f8fb 23%,
-    #f2f5f7 54%,
-    #f6f6f8 100%
-  );
-  --mac-auth-background: linear-gradient(
-    180deg,
-    #d5f5fc 0%,
-    #e4f8fb 28%,
-    #effafd 62%,
-    #f7fcfd 100%
-  );
-  --mac-surface-solid: #ffffff;
-  --mac-surface-raised: #fbfbfc;
-  --mac-text-primary: #1d1d1f;
-  --mac-text-secondary: #5f6368;
-  --mac-text-tertiary: #7d8188;
-  --mac-border: rgb(60 60 67 / 24%);
-  --mac-border-subtle: rgb(60 60 67 / 12%);
-  --mac-hover: rgb(0 0 0 / 5%);
-  --mac-pressed: rgb(0 0 0 / 9%);
-  --mac-selected: rgb(23 93 220 / 12%);
-  --mac-focus: #175ddc;
-  --mac-disabled: rgb(60 60 67 / 34%);
-  --mac-scrim: rgb(0 0 0 / 28%);
-  --mac-shadow: rgb(0 0 0 / 18%);
+  --mac-canvas: #f4f8ff;
+  --mac-popup-material: #f4f8ff;
+  --mac-auth-background: #f4f8ff;
+  --mac-surface-solid: #fbfdff;
+  --mac-surface-raised: #ffffff;
+  --mac-surface-contextual: #eaf2ff;
+  --mac-text-primary: #111827;
+  --mac-text-secondary: #536784;
+  --mac-text-tertiary: #71819a;
+  --mac-border: #b9cbe3;
+  --mac-border-subtle: #d4e1f2;
+  --mac-hover: rgb(10 102 255 / 6%);
+  --mac-pressed: rgb(10 102 255 / 11%);
+  --mac-selected: rgb(10 102 255 / 10%);
+  --mac-focus: #0a66ff;
+  --mac-disabled: rgb(83 103 132 / 42%);
+  --mac-scrim: rgb(17 24 39 / 30%);
+  --mac-shadow: rgb(24 52 88 / 16%);
   --mac-destructive: #d70015;
   --mac-warning: #9a6700;
   --mac-success: #248a3d;
-  --mac-accent: #175ddc;
+  --mac-accent: #0a66ff;
+  --mac-action-username: #0a66ff;
+  --mac-action-password: #6657d9;
+  --mac-action-totp: #e98a15;
+  --mac-icon-website: #2196c9;
+  --mac-icon-card: #159a8a;
 
   --mac-space-1: 4px;
   --mac-space-2: 8px;
@@ -50,8 +41,35 @@
   --mac-floating-radius: 13px;
   --mac-sheet-radius: 16px;
   --mac-window-radius: 14px;
-  --mac-control-min-size: 36px;
+  --mac-hit-size: 44px;
+  --mac-header-height: 52px;
+  --mac-tabbar-height: 52px;
+  --mac-tabbar-inline-offset: 14px;
+  --mac-tabbar-bottom-offset: 16px;
+  --mac-tabbar-occlusion-height: 96px;
+  --mac-header-action-size: 44px;
+  --mac-header-action-disc-size: 32px;
+  --mac-header-title-optical-padding-top: 2px;
+  --mac-header-title-line-height: 38px;
+  --mac-settings-select-width: 136px;
+  --mac-settings-select-owner-height: 40px;
+  --mac-settings-select-visible-height: 36px;
+  --mac-settings-select-compact-owner-height: 38px;
+  --mac-settings-select-compact-visible-height: 34px;
+  --mac-row-single: 44px;
+  --mac-row-double: 48px;
+  --mac-row-double-compact: 44px;
+  --mac-control-visible: 40px;
+  --mac-control-visible-compact: 36px;
+  --mac-icon-plate: 32px;
+  --mac-icon-plate-compact: 28px;
+  --mac-page-inset: 16px;
+  --mac-group-gap: 20px;
+  --mac-group-gap-compact: 16px;
+  --mac-control-min-size: 44px;
+  --mac-focus-ring-width: 2px;
   --mac-row-height: 52px;
+  --mac-compact-row-height: 44px;
 
   --bw-popup-width: 480px;
   --bw-popup-height: 600px;
@@ -92,13 +110,9 @@
 /* The menu-bar popup is a native popover material, not a flat web canvas.
  * Keep the standalone window opaque so wide working surfaces remain calm. */
 :root:not([data-bw-window="popout"]) {
-  --mac-canvas: rgb(246 246 248 / 84%);
-  --mac-surface-raised: rgb(251 251 252 / 88%);
-}
-
-:root[data-bw-theme="dark"]:not([data-bw-window="popout"]) {
-  --mac-canvas: rgb(29 29 31 / 84%);
-  --mac-surface-raised: rgb(50 50 52 / 88%);
+  --mac-canvas: rgb(244 248 255 / 94%);
+  --mac-surface-raised: rgb(255 255 255 / 92%);
+  --mac-popup-material: rgb(244 248 255 / 94%);
 }
 
 @media (max-width: 639px) {
@@ -109,101 +123,80 @@
 
 :root[data-bw-theme="dark"] {
   color-scheme: dark;
-  --mac-canvas: #1d1d1f;
-  --mac-surface-solid: #28282a;
-  --mac-surface-raised: #323234;
-  --mac-text-primary: #f5f5f7;
-  --mac-text-secondary: #b5b5ba;
-  --mac-text-tertiary: #929298;
-  --mac-border: rgb(255 255 255 / 22%);
-  --mac-border-subtle: rgb(255 255 255 / 12%);
-  --mac-hover: rgb(255 255 255 / 7%);
-  --mac-pressed: rgb(255 255 255 / 12%);
-  --mac-selected: rgb(74 142 255 / 20%);
-  --mac-focus: #4a8eff;
+  --mac-canvas: #101621;
+  --mac-surface-solid: #151d2a;
+  --mac-surface-raised: #1b2534;
+  --mac-surface-contextual: #1a2638;
+  --mac-text-primary: #f4f7fb;
+  --mac-text-secondary: #a9b7cc;
+  --mac-text-tertiary: #8797af;
+  --mac-border: rgb(197 216 241 / 30%);
+  --mac-border-subtle: rgb(197 216 241 / 18%);
+  --mac-hover: rgb(76 141 255 / 9%);
+  --mac-pressed: rgb(76 141 255 / 15%);
+  --mac-selected: rgb(76 141 255 / 16%);
+  --mac-focus: #4c8dff;
   --mac-disabled: rgb(235 235 245 / 32%);
   --mac-scrim: rgb(0 0 0 / 48%);
   --mac-shadow: rgb(0 0 0 / 44%);
   --mac-destructive: #ff453a;
   --mac-warning: #ffd60a;
   --mac-success: #30d158;
-  --mac-accent: #4a8eff;
-  --mac-popup-material: linear-gradient(
-    180deg,
-    rgb(35 70 82 / 90%) 0%,
-    rgb(30 46 53 / 92%) 28%,
-    rgb(29 29 31 / 94%) 100%
-  );
-  --mac-auth-background: linear-gradient(
-    180deg,
-    rgb(35 70 82 / 94%) 0%,
-    rgb(30 46 53 / 96%) 36%,
-    rgb(29 29 31 / 98%) 100%
-  );
+  --mac-accent: #4c8dff;
+  --mac-action-username: #4c8dff;
+  --mac-action-password: #9b8cff;
+  --mac-action-totp: #ffb454;
+  --mac-icon-website: #5cc8e8;
+  --mac-icon-card: #43cdba;
+  --mac-popup-material: #101621;
+  --mac-auth-background: #101621;
 }
 
 @media (prefers-color-scheme: dark) {
   :root[data-bw-theme="system"] {
     color-scheme: dark;
-    --mac-canvas: #1d1d1f;
-    --mac-surface-solid: #28282a;
-    --mac-surface-raised: #323234;
-    --mac-text-primary: #f5f5f7;
-    --mac-text-secondary: #b5b5ba;
-    --mac-text-tertiary: #929298;
-    --mac-border: rgb(255 255 255 / 22%);
-    --mac-border-subtle: rgb(255 255 255 / 12%);
-    --mac-hover: rgb(255 255 255 / 7%);
-    --mac-pressed: rgb(255 255 255 / 12%);
-    --mac-selected: rgb(74 142 255 / 20%);
-    --mac-focus: #4a8eff;
+    --mac-canvas: #101621;
+    --mac-surface-solid: #151d2a;
+    --mac-surface-raised: #1b2534;
+    --mac-surface-contextual: #1a2638;
+    --mac-text-primary: #f4f7fb;
+    --mac-text-secondary: #a9b7cc;
+    --mac-text-tertiary: #8797af;
+    --mac-border: rgb(197 216 241 / 30%);
+    --mac-border-subtle: rgb(197 216 241 / 18%);
+    --mac-hover: rgb(76 141 255 / 9%);
+    --mac-pressed: rgb(76 141 255 / 15%);
+    --mac-selected: rgb(76 141 255 / 16%);
+    --mac-focus: #4c8dff;
     --mac-disabled: rgb(235 235 245 / 32%);
     --mac-scrim: rgb(0 0 0 / 48%);
     --mac-shadow: rgb(0 0 0 / 44%);
     --mac-destructive: #ff453a;
     --mac-warning: #ffd60a;
     --mac-success: #30d158;
-    --mac-accent: #4a8eff;
-    --mac-popup-material: linear-gradient(
-      180deg,
-      rgb(35 70 82 / 90%) 0%,
-      rgb(30 46 53 / 92%) 28%,
-      rgb(29 29 31 / 94%) 100%
-    );
-    --mac-auth-background: linear-gradient(
-      180deg,
-      rgb(35 70 82 / 94%) 0%,
-      rgb(30 46 53 / 96%) 36%,
-      rgb(29 29 31 / 98%) 100%
-    );
+    --mac-accent: #4c8dff;
+    --mac-action-username: #4c8dff;
+    --mac-action-password: #9b8cff;
+    --mac-action-totp: #ffb454;
+    --mac-icon-website: #5cc8e8;
+    --mac-icon-card: #43cdba;
+    --mac-popup-material: #101621;
+    --mac-auth-background: #101621;
   }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root[data-bw-theme="dark"]:not([data-bw-window="popout"]),
-  :root[data-bw-theme="system"]:not([data-bw-window="popout"]) {
-    --mac-canvas: rgb(29 29 31 / 84%);
-    --mac-surface-raised: rgb(50 50 52 / 88%);
-  }
-}
-
-:root[data-bw-theme="dark"]:not([data-bw-window="popout"]) {
-  --mac-canvas: rgb(29 29 31 / 84%);
-  --mac-surface-raised: rgb(50 50 52 / 88%);
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   :root:not([data-bw-window="popout"]) {
-    --mac-canvas: #f6f6f8;
-    --mac-surface-raised: #fbfbfc;
+    --mac-canvas: #f4f8ff;
+    --mac-surface-raised: #ffffff;
     --mac-popup-material: var(--mac-canvas);
     --mac-auth-background: var(--mac-canvas);
   }
 
   :root[data-bw-theme="dark"]:not([data-bw-window="popout"]),
   :root[data-bw-theme="system"]:not([data-bw-window="popout"]) {
-    --mac-canvas: #1d1d1f;
-    --mac-surface-raised: #323234;
+    --mac-canvas: #101621;
+    --mac-surface-raised: #1b2534;
     --mac-popup-material: var(--mac-canvas);
     --mac-auth-background: var(--mac-canvas);
   }

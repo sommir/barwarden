@@ -1,4 +1,11 @@
-import { Component, HostListener, Inject, type OnDestroy, Optional, ViewChild } from "@angular/core";
+import {
+  Component,
+  HostListener,
+  Inject,
+  type OnDestroy,
+  Optional,
+  ViewChild,
+} from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 
 import { NoResults, VaultOpen } from "@bitwarden/assets/svg";
@@ -42,6 +49,7 @@ import { RetainedNewItemDropdownComponent } from "./retained-new-item-dropdown.c
 import { VaultRowActionsAdapter } from "./vault-row-actions.adapter";
 import { VaultSessionService } from "./vault-session.service";
 import { VaultFacade, type VaultMainState } from "./vault.facade";
+import { VaultContextualSectionOutletComponent } from "./vault-contextual-section-outlet.component";
 
 @Component({
   selector: "bw-vault-list-page",
@@ -60,6 +68,7 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
     TypographyDirective,
     VaultFadeInOutComponent,
     VaultFadeInOutSkeletonComponent,
+    VaultContextualSectionOutletComponent,
     VaultHierarchyComponent,
     VaultListItemsContainerComponent,
     VaultLoadingSkeletonComponent,
@@ -90,8 +99,19 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
         slot="above-scroll-area"
         [searchAriaLabel]="'searchVault' | i18n"
         [query]="vaultQuery"
-        (queryChange)="setSearch($event)"
+        (queryChange)="setSearchFromInput($event)"
       />
+      <span
+        class="tw-sr-only"
+        data-testid="result-announcement"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        @for (publication of resultAnnouncementPublications; track publication.revision) {
+          <span [attr.data-result-announcement-revision]="publication.revision">{{ resultAnnouncement }}</span>
+        }
+      </span>
 
       @if (showStaleSyncCallout) {
         <bw-macos-alert-strip
@@ -104,6 +124,10 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
           testId="vault-sync-callout"
           (action)="retrySync()"
         />
+      }
+
+      @if (showContextualSection) {
+        <bw-vault-contextual-section-outlet />
       }
 
       @if (showSkeletons) {
@@ -144,7 +168,7 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
         </div>
       } @else {
         @if (hasSearchQuery) {
-          <div class="tw-flex tw-flex-col tw-gap-3 tw-px-3 tw-pb-3 vault-sections macos-list">
+          <div class="tw-flex tw-flex-col tw-px-4 tw-pb-4 vault-sections macos-list vault-search-results">
             @for (section of sections; track section.id) {
               <app-vault-list-items-container
                 [section]="section"
@@ -179,15 +203,20 @@ import { VaultFacade, type VaultMainState } from "./vault.facade";
           />
         }
       }
-      <bw-vault-reprompt-dialog />
+      <bw-vault-reprompt-dialog #vaultListReprompt />
     </popup-page>
   `,
 })
 export class VaultListPageComponent implements OnDestroy {
-  @ViewChild(VaultRepromptDialogComponent) private repromptDialog?: VaultRepromptDialogComponent;
+  @ViewChild("vaultListReprompt") private repromptDialog?: VaultRepromptDialogComponent;
   openMenuRowId: string | null = null;
+  resultAnnouncement = "";
+  resultAnnouncementPublications: readonly { readonly revision: number }[] = [];
   readonly noResultsIcon = NoResults;
   readonly vaultIcon = VaultOpen;
+  private searchDraft = "";
+  private pendingSearchTimeout?: number;
+  private resultAnnouncementRevision = 0;
 
   constructor(
     private readonly store: PopupStateStore,
@@ -214,6 +243,7 @@ export class VaultListPageComponent implements OnDestroy {
     } else if (evidenceState === "no-results") {
       this.vault.setSearch("__no_results__");
     }
+    this.searchDraft = this.vault.queryValue();
   }
 
   get sections() {
@@ -225,11 +255,15 @@ export class VaultListPageComponent implements OnDestroy {
   }
 
   get vaultQuery(): string {
-    return this.vault.queryValue();
+    return this.searchDraft;
   }
 
   get hasSearchQuery(): boolean {
-    return this.vaultQuery.trim().length > 0;
+    return this.vault.queryValue().trim().length > 0;
+  }
+
+  get showContextualSection(): boolean {
+    return !this.hasSearchQuery && this.vaultState === "ready";
   }
 
   get vaultState(): VaultMainState {
@@ -253,15 +287,28 @@ export class VaultListPageComponent implements OnDestroy {
   }
 
   setSearch(query: string | null | undefined): void {
-    this.openMenuRowId = null;
-    this.menuCoordinator.closeAll();
-    this.vault.setSearch(query ?? "");
+    this.clearPendingSearch();
+    this.searchDraft = query ?? "";
+    this.closeOpenMenus();
+    this.applySearch(this.searchDraft);
+  }
+
+  setSearchFromInput(query: string | null | undefined): void {
+    this.searchDraft = query ?? "";
+    this.closeOpenMenus();
+    this.clearPendingSearch();
+    if (this.searchDraft === this.vault.queryValue()) {
+      return;
+    }
+    this.pendingSearchTimeout = window.setTimeout(() => {
+      this.pendingSearchTimeout = undefined;
+      this.applySearch(this.searchDraft);
+    }, 120);
   }
 
   @HostListener("input", ["$event"])
   clearOpenMenuOnInput(event: Event): void {
-    this.openMenuRowId = null;
-    this.menuCoordinator.closeAll();
+    this.closeOpenMenus();
   }
 
   setOpenMenu(change: VaultMenuOpenChange): void {
@@ -273,7 +320,44 @@ export class VaultListPageComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearPendingSearch();
     this.rowActions.ngOnDestroy();
+  }
+
+  private applySearch(query: string): void {
+    if (query === this.vault.queryValue()) {
+      return;
+    }
+    const previousIdentity = visibleVaultResultIdentity(this.vault.filteredItems());
+    this.vault.setSearch(query);
+    this.updateResultAnnouncement(
+      previousIdentity,
+      visibleVaultResultIdentity(this.vault.filteredItems()),
+    );
+  }
+
+  private closeOpenMenus(): void {
+    this.openMenuRowId = null;
+    this.menuCoordinator.closeAll();
+  }
+
+  private clearPendingSearch(): void {
+    if (this.pendingSearchTimeout !== undefined) {
+      window.clearTimeout(this.pendingSearchTimeout);
+      this.pendingSearchTimeout = undefined;
+    }
+  }
+
+  private updateResultAnnouncement(
+    previousIdentity: readonly string[],
+    identity: readonly string[],
+  ): void {
+    if (sameResultIdentity(previousIdentity, identity)) {
+      return;
+    }
+    this.resultAnnouncement = translateOfficialMessage("i18nItemsCount", identity.length);
+    this.resultAnnouncementRevision += 1;
+    this.resultAnnouncementPublications = [{ revision: this.resultAnnouncementRevision }];
   }
 
   async viewItem(item: VaultItem): Promise<void> {
@@ -361,6 +445,14 @@ export class VaultListPageComponent implements OnDestroy {
   private async deleteNow(item: VaultItem): Promise<void> {
     await this.rowActions.delete(item);
   }
+}
+
+function visibleVaultResultIdentity(items: readonly VaultItem[]): readonly string[] {
+  return items.map((item) => item.id);
+}
+
+function sameResultIdentity(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
 function copyReceiptFailed(status: string | null): boolean {

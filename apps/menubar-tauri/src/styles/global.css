@@ -5,12 +5,12 @@
 
 :root {
   --bw-sheet-max-height: 80vh;
-  --bw-sheet-motion: var(--mac-sheet-motion);
+  --mac-motion-fast: 160ms;
+  --mac-motion-navigation: 180ms;
+  --mac-motion-sheet: 200ms;
+  --bw-sheet-motion: var(--mac-motion-sheet);
   --mac-form-control-height: 40px;
   --mac-form-control-radius: 10px;
-  --mac-floating-navigation-height: 58px;
-  --mac-floating-navigation-bottom-offset: 13px;
-  --mac-floating-navigation-safe-gap: var(--mac-space-3);
   color: var(--bw-text-main);
   background: transparent;
   font-synthesis: none;
@@ -52,26 +52,25 @@ popup-page > main {
   flex: 1 1 auto;
 }
 
+popup-page {
+  --mac-page-bottom-safe: 16px;
+}
+
+.popup-shell popup-page {
+  --mac-page-bottom-safe: 16px;
+}
+
+.popup-shell:has(.floating-tab-switcher) popup-page {
+  --mac-page-bottom-safe: var(--mac-tabbar-occlusion-height);
+}
+
 popup-page [data-testid="popup-layout-scroll-region"] {
   flex: 1 1 auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-}
-
-/* Navigation intentionally floats over the continuous canvas.  The scroll
- * owner still needs a transparent terminal inset, otherwise its final vault
- * disclosure is physically reachable only behind the navigation. */
-.popup-shell popup-page [data-testid="popup-layout-scroll-region"] {
-  padding-bottom: calc(
-    var(--mac-floating-navigation-height) +
-    var(--mac-floating-navigation-bottom-offset) +
-    var(--mac-floating-navigation-safe-gap)
-  ) !important;
-  scroll-padding-bottom: calc(
-    var(--mac-floating-navigation-height) +
-    var(--mac-floating-navigation-bottom-offset) +
-    var(--mac-floating-navigation-safe-gap)
-  );
+  padding-inline: var(--mac-page-inset);
+  padding-bottom: var(--mac-page-bottom-safe);
+  scroll-padding-bottom: var(--mac-page-bottom-safe);
 }
 
 /* Native-style overlay scrollbars: a restrained 2px glass thumb that is
@@ -197,12 +196,6 @@ popup-page [data-testid="popup-layout-scroll-region"] {
 }
 
 :is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
-  :is(input, select, textarea):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 1px;
-}
-
-:is(.macos-field, .form-field, .send-form-field, .cipher-form-field)
   :is(input, select, textarea)[aria-invalid="true"] {
   border-color: var(--mac-destructive);
 }
@@ -224,14 +217,14 @@ popup-page [data-testid="popup-layout-scroll-region"] {
 }
 
 :root[data-bw-compact-mode="true"] {
-  --bw-row-content-height: 52px;
+  --bw-row-content-height: var(--mac-compact-row-height);
   --bw-row-gap: 0;
   --bw-section-gap: 8px;
 }
 
 :root[data-bw-compact-mode="false"],
 :root:not([data-bw-compact-mode]) {
-  --bw-row-content-height: 52px;
+  --bw-row-content-height: var(--mac-row-height);
   --bw-row-gap: 6px;
   --bw-section-gap: 16px;
 }
@@ -373,6 +366,247 @@ button {
   cursor: pointer;
 }
 
+.macos-hit-target { min-width:var(--mac-hit-size); min-height:var(--mac-hit-size); }
+.macos-icon-plate { display:grid; width:var(--mac-icon-plate); height:var(--mac-icon-plate); place-items:center; border-radius:var(--mac-control-radius); }
+.macos-field-owner { display:flex; min-height:var(--mac-hit-size); align-items:center; }
+.macos-control-visible { width:100%; height:var(--mac-control-visible); min-height:var(--mac-control-visible); }
+.macos-button-owner { position:relative; isolation:isolate; min-width:var(--mac-hit-size); min-height:var(--mac-hit-size); border:0; background:transparent; }
+.macos-button-owner::before { content:""; position:absolute; inset-block:2px; inset-inline:0; z-index:-1; border-radius:var(--mac-control-radius); background:var(--mac-accent); }
+.macos-button-owner:focus-visible { outline-width:0; outline-style:none; }
+.macos-button-owner:focus-visible::before { outline-width:2px; outline-style:solid; outline-color:var(--mac-focus); outline-offset:2px; }
+.macos-row { min-height:var(--mac-row-single); }
+.macos-row--double { min-height:var(--mac-row-double); }
+:root[data-bw-compact-mode="true"] .macos-icon-plate { width:var(--mac-icon-plate-compact); height:var(--mac-icon-plate-compact); }
+:root[data-bw-compact-mode="true"] .macos-control-visible { height:var(--mac-control-visible-compact); min-height:var(--mac-control-visible-compact); }
+:root[data-bw-compact-mode="true"] .macos-button-owner::before { inset-block:4px; }
+:root[data-bw-compact-mode="true"] .macos-row--double { min-height:var(--mac-row-double-compact); }
+
+:where(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-preference-group,
+.macos-preference-group > .settings-group__items,
+.macos-preference-group > .settings-group__items > bit-item,
+.macos-preference-group > .settings-group__items > bit-item > bit-item-action,
+.macos-preference-group:is(bit-item-group),
+.macos-preference-group:is(bit-item-group) > bit-item,
+.macos-preference-group:is(bit-item-group) > bit-item > bit-item-action,
+.macos-preference-group bit-item-group,
+.macos-preference-group bit-item-group > bit-item,
+.macos-preference-group bit-item-group > bit-item > bit-item-action { margin:0; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap); }
+.macos-preference-group > .settings-group__items > bit-item:not(:last-child),
+.macos-preference-group:is(bit-item-group) > bit-item:not(:last-child),
+.macos-preference-group bit-item-group > bit-item:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
+.macos-preference-group > bit-section { margin:0; }
+.macos-preference-group > bit-section + bit-section { margin-top:var(--mac-group-gap); }
+.macos-preference-stack { display:grid; }
+.macos-preference-row { display:grid; grid-template-columns:minmax(0,1fr) auto; height:auto; min-height:var(--mac-row-single); overflow:visible; align-items:center; gap:12px; padding-inline:12px; border:0; border-radius:0; background:var(--mac-surface-solid); box-shadow:none; }
+.macos-preference-group > .macos-preference-row:not(:last-child),
+.macos-preference-stack > .macos-preference-row:not(:last-child) { border-bottom:1px solid var(--mac-border-subtle); }
+bit-form-field.macos-preference-row { margin:0; }
+bit-form-field.macos-preference-row > div { display:grid; grid-template-columns:minmax(0,1fr) var(--mac-settings-select-width); width:100%; min-width:0; align-items:center; gap:12px; }
+bit-form-field.macos-preference-row > div > :is(label, div) { min-width:0; }
+bit-form-field.macos-preference-row bit-select.macos-control-visible,
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
+  display:flex;
+  width:var(--mac-settings-select-width) !important;
+  max-width:var(--mac-settings-select-width) !important;
+  min-width:0 !important;
+  height:var(--mac-settings-select-owner-height);
+  min-height:var(--mac-settings-select-owner-height);
+  align-items:center;
+  justify-self:end !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent;
+  box-shadow:none !important;
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { width:100% !important; max-width:100% !important; }
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  width:100% !important;
+  max-width:100% !important;
+  height:var(--mac-settings-select-visible-height);
+  min-height:var(--mac-settings-select-visible-height);
+  padding-block:0 !important;
+  border-color:var(--mac-border) !important;
+  background:var(--mac-surface-solid);
+  box-shadow:none !important;
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container .ng-value-container,
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container .ng-input {
+  box-sizing:border-box;
+  height:100% !important;
+  min-height:0 !important;
+  padding-block:0 !important;
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container input[role="combobox"] {
+  box-sizing:border-box;
+  height:100% !important;
+  min-height:0 !important;
+  padding-block:0 !important;
+}
+.macos-preference-row__copy { min-width:0; height:auto; min-height:0; overflow:visible; padding-block:7px; white-space:normal; overflow-wrap:anywhere; }
+.macos-preference-row__copy > :first-child { font-size:14px; line-height:18px; font-weight:600; }
+.macos-preference-row__copy > :not(:first-child) { margin-top:2px; color:var(--mac-text-secondary); font-size:12px; line-height:16px; }
+.macos-preference-row__value { min-width:0; margin-inline-start:auto; justify-self:end; color:var(--mac-text-secondary); text-align:end; overflow-wrap:anywhere; }
+.macos-page--settings button.macos-preference-row[data-settings-route] > :first-child,
+.macos-page--settings button.macos-preference-row[data-settings-route] > :first-child > :nth-child(2),
+.macos-page--settings button.macos-preference-row[data-settings-route] > :first-child > :nth-child(2) > :first-child {
+  min-width:0;
+  overflow:visible;
+}
+.macos-page--settings button.macos-preference-row[data-settings-route] .tw-text-wrap.tw-overflow-auto.tw-break-words,
+.macos-page--settings button.macos-preference-row[data-settings-route] .macos-preference-row__copy {
+  justify-self:start;
+  white-space:nowrap;
+  overflow-wrap:normal;
+  word-break:keep-all;
+  overflow:visible;
+  max-height:none;
+}
+[data-testid="launch-at-login-row"] > .tw-text-wrap.tw-overflow-auto.tw-break-words { display:contents; }
+[data-testid="launch-at-login-row"].tw-text-wrap.tw-overflow-auto.tw-break-words {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  overflow:visible;
+}
+.macos-page--settings [data-testid="launch-at-login-row"].macos-preference-row {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto !important;
+  min-height:var(--mac-row-single) !important;
+  padding-block:0 !important;
+  padding-inline:12px !important;
+  align-items:center !important;
+  gap:12px !important;
+  overflow:visible !important;
+}
+.macos-page--settings [data-testid="launch-at-login-row"] > :first-child,
+.macos-page--settings [data-testid="launch-at-login-row"] > :first-child > :first-child,
+.macos-page--settings [data-testid="launch-at-login-row"] > :first-child > :first-child > :first-child,
+.macos-page--settings [data-testid="launch-at-login-row"] .tw-text-wrap.tw-overflow-auto.tw-break-words {
+  display:contents !important;
+}
+.macos-page--settings [data-testid="launch-at-login-row"] > :nth-child(2),
+.macos-page--settings [data-testid="launch-at-login-row"] .tw-flex-grow,
+.macos-page--settings [data-testid="launch-at-login-row"] .tw-text-muted {
+  display:none !important;
+}
+.macos-switch-owner { display:grid; min-width:var(--mac-hit-size); min-height:var(--mac-hit-size); padding:0; place-items:center; border:0; background:transparent; }
+.macos-preference-row > .macos-switch-owner,
+[data-testid="launch-at-login-row"] .macos-switch-owner { grid-column-start:2; grid-column-end:auto; grid-row-start:1; grid-row-end:auto; justify-self:end; }
+.macos-switch-owner > span { position:relative; width:34px; height:20px; border:1px solid var(--mac-border); border-radius:999px; background:var(--mac-surface-contextual); transition:background-color var(--mac-motion-fast) ease; }
+.macos-switch-owner > span::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--mac-surface-solid); box-shadow:0 1px 2px rgb(0 0 0 / 18%); transition:transform var(--mac-motion-fast) ease; }
+.macos-switch-owner[aria-checked="true"] > span { border-color:var(--mac-accent); background:var(--mac-accent); }
+.macos-switch-owner[aria-checked="true"] > span::after { transform:translateX(14px); }
+.macos-switch-owner:focus-visible { outline-width:0; outline-style:none; }
+.macos-switch-owner:focus-visible > span { outline-width:2px; outline-style:solid; outline-color:var(--mac-focus); outline-offset:2px; }
+:root[data-bw-compact-mode="true"] .macos-preference-group + .macos-preference-group { margin-top:var(--mac-group-gap-compact); }
+:root[data-bw-compact-mode="true"] .macos-preference-group > bit-section + bit-section { margin-top:var(--mac-group-gap-compact); }
+:root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible,
+:root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select { height:var(--mac-settings-select-compact-owner-height); min-height:var(--mac-settings-select-compact-owner-height); }
+:root[data-bw-compact-mode="true"] bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container { height:var(--mac-settings-select-compact-visible-height); min-height:var(--mac-settings-select-compact-visible-height); }
+.macos-page--settings-detail [data-settings-detail="account-security"] bit-form-field.macos-preference-row > div {
+  grid-template-columns:minmax(0,1fr) 104px;
+}
+.macos-page--settings-detail [data-settings-detail="account-security"] bit-form-field.macos-preference-row bit-select.macos-control-visible {
+  width:104px !important;
+  max-width:104px !important;
+  height:32px;
+  min-height:32px;
+}
+.macos-page--settings-detail [data-settings-detail="account-security"] bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
+  width:100% !important;
+  max-width:100% !important;
+  height:32px;
+  min-height:32px;
+}
+.macos-page--settings-detail [data-settings-detail="account-security"] bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
+  height:30px;
+  min-height:30px;
+}
+:root[data-bw-compact-mode="true"] .macos-page--settings-detail [data-settings-detail="account-security"] bit-form-field.macos-preference-row bit-select.macos-control-visible,
+:root[data-bw-compact-mode="true"] .macos-page--settings-detail [data-settings-detail="account-security"] bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
+  height:32px;
+  min-height:32px;
+}
+:root[data-bw-compact-mode="true"] .macos-page--settings-detail [data-settings-detail="account-security"] bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
+  height:30px;
+  min-height:30px;
+}
+.macos-page--settings-detail [data-settings-detail="account-security"] bit-form-field.macos-preference-row [data-default-content]:has(bit-select.macos-control-visible) {
+  display:flex;
+  align-items:center;
+  min-height:0;
+}
+.macos-page--settings-detail [data-settings-detail="autofill"] bit-form-field.macos-preference-row:has(bit-hint) {
+  grid-template-columns:minmax(0,1fr) var(--mac-settings-select-width);
+  row-gap:2px;
+  align-items:center;
+  min-height:72px;
+  padding-block:7px;
+}
+.macos-page--settings-detail [data-settings-detail="autofill"] bit-form-field.macos-preference-row:has(bit-hint) > div {
+  display:contents;
+}
+.macos-page--settings-detail [data-settings-detail="autofill"] bit-form-field.macos-preference-row:has(bit-hint) > div > label {
+  grid-column-start:1;
+  grid-column-end:2;
+  grid-row-start:1;
+  grid-row-end:2;
+  align-self:end;
+}
+.macos-page--settings-detail [data-settings-detail="autofill"] bit-form-field.macos-preference-row:has(bit-hint) > div > div:has(bit-select.macos-control-visible) {
+  grid-column-start:2;
+  grid-column-end:3;
+  grid-row-start:1;
+  grid-row-end:span 2;
+  align-self:center;
+  justify-self:end;
+  width:var(--mac-settings-select-width);
+  min-width:0;
+}
+.macos-page--settings-detail [data-settings-detail="autofill"] bit-form-field.macos-preference-row:has(bit-hint) bit-label.macos-preference-row__copy {
+  grid-column-start:1;
+  grid-column-end:2;
+  grid-row-start:1;
+  grid-row-end:2;
+  align-self:end;
+  padding-block:0;
+}
+.macos-page--settings-detail [data-settings-detail="autofill"] bit-form-field.macos-preference-row:has(bit-hint) bit-hint {
+  grid-column-start:1;
+  grid-column-end:2;
+  grid-row-start:2;
+  grid-row-end:3;
+  align-self:start;
+  min-width:0;
+}
+.macos-page--settings-detail [data-settings-detail="autofill"] bit-form-field.macos-preference-row:has(bit-hint) bit-select.macos-control-visible {
+  grid-column-start:2;
+  grid-column-end:3;
+  grid-row-start:1;
+  grid-row-end:span 2;
+  align-self:center;
+}
+@media (min-resolution:2dppx) {
+  .macos-preference-group > .settings-group__items > bit-item:not(:last-child),
+  .macos-preference-group:is(bit-item-group) > bit-item:not(:last-child),
+  .macos-preference-group bit-item-group > bit-item:not(:last-child),
+  .macos-preference-stack > .macos-preference-row:not(:last-child),
+  .macos-preference-group > .macos-preference-row:not(:last-child) { border-bottom-width:.5px; }
+}
+@media (prefers-reduced-motion:reduce) { .macos-switch-owner > span, .macos-switch-owner > span::after { transition-duration:0s; } }
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -480,6 +714,7 @@ button {
 .popup-tab-scroll-host {
   display: flex;
   flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
   flex-direction: column;
   overflow-y: hidden;
@@ -505,19 +740,38 @@ popup-page {
   height: 100%;
 }
 
+/* The lower interaction shield keeps routed content visually continuous while
+ * preventing rows underneath the floating navigation from receiving clicks. */
+.popup-shell::after {
+  content: "";
+  position: absolute;
+  z-index: 19;
+  inset: auto 0 0;
+  height: calc(var(--mac-tabbar-height) + var(--mac-tabbar-bottom-offset));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--mac-canvas) 8%, transparent),
+    color-mix(in srgb, var(--mac-canvas) 28%, transparent)
+  );
+  pointer-events: auto;
+  backdrop-filter: saturate(1.25) blur(20px);
+  -webkit-backdrop-filter: saturate(1.25) blur(20px);
+}
+
 .floating-tab-switcher {
   position: absolute;
   z-index: 20;
-  right: 14px;
-  bottom: 13px;
-  left: 14px;
+  right: var(--mac-tabbar-inline-offset);
+  bottom: var(--mac-tabbar-bottom-offset);
+  left: var(--mac-tabbar-inline-offset);
   display: grid;
   grid-template-columns: repeat(var(--segment-count), minmax(0, 1fr));
-  min-height: 58px;
-  padding: 4px;
-  border-radius: var(--mac-floating-radius);
-  /* This is chrome laid over the same canvas as the content, not a footer.
-   * Routed pages deliberately scroll beneath its translucent material. */
+  height: var(--mac-tabbar-height);
+  min-height: var(--mac-tabbar-height);
+  padding: 4px 8px;
+  border-radius: 12px;
+  /* The tab bar is an overlay: routed content continues underneath its
+   * material, while the page's bottom scroll padding keeps final actions usable. */
   isolation: isolate;
 }
 
@@ -530,45 +784,44 @@ popup-page {
 
 .floating-tab-switcher__indicator {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 8px) / var(--segment-count));
-  border-radius: 10px;
+  inset-block: 4px;
+  left: 8px;
+  width: calc((100% - 16px) / var(--segment-count));
+  border-radius: 9px;
   background: var(--mac-selected);
-  box-shadow: inset 0 0 0 1px var(--mac-border-subtle);
+  box-shadow: none;
   transform: translateX(calc(var(--selected-index) * 100%));
-  transition: transform var(--mac-motion-duration) cubic-bezier(.2, .8, .2, 1);
+  transition: transform var(--mac-motion-navigation) cubic-bezier(.2, .8, .2, 1);
 }
 
 .floating-tab-switcher__segment {
   position: relative;
   z-index: 1;
   display: grid;
-  min-width: 0;
-  min-height: 50px;
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
   grid-template-rows: auto auto;
   place-items: center;
   align-content: center;
   gap: 1px;
-  border-radius: 10px;
-  padding: 3px 2px;
+  border-radius: 9px;
+  padding: 2px 4px;
   color: var(--mac-text-secondary);
-  font-weight: 600;
 }
 
 .floating-tab-switcher__icon {
   display: block;
-  font-size: 20px;
-  line-height: 1;
+  font-size: 18px;
+  line-height: 20px;
 }
 
 .floating-tab-switcher__label {
   display: block;
   overflow: hidden;
   max-width: 100%;
-  font-size: 12px;
-  line-height: 1.15;
+  font-size: 10.5px;
+  line-height: 12px;
+  font-weight: 550;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -578,7 +831,7 @@ popup-page {
 }
 
 .floating-tab-switcher__segment:focus-visible {
-  outline: 2px solid var(--mac-focus);
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
   outline-offset: -2px;
 }
 
@@ -586,7 +839,7 @@ popup-page {
   position: absolute;
   z-index: 60;
   right: 16px;
-  bottom: calc(13px + 58px + var(--mac-space-3));
+  bottom: calc(var(--mac-tabbar-bottom-offset) + var(--mac-tabbar-height) + var(--mac-space-3));
   left: 16px;
   display: grid;
   justify-items: center;
@@ -662,8 +915,10 @@ barwarden-root:has(popup-footer) .app-feedback {
 
 .app-feedback__dismiss {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   flex: 0 0 auto;
   place-items: center;
   border: 0;
@@ -680,7 +935,7 @@ barwarden-root:has(popup-footer) .app-feedback {
 }
 
 .app-feedback__dismiss:focus-visible {
-  outline: 2px solid var(--mac-focus);
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
   outline-offset: -2px;
 }
 
@@ -707,99 +962,6 @@ barwarden-root:has(popup-footer) .app-feedback {
     border-color: var(--mac-border);
     background: var(--mac-surface-raised);
     backdrop-filter: none;
-  }
-}
-
-.accessibility-permission-backdrop {
-  position: fixed;
-  z-index: 50;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: var(--mac-space-5);
-  background: rgb(15 23 42 / 18%);
-  backdrop-filter: blur(5px) saturate(115%);
-}
-
-.accessibility-permission-dialog {
-  width: min(100%, 352px);
-  padding: var(--mac-space-5);
-  border: 1px solid rgb(255 255 255 / 72%);
-  border-radius: var(--mac-sheet-radius);
-  background: rgb(255 255 255 / 94%);
-  box-shadow: 0 18px 48px rgb(15 23 42 / 22%), 0 1px 2px rgb(0 0 0 / 16%);
-  color: var(--mac-text-primary);
-}
-
-.accessibility-permission-dialog__icon {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  margin-bottom: var(--mac-space-3);
-  place-items: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--mac-accent) 13%, transparent);
-  color: var(--mac-accent);
-  font-size: 18px;
-}
-
-.accessibility-permission-dialog h2 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 680;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-}
-
-.accessibility-permission-dialog p {
-  margin: var(--mac-space-2) 0 0;
-  color: var(--mac-text-secondary);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.accessibility-permission-dialog__error {
-  color: var(--mac-destructive) !important;
-}
-
-.accessibility-permission-dialog__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--mac-space-2);
-  margin-top: var(--mac-space-5);
-}
-
-.accessibility-permission-dialog__actions button {
-  min-height: 34px;
-  padding: 0 var(--mac-space-3);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-control-radius);
-  background: var(--mac-surface-raised);
-  color: var(--mac-text-primary);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.accessibility-permission-dialog__actions .macos-button--primary {
-  border-color: transparent;
-  background: var(--mac-accent);
-  color: white;
-}
-
-.accessibility-permission-dialog__actions button:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .accessibility-permission-backdrop {
-    background: rgb(0 0 0 / 34%);
-    backdrop-filter: none;
-  }
-
-  .accessibility-permission-dialog {
-    background: var(--mac-surface-solid);
   }
 }
 
@@ -839,23 +1001,50 @@ popup-footer {
 
 popup-header > header {
   display: grid;
-  min-height: 60px;
+  height: var(--mac-header-height);
+  min-height: var(--mac-header-height);
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   align-items: center;
   border-color: transparent !important;
-  padding: var(--mac-space-3) var(--mac-space-4) var(--mac-space-2) !important;
+  padding-inline: 4px !important;
   background: transparent !important;
+}
+
+popup-header > header :is(button, a) {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-popup-header-divider {
+  display: block;
+  width: auto;
+  height: 1px;
+  margin-inline: var(--mac-space-5);
+  background: rgba(92, 114, 146, 0.22);
+}
+
+:root[data-bw-window="popout"] .macos-popup-header-divider {
+  margin-inline: var(--mac-space-6);
+}
+
+[data-testid="popup-content-start"] {
+  margin-top: 16px;
+}
+
+:root[data-bw-compact-mode="true"] [data-testid="popup-content-start"] {
+  margin-top: 12px;
 }
 
 .macos-page-heading {
   display: grid;
   box-sizing: border-box;
-  min-height: 60px;
+  height: var(--mac-header-height);
+  min-height: var(--mac-header-height);
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   align-items: center;
   gap: var(--mac-space-3);
   width: 100%;
-  padding: var(--mac-space-3) var(--mac-space-4) var(--mac-space-2);
+  padding-inline: 4px;
 }
 
 @media (min-width: 640px) {
@@ -867,6 +1056,7 @@ popup-header > header {
 
 .macos-page-heading__leading {
   display: flex;
+  height: var(--mac-header-action-size);
   min-width: 0;
   grid-column: 1;
   align-items: center;
@@ -875,28 +1065,44 @@ popup-header > header {
 }
 
 .macos-page-heading__titles {
+  display: grid;
+  height: var(--mac-header-action-size);
   min-width: 0;
   max-width: min(100%, 24rem);
   grid-column: 2;
+  place-items: center;
   justify-self: center;
   text-align: center;
 }
 
-.macos-page-heading h1 {
+popup-header > header h1 {
+  box-sizing: border-box;
+  display: block;
+  height: var(--mac-header-action-size);
   margin: 0;
   overflow: hidden;
+  padding-top: var(--mac-header-title-optical-padding-top) !important;
   color: var(--mac-text-primary);
-  font-size: 18px;
-  font-weight: 680;
-  line-height: 1.2;
+  font-size: 17px !important;
+  font-weight: 650 !important;
+  line-height: var(--mac-header-title-line-height) !important;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
+}
+
+popup-header > header h1[bittypography] {
+  margin: 0 !important;
+  padding-top: var(--mac-header-title-optical-padding-top) !important;
+  font-size: 17px !important;
+  font-weight: 650 !important;
+  line-height: var(--mac-header-title-line-height) !important;
 }
 
 .macos-page-heading__actions {
   display: flex;
+  height: var(--mac-header-action-size);
   min-width: 0;
   grid-column: 3;
   align-items: center;
@@ -1116,7 +1322,8 @@ bw-vault-detail-field {
 }
 
 .official-read-only-control > .field-action {
-  min-height: 30px;
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   flex: 0 0 auto;
   margin-right: 4px;
 }
@@ -1300,10 +1507,11 @@ bw-vault-detail-field {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
+  min-height: var(--mac-control-min-size);
   border: 0;
   border-bottom: 1px solid var(--bw-border-subtle);
-  padding: 0 12px;
+  padding-block: 0;
+  padding-inline: 12px;
   background: var(--bw-background);
   color: var(--bw-text-main);
   font-size: 14px;
@@ -1335,9 +1543,9 @@ bw-vault-detail-field {
 }
 
 .bit-menu-panel [role="menu"] {
-  min-width: 156px;
+  min-width: 148px;
   max-width: min(220px, calc(100vw - 24px));
-  gap: 2px;
+  gap: 0;
   overflow: hidden;
   border: 1px solid var(--mac-border-subtle) !important;
   border-radius: 12px;
@@ -1347,26 +1555,75 @@ bw-vault-detail-field {
     0 14px 34px color-mix(in srgb, #0b1220 18%, transparent),
     0 2px 8px color-mix(in srgb, #0b1220 10%, transparent) !important;
   backdrop-filter: blur(20px) saturate(1.18);
-  animation: macos-menu-appear 100ms ease-out;
+  animation-name: macos-menu-appear;
+  animation-duration: var(--mac-motion-fast);
+  animation-timing-function: ease-out;
 }
 
 .bit-menu-panel--closing [role="menu"] {
   pointer-events: none;
-  animation: macos-menu-disappear 100ms ease-in forwards;
+  animation-name: macos-menu-disappear;
+  animation-duration: var(--mac-motion-fast);
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
 }
 
 .bit-menu-panel [role="menu"] [role="menuitem"] {
-  min-height: 36px;
+  display: flex;
+  align-items: center;
+  min-height: var(--mac-control-min-size);
+  border-bottom: 1px solid var(--mac-border-subtle);
   border-radius: 8px;
-  padding: 0 10px !important;
+  padding: 0 12px !important;
   color: var(--mac-text-primary);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.2;
 }
 
+.bit-menu-panel [role="menu"] [role="menuitem"] > div {
+  display: grid !important;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"] > div > span:first-child {
+  display: contents !important;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"] > div > span:first-child > :is(i, bit-icon, svg) {
+  grid-column: 1;
+  justify-self: center;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"] > div > span:first-child > span {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"]:last-child {
+  border-bottom: 0;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"] :is(i, bit-icon, svg) {
+  justify-self: center;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"][aria-pressed] {
+  min-height: 44px;
+}
+
 .bit-menu-panel [role="menu"] [role="menuitem"]:is(:hover, :focus-visible) {
   background: var(--mac-hover) !important;
+}
+
+.bit-menu-panel [role="menu"] [role="menuitem"]:focus-visible {
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus) !important;
+  outline-offset: calc(-1 * var(--mac-focus-ring-width)) !important;
+  box-shadow: none !important;
 }
 
 .bit-menu-panel [role="menu"] [role="menuitem"].tw-text-fg-danger:is(:hover, :focus-visible) {
@@ -1573,7 +1830,11 @@ bw-vault-detail-field {
 .vault-skeleton-line::after {
   position: absolute;
   inset: 0;
-  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  /* Loading shimmer is continuous progress feedback, not an interaction transition. */
+  animation-name: skeleton-shimmer;
+  animation-duration: 1.4s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.62), transparent);
   content: "";
   transform: translateX(-100%);
@@ -2038,7 +2299,7 @@ bw-vault-detail-field {
 bw-login-environment-selector {
   display: block;
   width: min(100%, 360px);
-  margin: var(--mac-space-3) auto 0;
+  margin: 12px auto 0;
 }
 
 .official-login-environment {
@@ -2116,29 +2377,23 @@ bw-login-environment-selector > .tw-mb-1 {
 }
 
 bw-login-environment-selector [bitTypography="body2"] {
-  display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
-  min-height: 28px;
+  display: flex;
+  min-height: 52px;
   align-items: center;
   justify-content: center;
-  gap: 2px;
   margin: 0;
-  border: 1px solid color-mix(in srgb, var(--mac-border-subtle) 72%, transparent);
-  border-radius: 999px;
-  padding: 3px 9px;
-  background: color-mix(in srgb, var(--mac-surface-solid) 55%, transparent);
+  border: 0;
+  border-block: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
   color: var(--mac-text-secondary);
-  font-size: 12px;
-  font-weight: 450;
-  line-height: 1.25;
-  text-align: center;
 }
 
 bw-login-environment-selector [bitTypography="body2"] button {
   display: inline-flex;
   min-width: 0;
-  min-height: 24px;
+  min-height: 44px;
   align-items: center;
   gap: 1px;
   padding: 0 2px !important;
@@ -2147,6 +2402,13 @@ bw-login-environment-selector [bitTypography="body2"] button {
   font-weight: 600;
   line-height: 1.25;
   text-decoration: none;
+}
+
+[bitlink][aria-haspopup="menu"] {
+  min-height: var(--mac-hit-size);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 bw-login-environment-selector [bitTypography="body2"] button b {
@@ -2163,14 +2425,14 @@ bw-login-environment-selector [bitTypography="body2"] button bit-icon {
 }
 
 /* Authentication is a separate, quiet composition: it never inherits the main-route switcher. */
-:root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)),
-body:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)),
-barwarden-root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)) {
+:root:has(barwarden-root.barwarden-root--authentication),
+body:has(> barwarden-root.barwarden-root--authentication),
+barwarden-root.barwarden-root--authentication {
   background: var(--mac-canvas);
 }
 
-barwarden-root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)),
-barwarden-root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)) .popup-window-size-source,
+barwarden-root.barwarden-root--authentication,
+barwarden-root.barwarden-root--authentication .popup-window-size-source,
 bw-login-page,
 bw-password-hint-page,
 bw-lock-page,
@@ -2182,7 +2444,7 @@ bw-new-device-verification-page {
   background: var(--mac-canvas);
 }
 
-barwarden-root:has(:is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)) .popup-window-size-source {
+barwarden-root.barwarden-root--authentication .popup-window-size-source {
   height: var(--bw-popup-height);
 }
 
@@ -2227,12 +2489,12 @@ popup-page:has(.macos-auth-page) [data-testid="popup-layout-scroll-region"] {
   width: min(100%, 360px);
   min-width: 0;
   margin-inline: auto;
-  padding: var(--mac-space-5);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
-  background: var(--mac-surface-solid);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--mac-text-primary);
-  box-shadow: 0 1px 2px var(--mac-shadow);
+  box-shadow: none;
 }
 
 bw-official-anonymous-shell auth-anon-layout {
@@ -2281,7 +2543,7 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   display: inline-flex;
   align-items: center;
   gap: var(--mac-space-3);
-  min-height: 24px;
+  min-height: 44px;
   margin: 0 0 var(--mac-space-5);
   color: var(--mac-text-primary);
   cursor: pointer;
@@ -2317,6 +2579,12 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   border-radius: var(--mac-control-radius);
   background: var(--mac-surface-solid);
   color: var(--mac-text-primary);
+}
+
+.macos-auth-card input,
+.macos-auth-card select,
+.macos-auth-card textarea {
+  border-radius: 10px !important;
 }
 
 .macos-field [bitfieldcontainer] {
@@ -2359,14 +2627,35 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   background: transparent !important;
 }
 
-.macos-field :is(input, select, textarea):focus-visible,
-.macos-auth-card :is(button, [role="button"], a):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 1px;
+/* The shortcut recorder and its clear action are the two direct controls in
+ * this field. Keep their targets touch-safe without changing the shared 40px
+ * form-field geometry used by unrelated routes. */
+bw-keyboard-shortcut-page .macos-form-field__control {
+  min-width: var(--mac-control-min-size) !important;
+  min-height: var(--mac-control-min-size) !important;
 }
 
-.macos-auth-card .macos-field :is(input, select, textarea):focus-visible {
-  outline: none !important;
+bw-keyboard-shortcut-page .macos-form-field__suffix {
+  width: var(--mac-control-min-size) !important;
+  min-width: var(--mac-control-min-size) !important;
+  height: var(--mac-control-min-size) !important;
+  min-height: var(--mac-control-min-size) !important;
+  flex-basis: var(--mac-control-min-size);
+}
+
+.macos-auth-card button:focus-visible,
+.macos-auth-card [role="button"]:focus-visible,
+.macos-auth-card a:focus-visible {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-auth-card .macos-button-owner:focus-visible {
+  outline-width: 0 !important;
+  outline-style: none !important;
+  box-shadow: none !important;
 }
 
 .macos-auth-card :is(button, [role="button"], a) {
@@ -2385,7 +2674,94 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   background: var(--bw-primary-hover) !important;
 }
 
+.macos-button-owner.macos-primary-action,
+.macos-button-owner.macos-primary-action:hover:not(:disabled) {
+  background: transparent !important;
+}
+
+.macos-auth-card .macos-primary-action {
+  min-height: 44px !important;
+}
+
+bw-official-password-login bit-form-field.macos-field-owner [bitfieldcontainer] {
+  min-height: var(--mac-hit-size) !important;
+}
+
+bw-official-password-login input.macos-control-visible {
+  height: var(--mac-control-visible);
+  min-height: var(--mac-control-visible);
+  overflow: visible;
+}
+
+bw-official-password-login .macos-primary-action.macos-button-owner {
+  min-height: var(--mac-hit-size) !important;
+}
+
+:root[data-bw-compact-mode="true"] bw-official-password-login input.macos-control-visible {
+  height: var(--mac-control-visible-compact);
+  min-height: var(--mac-control-visible-compact);
+}
+
+.macos-auth-card bit-form-field.macos-field-owner [bitfieldcontainer] {
+  min-height: var(--mac-hit-size) !important;
+}
+
+.macos-auth-card input.macos-control-visible {
+  height: var(--mac-control-visible) !important;
+  min-height: var(--mac-control-visible) !important;
+  overflow: visible;
+}
+
+.macos-auth-alternatives {
+  display: grid;
+  gap: 0;
+  border-block: 1px solid var(--mac-border-subtle);
+}
+
+.macos-auth-alternative {
+  min-height: var(--mac-hit-size) !important;
+  height: auto;
+  border: 0 !important;
+  border-bottom: 1px solid var(--mac-border-subtle) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--mac-accent) !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+.macos-auth-alternative:last-child {
+  border-bottom: 0 !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-auth-card input.macos-control-visible {
+  height: var(--mac-control-visible-compact) !important;
+  min-height: var(--mac-control-visible-compact) !important;
+}
+
+.macos-auth-card :is(
+  [data-testid="two-factor-other-method"],
+  [data-testid="two-factor-back"],
+  [data-testid="new-device-resend"],
+  [data-testid="new-device-back"]
+) {
+  min-height: 44px;
+  border: 0;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  color: var(--mac-accent);
+  box-shadow: none;
+}
+
+.macos-auth-card :is([data-testid="two-factor-back"], [data-testid="new-device-back"]) {
+  color: var(--mac-text-secondary);
+}
+
 .macos-auth-validation {
+  min-height: 0;
   min-block-size: 0;
   overflow-wrap: anywhere;
 }
@@ -2412,7 +2788,7 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
  * and directly dismissible instead of inserting a second warning card between
  * the password field and its primary action. */
 .macos-auth-validation--field bit-callout .macos-alert-strip {
-  grid-template-columns: 16px minmax(0, 1fr) 24px;
+  grid-template-columns: 16px minmax(0, 1fr) var(--mac-control-min-size);
   align-items: center;
   gap: 6px;
   margin-top: 6px !important;
@@ -2438,10 +2814,10 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 
 .macos-auth-validation--field .macos-alert-strip__dismiss {
   display: grid;
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  min-height: 24px;
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   place-items: center;
   border-radius: 6px;
   color: var(--mac-destructive);
@@ -2465,7 +2841,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   padding: 9px 10px;
   background: color-mix(in srgb, var(--mac-destructive) 8%, var(--mac-surface-solid));
   color: var(--mac-text-primary);
-  animation: macos-alert-materialize 140ms ease-out;
+  animation-name: macos-alert-materialize;
+  animation-duration: var(--mac-motion-standard);
+  animation-timing-function: ease-out;
 }
 
 .macos-alert-strip[data-presentation="toast"] {
@@ -2490,7 +2868,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
     0 2px 6px color-mix(in srgb, #0b1220 8%, transparent);
   backdrop-filter: blur(24px) saturate(1.12);
   transform: translateX(-50%);
-  animation: macos-alert-toast-in 180ms cubic-bezier(.2, .82, .25, 1);
+  animation-name: macos-alert-toast-in;
+  animation-duration: var(--mac-motion-standard);
+  animation-timing-function: cubic-bezier(.2, .82, .25, 1);
 }
 
 /* Startup recovery belongs to the application window, not to a routed page.
@@ -2512,7 +2892,9 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   width: 100%;
   max-height: inherit;
   transform: none;
-  animation: macos-alert-materialize 140ms ease-out;
+  animation-name: macos-alert-materialize;
+  animation-duration: var(--mac-motion-standard);
+  animation-timing-function: ease-out;
 }
 
 :root[data-bw-window="popout"] .app-startup-alert {
@@ -2520,7 +2902,7 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 }
 
 :root:has(.floating-tab-switcher) .macos-alert-strip[data-presentation="toast"] {
-  bottom: calc(13px + 58px + var(--mac-space-3));
+  bottom: calc(13px + var(--mac-tabbar-height) + var(--mac-space-3));
 }
 
 :root[data-bw-window="popout"] .macos-alert-strip[data-presentation="toast"] {
@@ -2621,7 +3003,8 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
 }
 
 .macos-alert-strip__action {
-  min-height: 28px;
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   align-self: center;
   border-radius: 7px;
   padding-inline: var(--mac-space-2);
@@ -2677,12 +3060,19 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   line-height: 1.2;
 }
 
+.macos-alert-strip__dismiss {
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
+}
+
 .macos-alert-strip[data-presentation="toast"] .macos-alert-strip__dismiss {
   display: grid;
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  min-height: 28px;
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   place-items: center;
   border-radius: 7px;
   font-size: 14px;
@@ -2723,13 +3113,68 @@ bw-official-anonymous-shell auth-anon-layout :is(h1, h2) {
   grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: var(--mac-space-3);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
+  border: 0;
+  border-radius: 0;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
   padding: var(--mac-space-3);
-  background: color-mix(in srgb, var(--mac-surface-solid) 86%, transparent);
+  background: transparent;
+  box-shadow: none;
   color: var(--mac-text-secondary);
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+[data-testid="lock-switch-pin"],
+[data-testid="lock-switch-biometric"],
+[data-testid="lock-switch-master-password"],
+[data-testid="lock-logout-button"],
+[data-testid="lock-switch-account"] {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px !important;
+  border: 0;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-unlock-methods {
+  display: grid;
+  gap: 0;
+  row-gap: 0;
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: var(--mac-border-subtle);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
+}
+
+.macos-unlock-methods > .macos-primary-action {
+  display: flex;
+  width: 100%;
+  min-height: 44px !important;
+  margin: 8px 0;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--mac-control-radius);
+}
+
+[data-testid="lock-switch-account"] {
+  flex: 0 0 auto;
+}
+
+[data-testid="lock-logout-button"] {
+  color: var(--mac-destructive);
 }
 
 .macos-auth-identity__icon {
@@ -2781,6 +3226,50 @@ auth-account .macos-account-label {
   white-space: normal;
 }
 
+.macos-page--account-switcher auth-account bit-item {
+  min-height: var(--mac-row-double);
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.macos-page--account-switcher bit-section:has(auth-account) > section {
+  display: grid;
+  gap: 0;
+}
+
+.macos-page--account-switcher bit-section:has(auth-account) > section > div:has(> auth-account) {
+  margin: 0;
+}
+
+.macos-page--account-switcher auth-account button[bit-item-content] {
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--account-switcher auth-account :is(button, a),
+.macos-page--account-switcher .macos-hit-target {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--account-switcher .account-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.macos-page--account-switcher auth-account .tw-italic {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--account-switcher auth-account bit-item,
+body.tw-bit-compact .macos-page--account-switcher auth-account bit-item {
+  min-height: var(--mac-row-double-compact);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .macos-auth-skeleton .bwi-spin {
     animation: none !important;
@@ -2803,7 +3292,7 @@ auth-account .macos-account-label {
 }
 
 .macos-page--generator :is(bit-card, bit-item),
-.macos-page--generator-history :is(bit-item, bit-no-items),
+.macos-page--generator-history bit-no-items,
 .macos-page--send :is(bit-item, bit-callout, bit-no-items),
 .macos-page--send-form :is(bit-card, bit-callout),
 .macos-page--send-created :is(bit-card, bit-callout),
@@ -2817,16 +3306,806 @@ auth-account .macos-account-label {
   box-shadow: none;
 }
 
+.macos-send-form__group {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-send-form__field {
+  padding-block: 10px;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
+}
+
+.macos-send-form__error {
+  margin: 4px 0 0;
+  color: var(--mac-destructive);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.macos-send-form__field :is(input, textarea, select) {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+.macos-send-form__field :is(input, textarea, select):focus-visible {
+  outline: 2px solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--send-form :is(button, a) {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.macos-page--send-form bit-form-control > label {
+  min-height: 44px;
+}
+
+.about-version-summary {
+  margin: 0;
+  padding: 8px 12px 12px;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.macos-page--about .about-continuous-list,
+.macos-page--about .about-continuous-list bit-item,
+.macos-page--about .app-update-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--about .about-metadata-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--mac-row-single);
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.macos-page--about .about-continuous-list bit-item:last-child .about-metadata-row {
+  border-bottom-width: 0;
+}
+
+.macos-page--about :is(button, a) {
+  min-height: var(--mac-hit-size);
+}
+
+.app-update-card {
+  display: grid;
+  gap: var(--mac-space-3);
+  margin: 0;
+  border: 0;
+  border-block: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--mac-text-primary);
+  box-shadow: none;
+}
+
+.app-update-card__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--mac-space-3);
+}
+
+.app-update-card__header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.app-update-card__version {
+  margin: 2px 0 0;
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.app-update-card__status,
+.app-update-card__release,
+.app-update-card__error {
+  display: grid;
+  min-width: 0;
+  gap: var(--mac-space-2);
+  margin: 0;
+  color: var(--mac-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.app-update-card__status--success {
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  color: var(--mac-success);
+}
+
+.app-update-card__status--progress progress,
+.app-update-card__status > progress {
+  width: 100%;
+  accent-color: var(--mac-accent);
+}
+
+.app-update-card__release strong {
+  color: var(--mac-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-update-card__release p,
+.app-update-card__error p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.app-update-card__error {
+  color: var(--mac-destructive);
+}
+
+.app-update-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mac-space-2);
+}
+
+.document-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 44px 44px;
+  align-items: center;
+  gap: 4px;
+}
+
+.document-search output {
+  min-width: 44px;
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.app-update-notice {
+  position: absolute;
+  z-index: 65;
+  right: 16px;
+  bottom: 16px;
+  display: block;
+  width: min(352px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  pointer-events: auto;
+}
+
+.app-update-notice .macos-alert-strip[data-presentation="toast"] {
+  position: static;
+  left: auto;
+  width: 100%;
+  max-height: inherit;
+  transform: none;
+}
+
+:root:has(.floating-tab-switcher) .app-update-notice {
+  bottom: calc(13px + var(--mac-tabbar-height) + var(--mac-space-3));
+}
+
+:root[data-bw-window="popout"] .app-update-notice {
+  right: max(18px, calc((100vw - var(--bw-popout-content-width)) / 2 + 18px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-update-card progress,
+  .app-update-notice .macos-alert-strip {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-update-notice .macos-alert-strip[data-presentation="toast"] {
+    background: var(--mac-surface-solid);
+    box-shadow: 0 2px 8px color-mix(in srgb, #0b1220 12%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .app-update-card {
+    border-width: 2px;
+  }
+}
+
 .macos-page.macos-page--settings bit-item-group {
   background: transparent;
 }
 
-.macos-page--generator bw-official-generator-core > bit-card:first-of-type {
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
-  background: var(--mac-surface-solid);
-  color: var(--mac-text-primary);
+.macos-generator__result {
+  display: grid;
+  height: auto;
+  min-height: 68px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  padding: 8px 0 12px;
+  overflow: visible;
+  background: transparent;
   box-shadow: none;
+}
+
+.macos-generator__value {
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-generator__result-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.macos-generator__result-actions button {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  border-color: transparent;
+  padding: 6px;
+  background: transparent;
+  box-shadow: none;
+  outline: 0 !important;
+}
+
+.macos-generator__result-actions button:is(
+  :hover,
+  :active,
+  :focus,
+  :focus-visible,
+  :disabled,
+  [aria-disabled="true"],
+  [aria-expanded="true"]
+) {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.macos-generator__result-actions button > .bwi,
+.macos-generator__result-actions button > span > .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border-radius: var(--mac-control-radius);
+  outline-style: none;
+  outline-width: 0;
+}
+
+.macos-generator__result-actions button[buttontype="primary"] > .bwi,
+.macos-generator__result-actions button[buttontype="primary"] > span > .bwi {
+  background: var(--mac-accent);
+  color: white;
+}
+
+.macos-generator__result-actions button[buttontype="primary"]:hover > .bwi,
+.macos-generator__result-actions button[buttontype="primary"]:hover > span > .bwi {
+  background: #075be6;
+  background: color-mix(in srgb, var(--mac-accent) 88%, black);
+}
+
+.macos-generator__result-actions button[buttontype="primary"]:active > .bwi,
+.macos-generator__result-actions button[buttontype="primary"]:active > span > .bwi {
+  background: #064bbd;
+  background: color-mix(in srgb, var(--mac-accent) 74%, black);
+}
+
+.macos-generator__result-actions button[buttontype="primary"]:is(
+  :disabled,
+  [aria-disabled="true"]
+) > .bwi,
+.macos-generator__result-actions button[buttontype="primary"]:is(
+  :disabled,
+  [aria-disabled="true"]
+) > span > .bwi {
+  background: var(--mac-disabled);
+  color: Canvas;
+}
+
+.macos-generator__result-actions button[buttontype="primaryGhost"] > .bwi,
+.macos-generator__result-actions button[buttontype="primaryGhost"] > span > .bwi {
+  background: transparent;
+  color: var(--mac-text-primary);
+}
+
+.macos-generator__result-actions button[buttontype="primaryGhost"]:hover > .bwi,
+.macos-generator__result-actions button[buttontype="primaryGhost"]:hover > span > .bwi {
+  background: var(--mac-hover);
+}
+
+.macos-generator__result-actions button[buttontype="primaryGhost"]:active > .bwi,
+.macos-generator__result-actions button[buttontype="primaryGhost"]:active > span > .bwi {
+  background: var(--mac-pressed);
+}
+
+.macos-generator__result-actions button[buttontype="primaryGhost"]:is(
+  :disabled,
+  [aria-disabled="true"]
+) > .bwi,
+.macos-generator__result-actions button[buttontype="primaryGhost"]:is(
+  :disabled,
+  [aria-disabled="true"]
+) > span > .bwi,
+.macos-generator__result-actions button[buttontype="primaryGhost"]:is(
+  :disabled,
+  [aria-disabled="true"]
+):is(:hover, :active) > .bwi,
+.macos-generator__result-actions button[buttontype="primaryGhost"]:is(
+  :disabled,
+  [aria-disabled="true"]
+):is(:hover, :active) > span > .bwi {
+  background: var(--mac-disabled);
+  color: Canvas;
+}
+
+.macos-generator__result-actions button:focus-visible > .bwi,
+.macos-generator__result-actions button:focus-visible > span > .bwi {
+  outline-color: var(--mac-focus);
+  outline-style: solid;
+  outline-width: var(--mac-focus-ring-width);
+  outline-offset: 2px;
+}
+
+.macos-generator__result-actions button:focus:not(:focus-visible),
+.macos-generator__result-actions button:focus:not(:focus-visible) > .bwi,
+.macos-generator__result-actions button:focus:not(:focus-visible) > span > .bwi {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+}
+
+.macos-generator__mode {
+  display: flex;
+  min-height: var(--mac-hit-size);
+  align-items: center;
+  margin: 0 0 12px;
+}
+
+.macos-generator__mode bit-toggle-group {
+  min-height: var(--mac-hit-size);
+  align-items: stretch;
+}
+
+.macos-generator__mode bit-toggle,
+.macos-generator__mode bit-toggle > :is(input[type="radio"], label) {
+  height: auto !important;
+  min-height: var(--mac-hit-size);
+  max-height: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  -webkit-line-clamp: none !important;
+}
+
+.macos-generator__mode bit-toggle {
+  position: relative;
+  align-items: stretch;
+}
+
+.macos-generator__mode bit-toggle > :is(input[type="radio"], label) {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.macos-generator__mode bit-toggle > label {
+  padding: 2px 0 !important;
+  align-self: stretch;
+  align-items: stretch !important;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"] {
+  align-self: stretch;
+}
+
+.macos-generator__mode bit-toggle > label > span:first-child {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-height: var(--mac-control-visible);
+  max-height: none;
+  align-items: center;
+  align-self: stretch;
+  flex: 1 1 auto;
+  justify-content: center;
+  border: 1px solid var(--mac-accent);
+  padding-inline: 12px;
+  background: transparent;
+  color: var(--mac-accent);
+  overflow: visible;
+  white-space: normal;
+  text-align: center;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: none;
+  outline-style: none;
+  outline-width: 0;
+}
+
+.macos-generator__mode bit-toggle:not(:first-of-type) > label > span:first-child {
+  border-inline-start-width: 0;
+}
+
+.macos-generator__mode bit-toggle:first-of-type > label > span:first-child {
+  border-start-start-radius: 999px;
+  border-end-start-radius: 999px;
+}
+
+.macos-generator__mode bit-toggle:last-of-type > label > span:first-child {
+  border-start-end-radius: 999px;
+  border-end-end-radius: 999px;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:checked + label > span:first-child {
+  border-color: var(--mac-accent);
+  background: var(--mac-accent);
+  color: white;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:not(:checked) + label:hover > span:first-child {
+  background: var(--mac-hover);
+}
+
+.macos-generator__mode bit-toggle > label:active > span:first-child {
+  background: var(--mac-pressed);
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:checked + label:active > span:first-child {
+  background: #064bbd;
+  background: color-mix(in srgb, var(--mac-accent) 74%, black);
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:focus-visible {
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:focus-visible + label {
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:focus-visible + label > span:first-child {
+  outline-color: var(--mac-focus);
+  outline-style: solid;
+  outline-width: var(--mac-focus-ring-width);
+  outline-offset: 2px;
+}
+
+.macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible),
+.macos-generator__mode bit-toggle > input[type="radio"]:focus:not(:focus-visible) + label,
+.macos-generator__mode bit-toggle
+  > input[type="radio"]:focus:not(:focus-visible) + label > span:first-child {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-generator__result-actions button > .bwi,
+:root[data-bw-compact-mode="true"] .macos-generator__result-actions button > span > .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-generator__mode bit-toggle > label {
+  padding: 4px 0 !important;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-generator__mode bit-toggle > label > span:first-child {
+  min-height: var(--mac-control-visible-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-generator__result-actions button,
+  .macos-generator__result-actions button > .bwi,
+  .macos-generator__result-actions button > span > .bwi,
+  .macos-generator__mode bit-toggle,
+  .macos-generator__mode bit-toggle > :is(input[type="radio"], label),
+  .macos-generator__mode bit-toggle > label > span:first-child,
+  .macos-page--generator .macos-generator__settings [bitfieldcontainer],
+  .macos-page--generator .macos-generator__settings :is(
+    input,
+    select,
+    [role="combobox"]
+  ),
+  .macos-page--generator .macos-generator__settings bit-form-control > label {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-generator__result {
+    border-bottom-color: CanvasText;
+  }
+
+  .macos-generator__result-actions button[buttontype="primary"] .bwi {
+    border: 1px solid Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__result-actions button[buttontype="primaryGhost"] .bwi {
+    border: 1px solid ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__result-actions button[buttontype="primaryGhost"]:is(
+    :disabled,
+    [aria-disabled="true"]
+  ) .bwi {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__result-actions button[buttontype="primary"]:is(
+    :disabled,
+    [aria-disabled="true"]
+  ) .bwi {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__mode bit-toggle > label > span:first-child {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__mode bit-toggle > input[type="radio"]:checked + label > span:first-child {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator__result-actions button:focus-visible > .bwi,
+  .macos-generator__result-actions button:focus-visible > span > .bwi,
+  .macos-generator__mode bit-toggle > input[type="radio"]:focus-visible + label > span:first-child {
+    outline-color: Highlight !important;
+  }
+
+}
+
+.macos-generator__settings {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  overflow: visible;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  :is(tools-password-settings, tools-passphrase-settings, tools-username-settings) {
+  margin-top: 0 !important;
+}
+
+.macos-page--generator .macos-generator__settings bit-section-header h2 {
+  margin-top: 0 !important;
+}
+
+.macos-page--generator .macos-generator__settings bit-form-field {
+  min-height: var(--mac-hit-size);
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  overflow: visible;
+}
+
+.macos-page--generator .macos-generator__settings bit-form-field.macos-field-owner {
+  display: block;
+  width: 100%;
+}
+
+.macos-page--generator .macos-generator__settings bit-form-field label {
+  overflow: visible;
+  white-space: normal;
+}
+
+.macos-page--generator .macos-generator__settings [bitfieldcontainer],
+.macos-page--generator .macos-generator__settings :is(
+  input:not([type="checkbox"]),
+  select,
+  [role="combobox"]
+),
+.macos-page--generator .macos-generator__settings bit-select.macos-control-visible,
+.macos-page--generator .macos-generator__settings bit-select.macos-control-visible ng-select,
+.macos-page--generator
+  .macos-generator__settings
+  bit-select.macos-control-visible
+  ng-select
+  > .ng-select-container {
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  min-height: var(--mac-control-visible);
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  border-radius: var(--mac-control-radius);
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  tools-password-settings
+  :is(div):has(> bit-form-control) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  flex-wrap: wrap;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  tools-password-settings
+  :is(div):has(> bit-form-field + bit-form-field) {
+  display: flex;
+  column-gap: 12px;
+  row-gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  flex-wrap: wrap;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  tools-password-settings
+  :is(div):has(> bit-form-field + bit-form-field)
+  > bit-form-field {
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 13rem;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.macos-page--generator .macos-generator__settings bit-form-control {
+  min-height: var(--mac-hit-size);
+  margin: 0;
+}
+
+.macos-page--generator .macos-generator__settings bit-form-control > label {
+  min-height: var(--mac-hit-size);
+  align-items: center;
+  margin: 0;
+  overflow: visible;
+  white-space: normal;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  [bitfieldcontainer]:has(:focus-visible),
+.macos-page--generator
+  .macos-generator__settings
+  bit-form-control
+  > label:has(:focus-visible) {
+  outline-color: var(--mac-focus);
+  outline-style: solid;
+  outline-width: var(--mac-focus-ring-width);
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  [bitfieldcontainer]
+  :is(input, select, [role="combobox"]):focus-visible,
+.macos-page--generator
+  .macos-generator__settings
+  bit-form-control
+  > label
+  :is(input, select, [role="combobox"]):focus-visible {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-page--generator
+  .macos-generator__settings
+  [bitfieldcontainer]:has(:focus:not(:focus-visible)),
+.macos-page--generator
+  .macos-generator__settings
+  :is(input, select, [role="combobox"]):focus:not(:focus-visible),
+.macos-page--generator
+  .macos-generator__settings
+  bit-form-control
+  > label:has(:focus:not(:focus-visible)) {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  [bitfieldcontainer],
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  :is(input:not([type="checkbox"]), select, [role="combobox"]),
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  bit-select.macos-control-visible,
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  bit-select.macos-control-visible
+  ng-select,
+:root[data-bw-compact-mode="true"]
+  .macos-page--generator
+  .macos-generator__settings
+  bit-select.macos-control-visible
+  ng-select
+  > .ng-select-container {
+  min-height: var(--mac-control-visible-compact);
+}
+
+@media (forced-colors: active) {
+  .macos-page--generator .macos-generator__settings [bitfieldcontainer] {
+    border-color: ButtonText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--generator
+    .macos-generator__settings
+    :is(
+      [bitfieldcontainer]:has(:focus-visible),
+      bit-form-control > label:has(:focus-visible)
+    ) {
+    border-color: Highlight !important;
+    outline-color: Highlight !important;
+  }
 }
 
 /* Upstream success and custom-field templates carry utility background
@@ -2835,6 +4114,39 @@ auth-account .macos-account-label {
  * accidental second white layer. */
 .macos-page--send-created .tw-bg-background-alt {
   background: transparent !important;
+}
+
+.macos-send-created__summary {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin: 0 16px;
+  padding: 24px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-send-created__icon {
+  width: 44px;
+  height: 44px;
+  color: var(--mac-success);
+}
+
+.macos-send-created__summary :is(h2, p) {
+  margin: 0;
+}
+
+.macos-send-created__summary input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+.macos-page--send-created :is(button, a) {
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .macos-page--vault-form [data-testid="custom-fields"] > .tw-bg-background,
@@ -2863,14 +4175,43 @@ auth-account .macos-account-label {
   margin-top: var(--mac-space-1);
 }
 
-.macos-page :is(input, select, textarea):focus-visible,
-.macos-page :is(button, a):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 1px;
+.macos-page--settings .settings-group + .settings-group { margin-top: 22px; }
+.macos-page--settings .settings-group__title { margin: 0 16px 8px; }
+.macos-page--settings .settings-group__items { margin-inline: 0; }
+.macos-page--settings .settings-row { border: 0; border-radius: 0; }
+.macos-page--settings bit-item + bit-item { margin-top: 0; }
+
+bit-form-field [bitfieldcontainer]:has(:focus-visible),
+bit-search [bitfieldcontainer]:has(:focus-visible),
+bit-form-control > label:has(:focus-visible),
+.vault-root-header__search:has(:focus-visible) {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+  box-shadow: none !important;
 }
 
-.macos-page :is(bit-search, bit-form-field, bit-form-control) :is(input, select, textarea):focus-visible {
-  outline: none;
+bit-form-field [bitfieldcontainer]:has(:focus-visible):not(:has([aria-invalid="true"])) {
+  border-color: var(--mac-border) !important;
+}
+
+bit-search [bitfieldcontainer] {
+  border-color: color-mix(in srgb, var(--mac-accent) 18%, var(--mac-border-subtle)) !important;
+  box-shadow: none !important;
+}
+
+bit-search [bitfieldcontainer]:has(:focus-visible),
+.vault-root-header__search:has(:focus-visible) {
+  border-color: color-mix(in srgb, var(--mac-accent) 18%, var(--mac-border-subtle)) !important;
+}
+
+bit-form-field [bitfieldcontainer] :is(input, select, textarea):focus-visible,
+bit-search [bitfieldcontainer] :is(input, select, textarea):focus-visible,
+bit-form-control > label :is(input, select, textarea):focus-visible,
+.vault-root-header__search input:focus-visible {
+  outline-width: 0 !important;
+  outline-style: none !important;
 }
 
 .macos-page--send :is([role="menu"], .send-create-menu),
@@ -2905,14 +4246,20 @@ auth-account .macos-account-label {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .macos-pressable {
+    transition-duration: 0s !important;
+    transform: none !important;
+  }
+
   .floating-tab-switcher__indicator {
-    transition: none;
+    transition-duration: 0s !important;
   }
 
   .app-bottom-sheet,
   .app-bottom-sheet[data-state="opening"],
   .app-bottom-sheet[data-state="closing"] {
-    transform: none;
+    transition-duration: 0s !important;
+    transform: none !important;
   }
 
   .macos-pressable:active {
@@ -2931,6 +4278,16 @@ auth-account .macos-account-label {
   .bit-menu-panel [role="menu"] {
     animation: none;
     transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .popup-shell::after,
+  .macos-glass-navigation {
+    border-color: var(--mac-border);
+    background: var(--mac-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -2953,6 +4310,30 @@ auth-account .macos-account-label {
 }
 
 @media (forced-colors: active) {
+  .macos-switch-owner > span {
+    border-color: CanvasText;
+    background: Canvas;
+    forced-color-adjust: none;
+  }
+
+  .macos-switch-owner > span::after {
+    background: CanvasText;
+    box-shadow: none;
+  }
+
+  .macos-switch-owner[aria-checked="true"] > span {
+    border-color: Highlight;
+    background: Highlight;
+  }
+
+  .macos-switch-owner[aria-checked="true"] > span::after {
+    background: HighlightText;
+  }
+
+  .macos-switch-owner:focus-visible > span {
+    outline-color: Highlight;
+  }
+
   .macos-auth-card,
   .macos-field :is(input, select, textarea) {
     border-color: CanvasText;
@@ -2964,6 +4345,55 @@ auth-account .macos-account-label {
     border-color: Highlight !important;
     background: Highlight !important;
     color: HighlightText !important;
+  }
+
+  :where(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline-color: Highlight !important;
+  }
+
+  .macos-button-owner:focus-visible::before {
+    outline-color: Highlight !important;
+  }
+
+  bit-form-field [bitfieldcontainer]:has(:focus-visible),
+  bit-search [bitfieldcontainer]:has(:focus-visible),
+  bit-form-control > label:has(:focus-visible),
+  .vault-root-header__search:has(:focus-visible),
+  .macos-page--vault-recovery bit-item:focus-within {
+    border-color: Highlight !important;
+    outline-color: Highlight !important;
+  }
+
+  .macos-list app-retained-vault-list-item > bit-item:focus-within {
+    border-color: Highlight !important;
+  }
+
+  .floating-tab-switcher__segment[aria-current="page"] {
+    border: 2px solid Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  :where(input, select, textarea)[aria-invalid="true"] {
+    border: 2px solid Mark !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+    forced-color-adjust: none;
+  }
+
+  :where(button, a, [role="button"]):is(
+    .danger-action,
+    .is-danger,
+    .tw-bg-bg-danger,
+    .tw-text-fg-danger,
+    .account-switcher-destructive-action,
+    [buttontype="danger"]
+  ) {
+    border: 1px solid Mark !important;
+    background: Mark !important;
+    color: MarkText !important;
+    forced-color-adjust: none;
   }
 }
 
@@ -3075,6 +4505,61 @@ auth-account .macos-account-label {
   box-shadow: none;
 }
 
+.app-bottom-sheet[data-testid="accessibility-permission-sheet"] {
+  box-sizing: border-box;
+  padding: 20px 24px max(20px, env(safe-area-inset-bottom));
+}
+
+.app-bottom-sheet[data-testid="accessibility-permission-sheet"] h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 680;
+  line-height: 1.35;
+}
+
+.app-bottom-sheet[data-testid="accessibility-permission-sheet"] > p {
+  margin: 8px 0 0;
+  color: var(--mac-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app-bottom-sheet[data-testid="accessibility-permission-sheet"] bw-macos-alert-strip {
+  display: block;
+  margin-top: 16px;
+}
+
+.app-bottom-sheet[data-testid="accessibility-permission-sheet"] footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.app-bottom-sheet[data-testid="accessibility-permission-sheet"] footer button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--mac-border-subtle);
+  border-radius: var(--mac-control-radius);
+  background: var(--mac-surface-raised);
+  color: var(--mac-text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-bottom-sheet[data-testid="accessibility-permission-sheet"] footer button:last-child {
+  border-color: transparent;
+  background: var(--mac-accent);
+  color: white;
+}
+
+.app-bottom-sheet[data-testid="accessibility-permission-sheet"] footer button:focus-visible {
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
 .app-bottom-sheet-header {
   flex: 0 0 auto;
   border-bottom: 1px solid transparent;
@@ -3162,12 +4647,12 @@ auth-account .macos-account-label {
   :root[data-bw-window="popout"] .app-bottom-sheet[open]:not([data-state]),
   :root[data-bw-window="popout"] .app-bottom-sheet[data-state="opening"],
   :root[data-bw-window="popout"] .app-bottom-sheet[data-state="closing"] {
-    transform: translateX(-50%);
+    transform: translateX(-50%) !important;
   }
 
   @starting-style {
     :root[data-bw-window="popout"] .app-bottom-sheet[data-state="open"] {
-      transform: translateX(-50%);
+      transform: translateX(-50%) !important;
     }
   }
 }
@@ -3856,7 +5341,8 @@ auth-account .macos-account-label {
 }
 
 .field-action {
-  min-height: 30px;
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
   border: 1px solid var(--bw-border);
   border-radius: 7px;
   padding: 0 9px;
@@ -4131,6 +5617,45 @@ auth-account .macos-account-label {
 
 .send-list-section bit-section-header h2 {
   margin-block-start: 0;
+}
+
+.macos-send-list {
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-send-row,
+.macos-page--send .macos-send-row {
+  min-height: 52px;
+  margin-bottom: 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-send-row__actions button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.macos-page--send :is(
+  .macos-send__new-action,
+  .macos-send__filter-action,
+  .macos-send__empty-create-action
+),
+.bit-menu-panel [role="menu"] .macos-send-row__delete-action {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-send-row,
+:root[data-bw-compact-mode="true"] .macos-page--send .macos-send-row {
+  min-height: 44px;
 }
 
 .send-list {
@@ -4488,23 +6013,37 @@ auth-account .macos-account-label {
 
 .new-item-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.new-item-option-row + .new-item-option-row {
+  border-top: 1px solid var(--mac-border-subtle);
 }
 
 .new-item-option {
   display: grid;
-  min-height: 112px;
-  grid-template-columns: 34px minmax(0, 1fr);
-  align-items: start;
-  gap: 10px;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: var(--mac-row-radius);
-  padding: 13px 12px;
-  background: var(--mac-surface-solid);
+  width: 100%;
+  min-height: var(--mac-row-height);
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 12px;
+  background: transparent;
   color: var(--mac-text-primary);
   text-decoration: none;
   box-shadow: none;
+}
+
+body.tw-bit-compact .new-item-option {
+  min-height: var(--mac-compact-row-height);
+  padding-block: 4px;
 }
 
 .new-item-option:hover {
@@ -4560,6 +6099,10 @@ auth-account .macos-account-label {
   min-width: 0;
 }
 
+popup-page.macos-page--vault-list > popup-header > header {
+  border-bottom: 0 !important;
+}
+
 .vault-root-header {
   display: grid;
   min-height: 54px;
@@ -4589,30 +6132,25 @@ auth-account .macos-account-label {
   gap: var(--mac-space-1);
 }
 
-.vault-root-header__actions .header-actions > :is(app-pop-out, app-current-account) button {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+.header-actions > :is(app-pop-out, app-current-account) button {
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
 }
 
 .vault-root-header__search {
   display: flex;
-  min-height: 42px;
+  min-height: 44px;
   align-items: center;
   gap: var(--mac-space-2);
-  margin: 0 var(--mac-space-5) var(--mac-space-1);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 999px;
+  margin: 0 var(--mac-space-4);
+  border: 1px solid color-mix(in srgb, var(--mac-accent) 18%, var(--mac-border-subtle));
+  border-radius: 12px;
   padding: 0 14px;
-  background: color-mix(in srgb, var(--mac-surface-solid) 88%, transparent);
+  background: var(--mac-surface-contextual);
   color: var(--mac-text-secondary);
-  box-shadow: 0 5px 18px color-mix(in srgb, var(--mac-shadow) 35%, transparent);
-}
-
-.vault-root-header__search:focus-within {
-  border-color: color-mix(in srgb, var(--mac-focus) 54%, var(--mac-border-subtle));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 22%, transparent);
+  box-shadow: none;
 }
 
 .vault-root-header__search > .bwi {
@@ -4647,12 +6185,35 @@ auth-account .macos-account-label {
  * Keep the same compact 20px rhythm for Vault, OTP, and Send search screens. */
 popup-page > main > div:has(bw-root-search),
 popup-page > main > div:has(bit-search) {
-  padding-block: var(--mac-space-2) !important;
+  padding-top: var(--mac-space-4) !important;
+  padding-bottom: 0 !important;
 }
 
 popup-page > main > div:has(bw-root-search) + [data-testid="popup-layout-scroll-region"],
 popup-page > main > div:has(bit-search) + [data-testid="popup-layout-scroll-region"] {
-  padding-top: var(--mac-space-2) !important;
+  padding-top: 0 !important;
+}
+
+/* Virtualized Vault rows can retain a translated paint layer while scrolling.
+ * Keep that layer behind the complete search region, including the external
+ * focus ring, instead of allowing a tall row to paint through the header. */
+popup-page.macos-page--vault-list > main > div:has(> bw-root-search) {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+  padding-bottom: var(--mac-space-2) !important;
+  background: var(--mac-canvas);
+}
+
+:root[data-bw-compact-mode="true"] popup-page > main > div:has(bw-root-search),
+:root[data-bw-compact-mode="true"] popup-page > main > div:has(bit-search) {
+  padding-top: var(--mac-space-3) !important;
+  padding-bottom: 0 !important;
+}
+
+:root[data-bw-compact-mode="true"] popup-page > main > div:has(bw-root-search) + [data-testid="popup-layout-scroll-region"],
+:root[data-bw-compact-mode="true"] popup-page > main > div:has(bit-search) + [data-testid="popup-layout-scroll-region"] {
+  padding-top: 0 !important;
 }
 
 .vault-hierarchy {
@@ -4661,6 +6222,10 @@ popup-page > main > div:has(bit-search) + [data-testid="popup-layout-scroll-regi
   flex-direction: column;
   align-items: stretch;
   padding: 0 var(--mac-space-4) var(--mac-space-4);
+}
+
+.macos-page--vault-list .vault-hierarchy > bw-vault-disclosure-group + bw-vault-disclosure-group {
+  border-top: 1px solid var(--mac-border-subtle);
 }
 
 /* Angular component hosts are inline by default.  In the native WebKit
@@ -4683,11 +6248,11 @@ bw-retained-new-item-dropdown {
 .vault-hierarchy__trigger {
   display: flex;
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   justify-content: space-between;
   gap: var(--mac-space-2);
-  padding: 0 var(--mac-space-3);
+  padding: 0 var(--mac-space-2);
   background: transparent;
   color: var(--mac-text-secondary);
   font-size: 13px;
@@ -4707,10 +6272,9 @@ bw-retained-new-item-dropdown {
 }
 
 .vault-hierarchy__trigger[aria-expanded="true"] {
-  border: 1px solid var(--mac-border-subtle);
-  border-bottom: 0;
-  border-radius: 12px 12px 0 0;
-  background: var(--mac-surface-solid);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--mac-text-primary);
 }
 
@@ -4741,8 +6305,19 @@ bw-retained-new-item-dropdown {
 
 .vault-hierarchy__children {
   overflow: hidden;
-  border: 1px solid var(--mac-border-subtle);
+  border: 0;
   border-radius: 12px;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.vault-hierarchy__items bit-item-group,
+.macos-page--send .macos-send-list,
+.macos-page--vault-recovery bw-official-folders bit-item-group,
+.macos-page--settings .macos-preference-group,
+.macos-page--appearance .macos-preference-group {
+  overflow: hidden !important;
+  border-radius: 12px !important;
   background: var(--mac-surface-solid);
 }
 
@@ -4779,9 +6354,7 @@ bw-retained-new-item-dropdown {
 /* Authentication has a deliberately separate layout, so it does not flow
  * through the main route-shell rule above. Keep that layout transparent too;
  * otherwise its retained canvas hides the popup material just on login. */
-:root:has(
-  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
-) :is(
+barwarden-root.barwarden-root--authentication :is(
   .popup-window-size-source,
   bw-login-page,
   bw-password-hint-page,
@@ -4801,43 +6374,35 @@ bw-retained-new-item-dropdown {
 /* auth-anon-layout renders this utility background inside its landing-content
  * template. It is below the host elements above, so it needs its own rule or
  * it paints a flat canvas over the middle of the login gradient. */
-:root:has(
-  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
-) auth-anon-layout bit-landing-content > .tw-bg-background-alt,
-:root:has(
-  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
-) auth-anon-layout bit-landing-footer > footer {
+barwarden-root.barwarden-root--authentication auth-anon-layout bit-landing-content > .tw-bg-background-alt,
+barwarden-root.barwarden-root--authentication auth-anon-layout bit-landing-footer > footer {
   background: transparent !important;
 }
 
-:root:has(
-  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
-) body {
+body:has(> barwarden-root.barwarden-root--authentication) {
   background: var(--mac-auth-background) !important;
 }
 
-:root:has(
-  :is(bw-login-page, bw-password-hint-page, bw-lock-page, bw-two-factor-page, bw-new-device-verification-page)
-) barwarden-root {
+barwarden-root.barwarden-root--authentication {
   background: var(--mac-auth-background) !important;
 }
 
 .vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__children {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 /* A root disclosure is one connected surface: only its outer lower corners
  * are rounded.  The previous standalone empty-state card created two rounded
  * top corners directly underneath the already rounded header. */
 .vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__empty {
-  border-top: 0;
-  border-radius: 0 0 12px 12px;
+  border: 0;
+  border-radius: 0;
 }
 
 .vault-hierarchy__child {
   display: grid;
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   grid-template-columns: 28px minmax(0, 1fr) auto 14px;
   align-items: center;
   gap: var(--mac-space-2);
@@ -4908,10 +6473,11 @@ bw-retained-new-item-dropdown {
 
 .vault-hierarchy__empty {
   margin: 0;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   padding: var(--mac-space-5) var(--mac-space-4);
   background: var(--mac-surface-solid);
+  box-shadow: none;
   color: var(--mac-text-secondary);
   font-size: 13px;
   text-align: center;
@@ -4928,13 +6494,14 @@ bw-retained-new-item-dropdown {
 
 .vault-hierarchy__items bit-item-group {
   overflow: hidden;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   background: var(--mac-surface-solid);
+  box-shadow: none;
 }
 
 .vault-hierarchy__node > .vault-hierarchy__content > .vault-hierarchy__items bit-item-group {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 .vault-hierarchy__children > .vault-hierarchy__items bit-item-group {
@@ -4951,7 +6518,7 @@ bw-retained-new-item-dropdown {
   border-radius: 0;
 }
 
-.vault-hierarchy__items app-retained-vault-list-item > bit-item {
+.vault-hierarchy__items .vault-list-row {
   display: flex;
   position: relative;
   min-height: var(--mac-row-height);
@@ -4960,19 +6527,75 @@ bw-retained-new-item-dropdown {
   border-bottom: 1px solid var(--mac-border-subtle);
   border-radius: 0;
   background: var(--mac-surface-solid);
+  box-shadow: none;
   color: var(--mac-text-primary);
   contain: layout paint style;
 }
 
-.vault-hierarchy__items app-retained-vault-list-item > bit-item:focus-within {
+.vault-hierarchy__items .vault-list-row .vault-autofill-suggestions__details {
+  height: var(--mac-row-height);
+  min-height: var(--mac-row-height);
+}
+
+.vault-hierarchy__items .vault-list-row .vault-autofill-suggestions__fill {
+  min-width: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
+}
+
+body.tw-bit-compact .vault-hierarchy__items .vault-list-row {
+  min-height: var(--mac-compact-row-height);
+}
+
+body.tw-bit-compact .vault-hierarchy__items .vault-list-row .vault-autofill-suggestions__details {
+  height: var(--mac-compact-row-height);
+  min-height: var(--mac-compact-row-height);
+}
+
+.vault-hierarchy__items .vault-list-row:focus-within {
   background: var(--mac-selected);
 }
 
-.vault-hierarchy__items app-retained-vault-list-item > bit-item.is-menu-open {
+.vault-hierarchy__items .vault-list-row.is-menu-open {
   background: color-mix(in srgb, var(--mac-accent) 9%, var(--mac-surface-solid));
 }
 
-.vault-hierarchy__items app-retained-vault-list-item:last-child > bit-item {
+.vault-list-row bit-item-action button[biticonbutton] {
+  width: var(--mac-control-min-size);
+  min-width: var(--mac-control-min-size);
+  height: var(--mac-control-min-size);
+  min-height: var(--mac-control-min-size);
+  border: 0 !important;
+  border-radius: 10px;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.vault-list-row bit-item-action button[biticonbutton]:hover {
+  background: var(--mac-hover) !important;
+}
+
+.vault-list-row bit-item-action button[biticonbutton]:active {
+  background: var(--mac-pressed) !important;
+}
+
+.vault-list-row [data-field="username"] .bwi {
+  color: var(--mac-action-username);
+}
+
+.vault-list-row [data-field="password"] .bwi {
+  color: var(--mac-action-password);
+}
+
+.vault-list-row [data-field="totp"] .bwi {
+  color: var(--mac-action-totp);
+}
+
+.vault-hierarchy__items bit-item-group > .vault-list-row:last-child {
+  border-bottom: 0;
+}
+
+.vault-hierarchy__items bit-item-group app-retained-vault-list-item:last-child > .vault-list-row {
   border-bottom: 0;
 }
 
@@ -4981,11 +6604,17 @@ bw-retained-new-item-dropdown {
  * rather than a font baseline. */
 :is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] {
   display: grid;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: var(--mac-header-action-size);
+  min-width: var(--mac-header-action-size);
+  height: var(--mac-header-action-size);
+  min-height: var(--mac-header-action-size);
   border-radius: 999px;
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
   padding: 0 !important;
   place-items: center;
   font-size: 0;
@@ -4996,7 +6625,23 @@ bw-retained-new-item-dropdown {
  * control, hiding text with font-size alone leaves the row gap behind and
  * shifts the plus left of the circular target. */
 :is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] > span > span {
+  display: grid !important;
+  width: var(--mac-header-action-disc-size) !important;
+  height: var(--mac-header-action-disc-size) !important;
+  border-radius: 999px !important;
+  background: var(--mac-accent) !important;
   gap: 0 !important;
+  place-items: center !important;
+}
+
+:is(.header-actions, .macos-page-heading__actions)
+  > bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  > button[bitbutton]:focus-visible
+  > span
+  > span {
+  outline: 2px solid var(--mac-focus) !important;
+  outline-offset: 2px !important;
 }
 
 :is(.header-actions, .macos-page-heading__actions) > bw-retained-new-item-dropdown app-new-item-dropdown > button[bitbutton] > span > span > div {
@@ -5009,6 +6654,62 @@ bw-retained-new-item-dropdown {
   height: 20px;
   margin: 0 !important;
   place-items: center;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 20px;
+  transform: translateY(1px);
+}
+
+.macos-page--vault-recovery [data-testid="new-folder-button"].macos-header-primary-action[bitbutton] {
+  display: grid !important;
+  width: var(--mac-header-action-size) !important;
+  min-width: var(--mac-header-action-size) !important;
+  max-width: var(--mac-header-action-size) !important;
+  height: var(--mac-header-action-size) !important;
+  min-height: var(--mac-header-action-size) !important;
+  max-height: var(--mac-header-action-size) !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  padding: 0 !important;
+  place-items: center;
+  font-size: 0;
+  line-height: 0;
+}
+
+.macos-page--vault-recovery [data-testid="new-folder-button"].macos-header-primary-action[bitbutton] > span > span {
+  display: grid !important;
+  width: var(--mac-header-action-disc-size) !important;
+  height: var(--mac-header-action-disc-size) !important;
+  border-radius: 999px !important;
+  background: var(--mac-accent) !important;
+  gap: 0 !important;
+  place-items: center !important;
+}
+
+.macos-page--vault-recovery
+  [data-testid="new-folder-button"].macos-header-primary-action[bitbutton]:focus-visible
+  > span
+  > span {
+  outline: 2px solid var(--mac-focus) !important;
+  outline-offset: 2px !important;
+}
+
+.macos-page--vault-recovery [data-testid="new-folder-button"].macos-header-primary-action[bitbutton] > span > span > div {
+  display: none;
+}
+
+.macos-page--vault-recovery [data-testid="new-folder-button"].macos-header-primary-action[bitbutton] .bwi {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  margin: 0 !important;
+  place-items: center;
+  color: var(--mac-surface-solid);
   font-size: 20px;
   font-weight: 700;
   line-height: 20px;
@@ -5036,9 +6737,10 @@ bw-retained-new-item-dropdown {
 
 .otp-page__list {
   overflow: hidden;
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   background: var(--mac-surface-solid);
+  box-shadow: none;
 }
 
 bw-otp-code-row {
@@ -5048,13 +6750,23 @@ bw-otp-code-row {
 .otp-code-row {
   display: grid;
   min-width: 0;
-  min-height: 64px;
+  min-height: var(--mac-row-height);
   grid-template-columns: 28px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--mac-space-2);
-  border-bottom: 1px solid var(--mac-border-subtle);
-  padding: var(--mac-space-2) var(--mac-space-3);
+  border: 0;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--mac-border-subtle);
+  border-radius: 0;
+  padding: 4px var(--mac-space-3);
   background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+body.tw-bit-compact .otp-code-row {
+  min-height: var(--mac-compact-row-height);
+  padding: 0 var(--mac-space-3);
 }
 
 bw-otp-code-row:last-child .otp-code-row {
@@ -5135,7 +6847,7 @@ bw-otp-code-row:last-child .otp-code-row {
 .otp-code-row__copy {
   display: flex;
   min-width: 116px;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   justify-content: flex-end;
   gap: var(--mac-space-2);
@@ -5174,7 +6886,9 @@ bw-otp-code-row:last-child .otp-code-row {
 }
 
 .otp-code-row__copy.is-copied .otp-code-row__copy-icon {
-  animation: macos-copy-confirm 220ms ease-out;
+  animation-name: macos-copy-confirm;
+  animation-duration: var(--mac-motion-slow);
+  animation-timing-function: ease-out;
 }
 
 .otp-code-row__status {
@@ -5189,7 +6903,8 @@ bw-otp-code-row:last-child .otp-code-row {
 }
 
 .otp-code-row__retry {
-  min-height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--mac-control-radius);
   padding-inline: var(--mac-space-2);
   color: var(--mac-accent);
@@ -5214,7 +6929,9 @@ bw-otp-code-row:last-child .otp-code-row {
 
 .macos-copy-feedback-icon {
   color: var(--mac-accent) !important;
-  animation: macos-copy-confirm 140ms ease-out;
+  animation-name: macos-copy-confirm;
+  animation-duration: var(--mac-motion-standard);
+  animation-timing-function: ease-out;
 }
 
 button.is-copy-confirmed {
@@ -5231,12 +6948,13 @@ button.is-copy-failed {
   place-items: center;
   align-content: center;
   gap: var(--mac-space-2);
-  border: 1px solid var(--mac-border-subtle);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   padding: var(--mac-space-5);
-  background: var(--mac-surface-solid);
+  background: transparent;
   color: var(--mac-text-secondary);
   text-align: center;
+  box-shadow: none;
 }
 
 .otp-page__empty > .bwi {
@@ -5265,6 +6983,7 @@ button.is-copy-failed {
 
 .macos-list app-retained-vault-list-item > bit-item,
 .macos-page--vault-recovery bit-item {
+  min-width: 0;
   min-height: var(--mac-row-height);
   margin-bottom: var(--mac-space-1);
   overflow: visible;
@@ -5294,10 +7013,49 @@ button.is-copy-failed {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--mac-accent) 12%, transparent);
 }
 
-.macos-list app-retained-vault-list-item > bit-item:focus-within,
+.macos-list app-retained-vault-list-item > bit-item:focus-within {
+  border-color: color-mix(in srgb, var(--mac-focus) 42%, var(--mac-border-subtle));
+  background: var(--mac-selected);
+  outline: none;
+  box-shadow: none;
+}
+
 .macos-page--vault-recovery bit-item:focus-within {
   border-color: color-mix(in srgb, var(--mac-focus) 42%, var(--mac-border-subtle));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-focus) 30%, transparent);
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.macos-page--vault-recovery bw-official-folders bit-item-group {
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.macos-page--vault-recovery bw-official-folders bit-item {
+  min-height: var(--mac-row-height);
+  margin-bottom: 0;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--vault-recovery bw-official-folders bit-item:last-child {
+  border-bottom: 0;
+}
+
+.macos-page--vault-recovery bw-official-folders bit-item:focus-within {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-selected);
+  box-shadow: none;
 }
 
 .macos-list app-retained-vault-list-item [data-testid="vault-item-content"],
@@ -5307,16 +7065,62 @@ button.is-copy-failed {
   overflow: hidden;
 }
 
+body .macos-page--vault-recovery :is(bit-section, bit-item-group) {
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+body .macos-page--vault-recovery bit-item {
+  min-height: var(--mac-row-height);
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body .macos-page--vault-recovery bit-item:last-child {
+  border-bottom: 0;
+}
+
+body .macos-page--vault-recovery bit-item-action button,
+body .macos-page--vault-recovery [data-testid^="history-copy-"] {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+body.tw-bit-compact .macos-page--vault-recovery bit-item {
+  min-height: var(--mac-compact-row-height);
+}
+
 .macos-list app-retained-vault-list-item [data-testid="vault-item-content"] {
+  height: var(--mac-row-height);
   background: transparent !important;
+}
+
+body.tw-bit-compact .macos-list app-retained-vault-list-item > bit-item,
+body.tw-bit-compact .macos-list app-retained-vault-list-item [data-testid="vault-item-content"] {
+  min-height: var(--mac-compact-row-height);
+}
+
+body.tw-bit-compact .macos-list app-retained-vault-list-item [data-testid="vault-item-content"] {
+  height: var(--mac-compact-row-height);
 }
 
 .macos-list app-retained-vault-list-item [data-testid="item-name"],
 .macos-list app-retained-vault-list-item [slot="secondary"],
 .macos-page--vault-recovery [data-testid="item-name"],
 .macos-page--vault-recovery [slot="secondary"] {
+  display: block;
   min-width: 0;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .macos-list bit-item-action + bit-item-action,
@@ -5332,6 +7136,51 @@ button.is-copy-failed {
   min-width: var(--mac-control-min-size);
   height: var(--mac-control-min-size);
   min-height: var(--mac-control-min-size);
+}
+
+/* Search results share the same continuous Vault surface as disclosure
+ * results. This route-specific layer deliberately outranks the reusable
+ * macos-list card treatment above. */
+.macos-page--vault-list .vault-search-results :is(bit-section, bit-item-group) {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+}
+
+.macos-page--vault-list .vault-search-results app-retained-vault-list-item > .vault-list-row {
+  display: flex;
+  position: relative;
+  min-height: var(--mac-row-height);
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  box-shadow: none;
+  color: var(--mac-text-primary);
+  contain: layout paint style;
+}
+
+.macos-page--vault-list .vault-search-results app-retained-vault-list-item > .vault-list-row:hover {
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, var(--mac-hover));
+}
+
+.macos-page--vault-list .vault-search-results app-retained-vault-list-item > .vault-list-row:focus-within {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-selected);
+  box-shadow: none;
+}
+
+.macos-page--vault-list .vault-search-results app-retained-vault-list-item > .vault-list-row.is-menu-open {
+  border-color: var(--mac-border-subtle);
+  background: color-mix(in srgb, var(--mac-accent) 9%, var(--mac-surface-solid));
+  box-shadow: none;
+}
+
+.macos-page--vault-list .vault-search-results bit-item-group app-retained-vault-list-item:last-child > .vault-list-row {
+  border-bottom: 0;
 }
 
 .macos-card,
@@ -5360,6 +7209,92 @@ button.is-copy-failed {
   box-shadow: none;
 }
 
+.macos-page--vault-detail .official-detail-identity-duplicate {
+  display: none;
+}
+
+.vault-detail-heading__metadata {
+  margin: 2px 0 0;
+  color: var(--mac-text-secondary);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.macos-page--vault-detail .cipher-view bit-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--vault-detail .cipher-view :is(
+  section + section,
+  [data-testid="official-login-detail"] > :is(
+    official-login-uri-options,
+    app-additional-options,
+    official-custom-fields
+  ) > section,
+  [data-testid="official-login-detail"] > app-item-history-v2 > bit-section > section,
+  [data-testid="official-personal-cipher-detail"] > :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields,
+    app-item-history-v2
+  ) ~ :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields
+  ) > section,
+  [data-testid="official-personal-cipher-detail"] > :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields,
+    app-item-history-v2
+  ) ~ app-item-history-v2 > bit-section > section
+) {
+  border-top: 1px solid var(--mac-border-subtle);
+  padding-top: var(--mac-space-4);
+}
+
+.macos-page--vault-detail :is(input, textarea, select),
+.macos-page--vault-detail .official-read-only-field > .official-read-only-control {
+  border-radius: 10px;
+}
+
+body.tw-bit-compact .macos-page--vault-detail .cipher-view :is(
+  section + section,
+  [data-testid="official-login-detail"] > :is(
+    official-login-uri-options,
+    app-additional-options,
+    official-custom-fields
+  ) > section,
+  [data-testid="official-login-detail"] > app-item-history-v2 > bit-section > section,
+  [data-testid="official-personal-cipher-detail"] > :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields,
+    app-item-history-v2
+  ) ~ :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields
+  ) > section,
+  [data-testid="official-personal-cipher-detail"] > :is(
+    official-card-details,
+    official-identity-sections,
+    app-additional-options,
+    official-custom-fields,
+    app-item-history-v2
+  ) ~ app-item-history-v2 > bit-section > section
+) {
+  padding-top: var(--mac-space-3);
+}
+
 .macos-page--vault-detail :is(.official-read-only-control, .official-read-only-field, .official-detail-item),
 .macos-page--vault-form :is(.cipher-form-field, .official-form-section) {
   min-width: 0;
@@ -5374,16 +7309,263 @@ button.is-copy-failed {
   color: var(--mac-text-primary);
 }
 
-.macos-page--vault-detail :is(button, input, a):focus-visible,
-.macos-page--vault-form :is(button, input, select, textarea):focus-visible,
-.macos-page--vault-recovery :is(button, input):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--mac-focus) 35%, transparent);
-  outline-offset: 1px;
-}
-
 .macos-page--vault-form :is(input, select, textarea),
 .macos-page--vault-detail :is(input, .official-detail-item) {
   max-width: 100%;
+}
+
+.macos-page--vault-form .cipher-form-scroll bit-card,
+.macos-page--vault-form .official-form-section {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--vault-form :is(input, textarea, select, [role="combobox"]) {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+.macos-page--vault-form .cipher-form-scroll :is(
+  [bitfieldcontainer],
+  .ng-select-container
+) {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll section {
+  margin-bottom: 16px;
+}
+
+.macos-continuous-group,
+.macos-page--settings bit-item-group.macos-continuous-group {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-continuous-group > :is(bit-item, bit-item-action),
+.macos-continuous-group > bit-item > bit-item-action,
+.macos-page--settings .macos-continuous-group > bit-item {
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-continuous-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--mac-row-height);
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+  box-shadow: none;
+}
+
+.macos-continuous-row > :where(span, p, div) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:root[data-bw-compact-mode="true"] .macos-continuous-row {
+  min-height: var(--mac-compact-row-height);
+}
+
+.macos-continuous-group > bit-item:not(:last-child),
+.macos-continuous-group > .macos-continuous-row:not(:last-child) {
+  border-bottom: 1px solid var(--mac-border-subtle);
+}
+
+.macos-form-control {
+  min-height: 44px;
+  border: 1px solid var(--mac-border);
+  border-radius: 10px;
+  background: var(--mac-surface-solid);
+  color: var(--mac-text-primary);
+}
+
+.macos-page--settings-detail .settings-detail-group {
+  margin-top: 16px;
+  margin-right: 0;
+  margin-bottom: 16px;
+  margin-left: 0;
+  background: transparent;
+}
+
+.macos-page--settings-detail .settings-detail-row { padding-inline: 12px; }
+
+.macos-page--settings-detail bit-form-field.shortcut-preference-row > div {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.macos-page--settings-detail
+  bit-form-field.shortcut-preference-row
+  [bitfieldcontainer] {
+  display: flex;
+  width: auto !important;
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  justify-self: end;
+  align-items: center;
+  gap: 8px;
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--settings-detail .shortcut-recorder-owner {
+  display: grid;
+  width: auto !important;
+  min-height: var(--mac-hit-size);
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.macos-page--settings-detail .shortcut-recorder__surface.macos-control-visible {
+  display: flex;
+  width: auto;
+  min-width: 112px;
+  height: var(--mac-control-visible);
+  min-height: var(--mac-control-visible);
+  padding: 0 12px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--mac-border);
+  border-radius: var(--mac-control-radius);
+  background: var(--mac-surface-solid);
+  white-space: nowrap;
+}
+
+.macos-page--settings-detail .shortcut-recorder-owner:focus-visible {
+  outline-width: 0;
+  outline-style: none;
+}
+
+.macos-page--settings-detail .shortcut-recorder-owner:focus-visible .shortcut-recorder__surface {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--settings-detail
+  bit-form-field.shortcut-preference-row
+  [bitfieldcontainer]:has(:focus-visible) {
+  outline-width: 0;
+  outline-style: none;
+  box-shadow: none !important;
+}
+
+.macos-page--settings-detail bit-form-control.macos-checkbox-owner > label {
+  width: 100%;
+  min-height: var(--mac-hit-size);
+  align-items: center;
+}
+
+.macos-page--settings-detail .autofill-permission-action {
+  display: flex;
+  margin: 0 0 16px;
+}
+
+.macos-page--settings-detail .web-vault-action.macos-button-owner {
+  min-height: var(--mac-hit-size);
+  background: transparent;
+}
+
+.macos-page--settings-detail .web-vault-action.macos-button-owner::before {
+  background: var(--bw-primary);
+}
+
+.macos-page--settings-detail .web-vault-action.macos-button-owner:hover::before {
+  background: var(--bw-primary-hover);
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--settings-detail .shortcut-recorder__surface.macos-control-visible {
+  height: var(--mac-control-visible-compact);
+  min-height: var(--mac-control-visible-compact);
+}
+
+.macos-page--settings-detail :is(bit-card, .settings-password-handoff) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--settings-detail [aria-busy="true"] { cursor: progress; }
+
+.macos-page--settings-detail [data-settings-detail="account-security"] bit-item-group {
+  box-shadow: none;
+}
+
+.icon-action {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+
+.macos-pressable {
+  transition:
+    background-color var(--mac-motion-fast) ease,
+    color var(--mac-motion-fast) ease,
+    opacity var(--mac-motion-fast) ease;
+}
+
+.macos-pressable:active {
+  background: var(--mac-pressed);
+}
+
+.macos-page :is(button, a, input, select, textarea, [tabindex]):focus:not(:focus-visible) {
+  outline: 0;
+}
+
+.macos-page :is(button, a, input, select, textarea, [tabindex]):not(.macos-button-owner):not(.macos-switch-owner):not(.shortcut-recorder-owner):focus-visible {
+  outline: 2px solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--settings-detail
+  bit-form-field
+  [bitfieldcontainer]:has(bit-select.macos-control-visible :focus-visible),
+.macos-page--settings-detail
+  bit-form-field
+  bit-select.macos-control-visible:has(:focus-visible),
+.macos-page--settings-detail
+  bit-form-field
+  bit-select.macos-control-visible ng-select:has(:focus-visible) {
+  outline-width: 0;
+  outline-style: none;
+  box-shadow: none !important;
+}
+
+.macos-page--settings-detail
+  bit-form-field
+  bit-select.macos-control-visible
+  ng-select:has(:focus-visible)
+  > .ng-select-container {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+  border-color: var(--mac-border) !important;
+  box-shadow: none !important;
 }
 
 .vault-skeleton-stack {
@@ -5406,4 +7588,2196 @@ button.is-copy-failed {
   .vault-skeleton-line::after {
     animation: none;
   }
+}
+
+/* iOS 27 Vault rows: the row owns compact information geometry while each
+ * credential action keeps a transparent 44px target around its real glyph. */
+.macos-page--vault-list .vault-list-row.macos-row--double,
+.vault-autofill-suggestions .vault-list-row.macos-row--double {
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--vault-list .vault-list-row [data-testid="vault-item-content"],
+.vault-autofill-suggestions .vault-list-row .vault-autofill-suggestions__details {
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto !important;
+  padding-block: 4px;
+  overflow: visible;
+  background: transparent !important;
+}
+
+.macos-page--vault-list .vault-list-row [data-item-main-content],
+.vault-autofill-suggestions .vault-list-row [data-item-main-content] {
+  min-width: 0;
+  overflow: visible;
+}
+
+.macos-page--vault-list .vault-list-row :is([data-testid="item-name"], [slot="secondary"]),
+.vault-autofill-suggestions .vault-list-row :is(
+  [data-testid="vault-autofill-candidate-name"],
+  [data-testid="vault-autofill-candidate-subtitle"]
+) {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-list .vault-search-results .vault-list-row :is([data-testid="item-name"], [slot="secondary"]) {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.macos-page--vault-list .vault-list-row [data-field],
+.vault-autofill-suggestions .vault-list-row [data-field] {
+  width: var(--mac-hit-size);
+  min-width: var(--mac-hit-size);
+  height: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  padding: 6px !important;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* The retained item primitive still has an older global :hover/:active rule
+ * with !important. Keep the 44px owner transparent in every state and let the
+ * nested glyph plate below remain the sole painted feedback surface. */
+body .macos-page--vault-list .vault-list-row bit-item-action button[biticonbutton][data-field],
+body .vault-autofill-suggestions .vault-list-row bit-item-action button[biticonbutton][data-field],
+body .macos-page--vault-list .vault-list-row bit-item-action button[biticonbutton][data-field]:hover,
+body .vault-autofill-suggestions .vault-list-row bit-item-action button[biticonbutton][data-field]:hover,
+body .macos-page--vault-list .vault-list-row bit-item-action button[biticonbutton][data-field]:active,
+body .vault-autofill-suggestions .vault-list-row bit-item-action button[biticonbutton][data-field]:active,
+body .macos-page--vault-list .vault-list-row bit-item-action button[biticonbutton][data-field]:is(:disabled, [aria-disabled="true"]),
+body .vault-autofill-suggestions .vault-list-row bit-item-action button[biticonbutton][data-field]:is(:disabled, [aria-disabled="true"]) {
+  background: transparent !important;
+}
+
+.macos-page--vault-list .vault-list-row [data-field] .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field] .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-list .vault-list-row [data-field="username"] .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field="username"] .bwi {
+  color: var(--mac-action-username);
+}
+
+.macos-page--vault-list .vault-list-row [data-field="password"] .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field="password"] .bwi {
+  color: var(--mac-action-password);
+}
+
+.macos-page--vault-list .vault-list-row [data-field="totp"] .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field="totp"] .bwi {
+  color: var(--mac-action-totp);
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:not(:disabled):not([aria-disabled="true"]):hover .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:not(:disabled):not([aria-disabled="true"]):hover .bwi {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:not(:disabled):not([aria-disabled="true"]):active .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:not(:disabled):not([aria-disabled="true"]):active .bwi {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:is(:disabled, [aria-disabled="true"]) .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:is(:disabled, [aria-disabled="true"]) .bwi {
+  opacity: 0.38;
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:focus,
+.macos-page--vault-list .vault-list-row [data-field]:focus-visible,
+.vault-autofill-suggestions .vault-list-row [data-field]:focus,
+.vault-autofill-suggestions .vault-list-row [data-field]:focus-visible {
+  outline-width: 0;
+  outline-style: none;
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:focus-visible .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:focus-visible .bwi {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--vault-list .vault-list-row [data-field]:focus:not(:focus-visible) .bwi,
+.vault-autofill-suggestions .vault-list-row [data-field]:focus:not(:focus-visible) .bwi {
+  outline-width: 0;
+  outline-style: none;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-list .vault-list-row.macos-row--double,
+:root[data-bw-compact-mode="true"] .vault-autofill-suggestions .vault-list-row.macos-row--double,
+body.tw-bit-compact .macos-page--vault-list .vault-list-row.macos-row--double,
+body.tw-bit-compact .vault-autofill-suggestions .vault-list-row.macos-row--double {
+  min-height: var(--mac-row-double-compact);
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-list .vault-list-row [data-testid="vault-item-content"],
+:root[data-bw-compact-mode="true"] .vault-autofill-suggestions .vault-list-row .vault-autofill-suggestions__details,
+body.tw-bit-compact .macos-page--vault-list .vault-list-row [data-testid="vault-item-content"],
+body.tw-bit-compact .vault-autofill-suggestions .vault-list-row .vault-autofill-suggestions__details {
+  min-height: var(--mac-row-double-compact);
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-list .vault-list-row [data-field] .bwi,
+:root[data-bw-compact-mode="true"] .vault-autofill-suggestions .vault-list-row [data-field] .bwi,
+body.tw-bit-compact .macos-page--vault-list .vault-list-row [data-field] .bwi,
+body.tw-bit-compact .vault-autofill-suggestions .vault-list-row [data-field] .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--vault-list .vault-list-row [data-field] .bwi,
+  .vault-autofill-suggestions .vault-list-row [data-field] .bwi {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--vault-list .vault-list-row [data-field] .bwi,
+  .vault-autofill-suggestions .vault-list-row [data-field] .bwi {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--vault-list .vault-list-row [data-field]:focus-visible .bwi,
+  .vault-autofill-suggestions .vault-list-row [data-field]:focus-visible .bwi {
+    outline-color: Highlight;
+  }
+}
+/* Vault management pages use one continuous 48/44px row grammar. The row
+ * remains the layout owner while icon actions keep a transparent 44px hit
+ * target around a smaller 32/28px painted plate. */
+.macos-page--vault-form .new-item-grid {
+  gap: 0;
+  row-gap: 0;
+  column-gap: 0;
+  background: transparent;
+}
+
+.macos-page--vault-form .new-item-option.macos-row--double {
+  width: 100%;
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-row-double);
+  height: auto;
+  padding-block: 4px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-form .new-item-option :is(.new-item-label, .new-item-description) {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-form .new-item-option:not(:disabled):not([aria-disabled="true"]):hover {
+  background: color-mix(in srgb, var(--mac-surface-solid) 94%, var(--mac-hover));
+}
+
+.macos-page--vault-form .new-item-option:not(:disabled):not([aria-disabled="true"]):active {
+  background: color-mix(in srgb, var(--mac-surface-solid) 88%, var(--mac-pressed));
+}
+
+.macos-page--vault-form .new-item-option:is(:disabled, [aria-disabled="true"]) {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.macos-page--vault-form .new-item-option:focus,
+.macos-page--vault-form .new-item-option:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
+.macos-page--vault-form .new-item-option:focus-visible {
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
+  outline-offset: -2px;
+}
+
+.macos-page--vault-form .new-item-option:focus:not(:focus-visible) {
+  outline: 0;
+}
+
+body .macos-page--vault-recovery :is(bit-section, bit-item-group) {
+  gap: 0;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row {
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row:last-child {
+  border-bottom: 0;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row:focus-within {
+  outline: 0;
+  box-shadow: none;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row > [data-item-main-content] {
+  min-width: 0;
+  overflow: visible;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row__content {
+  min-width: 0;
+  min-height: var(--mac-row-double) !important;
+  height: auto;
+  padding-block: 4px;
+  overflow: visible !important;
+  white-space: normal;
+}
+
+.macos-page--vault-recovery .macos-recovery-row__content :is(
+  [data-testid="item-name"],
+  [slot="secondary"]
+) {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-recovery bit-item.macos-password-history-row {
+  display: flex;
+  grid-template-columns: none;
+  padding: 0;
+}
+
+.macos-page--vault-recovery bit-item.macos-password-history-row > [data-item-main-content] {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: visible;
+}
+
+.macos-page--vault-recovery bit-item.macos-password-history-row > div {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.macos-page--vault-recovery .macos-password-history-row__content {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: visible;
+}
+
+.macos-page--vault-recovery .macos-password-history-row__content bit-color-password {
+  display: block;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.macos-page--vault-recovery .macos-password-history-row__content bit-color-password span {
+  display: inline;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row bit-item-content.macos-recovery-row__content {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.macos-page--vault-recovery bit-item-content.macos-recovery-row__content > .tw-flex:first-child > .tw-flex-col,
+.macos-page--vault-recovery bit-item-content.macos-recovery-row__content [bitTypography="body2"],
+.macos-page--vault-recovery bit-item-content.macos-recovery-row__content [bitTypography="body2"] > div:first-child {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-recovery bit-item-content.macos-recovery-row__content [bitTypography="body2"] {
+  flex-wrap: wrap;
+}
+
+body .macos-page--vault-recovery button.macos-recovery-action,
+body .macos-page--vault-recovery button.macos-recovery-action:hover,
+body .macos-page--vault-recovery button.macos-recovery-action:active,
+body .macos-page--vault-recovery button.macos-recovery-action:is(:disabled, [aria-disabled="true"]) {
+  width: var(--mac-hit-size);
+  min-width: var(--mac-hit-size);
+  height: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  padding: 6px !important;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-recovery button.macos-recovery-action .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-recovery button.macos-recovery-action:not(:disabled):not([aria-disabled="true"]):hover .bwi {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--vault-recovery button.macos-recovery-action:not(:disabled):not([aria-disabled="true"]):active .bwi {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+}
+
+.macos-page--vault-recovery button.macos-recovery-action:is(:disabled, [aria-disabled="true"]) .bwi {
+  opacity: 0.38;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row button.macos-recovery-action:focus,
+body .macos-page--vault-recovery bit-item.macos-recovery-row button.macos-recovery-action:focus-visible {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row button.macos-recovery-action:focus-visible .bwi {
+  outline-color: var(--mac-focus) !important;
+  outline-style: solid !important;
+  outline-width: var(--mac-focus-ring-width) !important;
+  outline-offset: 2px;
+}
+
+body .macos-page--vault-recovery bit-item.macos-recovery-row button.macos-recovery-action:focus:not(:focus-visible) .bwi {
+  outline: 0 !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .new-item-option.macos-row--double,
+body.tw-bit-compact .macos-page--vault-form .new-item-option.macos-row--double,
+:root[data-bw-compact-mode="true"] .macos-page--vault-recovery bit-item.macos-recovery-row,
+body.tw-bit-compact .macos-page--vault-recovery bit-item.macos-recovery-row,
+:root[data-bw-compact-mode="true"] .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row__content,
+body.tw-bit-compact .macos-page--vault-recovery bit-item.macos-recovery-row .macos-recovery-row__content {
+  min-height: var(--mac-row-double-compact) !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-recovery button.macos-recovery-action .bwi,
+body.tw-bit-compact .macos-page--vault-recovery button.macos-recovery-action .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--vault-form .new-item-option.macos-row--double,
+  .macos-page--vault-recovery button.macos-recovery-action .bwi {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--vault-form .new-item-option.macos-row--double,
+  .macos-page--vault-recovery button.macos-recovery-action .bwi {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--vault-form .new-item-option.macos-row--double:focus-visible,
+  .macos-page--vault-recovery button.macos-recovery-action:focus-visible .bwi {
+    outline-width: var(--mac-focus-ring-width);
+    outline-style: solid;
+    outline-color: Highlight;
+  }
+
+  .macos-page--vault-recovery bit-item.macos-recovery-row:focus-within {
+    outline: 0 !important;
+  }
+}
+
+/* iOS 27 Vault detail and edit workflows keep layout/hit geometry separate
+ * from the painted field and icon layers. Retained Bitwarden components stay
+ * authoritative; these rules only normalize their mounted route boundaries. */
+.macos-page--vault-detail .official-read-only-field {
+  display: grid;
+  min-width: 0;
+  min-height: var(--mac-row-single);
+  height: auto;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.macos-page--vault-detail .official-read-only-field:last-child {
+  border-bottom: 0;
+}
+
+.macos-page--vault-detail .official-read-only-field > label,
+.macos-page--vault-detail bit-form-field bit-label {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-detail .official-read-only-control,
+.macos-page--vault-detail bit-form-field,
+.macos-page--vault-detail bit-form-field [bitfieldcontainer] {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  overflow: visible;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.macos-page--vault-detail bit-form-field {
+  display: block;
+  margin: 0;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+}
+
+.macos-page--vault-detail bit-form-field:last-child {
+  border-bottom: 0;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field [bitfieldcontainer]) {
+  border: 0;
+  background: transparent;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field [bitfieldcontainer]) input {
+  min-width: 0;
+  height: auto;
+  min-height: var(--mac-control-visible);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.macos-page--vault-detail input.macos-readonly-source {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.macos-page--vault-detail .macos-readonly-value {
+  display: flex;
+  min-width: 0;
+  min-height: var(--mac-control-visible);
+  height: auto;
+  align-items: center;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) :is(button, a) {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:has(.bwi),
+.macos-page--vault-form button[bitsuffix] {
+  padding: 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+.macos-page--vault-form button[bitsuffix] .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out,
+    transform var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:not(:disabled):not([aria-disabled="true"]):hover .bwi,
+.macos-page--vault-form button[bitsuffix]:not(:disabled):not([aria-disabled="true"]):hover .bwi {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:not(:disabled):not([aria-disabled="true"]):active .bwi,
+.macos-page--vault-form button[bitsuffix]:not(:disabled):not([aria-disabled="true"]):active .bwi {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+  transform: scale(0.96);
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:is(:disabled, [aria-disabled="true"]) .bwi,
+.macos-page--vault-form button[bitsuffix]:is(:disabled, [aria-disabled="true"]) .bwi {
+  opacity: 0.38;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus,
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus-visible,
+.macos-page--vault-form button[bitsuffix]:focus,
+.macos-page--vault-form button[bitsuffix]:focus-visible {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus-visible .bwi,
+.macos-page--vault-form button[bitsuffix]:focus-visible .bwi {
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus:not(:focus-visible) .bwi,
+.macos-page--vault-form button[bitsuffix]:focus:not(:focus-visible) .bwi {
+  outline: 0;
+}
+
+.macos-page--vault-form .cipher-form-scroll {
+  display: grid;
+  min-width: 0;
+  gap: 0;
+  padding: 0 0 var(--mac-space-6);
+  overflow-x: visible;
+}
+
+.macos-page--vault-form .cipher-form-scroll form {
+  display: grid;
+  min-width: 0;
+  gap: var(--mac-group-gap);
+}
+
+.macos-page--vault-form .cipher-form-scroll section {
+  min-width: 0;
+  margin: 0 !important;
+}
+
+.macos-page--vault-form .cipher-form-scroll bit-card,
+.macos-page--vault-form .cipher-form-scroll .cipher-form-card,
+.macos-page--vault-form .cipher-form-scroll .official-form-section {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.macos-page--vault-form .cipher-form-scroll bit-form-field,
+.macos-page--vault-form .cipher-form-field {
+  display: block;
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  margin: 0 0 12px;
+  overflow: visible;
+}
+
+.macos-page--vault-form .cipher-form-scroll bit-form-field:last-child,
+.macos-page--vault-form .cipher-form-field:last-child {
+  margin-bottom: 0;
+}
+
+.macos-page--vault-form .cipher-form-scroll :is([bitfieldcontainer], .cipher-form-control) {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  margin: 0;
+  border-radius: var(--mac-control-radius) !important;
+  overflow: visible;
+}
+
+.macos-page--vault-form .cipher-form-scroll :is(input:not([type="checkbox"]):not([type="radio"]), select, [role="combobox"]),
+.macos-page--vault-form .cipher-form-scroll ng-select > .ng-select-container {
+  min-width: 0;
+  height: auto !important;
+  min-height: var(--mac-control-visible) !important;
+  border-radius: var(--mac-control-radius) !important;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.macos-page--vault-form .cipher-form-scroll textarea {
+  min-width: 0;
+  height: auto;
+  min-height: 72px !important;
+  border-radius: var(--mac-control-radius) !important;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-form .cipher-form-scroll :is(bit-label, label, bit-hint, small) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--vault-form .cipher-form-scroll button[bitsuffix] {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action {
+  position: relative;
+  isolation: isolate;
+  min-height: var(--mac-hit-size) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action::before {
+  inset: 2px 0;
+  z-index: -1;
+  border: 1px solid var(--mac-accent);
+  background: var(--mac-accent);
+  opacity: 1;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out,
+    transform var(--mac-motion-fast) ease-out;
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):hover::before {
+  border-color: var(--bw-primary-hover);
+  background: var(--bw-primary-hover);
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):active::before {
+  border-color: color-mix(in srgb, var(--mac-accent) 72%, black);
+  background: color-mix(in srgb, var(--mac-accent) 72%, black);
+  transform: scale(0.98);
+}
+
+:is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-surface-muted);
+  opacity: 0.58;
+  transform: none;
+}
+
+.macos-page--vault-form .macos-custom-fields {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.macos-page--vault-form .macos-custom-field-row {
+  display: flex;
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.macos-page--vault-form .macos-custom-field-row > :is(bit-form-field, bit-form-control) {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.macos-page--vault-form .macos-custom-field-action {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  margin: 0 !important;
+  padding: 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-form .macos-custom-field-action .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out,
+    transform var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--vault-form .macos-custom-field-action:not(:disabled):not([aria-disabled="true"]):hover .bwi {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--vault-form .macos-custom-field-action:not(:disabled):not([aria-disabled="true"]):active .bwi {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+  transform: scale(0.96);
+}
+
+.macos-page--vault-form .macos-custom-field-action:is(:disabled, [aria-disabled="true"]) .bwi {
+  opacity: 0.38;
+}
+
+.macos-page--vault-form .macos-custom-field-action:focus,
+.macos-page--vault-form .macos-custom-field-action:focus-visible {
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-page--vault-form .macos-custom-field-action:focus-visible .bwi {
+  outline: var(--mac-focus-ring-width) solid var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--vault-form .macos-custom-field-action:focus:not(:focus-visible) .bwi {
+  outline: 0;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-detail :is(.official-read-only-control, bit-form-field [bitfieldcontainer]) input,
+body.tw-bit-compact .macos-page--vault-detail :is(.official-read-only-control, bit-form-field [bitfieldcontainer]) input,
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-scroll :is(input:not([type="checkbox"]):not([type="radio"]), select, [role="combobox"]),
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll :is(input:not([type="checkbox"]):not([type="radio"]), select, [role="combobox"]),
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-scroll ng-select > .ng-select-container,
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll ng-select > .ng-select-container {
+  min-height: var(--mac-control-visible-compact) !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-scroll form,
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll form {
+  gap: 16px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-scroll bit-form-field,
+body.tw-bit-compact .macos-page--vault-form .cipher-form-scroll bit-form-field,
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .cipher-form-field,
+body.tw-bit-compact .macos-page--vault-form .cipher-form-field {
+  margin-bottom: 10px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .macos-custom-fields,
+body.tw-bit-compact .macos-page--vault-form .macos-custom-fields,
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .macos-custom-field-row,
+body.tw-bit-compact .macos-page--vault-form .macos-custom-field-row {
+  gap: 10px !important;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-form .macos-custom-field-action .bwi,
+body.tw-bit-compact .macos-page--vault-form .macos-custom-field-action .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+body.tw-bit-compact .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+:root[data-bw-compact-mode="true"] .macos-page--vault-form button[bitsuffix] .bwi,
+body.tw-bit-compact .macos-page--vault-form button[bitsuffix] .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+  .macos-page--vault-form button[bitsuffix] .bwi,
+  .macos-page--vault-form .macos-custom-field-action .bwi,
+  .macos-page--vault-form .macos-button-owner::before {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button .bwi,
+  .macos-page--vault-form button[bitsuffix] .bwi,
+  .macos-page--vault-form .macos-custom-field-action .bwi,
+  .macos-page--vault-form .macos-button-owner::before {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--vault-detail :is(.official-read-only-control, bit-form-field) button:focus-visible .bwi,
+  .macos-page--vault-form button[bitsuffix]:focus-visible .bwi,
+  .macos-page--vault-form .macos-button-owner:focus-visible::before {
+    outline-width: var(--mac-focus-ring-width);
+    outline-style: solid;
+    outline-color: Highlight;
+  }
+
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action::before {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+    opacity: 1;
+    forced-color-adjust: none;
+  }
+
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+    border-color: GrayText;
+    background: ButtonFace;
+    color: GrayText;
+  }
+
+  .macos-page--vault-form .macos-custom-field-action .bwi {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--vault-form .macos-custom-field-action:focus-visible .bwi {
+    outline-color: Highlight;
+  }
+}
+
+
+/* iOS 27 OTP rows share Vault information geometry, while Copy keeps a
+ * transparent 44px owner and paints feedback only on its real glyph plate. */
+.macos-page--otp .otp-code-row.macos-row--double {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto;
+  padding: 2px 0 2px 12px;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--otp .otp-code-row:hover {
+  background: transparent;
+}
+
+.macos-page--otp bw-otp-code-row:last-child .otp-code-row {
+  border-bottom-width: 0;
+}
+
+.macos-page--otp .otp-code-row__identity,
+.macos-page--otp .otp-code-row__name,
+.macos-page--otp .otp-code-row__subtitle {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--otp .otp-code-row__name {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.macos-page--otp .otp-code-row__subtitle {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.macos-page--otp .otp-code-row__copy {
+  width: auto;
+  min-width: var(--mac-hit-size);
+  height: auto;
+  min-height: var(--mac-hit-size);
+  padding: 6px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: 0 !important;
+  transform: none;
+}
+
+.macos-page--otp .otp-code-row__copy:is(
+  :hover,
+  :active,
+  :focus,
+  :focus-visible,
+  :disabled,
+  [aria-disabled="true"]
+) {
+  background: transparent;
+  box-shadow: none !important;
+  outline: 0 !important;
+  transform: none;
+}
+
+.macos-page--otp .otp-code-row__copy:focus,
+.macos-page--otp .otp-code-row__copy:focus-visible {
+  outline-width: 0 !important;
+  outline-style: none !important;
+  box-shadow: none !important;
+}
+
+.macos-page--otp .otp-code-row__code {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.macos-page--otp .otp-code-row__copy-icon {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--otp .otp-code-row__copy:not(:disabled):not([aria-disabled="true"]):hover
+  .otp-code-row__copy-icon {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.macos-page--otp .otp-code-row__copy:not(:disabled):not([aria-disabled="true"]):active
+  .otp-code-row__copy-icon {
+  background: color-mix(in srgb, currentColor 19%, transparent);
+}
+
+.macos-page--otp .otp-code-row__copy:is(:disabled, [aria-disabled="true"])
+  .otp-code-row__copy-icon {
+  opacity: 0.38;
+}
+
+.macos-page--otp .otp-code-row__copy:focus-visible .otp-code-row__copy-icon {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--otp .otp-code-row__copy:focus:not(:focus-visible)
+  .otp-code-row__copy-icon {
+  outline-width: 0;
+  outline-style: none;
+  box-shadow: none;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--otp
+  .otp-code-row.macos-row--double,
+body.tw-bit-compact .macos-page--otp .otp-code-row.macos-row--double {
+  min-height: var(--mac-row-double-compact);
+  padding-block: 0;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--otp
+  .otp-code-row__countdown,
+:root[data-bw-compact-mode="true"]
+  .macos-page--otp
+  .otp-code-row__copy-icon,
+body.tw-bit-compact .macos-page--otp .otp-code-row__countdown,
+body.tw-bit-compact .macos-page--otp .otp-code-row__copy-icon {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--otp .otp-code-row__copy,
+  .macos-page--otp .otp-code-row__copy-icon,
+  .macos-page--otp .otp-code-row__copy.is-copied .otp-code-row__copy-icon {
+    animation: none;
+    transition: none;
+    transition-duration: 0s;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--otp .otp-code-row {
+    border-bottom-color: CanvasText;
+  }
+
+  .macos-page--otp .otp-code-row__copy-icon,
+  .macos-page--otp .otp-code-row__countdown {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--otp .otp-code-row__copy:focus-visible .otp-code-row__copy-icon {
+    outline-color: Highlight;
+  }
+}
+
+.macos-page--generator .macos-generator__settings :is(bit-card, bit-section) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-generator :is(button, a) {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.macos-page--generator .macos-generator__history-row {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.macos-generator .macos-generator__history-link {
+  min-height: 52px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-generator .macos-generator__history-link {
+  min-height: 44px;
+}
+
+.macos-generator-history__content {
+  margin: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-generator-history__row {
+  box-sizing: border-box;
+  height: auto;
+  min-height: var(--mac-row-double);
+  padding: 2px 0 2px 12px;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-generator-history__row bit-item-content,
+.macos-generator-history__row bit-color-password {
+  min-width: 0;
+  max-width: 100%;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-generator-history__row bit-item-content {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.macos-generator-history__row bit-item-content .tw-truncate {
+  max-height: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere;
+}
+
+.macos-generator-history__row button {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  padding: 6px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  outline: 0 !important;
+}
+
+.macos-generator-history__row button:is(
+  :hover,
+  :active,
+  :focus,
+  :focus-visible
+) {
+  background: transparent;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.macos-generator-history__row button .bwi {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  outline-style: none;
+  outline-width: 0;
+}
+
+.macos-generator-history__row button:hover .bwi {
+  background: var(--mac-hover);
+}
+
+.macos-generator-history__row button:active .bwi {
+  background: var(--mac-pressed);
+}
+
+.macos-generator-history__row button:focus-visible .bwi {
+  outline-color: var(--mac-focus);
+  outline-style: solid;
+  outline-width: var(--mac-focus-ring-width);
+  outline-offset: 2px;
+}
+
+.macos-generator-history__row button:focus:not(:focus-visible),
+.macos-generator-history__row button:focus:not(:focus-visible) .bwi {
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+}
+
+.macos-page--generator-history :is(
+  .macos-generator-history__clear-action,
+  .macos-generator-history__sheet-action
+) {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-generator-history__row {
+  min-height: var(--mac-row-double-compact);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+:root[data-bw-compact-mode="true"] .macos-generator-history__row button .bwi {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-generator-history__row button,
+  .macos-generator-history__row button .bwi {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-generator-history__row {
+    border-bottom-color: CanvasText;
+  }
+
+  .macos-generator-history__row button .bwi {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-generator-history__row button:focus-visible .bwi {
+    outline-color: Highlight !important;
+  }
+}
+
+/* Task 4 review wave 2: preserve compact paint geometry, one readable value,
+ * exact custom-field rhythm, and system-color label contrast. */
+:root[data-bw-compact-mode="true"]
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action::before,
+body.tw-bit-compact
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+  .macos-button-owner.macos-primary-action::before {
+  inset-block: 4px;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--vault-detail .macos-readonly-value,
+body.tw-bit-compact
+  .macos-page--vault-detail .macos-readonly-value {
+  height: auto !important;
+  min-height: var(--mac-control-visible-compact) !important;
+}
+
+.macos-page--vault-form .macos-custom-field-row
+  > :is(bit-form-field, bit-form-control) {
+  margin: 0 !important;
+}
+
+@media (forced-colors: active) {
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action {
+    color: ButtonText !important;
+    forced-color-adjust: none;
+  }
+
+  :is(.macos-page--vault-form, .macos-page--vault-detail)
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"]) {
+    color: GrayText !important;
+  }
+}
+
+/* iOS 27 Send list: compact information rows keep 44px owners while icon
+ * feedback paints on a separate 32/28px plate. Keep this task-owned block
+ * after retained compatibility styles. */
+.macos-page--send .macos-send-row {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--mac-row-double);
+  height: auto;
+  margin: 0;
+  padding: 2px 0 2px 12px;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send .send-filter-disclosure select.macos-control-visible {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--mac-control-visible);
+  height: auto;
+  padding-block: 0.5625rem;
+  border-radius: var(--mac-control-radius);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  overflow: visible;
+}
+
+.macos-page--send .send-filter-disclosure.macos-field-owner {
+  display: flex;
+  min-height: var(--mac-hit-size);
+  align-items: center;
+  overflow: visible;
+}
+
+.macos-page--send .macos-send-skeleton-row {
+  box-sizing: border-box;
+  height: var(--mac-row-double);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send .macos-send-row button[bit-item-content].macos-hit-target {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  height: auto;
+  max-height: none;
+  padding-block: 0;
+  padding-inline: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  overflow-x: visible;
+  overflow-y: visible;
+  white-space: normal;
+}
+
+.macos-page--send
+  .macos-send-row
+  button[bit-item-content].macos-hit-target
+  :is(.tw-truncate, [bitTypography="body2"] > div, [bitTypography="helper"]) {
+  max-height: none !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send :is(
+  [data-testid="send-new-action"],
+  [data-testid="send-filter-action"],
+  [data-testid="send-empty-create-action"],
+  .macos-send-row button,
+  .macos-send-row a
+),
+.bit-menu-panel [role="menu"] .macos-send-row__delete-action {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--send [data-testid="send-new-action"].macos-header-primary-action {
+  display: inline-grid !important;
+  width: var(--mac-header-action-size) !important;
+  min-width: var(--mac-header-action-size) !important;
+  max-width: var(--mac-header-action-size) !important;
+  height: var(--mac-header-action-size) !important;
+  min-height: var(--mac-header-action-size) !important;
+  max-height: var(--mac-header-action-size) !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  padding: 0 !important;
+  place-items: center;
+  border-radius: 999px !important;
+}
+
+.macos-page--send [data-testid="send-new-action"].macos-header-primary-action .macos-header-action-disc {
+  display: grid !important;
+  width: var(--mac-header-action-disc-size) !important;
+  height: var(--mac-header-action-disc-size) !important;
+  place-items: center !important;
+  border-radius: 999px !important;
+  background: var(--mac-accent) !important;
+  color: var(--mac-surface-solid) !important;
+}
+
+.macos-page--send [data-testid="send-new-action"].macos-header-primary-action:focus-visible
+  .macos-header-action-disc {
+  outline: 2px solid var(--mac-focus) !important;
+  outline-offset: 2px !important;
+}
+
+.macos-page--send [data-testid="send-new-action"].macos-header-primary-action .bwi {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+) {
+  border: 0;
+  background: transparent;
+  animation: none !important;
+  transition: none !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  transform: none;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+) > span {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  animation: none;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):not(:disabled):not([aria-disabled="true"]):hover > span {
+  background: var(--mac-hover);
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):not(:disabled):not([aria-disabled="true"]):active > span {
+  background: var(--mac-pressed);
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):is(:disabled, [aria-disabled="true"]) > span {
+  opacity: 0.38;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):focus-visible > span {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+):focus:not(:focus-visible) > span {
+  outline: 0;
+  box-shadow: none;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send .macos-send-row {
+  min-height: var(--mac-row-double-compact);
+  padding-block: 0;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send .send-filter-disclosure select.macos-control-visible {
+  min-height: var(--mac-control-visible-compact);
+  height: auto;
+  padding-block: 0.4375rem;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send .macos-send-skeleton-row {
+  height: var(--mac-row-double-compact);
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send :is(
+  [data-testid="send-filter-action"],
+  .macos-send-row__actions button
+) > span {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button,
+    [data-testid="send-filter-action"] > span,
+    .macos-send-row__actions button > span
+  ) {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button
+  ) {
+    transform: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--send .macos-send-row {
+    border-bottom-color: CanvasText;
+  }
+
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button
+  ) > span {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send :is(
+    [data-testid="send-filter-action"],
+    .macos-send-row__actions button
+  ):focus-visible > span {
+    outline-color: Highlight;
+  }
+}
+
+/* iOS 27 Send forms separate 44px owners from compact visible controls. */
+.macos-page--send-form .macos-send-form__group {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send-form .macos-send-form__field {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send-form bit-form-field.macos-field-owner {
+  display: block;
+}
+
+.macos-page--send-form [bitfieldcontainer] {
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  max-height: none;
+  margin: 0;
+  overflow: visible;
+}
+
+.macos-page--send-form input.macos-control-visible,
+.macos-page--send-form bit-select.macos-control-visible ng-select > .ng-select-container {
+  box-sizing: border-box;
+  min-width: 0;
+  height: auto !important;
+  min-height: var(--mac-control-visible) !important;
+  max-height: none !important;
+  padding-top: 0.5625rem !important;
+  padding-bottom: 0.5625rem !important;
+  overflow: visible;
+  border-radius: var(--mac-control-radius) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+}
+
+.macos-page--send-form bit-select.macos-control-visible {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--mac-hit-size) !important;
+  height: auto !important;
+  max-height: none !important;
+  padding: 0 !important;
+  overflow: visible;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--send-form bit-select.macos-control-visible :is(
+  ng-select,
+  [role="combobox"]
+) {
+  min-width: 0;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  padding: 0 !important;
+  overflow: visible;
+  border: 0 !important;
+  background: transparent;
+  font: inherit !important;
+  line-height: inherit !important;
+}
+
+.macos-page--send-form textarea.macos-textarea-visible {
+  min-width: 0;
+  height: auto;
+  min-height: 72px;
+  max-height: none;
+  overflow: auto;
+  border-radius: var(--mac-control-radius);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send-form :is(bit-label, bit-hint, .macos-preference-row__copy) {
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send-form .macos-preference-row {
+  min-height: var(--mac-hit-size);
+  padding-inline: 0;
+  background: transparent;
+}
+
+.macos-page--send-form .macos-form-actions {
+  display: flex;
+  min-height: var(--mac-hit-size);
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.macos-page--send-form .macos-button-owner.macos-primary-action {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--send-form .macos-send-form__icon-action {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none !important;
+  outline: 0 !important;
+  transform: none;
+}
+
+.macos-page--send-form .macos-send-form__icon-action > span {
+  display: grid;
+  width: var(--mac-icon-plate);
+  height: var(--mac-icon-plate);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--mac-control-radius);
+  background: transparent;
+  animation: none;
+  outline: 0;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--send-form .macos-send-form__icon-action:not(:disabled):not([aria-disabled="true"]):hover > span {
+  background: var(--mac-hover);
+}
+
+.macos-page--send-form .macos-send-form__icon-action:not(:disabled):not([aria-disabled="true"]):active > span {
+  background: var(--mac-pressed);
+}
+
+.macos-page--send-form .macos-send-form__icon-action:is(:disabled, [aria-disabled="true"]) > span {
+  opacity: 0.38;
+}
+
+.macos-page--send-form .macos-send-form__icon-action:focus-visible > span {
+  outline-width: var(--mac-focus-ring-width);
+  outline-style: solid;
+  outline-color: var(--mac-focus);
+  outline-offset: 2px;
+}
+
+.macos-page--send-form .macos-send-form__icon-action:focus:not(:focus-visible) > span {
+  outline: 0;
+  box-shadow: none;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send-form .macos-send-form__group {
+  gap: 10px;
+}
+
+:root[data-bw-compact-mode="true"] .macos-page--send-form input.macos-control-visible,
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form bit-select.macos-control-visible ng-select > .ng-select-container {
+  height: auto !important;
+  min-height: var(--mac-control-visible-compact) !important;
+  padding-top: 0.4375rem !important;
+  padding-bottom: 0.4375rem !important;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form .macos-send-form__icon-action > span {
+  width: var(--mac-icon-plate-compact);
+  height: var(--mac-icon-plate-compact);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--send-form :is(
+    .macos-send-form__icon-action,
+    .macos-send-form__icon-action > span,
+    .macos-switch-owner > span,
+    .macos-switch-owner > span::after,
+    .macos-button-owner::before
+  ) {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--send-form .macos-send-form__icon-action > span {
+    border-color: ButtonText;
+    background: Canvas;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send-form .macos-send-form__icon-action:focus-visible > span {
+    outline-color: Highlight;
+  }
+}
+
+/* Send form review: stateful primary paint, nested rhythm, and read-only rows. */
+.macos-page--send-form .macos-button-owner.macos-primary-action::before {
+  inset-block: 2px;
+  border: 1px solid var(--mac-accent);
+  background: var(--mac-accent);
+  opacity: 1;
+  transition:
+    background-color var(--mac-motion-fast) ease-out,
+    border-color var(--mac-motion-fast) ease-out,
+    opacity var(--mac-motion-fast) ease-out,
+    transform var(--mac-motion-fast) ease-out;
+}
+
+.macos-page--send-form
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):hover::before {
+  border-color: var(--bw-primary-hover);
+  background: var(--bw-primary-hover);
+}
+
+.macos-page--send-form
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):active::before {
+  border-color: color-mix(in srgb, var(--mac-accent) 72%, black);
+  background: color-mix(in srgb, var(--mac-accent) 72%, black);
+  transform: scale(0.98);
+}
+
+.macos-page--send-form
+  .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-surface-muted);
+  opacity: 0.58;
+  transform: none;
+}
+
+.macos-page--send-form bw-official-send-text-details > bit-section > section {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin: 0;
+  overflow: visible;
+}
+
+.macos-page--send-form .macos-send-form--readonly .macos-send-form__group {
+  gap: 0 !important;
+}
+
+.macos-page--send-form
+  .macos-send-form--readonly
+  bit-form-field.macos-field-owner:has(.macos-send-readonly-value) {
+  min-height: var(--mac-hit-size);
+  padding: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+}
+
+.macos-page--send-form
+  .macos-send-form--readonly
+  bit-form-field.macos-field-owner:has(.macos-send-readonly-value)
+  > div {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.42fr) minmax(0, 1fr);
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  max-height: none;
+  align-items: center;
+  gap: 12px;
+  overflow: visible;
+}
+
+.macos-page--send-form
+  .macos-send-form--readonly
+  bit-form-field.macos-field-owner:has(.macos-send-readonly-value)
+  > div
+  > :is(label, div) {
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send-form .macos-send-readonly-source {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.macos-page--send-form .macos-send-readonly-value {
+  display: flex;
+  min-width: 0;
+  min-height: var(--mac-control-visible);
+  height: auto;
+  max-height: none;
+  align-items: center;
+  padding: 4px 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.macos-page--send-form .macos-send-readonly-value--multiline {
+  min-height: 72px;
+  align-items: flex-start;
+  white-space: pre-wrap;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form .macos-button-owner.macos-primary-action::before {
+  inset-block: 4px;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form bw-official-send-text-details > bit-section > section {
+  gap: 10px;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-form .macos-send-readonly-value {
+  min-height: var(--mac-control-visible-compact);
+}
+
+@media (forced-colors: active) {
+  .macos-page--send-form .macos-button-owner.macos-primary-action::before {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send-form
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
+  }
+
+  .macos-page--send-form .macos-send-form__danger-action > span {
+    border-color: Mark;
+    background: Canvas;
+    color: Mark;
+    forced-color-adjust: none;
+  }
+}
+
+/* iOS 27 Send Created keeps one compact readable link and one primary action. */
+.macos-page--send-created .macos-send-created__summary {
+  margin: 0;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--mac-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-page--send-created .macos-send-created__link-owner {
+  display: grid;
+  min-width: 0;
+  min-height: var(--mac-hit-size);
+  height: auto;
+  gap: 6px;
+  align-items: start;
+  overflow: visible;
+}
+
+.macos-page--send-created [data-testid="created-link"] {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  height: auto;
+  min-height: var(--mac-control-visible);
+  overflow: hidden;
+  border-radius: var(--mac-control-radius);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.macos-page--send-created popup-footer button {
+  min-width: var(--mac-hit-size);
+  min-height: var(--mac-hit-size);
+}
+
+.macos-page--send-created .macos-button-owner.macos-primary-action {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.macos-page--send-created .macos-button-owner.macos-primary-action::before {
+  inset-block: 2px;
+  border: 1px solid var(--mac-accent);
+  background: var(--mac-accent);
+}
+
+.macos-page--send-created
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):hover::before {
+  background: var(--bw-primary-hover);
+}
+
+.macos-page--send-created
+  .macos-button-owner.macos-primary-action:not(:disabled):not([aria-disabled="true"]):active::before {
+  background: color-mix(in srgb, var(--mac-accent) 72%, black);
+  transform: scale(0.98);
+}
+
+.macos-page--send-created
+  .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+  border-color: var(--mac-border-subtle);
+  background: var(--mac-surface-muted);
+  opacity: 0.58;
+  transform: none;
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-created [data-testid="created-link"] {
+  height: auto;
+  min-height: var(--mac-control-visible-compact);
+}
+
+:root[data-bw-compact-mode="true"]
+  .macos-page--send-created .macos-button-owner.macos-primary-action::before {
+  inset-block: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macos-page--send-created .macos-button-owner.macos-primary-action::before {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .macos-page--send-created .macos-button-owner.macos-primary-action {
+    color: HighlightText !important;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send-created .macos-button-owner.macos-primary-action::before {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .macos-page--send-created
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"])::before {
+    border-color: GrayText;
+    background: Canvas;
+    color: GrayText;
+  }
+
+  .macos-page--send-created
+    .macos-button-owner.macos-primary-action:is(:disabled, [aria-disabled="true"]) {
+    color: GrayText !important;
+  }
+}
+
+/* Vault header add action: keep the real New Item button visually peer-sized
+ * with the account avatar even when legacy FAB rules are loaded later in a
+ * dirty/local bundle. */
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton] {
+  display: grid !important;
+  box-sizing: border-box !important;
+  width: var(--mac-header-action-size) !important;
+  min-width: var(--mac-header-action-size) !important;
+  max-width: var(--mac-header-action-size) !important;
+  height: var(--mac-header-action-size) !important;
+  min-height: var(--mac-header-action-size) !important;
+  max-height: var(--mac-header-action-size) !important;
+  border-radius: 999px !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  padding: 0 !important;
+  place-items: center !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton]
+  > span
+  > span {
+  display: grid !important;
+  width: var(--mac-header-action-disc-size) !important;
+  height: var(--mac-header-action-disc-size) !important;
+  border-radius: 999px !important;
+  background: var(--mac-accent) !important;
+  gap: 0 !important;
+  place-items: center !important;
+}
+
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton]:focus-visible
+  > span
+  > span {
+  outline: 2px solid var(--mac-focus) !important;
+  outline-offset: 2px !important;
+}
+
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton]
+  > span
+  > span
+  > div {
+  display: none !important;
+}
+
+popup-page.macos-page--vault-list
+  > popup-header
+  bw-retained-new-item-dropdown
+  app-new-item-dropdown
+  button[bitbutton]
+  .bwi {
+  display: grid !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0 !important;
+  place-items: center !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 20px !important;
+  transform: translateY(1px);
 }

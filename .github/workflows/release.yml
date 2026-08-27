@@ -16,14 +16,21 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - run: npm ci
+      - run: npm install --global npm@11.6.2
+      - run: npm ci --legacy-peer-deps
+      - run: npm run check:release-version
       - run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
       - run: npm run check:publication
       - run: cargo fetch --locked --manifest-path apps/menubar-tauri/src-tauri/Cargo.toml
       - run: npm run licenses:check
       - run: npm run test:release-policy
       - run: node --test scripts/create-updater-release-config.spec.mjs scripts/create-github-release-feed.spec.mjs
-      - run: npm test
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=1/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=2/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=3/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=4/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=5/6
+      - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=6/6
       - run: npm run build:web
 
   release:
@@ -38,7 +45,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - run: npm ci
+      - run: npm install --global npm@11.6.2
+      - run: npm ci --legacy-peer-deps
       - name: Build signed update artifacts
         env:
           BARWARDEN_UPDATER_ENDPOINT: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
@@ -53,43 +61,77 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
+          certificate_path="$RUNNER_TEMP/developer-id.p12"
           api_key_path="$RUNNER_TEMP/notary-api-key.p8"
-          trap 'rm -f "$api_key_path"' EXIT
-          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
-          APPLE_API_KEY_PATH="$api_key_path" npm run tauri:build:update
+          provider_profile_path="$RUNNER_TEMP/provider.provisionprofile"
+          signing_keychain="$RUNNER_TEMP/barwarden-release.keychain-db"
+          signing_keychain_password="$(openssl rand -hex 32)"
+          notary_profile="barwarden-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          release_dir="$GITHUB_WORKSPACE/release-artifacts"
+          cleanup() {
+            security delete-keychain "$signing_keychain" >/dev/null 2>&1 || true
+            rm -f "$certificate_path" "$api_key_path" "$provider_profile_path"
+          }
+          trap cleanup EXIT
+          test ! -e "$release_dir"
 
-          app_path="apps/menubar-tauri/src-tauri/target/release/bundle/macos/Barwarden.app"
-          dmg_path="$(find apps/menubar-tauri/src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)"
-          test -d "$app_path"
-          test -n "$dmg_path"
-          codesign --verify --deep --strict --verbose=2 "$app_path"
-          codesign --verify --strict --verbose=2 "$dmg_path"
-          hdiutil verify "$dmg_path"
-          xcrun notarytool submit "$dmg_path" \
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
+          APPLE_API_KEY_PATH="$api_key_path" \
+          APPLE_API_KEY_ID="$APPLE_API_KEY" \
+          APPLE_API_ISSUER_ID="$APPLE_API_ISSUER" \
+          node scripts/download-native-autofill-provider-profile.mjs "$provider_profile_path"
+
+          security create-keychain -p "$signing_keychain_password" "$signing_keychain"
+          security set-keychain-settings -lut 21600 "$signing_keychain"
+          security unlock-keychain -p "$signing_keychain_password" "$signing_keychain"
+          security import "$certificate_path" -k "$signing_keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign >/dev/null 2>&1
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$signing_keychain_password" "$signing_keychain" >/dev/null 2>&1
+          signing_identity="$(security find-identity -v -p codesigning "$signing_keychain" | awk '/Developer ID Application/ { print $2; exit }')"
+          test -n "$signing_identity"
+          xcrun notarytool store-credentials "$notary_profile" \
             --key "$api_key_path" \
             --key-id "$APPLE_API_KEY" \
             --issuer "$APPLE_API_ISSUER" \
-            --wait
-          xcrun stapler staple "$dmg_path"
-          xcrun stapler validate "$dmg_path"
-          spctl -a -vvv -t open --context context:primary-signature "$dmg_path"
-      - name: Generate release feed
-        run: |
-          artifact=$(find apps/menubar-tauri/src-tauri/target/release/bundle -name '*.app.tar.gz' -print -quit)
-          dmg=$(find apps/menubar-tauri/src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)
-          test -n "$artifact" && test -f "$artifact.sig"
-          test -n "$dmg"
-          node scripts/create-github-release-feed.mjs "${GITHUB_REF_NAME#v}" "$GITHUB_REPOSITORY" "$artifact" "$artifact.sig" latest.json
-          (
-            cd "$(dirname "$dmg")"
-            shasum -a 256 "$(basename "$dmg")"
-          ) > "$GITHUB_WORKSPACE/SHA256SUMS.txt"
+            --keychain "$signing_keychain" >/dev/null 2>&1
+
+          NATIVE_AUTOFILL_SIGNING_IDENTITY="$signing_identity" \
+          NATIVE_AUTOFILL_SIGNING_KEYCHAIN="$signing_keychain" \
+          NATIVE_AUTOFILL_PROVIDER_PROFILE="$provider_profile_path" \
+          NATIVE_AUTOFILL_NOTARY_PROFILE="$notary_profile" \
+          NATIVE_AUTOFILL_OUTPUT_DIR="$release_dir" \
+          scripts/build-native-autofill-release.sh
+
+          app_path="$release_dir/Barwarden.app"
+          dmg_path="$(find "$release_dir" -maxdepth 1 -name 'Barwarden-*.dmg' -print -quit)"
+          test -d "$app_path"
+          test -n "$dmg_path"
+          codesign --verify --deep --strict --verbose=2 "$app_path" >/dev/null 2>&1
+          codesign --verify --strict --verbose=2 "$dmg_path" >/dev/null 2>&1
+          hdiutil verify "$dmg_path" >/dev/null 2>&1
+          xcrun stapler validate "$app_path" >/dev/null 2>&1
+          xcrun stapler validate "$dmg_path" >/dev/null 2>&1
+          spctl -a -vvv -t exec "$app_path" >/dev/null 2>&1
+          spctl -a -vvv -t open --context context:primary-signature "$dmg_path" >/dev/null 2>&1
+
+          updater_artifact="$release_dir/Barwarden.app.tar.gz"
+          ditto -c -k --keepParent "$app_path" "$updater_artifact"
+          npx tauri signer sign "$updater_artifact"
+          test -f "$updater_artifact.sig"
+          node scripts/create-github-release-feed.mjs \
+            "${GITHUB_REF_NAME#v}" \
+            "$GITHUB_REPOSITORY" \
+            "$updater_artifact" \
+            "$updater_artifact.sig" \
+            "$release_dir/latest.json"
       - name: Publish release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
-            apps/menubar-tauri/src-tauri/target/release/bundle/dmg/*.dmg
-            apps/menubar-tauri/src-tauri/target/release/bundle/**/*.app.tar.gz
-            apps/menubar-tauri/src-tauri/target/release/bundle/**/*.app.tar.gz.sig
-            latest.json
-            SHA256SUMS.txt
+            release-artifacts/Barwarden-*.dmg
+            release-artifacts/Barwarden.app.tar.gz
+            release-artifacts/Barwarden.app.tar.gz.sig
+            release-artifacts/latest.json
+            release-artifacts/native-autofill-assembly-attestation.json
+            release-artifacts/native-autofill-evidence.json
+            release-artifacts/native-autofill-evidence.md

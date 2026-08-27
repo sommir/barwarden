@@ -8,6 +8,7 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
@@ -30,6 +31,23 @@ import { OfficialAccountSecurityComponent } from "../upstream-overlays/settings/
 import { OfficialAppearanceComponent } from "../upstream-overlays/settings/official-appearance.component";
 import { VaultTimeoutService } from "../auth/vault-timeout.service";
 import type { VaultTimeoutMinutes } from "./settings-options";
+import { AutoFillAccessibilityService } from "../autofill/autofill-accessibility.service";
+import { AutoFillSetupService } from "../autofill/autofill-setup.service";
+import { AccessibilityPermissionDialogComponent } from "../official-ui/accessibility-permission-dialog.component";
+import {
+  ACCESSIBILITY_SETTINGS_HOST,
+  AccessibilityPermissionDialogService,
+} from "../official-ui/accessibility-permission-dialog.service";
+
+@Component({
+  standalone: true,
+  imports: [AutofillSettingsPageComponent, AccessibilityPermissionDialogComponent],
+  template: `
+    <bw-autofill-settings-page />
+    <bw-accessibility-permission-dialog />
+  `,
+})
+class AutofillPermissionTestHostComponent {}
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -44,8 +62,84 @@ try {
 
 describe("P1 settings pages", () => {
   afterEach(async () => {
+    document.querySelectorAll(
+      'style[data-test-owner="account-security-shadow"], style[data-test-owner="appearance-preferences"]',
+    )
+      .forEach((node) => node.remove());
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.style.removeProperty("font-size");
     vi.useRealTimers();
     await new OfficialI18nService().setLocale("zh-CN");
+  });
+
+  it.each([
+    ["official-account-security.component.html", "account-security"],
+    ["official-vault-settings.component.html", "vault-settings"],
+  ] as const)("marks %s as one continuous Settings detail surface", (file, id) => {
+    const html = readFileSync(resolve(
+      process.cwd(),
+      "apps/menubar-tauri/src/app/upstream-overlays/settings",
+      file,
+    ), "utf8");
+    expect(html).toContain(`data-settings-detail="${id}"`);
+    expect(html).toContain("macos-preference-group");
+    expect(html).toContain("macos-preference-row");
+    expect(html).not.toContain("<bit-card");
+  });
+
+  it("carries Vault Settings focus owners through both retained transform chains", () => {
+    const root = resolve(process.cwd(), "apps/menubar-tauri/src/app/upstream-overlays/settings");
+    const files = [
+      "official-vault-settings.component.html",
+      "generated/apps/browser/src/vault/popup/settings/vault-settings.component.html",
+      "source-patches/apps__browser__src__vault__popup__settings__vault-settings.component.html.patch",
+    ];
+    for (const file of files) {
+      const source = readFileSync(resolve(root, file), "utf8");
+      expect(source, file).toContain('data-popup-focus-key="settings:folders"');
+      expect(source, file).toContain('data-popup-focus-key="settings:archive"');
+      expect(source, file).toContain('data-popup-focus-key="settings:trash"');
+    }
+    const runtimePatchPath =
+      "runtime-patches/apps__browser__src__vault__popup__settings__vault-settings.component.html.patch";
+    const runtimePatch = readFileSync(resolve(root, runtimePatchPath), "utf8");
+    for (const key of ["settings:folders", "settings:archive", "settings:trash"]) {
+      expect(runtimePatch, `runtime patch must inherit ${key} from its generated authority`)
+        .not.toContain(key);
+    }
+    const transformManifest = JSON.parse(readFileSync(
+      resolve(root, "official-settings.transform-manifest.json"), "utf8",
+    )) as { authorities: Array<{
+      path: string;
+      patch: { path: string };
+      output: { path: string };
+    }> };
+    expect(transformManifest.authorities.find(({ path }) =>
+      path === "apps/browser/src/vault/popup/settings/vault-settings.component.html"),
+    ).toMatchObject({
+      patch: { path: expect.stringContaining("source-patches/apps__browser__src__vault__popup__settings__vault-settings.component.html.patch") },
+      output: { path: expect.stringContaining("generated/apps/browser/src/vault/popup/settings/vault-settings.component.html") },
+    });
+    const runtimeManifest = JSON.parse(readFileSync(
+      resolve(root, "official-settings.runtime-manifest.json"), "utf8",
+    )) as { authorities: Array<{
+      authority: { path: string };
+      patch: { path: string };
+      output: { path: string };
+    }> };
+    expect(runtimeManifest.authorities.find(({ authority }) =>
+      authority.path === "apps/browser/src/vault/popup/settings/vault-settings.component.html"),
+    ).toMatchObject({
+      patch: { path: expect.stringContaining(runtimePatchPath) },
+      output: { path: expect.stringContaining("official-vault-settings.component.html") },
+    });
+    const runtimeContract = readFileSync(
+      resolve(root, "official-settings-runtime-transforms.ts"),
+      "utf8",
+    );
+    expect(runtimeContract).toContain(
+      '"apps/browser/src/vault/popup/settings/vault-settings.component.html", "official-vault-settings.component.html"',
+    );
   });
 
   it.each([
@@ -69,10 +163,22 @@ describe("P1 settings pages", () => {
     const appearance = readFileSync(resolve(root, "appearance-page.component.ts"), "utf8");
     const about = readFileSync(resolve(root, "about-page.component.ts"), "utf8");
 
-    expect(appearance).toContain('host: { class: "macos-page macos-page--secondary macos-page--appearance" }');
+    expect(appearance).toContain(
+      'class: "macos-page macos-page--secondary macos-page--settings-detail macos-page--appearance"',
+    );
     expect(about).toContain('host: { class: "macos-page macos-page--secondary macos-page--about" }');
     expect(appearance).not.toContain("bw-floating-tab-switcher");
     expect(about).not.toContain("bw-floating-tab-switcher");
+  });
+
+  it("keeps About metadata as a real Sheet while the About page stays flat", () => {
+    const page = readFileSync(resolve(process.cwd(),
+      "apps/menubar-tauri/src/app/upstream-overlays/settings/official-about.component.html"), "utf8");
+    const dialog = readFileSync(resolve(process.cwd(),
+      "apps/menubar-tauri/src/app/upstream-overlays/settings/official-about-dialog.component.html"), "utf8");
+    expect(page).toContain("about-continuous-list");
+    expect(page).not.toContain("<bit-card");
+    expect(dialog).toContain("bit-dialog");
   });
 
   it("keeps page surfaces solid while preference overrides preserve non-color feedback", () => {
@@ -80,11 +186,32 @@ describe("P1 settings pages", () => {
       resolve(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
       "utf8",
     );
+    const tokens = readFileSync(
+      resolve(process.cwd(), "apps/menubar-tauri/src/styles/macos-tokens.css"),
+      "utf8",
+    );
+    const motion = readFileSync(
+      resolve(process.cwd(), "apps/menubar-tauri/src/styles/macos-motion.css"),
+      "utf8",
+    );
 
-    expect(css).toMatch(/\.macos-page--settings\s+\.settings-row\s*{[^}]*background:\s*var\(--mac-surface-solid\)[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-preference-group,[\s\S]*?bit-item-action\s*{[^}]*border-radius:\s*0[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-preference-group bit-item-group\s*>\s*bit-item:not\(:last-child\)\s*{[^}]*border-bottom:\s*1px/s);
+    expect(css).toMatch(/\.macos-preference-row\s*{[^}]*min-height:\s*var\(--mac-row-single\)[^}]*background:\s*var\(--mac-surface-solid\)[^}]*box-shadow:\s*none/s);
+    expect(css).toMatch(/\.macos-preference-row__value\s*{[^}]*justify-self:\s*end/s);
+    expect(css).toMatch(/\.macos-switch-owner\s*{[^}]*min-width:\s*var\(--mac-hit-size\)[^}]*min-height:\s*var\(--mac-hit-size\)/s);
+    expect(tokens).toContain("--mac-focus-ring-width: 2px;");
+    expect(tokens).toContain("--mac-compact-row-height: 44px;");
+    expect(motion).toContain("--mac-motion-fast: 160ms;");
+    expect(motion).toContain("--mac-motion-standard: 180ms;");
+    expect(motion).toContain("--mac-motion-slow: 200ms;");
     expect(css).toMatch(/@media\s*\(prefers-contrast:\s*more\)[\s\S]*?\.floating-tab-switcher__segment\[aria-current="page"\][\s\S]*?text-decoration/s);
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.floating-tab-switcher__indicator[\s\S]*?transition:\s*none/s);
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.macos-pressable:active[\s\S]*?opacity/s);
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*{[^}]*\.macos-switch-owner\s*>\s*span::after[^}]*transition-duration:\s*0s/s);
+    expect(css).toMatch(/@media\s*\(forced-colors:\s*active\)[\s\S]*?\.floating-tab-switcher__segment\[aria-current="page"\][\s\S]*?HighlightText/s);
+    expect(css).toMatch(/@media\s*\(forced-colors:\s*active\)[\s\S]*?\[aria-invalid="true"\][\s\S]*?Mark/s);
+    expect(css).not.toMatch(/outline:\s*3px/);
   });
 
   it("keeps localized select options stable until the active locale changes", async () => {
@@ -129,7 +256,7 @@ describe("P1 settings pages", () => {
     }
   });
 
-  it("renders the official account security inventory with a live vault timeout setting", async () => {
+  it("renders the official account security subtree as native preference groups", async () => {
     const service = new SettingsStateService();
     const opened: string[] = [];
     await TestBed.configureTestingModule({
@@ -156,6 +283,7 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    expect(host.matches(".macos-page--settings-detail")).toBe(true);
     expect(host.textContent).toContain("账户安全");
     expect(host.textContent).not.toContain("使用生物识别解锁");
     expect(host.textContent).toContain("解锁选项");
@@ -174,6 +302,98 @@ describe("P1 settings pages", () => {
     expect(host.querySelector('a[href="/fingerprint-phrase"]')).toBeNull();
     expect(host.querySelector('a[href="/settings-password"]')).toBeNull();
     expect(host.querySelectorAll(".bwi-external-link")).toHaveLength(2);
+    const group = host.querySelector<HTMLElement>(
+      '[data-settings-detail="account-security"].macos-preference-group',
+    );
+    expect(group).not.toBeNull();
+    const preferenceRows = Array.from(
+      group!.querySelectorAll<HTMLElement>(".settings-detail-row.macos-preference-row"),
+    );
+    expect(preferenceRows).toHaveLength(6);
+    expect(host.querySelector("bit-card")).toBeNull();
+    installAppearancePreferenceCss();
+    for (const row of preferenceRows) {
+      expect(Number.parseFloat(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(row).boxShadow).toBe("none");
+    }
+    const sectionRows = Array.from(group!.querySelectorAll<HTMLElement>("bit-section"), (section) =>
+      Array.from(section.querySelectorAll<HTMLElement>(".macos-preference-row"))
+    );
+    expect(sectionRows.map((rows) => rows.length)).toEqual([2, 2, 2]);
+    expect(sectionRows.slice(0, 2).map((rows) => getComputedStyle(rows[0]!).borderBottomWidth))
+      .toEqual(["1px", "1px"]);
+    const actionItems = group!.querySelectorAll<HTMLElement>("bit-item-group > bit-item");
+    expect(actionItems).toHaveLength(2);
+    expect(getComputedStyle(actionItems[0]!).borderBottomWidth).toBe("1px");
+    expect(getComputedStyle(actionItems[1]!).borderBottomWidth).toBe("0px");
+    const visibleSelects = Array.from(
+      group!.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
+    );
+    expect(visibleSelects).toHaveLength(2);
+    for (const selectHost of visibleSelects) {
+      const row = selectHost.closest<HTMLElement>("bit-form-field.macos-preference-row");
+      const internalLayout = row?.querySelector<HTMLElement>(":scope > div");
+      const defaultContent = selectHost.closest<HTMLElement>("[data-default-content]");
+      expect(row).not.toBeNull();
+      expect(internalLayout).not.toBeNull();
+      expect(defaultContent).not.toBeNull();
+      expect(getComputedStyle(internalLayout!).gridTemplateColumns.replace(/\s+/g, "")).toBe(
+        "minmax(0,1fr)104px",
+      );
+      expect(getComputedStyle(defaultContent!).display).toBe("flex");
+      expect(getComputedStyle(defaultContent!).alignItems).toBe("center");
+    }
+    expectRealSelectGeometry(visibleSelects, "30px", "104px", "32px");
+    expectSharedSettingsPageInset(host);
+    expect(getComputedStyle(group!).marginLeft).toBe("0px");
+    expect(getComputedStyle(group!).marginRight).toBe("0px");
+    expect(resolvedMatchedProperty(group!, "margin-top")).toBe("16px");
+    expect(resolvedMatchedProperty(group!, "margin-bottom")).toBe("16px");
+    const checkboxRows = preferenceRows.slice(0, 2);
+    const checkboxOwners = checkboxRows.map((row) =>
+      row.querySelector<HTMLLabelElement>(":scope > label"),
+    );
+    const checkboxInputs = checkboxRows.map((row) =>
+      row.querySelector<HTMLInputElement>(":scope > label > input[type='checkbox']"),
+    );
+    expect(checkboxOwners.every((owner) => owner !== null)).toBe(true);
+    expect(checkboxInputs.map((input) => input?.id)).toEqual([
+      "biometricUnlock",
+      "pinUnlock",
+    ]);
+    expect(checkboxOwners.map((owner) => getComputedStyle(owner!).width))
+      .toEqual(["100%", "100%"]);
+    expect(checkboxOwners.map((owner) => getComputedStyle(owner!).minHeight))
+      .toEqual(["44px", "44px"]);
+    checkboxInputs[1]!.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(checkboxOwners[1]!).outlineWidth).toBe("2px");
+    expect(getComputedStyle(checkboxOwners[1]!).outlineStyle).toBe("solid");
+    expect(getComputedStyle(checkboxInputs[1]!).outlineWidth).toBe("0px");
+    document.documentElement.style.fontSize = "200%";
+    const unlockLabel = group!.querySelector<HTMLElement>('bit-label[for="pinUnlock"]')!;
+    const originalUnlockLabel = unlockLabel.textContent;
+    unlockLabel.textContent = `${originalUnlockLabel} ${originalUnlockLabel} ${originalUnlockLabel}`;
+    expect(unlockLabel.classList).toContain("tw-whitespace-normal");
+    for (const row of preferenceRows) {
+      expect(getComputedStyle(row).height).toBe("auto");
+      expect(getComputedStyle(row).overflow).toBe("visible");
+    }
+    unlockLabel.textContent = originalUnlockLabel;
+    document.documentElement.style.removeProperty("font-size");
+
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    expectRealSelectGeometry(visibleSelects, "30px", "104px", "32px");
+    for (const row of preferenceRows) {
+      expect(Number.parseFloat(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
+    }
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    expect(host.querySelectorAll('[aria-busy="true"] [role="progressbar"]').length)
+      .toBeLessThanOrEqual(1);
+    const actionGroup = host.querySelector<HTMLElement>(
+      '[data-settings-detail="account-security"] bit-item-group',
+    );
+    expect(actionGroup).not.toBeNull();
+    expect(getComputedStyle(actionGroup!).boxShadow).toBe("none");
     expect(
       host.querySelector('bit-select[aria-label="密码库超时"]'),
     ).not.toBeNull();
@@ -327,10 +547,43 @@ describe("P1 settings pages", () => {
       ],
     }).compileComponents();
 
+    installAppearancePreferenceCss();
     const fixture = TestBed.createComponent(AboutPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelectorAll("bit-item-group bit-item")).toHaveLength(7);
+    const continuousGroup = host.querySelector<HTMLElement>(
+      ".about-continuous-list.macos-preference-group",
+    );
+    const itemHosts = Array.from(
+      continuousGroup?.querySelectorAll<HTMLElement>(":scope > bit-item") ?? [],
+    );
+    expect(itemHosts).toHaveLength(6);
+    for (const itemHost of itemHosts) {
+      const row = itemHost.querySelector<HTMLElement>(
+        ":scope > bit-item-action > .about-metadata-row.macos-preference-row",
+      );
+      expect(row).not.toBeNull();
+      const rowStyles = getComputedStyle(row!);
+      expect(rowStyles.minHeight).toBe("44px");
+      expect(rowStyles.borderRadius).toBe("0px");
+      expect(rowStyles.boxShadow).toBe("none");
+      expect(rowStyles.display).toBe("flex");
+      expect(rowStyles.width).toBe("100%");
+      expect(row!.classList).toContain("macos-hit-target");
+    }
+    const updateCard = host.querySelector<HTMLElement>(".app-update-card")!;
+    const updateCardStyles = getComputedStyle(updateCard);
+    expect(updateCardStyles.margin).toBe("0px");
+    expect(updateCardStyles.borderRadius).toBe("0px");
+    expect(updateCardStyles.boxShadow).toBe("none");
+    const updateHeaderStyles = getComputedStyle(
+      updateCard.querySelector<HTMLElement>(".app-update-card__header")!,
+    );
+    expect(updateHeaderStyles.justifyContent).toBe("flex-start");
+    expect(updateHeaderStyles.flexWrap).toBe("wrap");
+    expect(updateCard.querySelectorAll('[aria-live],[role="status"],[role="alert"]')).toHaveLength(1);
+    expect(getComputedStyle(host.querySelector<HTMLElement>("[data-testid='check-for-updates']")!).minHeight)
+      .toBe("44px");
     expect(
       Array.from(
         host.querySelectorAll<HTMLButtonElement>(
@@ -340,13 +593,15 @@ describe("P1 settings pages", () => {
       ),
     ).toEqual([
       "故障排除",
-      "检查更新",
       "关于 Barwarden",
       "第三方开源许可",
       "帮助中心",
       "Web Vault",
       "上游 Bitwarden 源码",
     ]);
+    expect(host.textContent).toContain(`Barwarden ${__BARWARDEN_VERSION__}`);
+    expect(host.textContent).toContain("应用更新");
+    expect(host.textContent).toContain("检查更新");
     expect(host.textContent).toContain("故障排除");
     expect(host.textContent).toContain("关于 Barwarden");
     expect(aboutMetadata.productName).toBe("Barwarden");
@@ -373,7 +628,7 @@ describe("P1 settings pages", () => {
     expect(host.querySelector("dialog[open] form[bit-dialog]")).not.toBeNull();
     expect(host.textContent).toContain("GPL-3.0-only");
     expect(host.textContent).toContain("版本");
-    expect(host.textContent).toContain("0.1.2");
+    expect(host.textContent).toContain(__BARWARDEN_VERSION__);
     expect(host.textContent).toContain("上游 revision");
     expect(host.textContent).toContain("f47b6946e01aed474875789081966d311d5b8289");
     expect(host.textContent).toContain("当前 Web Vault");
@@ -445,9 +700,46 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     expect(host.textContent).toContain("Version 0.2.0 is available");
-    expect(host.textContent).toContain("Download and restart");
+    expect(host.textContent).toContain("Update and restart");
     expect(host.textContent).toContain("Fixes");
     expect(candidate.downloadAndInstall).not.toHaveBeenCalled();
+  });
+
+  it("reacts to a background update without reopening the About page", async () => {
+    const candidate = {
+      version: "0.2.0",
+      notes: "Fixes",
+      downloadAndInstall: vi.fn(async () => undefined),
+    };
+    const updater = new AppUpdateService({ check: vi.fn(async () => candidate) });
+    await TestBed.configureTestingModule({
+      imports: [AboutPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: PopupStateStore, useValue: new PopupStateStore() },
+        { provide: AppUpdateService, useValue: updater },
+        {
+          provide: EnvironmentHandoffService,
+          useValue: {
+            openExternal: vi.fn(async () => undefined),
+            openWebVault: vi.fn(async () => undefined),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AboutPageComponent);
+    await TestBed.inject(OfficialI18nService).setLocale("en-US");
+    fixture.detectChanges();
+
+    await updater.checkInBackground();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      "Version 0.2.0 is available",
+    );
   });
 
   it.each(["Enter", " "])("opens About metadata from one explicit %s activation", async (key) => {
@@ -558,8 +850,11 @@ describe("P1 settings pages", () => {
     expect(host.textContent).not.toContain("private native opener details");
   });
 
-  it("renders actionable native single-field modes with standard clipboard timeout choices", async () => {
+  it("renders the real AutoFill subtree with preference rows, visible selects, and a Switch", async () => {
     const service = new SettingsStateService();
+    const setFloatingIconPreference = vi.fn(async (_enabled: boolean) => {
+      throw new Error("native setup detail");
+    });
     await TestBed.configureTestingModule({
       imports: [AutofillSettingsPageComponent],
       providers: [
@@ -567,6 +862,10 @@ describe("P1 settings pages", () => {
         OfficialI18nService,
         { provide: I18nService, useExisting: OfficialI18nService },
         { provide: SettingsStateService, useValue: service },
+        {
+          provide: (await import("../autofill/autofill-setup.service")).AutoFillSetupService,
+          useValue: { setFloatingIconPreference },
+        },
       ],
     }).compileComponents();
 
@@ -574,18 +873,62 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.textContent).toContain("单字段填充");
+    installAppearancePreferenceCss();
+    expect(host.matches(".macos-page--settings-detail")).toBe(true);
+    expect(host.textContent).toContain("填充");
+    expect(host.textContent).not.toContain("单字段填充");
+    expect(host.textContent).toContain("在输入框附近显示图标");
     expect(host.textContent).not.toContain("在表单字段上显示自动填充建议");
     expect(host.textContent).not.toContain("页面加载时自动填充");
     expect(host.textContent).toContain("清空剪贴板");
-    expect(host.textContent).toContain("单字段填充");
+    expect(host.textContent).toContain("填充");
     expect(host.textContent).not.toContain("内容脚本");
     expect(host.querySelector('a[href="/blocked-domains"]')).toBeNull();
+    const group = host.querySelector<HTMLElement>(
+      "section.settings-detail-group.macos-preference-group",
+    );
+    expect(group).not.toBeNull();
+    expect(host.querySelector("bit-card")).toBeNull();
+    const rows = Array.from(group!.querySelectorAll<HTMLElement>(".macos-preference-row"));
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(Number.parseFloat(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(getComputedStyle(row).boxShadow).toBe("none");
+    }
+    expect(rows.slice(0, -1).map((row) => getComputedStyle(row).borderBottomWidth))
+      .toEqual(["1px", "1px"]);
 
     expect(host.querySelector("input[type='number']")).toBeNull();
-    expect(
-      host.querySelector('bit-select[aria-label="清空剪贴板"]'),
-    ).not.toBeNull();
+    const visibleSelects = Array.from(
+      group!.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
+    );
+    expect(visibleSelects).toHaveLength(2);
+    for (const selectHost of visibleSelects) {
+      const row = selectHost.closest<HTMLElement>("bit-form-field.macos-preference-row");
+      expect(row).not.toBeNull();
+      const internalLayout = row!.querySelector<HTMLElement>(":scope > div");
+      const label = row!.querySelector<HTMLElement>("bit-label.macos-preference-row__copy");
+      const labelGridItem = label?.closest<HTMLElement>("label");
+      const hint = row!.querySelector<HTMLElement>("bit-hint");
+      const selectGridItem = selectHost.closest<HTMLElement>("[bitfieldcontainer]")?.parentElement;
+      expect(internalLayout).not.toBeNull();
+      expect(label).not.toBeNull();
+      expect(labelGridItem).not.toBeNull();
+      expect(hint).not.toBeNull();
+      expect(selectGridItem).not.toBeNull();
+      expect(getComputedStyle(row!).gridTemplateColumns.replace(/\s+/g, "")).toBe(
+        "minmax(0,1fr)136px",
+      );
+      expect(getComputedStyle(internalLayout!).display).toBe("contents");
+      expect(getComputedStyle(labelGridItem!).gridColumnStart).toBe("1");
+      expect(getComputedStyle(hint!).gridColumnStart).toBe("1");
+      expect(getComputedStyle(selectGridItem!).gridColumnStart).toBe("2");
+      expect(getComputedStyle(selectGridItem!).gridRowStart).toBe("1");
+      expect(getComputedStyle(selectGridItem!).gridRowEnd).toBe("span 2");
+      expect(getComputedStyle(selectGridItem!).alignSelf).toBe("center");
+      expect(getComputedStyle(selectGridItem!).justifySelf).toBe("end");
+    }
+    expectRealSelectGeometry(visibleSelects, "36px", "136px", "40px");
     expect(
       fixture.componentInstance.clipboardClearOptions.map(
         (option) => option.value,
@@ -598,16 +941,165 @@ describe("P1 settings pages", () => {
     fixture.componentInstance.setClipboardClearSecondsValue(0);
     fixture.componentInstance.setFillModeValue("clipboard-copy");
     fixture.componentInstance.setFillModeValue("clipboard-paste");
+    const fieldIcon = host.querySelector<HTMLButtonElement>(
+      'button.macos-switch-owner[role="switch"]',
+    );
+    expect(fieldIcon).not.toBeNull();
+    expect(fieldIcon?.getAttribute("aria-checked")).toBe("true");
+    expect(getComputedStyle(fieldIcon!).minWidth).toBe("44px");
+    expect(getComputedStyle(fieldIcon!).minHeight).toBe("44px");
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    const permissionAction = host.querySelector<HTMLButtonElement>(
+      '[data-testid="autofill-accessibility-permission"]',
+    );
+    expect(permissionAction).not.toBeNull();
+    expect(permissionAction!.classList).toContain("secondary-action");
+    expect(permissionAction!.classList).not.toContain("primary-action");
+    expect(Number.parseFloat(getComputedStyle(permissionAction!).minHeight))
+      .toBeGreaterThanOrEqual(44);
+    const permissionOwner = permissionAction!.closest<HTMLElement>(".autofill-permission-action");
+    expect(permissionOwner).not.toBeNull();
+    expect(getComputedStyle(permissionOwner!).marginLeft).toBe("0px");
+    expect(getComputedStyle(permissionOwner!).marginRight).toBe("0px");
+    expect(getComputedStyle(permissionOwner!).marginBottom).toBe("16px");
+    expect(host.querySelector(".primary-action, [buttonType='primary']")).toBeNull();
+    const switchTrack = fieldIcon!.querySelector<HTMLElement>("span")!;
+    fieldIcon!.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(fieldIcon!).outlineWidth).toBe("0px");
+    expect(resolvedMatchedProperty(fieldIcon!, "outline-width")).toBe("0px");
+    expect(getComputedStyle(switchTrack).outlineWidth).toBe("2px");
+    expect(resolvedMatchedProperty(switchTrack, "outline-width")).toBe("2px");
+    expectSharedSettingsPageInset(host);
+    expect(getComputedStyle(group!).marginLeft).toBe("0px");
+    expect(getComputedStyle(group!).marginRight).toBe("0px");
+    expect(resolvedMatchedProperty(group!, "margin-top")).toBe("16px");
+    expect(resolvedMatchedProperty(group!, "margin-bottom")).toBe("16px");
+
+    document.documentElement.dataset["testReducedMotion"] = "true";
+    installAppearancePreferenceCss({ reducedMotion: true });
+    expect(getComputedStyle(switchTrack).transitionDuration).toBe("0s");
+    document.documentElement.removeAttribute("data-test-reduced-motion");
+
+    document.documentElement.dataset["testForcedColors"] = "true";
+    installAppearancePreferenceCss({ forcedColors: true });
+    expect(getComputedStyle(switchTrack).forcedColorAdjust).toBe("none");
+    expect(getComputedStyle(switchTrack).outlineWidth).toBe("2px");
+    document.documentElement.removeAttribute("data-test-forced-colors");
+    fieldIcon!.click();
+    await fixture.whenStable();
 
     expect(service.snapshot()).toMatchObject({
       clipboardClearSeconds: 0,
       fillMode: "clipboard-paste",
+      showInputFieldIcon: false,
     });
+    expect(setFloatingIconPreference).toHaveBeenCalledWith(false);
+    expect(host.querySelectorAll('[aria-busy="true"] [role="progressbar"]').length)
+      .toBeLessThanOrEqual(1);
+
+    document.documentElement.style.fontSize = "200%";
+    const copy = host.querySelector<HTMLElement>("#autofill-field-icon-label")!;
+    const originalCopy = copy.textContent;
+    copy.textContent = `${originalCopy} ${originalCopy} ${originalCopy}`;
+    expect(getComputedStyle(rows.at(-1)!).height).toBe("auto");
+    expect(getComputedStyle(copy).whiteSpace).toBe("normal");
+    expect(getComputedStyle(copy).overflowWrap).toBe("anywhere");
+    copy.textContent = originalCopy;
+    document.documentElement.style.removeProperty("font-size");
+
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    expectRealSelectGeometry(visibleSelects, "34px", "136px", "38px");
+    expect(getComputedStyle(fieldIcon!).minHeight).toBe("44px");
+    document.documentElement.removeAttribute("data-bw-compact-mode");
     expect(host.querySelectorAll("button[disabled]")).toHaveLength(0);
   });
 
+  it("uses the accessibility fallback exactly once without AutoFillSetup and swallows rejection", async () => {
+    const service = new SettingsStateService();
+    const setFloatingIconEnabled = vi.fn(async (_enabled: boolean) => {
+      throw new Error("private accessibility host failure");
+    });
+    await TestBed.configureTestingModule({
+      imports: [AutofillSettingsPageComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: SettingsStateService, useValue: service },
+        {
+          provide: AutoFillAccessibilityService,
+          useValue: { setFloatingIconEnabled },
+        },
+      ],
+    }).compileComponents();
 
-  it("renders appearance inventory with supported local settings active and unsupported ones deferred", async () => {
+    const fixture = TestBed.createComponent(AutofillSettingsPageComponent);
+    fixture.detectChanges();
+    expect(TestBed.inject(AutoFillSetupService, null)).toBeNull();
+
+    fixture.componentInstance.setShowInputFieldIconValue(false);
+    await fixture.whenStable();
+
+    expect(service.snapshot().showInputFieldIcon).toBe(false);
+    expect(setFloatingIconEnabled).toHaveBeenCalledTimes(1);
+    expect(setFloatingIconEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("opens the real permission Sheet from one secondary AutoFill action and restores its focus owner", async () => {
+    await TestBed.configureTestingModule({
+      imports: [AutofillPermissionTestHostComponent],
+      providers: [
+        provideRouter([]),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+        { provide: SettingsStateService, useValue: new SettingsStateService() },
+        {
+          provide: AutoFillAccessibilityService,
+          useValue: { setFloatingIconEnabled: vi.fn(async () => undefined) },
+        },
+        {
+          provide: ACCESSIBILITY_SETTINGS_HOST,
+          useValue: { openUrl: vi.fn(async () => undefined) },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AutofillPermissionTestHostComponent);
+    fixture.detectChanges();
+    installAppearancePreferenceCss();
+    const host = fixture.nativeElement as HTMLElement;
+    const action = host.querySelector<HTMLButtonElement>(
+      '[data-testid="autofill-accessibility-permission"]',
+    );
+    expect(action).not.toBeNull();
+    expect(action!.classList).toContain("secondary-action");
+    expect(action!.getAttribute("type")).toBe("button");
+    expect(Number.parseFloat(getComputedStyle(action!).minHeight))
+      .toBeGreaterThanOrEqual(44);
+
+    action!.focus();
+    action!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const dialog = TestBed.inject(AccessibilityPermissionDialogService);
+    const sheet = host.querySelector<HTMLDialogElement>(
+      '.app-bottom-sheet[open][data-testid="accessibility-permission-sheet"]',
+    );
+    expect(dialog.trigger()).toBe(action);
+    expect(sheet).not.toBeNull();
+    expect(document.activeElement).toBe(
+      sheet!.querySelector<HTMLButtonElement>('[data-testid="accessibility-later"]'),
+    );
+
+    sheet!.querySelector<HTMLButtonElement>('[data-testid="accessibility-later"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(action);
+  });
+
+
+  it("renders appearance as native preference rows with real Select and Switch controls", async () => {
     const service = new SettingsStateService();
     await TestBed.configureTestingModule({
       imports: [AppearancePageComponent],
@@ -623,6 +1115,8 @@ describe("P1 settings pages", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    installAppearancePreferenceCss();
+
     expect(host.textContent).toContain("主题");
     expect(host.textContent).toContain("紧凑模式");
     expect(host.textContent).toContain("显示动画");
@@ -632,35 +1126,195 @@ describe("P1 settings pages", () => {
     );
     expect(host.textContent).toContain("显示网站图标");
     expect(host.textContent).toContain("在密码库上显示快速复制操作");
+    expect(host.querySelectorAll(".macos-preference-group")).toHaveLength(3);
+    expect(host.querySelectorAll(".macos-preference-row")).toHaveLength(6);
+    expect(host.querySelector("bit-card")).toBeNull();
     expect(host.textContent).not.toContain("点击自动填充建议中的项目以填充");
-    const quickCopyCheckbox = host.querySelector<HTMLInputElement>(
-      'input[aria-label="在密码库上显示快速复制操作"]',
+
+    const selectHosts = host.querySelectorAll<HTMLElement>(
+      "bit-select.macos-control-visible",
     );
-    expect(quickCopyCheckbox).not.toBeNull();
-    expect(quickCopyCheckbox?.disabled).toBe(false);
-    expect(quickCopyCheckbox?.checked).toBe(true);
-    const faviconCheckbox = host.querySelector<HTMLInputElement>(
-      'input[aria-label="显示网站图标"]',
+    expect(selectHosts).toHaveLength(2);
+    const nativeSelectControls = Array.from(selectHosts, (selectHost) =>
+      selectHost.querySelector<HTMLInputElement>('input[role="combobox"]'),
     );
-    expect(faviconCheckbox).not.toBeNull();
-    expect(faviconCheckbox?.disabled).toBe(false);
-    expect(faviconCheckbox?.checked).toBe(true);
+    expect(nativeSelectControls.every((control) => control !== null)).toBe(true);
+    const ngSelects = Array.from(selectHosts, (selectHost) =>
+      selectHost.querySelector<HTMLElement>("ng-select"),
+    );
+    const ngSelectContainers = Array.from(selectHosts, (selectHost) =>
+      selectHost.querySelector<HTMLElement>("ng-select > .ng-select-container"),
+    );
+    expect(ngSelects.every((control) => control !== null)).toBe(true);
+    expect(ngSelectContainers.every((control) => control !== null)).toBe(true);
+    expect(Array.from(selectHosts, (selectHost) =>
+      selectHost.closest("bit-form-field.macos-preference-row") !== null,
+    )).toEqual([true, true]);
+    const selectRowLayouts = Array.from(
+      host.querySelectorAll<HTMLElement>("bit-form-field.macos-preference-row"),
+      (row) => row.querySelector<HTMLElement>(":scope > div"),
+    );
+    expect(selectRowLayouts.every((layout) => layout !== null)).toBe(true);
+    expect(selectRowLayouts.map((layout) => getComputedStyle(layout!).display))
+      .toEqual(["grid", "grid"]);
+    expect(selectRowLayouts.map((layout) =>
+      getComputedStyle(layout!).gridTemplateColumns.replace(/\s+/g, ""),
+    )).toEqual(["minmax(0,1fr)136px", "minmax(0,1fr)136px"]);
+    for (const selectHost of selectHosts) {
+      const selectStyle = getComputedStyle(selectHost);
+      const ngSelect = selectHost.querySelector<HTMLElement>("ng-select")!;
+      const paintedContainer = selectHost.querySelector<HTMLElement>(".ng-select-container")!;
+      expect(selectStyle.justifySelf).toBe("end");
+      expect(selectStyle.width).toBe("136px");
+      expect(selectStyle.maxWidth).toBe("136px");
+      expect(selectStyle.minWidth).toBe("0px");
+      expect(resolvedMatchedPriority(selectHost, "width")).toBe("important");
+      expect(resolvedMatchedPriority(selectHost, "max-width")).toBe("important");
+      expect(getComputedStyle(ngSelect).width).toBe("100%");
+      expect(getComputedStyle(ngSelect).maxWidth).toBe("100%");
+      expect(resolvedMatchedPriority(ngSelect, "width")).toBe("important");
+      expect(getComputedStyle(paintedContainer).width).toBe("100%");
+      expect(getComputedStyle(paintedContainer).maxWidth).toBe("100%");
+      expect(resolvedMatchedPriority(paintedContainer, "width")).toBe("important");
+    }
+    expectRealSelectGeometry(Array.from(selectHosts), "36px", "136px", "40px");
+    expect(host.matches(".macos-page--settings-detail")).toBe(true);
+    expectSharedSettingsPageInset(host);
+
+    const switches = Array.from(
+      host.querySelectorAll<HTMLButtonElement>('[role="switch"]'),
+    );
+    expect(switches.map((control) => control.dataset["setting"])).toEqual([
+      "compactMode",
+      "animations",
+      "showFavicons",
+      "showQuickCopyActions",
+    ]);
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    for (const owner of switches) {
+      expect(getComputedStyle(owner).minWidth).toBe("44px");
+      expect(getComputedStyle(owner).minHeight).toBe("44px");
+      const track = owner.querySelector<HTMLElement>("span");
+      expect(track).not.toBeNull();
+      expect(getComputedStyle(track!).width).toBe("34px");
+      expect(getComputedStyle(track!).height).toBe("20px");
+      expect(getComputedStyle(owner).outlineStyle).toBe("none");
+    }
+    switches[0]!.dataset["testFocusVisible"] = "true";
+    expect(getComputedStyle(switches[0]!).outlineWidth).toBe("0px");
+    expect(resolvedMatchedProperty(switches[0]!, "outline-width")).toBe("0px");
+    expect(getComputedStyle(switches[0]!.querySelector("span")!).outlineWidth).toBe("2px");
+    expect(resolvedMatchedProperty(
+      switches[0]!.querySelector<HTMLElement>("span")!,
+      "outline-width",
+    )).toBe("2px");
+    for (const row of host.querySelectorAll<HTMLElement>(".macos-preference-row")) {
+      const rowStyle = getComputedStyle(row);
+      expect(parseFloat(rowStyle.minHeight)).toBeGreaterThanOrEqual(44);
+      expect(rowStyle.borderRadius).toBe("0px");
+      expect(rowStyle.boxShadow).toBe("none");
+    }
+    for (const group of host.querySelectorAll<HTMLElement>(".macos-preference-group")) {
+      const rows = group.querySelectorAll<HTMLElement>(":scope > .macos-preference-row");
+      expect(rows).toHaveLength(2);
+      expect(getComputedStyle(rows[0]!).borderBottomWidth).toBe("1px");
+      expect(getComputedStyle(rows[1]!).borderBottomWidth).toBe("0px");
+    }
+    document.documentElement.style.fontSize = "200%";
+    const longCopy = host.querySelector<HTMLElement>("#appearance-quick-actions-label")!;
+    const originalCopy = longCopy.textContent;
+    longCopy.textContent = `${originalCopy} ${originalCopy} ${originalCopy}`;
+    for (const row of host.querySelectorAll<HTMLElement>(".macos-preference-row")) {
+      const rowStyle = getComputedStyle(row);
+      expect(rowStyle.height).toBe("auto");
+      expect(rowStyle.overflow).toBe("visible");
+    }
+    for (const copy of host.querySelectorAll<HTMLElement>(".macos-preference-row__copy")) {
+      const copyStyle = getComputedStyle(copy);
+      expect(copyStyle.height).toBe("auto");
+      expect(copyStyle.minHeight).toBe("0px");
+      expect(copyStyle.whiteSpace).toBe("normal");
+      expect(copyStyle.overflowWrap).toBe("anywhere");
+      expect(copyStyle.overflow).toBe("visible");
+    }
+    longCopy.textContent = originalCopy;
+    document.documentElement.style.removeProperty("font-size");
+
+    document.documentElement.dataset["bwCompactMode"] = "true";
+    expectRealSelectGeometry(Array.from(selectHosts), "34px", "136px", "38px");
+    for (const owner of switches) {
+      expect(getComputedStyle(owner).minHeight).toBe("44px");
+    }
+    document.documentElement.removeAttribute("data-bw-compact-mode");
+    document.documentElement.dataset["testReducedMotion"] = "true";
+    installAppearancePreferenceCss({ reducedMotion: true });
+    expect(getComputedStyle(switches[0]!.querySelector("span")!).transitionDuration).toBe("0s");
+    document.documentElement.removeAttribute("data-test-reduced-motion");
+
+    document.documentElement.dataset["testHiDpi"] = "true";
+    installAppearancePreferenceCss({ hiDpi: true });
+    for (const group of host.querySelectorAll<HTMLElement>(".macos-preference-group")) {
+      const rows = group.querySelectorAll<HTMLElement>(":scope > .macos-preference-row");
+      expect(getComputedStyle(rows[0]!).borderBottomWidth).toBe("0.5px");
+      expect(getComputedStyle(rows[1]!).borderBottomWidth).toBe("0px");
+    }
+    document.documentElement.removeAttribute("data-test-hi-dpi");
+
+    document.documentElement.dataset["testForcedColors"] = "true";
+    installAppearancePreferenceCss({ forcedColors: true });
+    const uncheckedTrack = switches[0]!.querySelector<HTMLElement>("span")!;
+    const checkedTrack = switches[1]!.querySelector<HTMLElement>("span")!;
+    switches[1]!.dataset["testFocusVisible"] = "true";
+    const uncheckedTrackStyle = getComputedStyle(uncheckedTrack);
+    const checkedTrackStyle = getComputedStyle(checkedTrack);
+    expect(uncheckedTrackStyle.forcedColorAdjust).toBe("none");
+    expect(checkedTrackStyle.forcedColorAdjust).toBe("none");
+    expect(checkedTrackStyle.backgroundColor).not.toBe(uncheckedTrackStyle.backgroundColor);
+    expect(checkedTrackStyle.borderColor).not.toBe(uncheckedTrackStyle.borderColor);
+    expect(checkedTrackStyle.outlineWidth).toBe("2px");
+    expect(checkedTrackStyle.outlineColor).toBe(checkedTrackStyle.backgroundColor);
+    document.documentElement.removeAttribute("data-test-forced-colors");
 
     const overlay = fixture.debugElement.query(By.directive(OfficialAppearanceComponent))
       .componentInstance as OfficialAppearanceComponent;
     expect(overlay.themeOptions.map(({ value }) => value)).toEqual(["system", "light", "dark"]);
-    overlay.setThemeValue("dark");
-    host
-      .querySelector<HTMLInputElement>('input[aria-label="紧凑模式"]')!
-      .click();
-    host
-      .querySelector<HTMLInputElement>('input[aria-label="显示动画"]')!
-      .click();
-    faviconCheckbox!.click();
-    quickCopyCheckbox!.click();
+    const themeChanges: unknown[] = [];
+    const languageChanges: unknown[] = [];
+    overlay.themeChange.subscribe((value) => themeChanges.push(value));
+    overlay.languageChange.subscribe((value) => languageChanges.push(value));
+    const setTheme = vi.spyOn(service, "setTheme");
+    const setLanguage = vi.spyOn(service, "setLanguage");
+    const renderedSelects = fixture.debugElement.queryAll(
+      By.css("bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select"),
+    );
+    expect(renderedSelects).toHaveLength(2);
+    renderedSelects[0]!.triggerEventHandler(
+      "ngModelChange",
+      overlay.languageOptions.find(({ value }) => value === "en-US"),
+    );
+    renderedSelects[1]!.triggerEventHandler(
+      "ngModelChange",
+      overlay.themeOptions.find(({ value }) => value === "dark"),
+    );
+    fixture.detectChanges();
+    expect(languageChanges).toEqual(["en-US"]);
+    expect(themeChanges).toEqual(["dark"]);
+    expect(setLanguage).toHaveBeenCalledWith("en-US");
+    expect(setTheme).toHaveBeenCalledWith("dark");
+    expect(switches.map((control) => control.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+      "true",
+      "true",
+    ]);
+    for (const control of switches) {
+      expect(control.disabled).toBe(false);
+      control.click();
+    }
     fixture.detectChanges();
 
     expect(service.snapshot()).toMatchObject({
+      language: "en-US",
       theme: "dark",
       compactMode: true,
       animations: false,
@@ -732,6 +1386,8 @@ describe("P1 settings pages", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.textContent).toContain("更改主密码");
     expect(host.textContent).toContain("Web Vault");
+    expect(host.querySelectorAll("section.settings-password-handoff.settings-detail-group"))
+      .toHaveLength(1);
     const openButton = Array.from(
       host.querySelectorAll<HTMLButtonElement>("button"),
     ).find((button) => button.textContent?.includes("打开 Web Vault"));
@@ -794,3 +1450,275 @@ describe("P1 settings pages", () => {
   });
 
 });
+
+function installAppearancePreferenceCss(
+  media: { forcedColors?: boolean; hiDpi?: boolean; reducedMotion?: boolean } = {},
+): HTMLStyleElement {
+  const source = ["macos-tokens.css", "macos-motion.css", "global.css"]
+    .map((file) => readFileSync(resolve(
+      process.cwd(),
+      "apps/menubar-tauri/src/styles",
+      file,
+    ), "utf8"))
+    .join("\n")
+    .replace(/^@import[^;]+;\s*/gm, "");
+  const rootDeclarations = Array.from(
+    source.matchAll(/^:root\s*{([\s\S]*?)^}/gm),
+    (match) => match[1] ?? "",
+  ).join("\n");
+  const tokens = new Map(
+    [...rootDeclarations.matchAll(/(--(?:mac|bw)-[\w-]+):\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]),
+  );
+  const style = document.createElement("style");
+  style.dataset["testOwner"] = "appearance-preferences";
+  const activeMedia = [
+    media.hiDpi
+      ? scopeMediaRules(extractMediaBody(source, "min-resolution:2dppx"), "data-test-hi-dpi")
+      : "",
+    media.forcedColors
+      ? scopeMediaRules(
+          extractMediaBody(source, "forced-colors: active")
+            .split(/(?<=})/)
+            .filter((rule) => rule.includes("macos-switch-owner"))
+            .join("\n"),
+          "data-test-forced-colors",
+        )
+      : "",
+  ].join("\n");
+  const hostileVendorDefaults = `
+.macos-preference-row {
+  height: 36px;
+  min-height: 36px;
+  overflow: hidden;
+}
+bit-form-control.macos-preference-row > label {
+  width: max-content;
+  min-height: 20px;
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible,
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select {
+  box-shadow: 0 0 0 4px rgb(222, 0, 0);
+  border: 4px solid rgb(222, 0, 0);
+  padding: 12px;
+  width: 320px;
+  max-width: 320px;
+  height: 20px;
+  min-height: 20px;
+  background: rgb(222, 0, 0);
+}
+bit-form-field.macos-preference-row bit-select.macos-control-visible ng-select > .ng-select-container {
+  height: 18px;
+  min-height: 18px;
+  background: rgb(0, 120, 0);
+}
+.macos-preference-row__copy {
+  height: 18px;
+  min-height: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+`;
+  style.textContent = `${hostileVendorDefaults}
+${source}
+${activeMedia}`
+    .replace(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*([^{}]+\{[^{}]*\})\s*\}/g,
+      (_match, rule: string) => media.reducedMotion
+        ? rule.replace(/^\s*/, ':root[data-test-reduced-motion="true"] ')
+        : "",
+    )
+    .replace(/var\((--(?:mac|bw)-[\w-]+)\)/g, (value, name) => tokens.get(name) ?? value)
+    .replace(/:focus-visible/g, '[data-test-focus-visible="true"]');
+  document.head.append(style);
+  return style;
+}
+
+function expectSharedSettingsPageInset(host: HTMLElement): void {
+  const scrollRegion = host.querySelector<HTMLElement>(
+    '[data-testid="popup-layout-scroll-region"]',
+  );
+  expect(scrollRegion).not.toBeNull();
+  expect(getComputedStyle(scrollRegion!).paddingInline).toBe("16px");
+}
+
+function expectRealSelectGeometry(
+  selectHosts: readonly HTMLElement[],
+  visibleHeight: "40px" | "36px" | "34px" | "32px" | "30px",
+  visibleWidth = "136px",
+  ownerHeight: "40px" | "38px" | "34px" | "32px" = "40px",
+): void {
+  for (const selectHost of selectHosts) {
+    const ngSelect = selectHost.querySelector<HTMLElement>("ng-select");
+    const paintedContainer = selectHost.querySelector<HTMLElement>(
+      "ng-select > .ng-select-container",
+    );
+    const focusOwner = selectHost.querySelector<HTMLElement>('input[role="combobox"]');
+    const valueContainer = selectHost.querySelector<HTMLElement>(
+      "ng-select > .ng-select-container .ng-value-container",
+    );
+    const inputContainer = selectHost.querySelector<HTMLElement>(
+      "ng-select > .ng-select-container .ng-input",
+    );
+    expect(ngSelect).not.toBeNull();
+    expect(paintedContainer).not.toBeNull();
+    expect(focusOwner).not.toBeNull();
+    expect(valueContainer).not.toBeNull();
+    expect(inputContainer).not.toBeNull();
+
+    for (const owner of [selectHost, ngSelect!]) {
+      const ownerStyle = getComputedStyle(owner);
+      expect(ownerStyle.minHeight).toBe(ownerHeight);
+      expect(ownerStyle.height).toBe(ownerHeight);
+      expect(ownerStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(cssPixels(ownerStyle.borderTopWidth)).toBe(0);
+      expect(cssPixels(ownerStyle.paddingTop)).toBe(0);
+      expect(cssPixels(ownerStyle.paddingBottom)).toBe(0);
+      expect(ownerStyle.boxShadow).toBe("none");
+    }
+    const selectHostStyle = getComputedStyle(selectHost);
+    expect(selectHostStyle.width).toBe(visibleWidth);
+    expect(selectHostStyle.maxWidth).toBe(visibleWidth);
+    const ngSelectStyle = getComputedStyle(ngSelect!);
+    for (const value of [ngSelectStyle.width, ngSelectStyle.maxWidth]) {
+      expect(["100%", visibleWidth]).toContain(value);
+    }
+    const paintedStyle = getComputedStyle(paintedContainer!);
+    expect(paintedStyle.boxSizing).toBe("border-box");
+    expect(paintedStyle.height).toBe(visibleHeight);
+    expect(paintedStyle.minHeight).toBe(visibleHeight);
+    expect(cssPixels(paintedStyle.paddingTop)).toBe(0);
+    expect(cssPixels(paintedStyle.paddingBottom)).toBe(0);
+    expect(paintedStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(valueContainer!).height).toBe("100%");
+    expect(getComputedStyle(valueContainer!).minHeight).toBe("0px");
+    expect(cssPixels(getComputedStyle(valueContainer!).paddingTop)).toBe(0);
+    expect(cssPixels(getComputedStyle(valueContainer!).paddingBottom)).toBe(0);
+    expect(getComputedStyle(inputContainer!).height).toBe("100%");
+    expect(cssPixels(getComputedStyle(inputContainer!).paddingTop)).toBe(0);
+    expect(cssPixels(getComputedStyle(inputContainer!).paddingBottom)).toBe(0);
+    expect(getComputedStyle(focusOwner!).height).toBe("100%");
+    expect(cssPixels(getComputedStyle(focusOwner!).paddingTop)).toBe(0);
+    expect(cssPixels(getComputedStyle(focusOwner!).paddingBottom)).toBe(0);
+
+    const restingBorderColor = getComputedStyle(paintedContainer!).borderColor;
+    focusOwner!.dataset["testFocusVisible"] = "true";
+    const fieldContainer = focusOwner!.closest<HTMLElement>("[bitfieldcontainer]");
+    expect(fieldContainer).not.toBeNull();
+    expect(resolvedMatchedProperty(fieldContainer!, "outline-width")).toBe("0px");
+    expect(resolvedMatchedProperty(selectHost, "outline-width")).toBe("0px");
+    expect(resolvedMatchedProperty(ngSelect!, "outline-width")).toBe("0px");
+    expect(resolvedMatchedProperty(paintedContainer!, "outline-width")).toBe("2px");
+    expect(getComputedStyle(paintedContainer!).borderColor).toBe(restingBorderColor);
+    expect(getComputedStyle(paintedContainer!).boxShadow).toBe("none");
+    delete focusOwner!.dataset["testFocusVisible"];
+  }
+}
+
+function cssPixels(value: string): number {
+  if (value.trim() === "0") return 0;
+  return Number.parseFloat(value);
+}
+
+function resolvedMatchedProperty(element: Element, property: string): string {
+  let resolved = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const value = resolvedRuleProperty(rule.style, property);
+      if (!value) continue;
+      const matches = splitSelectorList(rule.selectorText).some((selector) => {
+        try {
+          return element.matches(selector.trim());
+        } catch {
+          return false;
+        }
+      });
+      if (matches) resolved = value;
+    }
+  }
+  return resolved;
+}
+
+function resolvedMatchedPriority(element: Element, property: string): string {
+  let resolved = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const value = resolvedRuleProperty(rule.style, property);
+      if (!value) continue;
+      const matches = splitSelectorList(rule.selectorText).some((selector) => {
+        try {
+          return element.matches(selector.trim());
+        } catch {
+          return false;
+        }
+      });
+      if (matches) resolved = rule.style.getPropertyPriority(property).trim();
+    }
+  }
+  return resolved;
+}
+
+function resolvedRuleProperty(style: CSSStyleDeclaration, property: string): string {
+  const direct = style.getPropertyValue(property).trim();
+  if (direct) return direct;
+  if (property === "outline-width") {
+    return style.outline.match(/(?:^|\s)(\d+(?:\.\d+)?px)(?:\s|$)/)?.[1] ?? "";
+  }
+  return "";
+}
+
+function splitSelectorList(selectorList: string): string[] {
+  const selectors: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < selectorList.length; index += 1) {
+    const character = selectorList[index];
+    if (character === "(") depth += 1;
+    else if (character === ")") depth -= 1;
+    else if (character === "," && depth === 0) {
+      selectors.push(selectorList.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  selectors.push(selectorList.slice(start).trim());
+  return selectors;
+}
+
+function extractMediaBody(source: string, query: string): string {
+  const marker = `@media (${query})`;
+  const bodies: string[] = [];
+  for (let cursor = 0;;) {
+    const markerIndex = source.indexOf(marker, cursor);
+    if (markerIndex < 0) {
+      break;
+    }
+    const openIndex = source.indexOf("{", markerIndex);
+    let depth = 1;
+    for (let index = openIndex + 1; index < source.length; index += 1) {
+      if (source[index] === "{") {
+        depth += 1;
+      } else if (source[index] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          bodies.push(source.slice(openIndex + 1, index));
+          cursor = index + 1;
+          break;
+        }
+      }
+    }
+  }
+  return bodies.join("\n");
+}
+
+function scopeMediaRules(body: string, attribute: string): string {
+  return body.replace(/([^{}]+)\{([^{}]*)\}/g, (_rule, selectorList: string, declarations: string) => {
+    const selectors = selectorList
+      .split(/,\s*(?=\.)/)
+      .map((selector) => `:root[${attribute}="true"] ${selector.trim()}`)
+      .join(",\n");
+    return `${selectors} {${declarations}}`;
+  });
+}

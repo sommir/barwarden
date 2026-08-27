@@ -19,7 +19,11 @@ import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 
 export interface VaultRepromptApi {
   postPasswordPrelogin(request: PasswordPreloginRequest): Promise<unknown>;
-  postVerifyPassword(request: VerifyPasswordRequest, accessToken: string): Promise<void>;
+  postVerifyPassword(
+    request: VerifyPasswordRequest,
+    accessToken: string,
+    repromptReceipt?: string,
+  ): Promise<void>;
 }
 
 export type VaultRepromptApiFactory = (session: AuthSession) => VaultRepromptApi;
@@ -52,7 +56,11 @@ export class VaultRepromptService {
     @Inject(VAULT_REPROMPT_CRYPTO) private readonly crypto: MasterPasswordCrypto,
   ) {}
 
-  async verify(masterPassword: string, operationEpoch: number): Promise<boolean> {
+  async verify(
+    masterPassword: string,
+    operationEpoch: number,
+    repromptReceipt?: string,
+  ): Promise<boolean> {
     if (!masterPassword) {
       throw new VaultRepromptError(translateOfficialMessage("i18nEnterMasterPassword"));
     }
@@ -89,10 +97,12 @@ export class VaultRepromptService {
         return false;
       }
 
-      await api.postVerifyPassword(
-        { masterPasswordHash: authenticationHash },
-        session.token.accessToken,
-      );
+      const verifyRequest = { masterPasswordHash: authenticationHash };
+      if (repromptReceipt) {
+        await api.postVerifyPassword(verifyRequest, session.token.accessToken, repromptReceipt);
+      } else {
+        await api.postVerifyPassword(verifyRequest, session.token.accessToken);
+      }
       return this.isCurrent(operationEpoch, session, email);
     } catch (error) {
       if (!this.isCurrent(operationEpoch, session, email)) {

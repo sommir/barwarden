@@ -25,6 +25,19 @@ try {
 }
 
 describe("RetainedVaultListItemComponent", () => {
+  it("uses the shared continuous Vault row visual contract", async () => {
+    const fixture = await createLoginRow();
+    const row = fixture.nativeElement.querySelector("bit-item") as HTMLElement;
+
+    expect(row.classList).toContain("vault-list-row");
+    expect(row.classList).toContain("macos-row");
+    expect(row.classList).toContain("macos-row--double");
+    expect(row.querySelector("[data-testid='vault-item-content']")?.classList)
+      .not.toContain("tw-h-[52px]");
+    expect(Array.from(row.querySelectorAll<HTMLElement>("[data-field]"), (action) =>
+      action.classList.contains("macos-hit-target"))).toEqual([true, true, true]);
+  });
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -39,14 +52,45 @@ describe("RetainedVaultListItemComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector("bit-item [data-testid='vault-item-content']")).not.toBeNull();
+    expect(host.querySelector("[data-testid='vault-item-content']")?.getAttribute("data-popup-focus-key"))
+      .toBe("vault-item:github");
     expect(host.querySelector("[data-testid='item-name']")?.textContent).toContain("GitHub");
     expect(host.querySelector("[slot='secondary']")?.textContent).toContain("ops@example.com");
     expect(host.querySelector('[aria-label="打开"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入用户名"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入密码"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入验证码"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="复制并填入用户名 — GitHub"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="复制并填入密码 — GitHub"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="复制并填入验证码 — GitHub"]')).not.toBeNull();
     expect(host.querySelector(".bwi-business")).toBeNull();
     expect(host.querySelector(".bwi-paperclip")).toBeNull();
+  });
+
+  it("marks credential actions with stable semantic field names", async () => {
+    const fixture = await createLoginRow();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-field="username"] .bwi-user')).not.toBeNull();
+    expect(host.querySelector('[data-field="password"] .bwi-key')).not.toBeNull();
+    expect(host.querySelector('[data-field="totp"] .bwi-clock')).not.toBeNull();
+    expect([...host.querySelectorAll("[data-field]")].map((node) => node.getAttribute("data-field")))
+      .toEqual(["username", "password", "totp"]);
+  });
+
+  it("names every credential action with its item and field so multiple login rows are distinguishable", async () => {
+    const [github, gitlab] = await createLoginRows([
+      {},
+      { id: "gitlab", name: "GitLab" },
+    ]);
+
+    expect(credentialActionLabels(github.nativeElement)).toEqual([
+      "复制并填入用户名 — GitHub",
+      "复制并填入密码 — GitHub",
+      "复制并填入验证码 — GitHub",
+    ]);
+    expect(credentialActionLabels(gitlab.nativeElement)).toEqual([
+      "复制并填入用户名 — GitLab",
+      "复制并填入密码 — GitLab",
+      "复制并填入验证码 — GitLab",
+    ]);
   });
 
   it("keeps the official retained menu order without Fill or collection branches", async () => {
@@ -77,8 +121,8 @@ describe("RetainedVaultListItemComponent", () => {
     const fixture = await createLoginRow({ organizationId: "organization-1" });
     const host = fixture.nativeElement as HTMLElement;
 
-    expect(host.querySelector('[aria-label="复制并填入用户名"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="复制并填入密码"]')).toBeNull();
+    expect(host.querySelector('[aria-label="复制并填入用户名 — GitHub"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="复制并填入密码 — GitHub"]')).toBeNull();
 
     host.querySelector<HTMLButtonElement>('[aria-label="更多"]')!.click();
     fixture.detectChanges();
@@ -108,7 +152,7 @@ describe("RetainedVaultListItemComponent", () => {
     expect(document.activeElement?.textContent).toContain("查看");
     document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     fixture.detectChanges();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
 
@@ -118,13 +162,13 @@ describe("RetainedVaultListItemComponent", () => {
     const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
     document.activeElement?.dispatchEvent(tab);
     expect(tab.defaultPrevented).toBe(false);
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
     fixture.detectChanges();
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).toBeNull();
     host.remove();
   });
 
-  it("keeps the menu exit visible for 100ms and lets reopening interrupt it", async () => {
+  it("keeps the menu exit visible for the 160ms fast-motion token and lets reopening interrupt it", async () => {
     const fixture = await createLoginRow();
     const host = fixture.nativeElement as HTMLElement;
     document.body.appendChild(host);
@@ -142,10 +186,12 @@ describe("RetainedVaultListItemComponent", () => {
     expect(document.querySelector(".bit-menu-panel--closing")).toBeNull();
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).not.toBeNull();
 
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).not.toBeNull();
     trigger.click();
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 110));
+    expect(document.querySelector('[role="menu"][aria-label="更多"]')).not.toBeNull();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 60));
     expect(document.querySelector('[role="menu"][aria-label="更多"]')).toBeNull();
     host.remove();
   });
@@ -173,19 +219,48 @@ describe("RetainedVaultListItemComponent", () => {
     host.querySelector<HTMLButtonElement>('[aria-label="打开"]')!.click();
     expect(launched).toHaveBeenCalledOnce();
   });
+
+  it("keeps each credential action isolated from row navigation", async () => {
+    const fixture = await createLoginRow();
+    const host = fixture.nativeElement as HTMLElement;
+    const viewed = vi.fn();
+    const filled = vi.fn();
+    fixture.componentInstance.view.subscribe(viewed);
+    fixture.componentInstance.fill.subscribe(filled);
+
+    for (const action of host.querySelectorAll<HTMLButtonElement>("[data-field]")) {
+      action.click();
+    }
+
+    expect(filled).toHaveBeenCalledTimes(3);
+    expect(viewed).not.toHaveBeenCalled();
+  });
 });
 
 async function createLoginRow(overrides: Partial<(typeof demoVaultItems)[number]> = {}) {
+  return (await createLoginRows([overrides]))[0]!;
+}
+
+async function createLoginRows(
+  overrides: readonly Partial<(typeof demoVaultItems)[number]>[],
+) {
   await TestBed.configureTestingModule({
     imports: [RetainedVaultListItemComponent],
     providers: [provideRouter([])],
   }).compileComponents();
-  const fixture = TestBed.createComponent(RetainedVaultListItemComponent);
-  fixture.componentRef.setInput(
-    "cipher",
-    toRetainedPopupCipherView({ ...demoVaultItems[0], ...overrides }),
-  );
-  fixture.componentRef.setInput("sectionId", "favorites");
-  fixture.detectChanges();
-  return fixture;
+  return overrides.map((itemOverrides) => {
+    const fixture = TestBed.createComponent(RetainedVaultListItemComponent);
+    fixture.componentRef.setInput(
+      "cipher",
+      toRetainedPopupCipherView({ ...demoVaultItems[0], ...itemOverrides }),
+    );
+    fixture.componentRef.setInput("sectionId", "favorites");
+    fixture.detectChanges();
+    return fixture;
+  });
+}
+
+function credentialActionLabels(host: HTMLElement): string[] {
+  return Array.from(host.querySelectorAll<HTMLElement>("[data-field][aria-label]"))
+    .map((action) => action.getAttribute("aria-label")!);
 }

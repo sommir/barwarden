@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef,
   Component,
   DestroyRef,
+  ElementRef,
   EventEmitter,
   forwardRef,
   inject,
@@ -44,6 +45,44 @@ import {
 import { OfficialLoginItemDetailsComponent } from "./official-login-item-details.component";
 import { OfficialLoginDetailsComponent } from "./official-login-details.component";
 
+const invalidControlSelector = [
+  'input[aria-invalid="true"]',
+  'textarea[aria-invalid="true"]',
+  'select[aria-invalid="true"]',
+  '[role="combobox"][aria-invalid="true"]',
+  ".ng-invalid[tabindex]",
+].join(",");
+
+function isFocusableInvalidControl(
+  candidate: HTMLElement,
+  form: HTMLFormElement,
+): boolean {
+  if (
+    candidate === form ||
+    candidate.matches('input[type="hidden"], :disabled') ||
+    candidate.closest('[hidden], [aria-hidden="true"], [inert]')
+  ) {
+    return false;
+  }
+
+  for (let current: HTMLElement | null = candidate; current; current = current.parentElement) {
+    const style = getComputedStyle(current);
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.visibility === "collapse"
+    ) {
+      return false;
+    }
+    if (current === form) {
+      break;
+    }
+  }
+
+  const browserHasLayout = document.documentElement.getClientRects().length > 0;
+  return !browserHasLayout || candidate.getClientRects().length > 0;
+}
+
 @Component({
   selector: "bw-official-login-cipher-form",
   templateUrl: "./official-login-cipher-form.component.html",
@@ -78,6 +117,8 @@ export class OfficialLoginCipherFormComponent
 {
   @ViewChild(BitSubmitDirective)
   private bitSubmit: BitSubmitDirective;
+  @ViewChild("formElement", { read: ElementRef })
+  private formElement?: ElementRef<HTMLFormElement>;
   private destroyRef = inject(DestroyRef);
   private _firstInitialized = false;
 
@@ -283,6 +324,32 @@ export class OfficialLoginCipherFormComponent
     }, 0);
   }
 
+  focusFirstInvalidControl(): HTMLElement | null {
+    this.changeDetectorRef.detectChanges();
+    const form = this.formElement?.nativeElement;
+    if (!form) {
+      return null;
+    }
+    for (const candidate of Array.from(
+      form.querySelectorAll<HTMLElement>(invalidControlSelector),
+    )) {
+      if (!isFocusableInvalidControl(candidate, form)) {
+        continue;
+      }
+      try {
+        candidate.focus({ preventScroll: true });
+      } catch {
+        continue;
+      }
+      if (document.activeElement !== candidate) {
+        continue;
+      }
+      candidate.scrollIntoView?.({ block: "center", behavior: "auto" });
+      return candidate;
+    }
+    return null;
+  }
+
   private cipherForSubmit(): CipherView {
     const cipherToSave = freshCipherView(this.updatedCipherView);
 
@@ -310,6 +377,7 @@ export class OfficialLoginCipherFormComponent
   submit = async () => {
     if (this.cipherForm.invalid) {
       this.cipherForm.markAllAsTouched();
+      this.focusFirstInvalidControl();
 
       const invalidFieldsCount = this.countInvalidFields(this.cipherForm);
       if (invalidFieldsCount > 0) {

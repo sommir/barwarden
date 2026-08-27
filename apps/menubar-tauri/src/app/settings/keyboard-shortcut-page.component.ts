@@ -1,4 +1,3 @@
-import { Location } from "@angular/common";
 import {
   ChangeDetectorRef,
   Component,
@@ -23,7 +22,6 @@ import {
   BitLabelComponent,
   BitSuffixDirective,
   ButtonComponent,
-  CardComponent,
 } from "../official-ui/official-components";
 import {
   MacosAlertStripComponent,
@@ -32,6 +30,7 @@ import {
 import { translateOfficialMessage } from "../official-ui/official-i18n.service";
 import { I18nPipe } from "../official-ui/official-ui-common";
 import { GlobalShortcutSettingsService } from "./global-shortcut-settings.service";
+import { PopupRouterCacheService } from "../platform/popup-router-cache.service";
 
 @Directive({
   selector: "button[bwShortcutRecorder]",
@@ -51,7 +50,6 @@ class ShortcutRecorderControlDirective {}
     BitLabelComponent,
     BitSuffixDirective,
     ButtonComponent,
-    CardComponent,
     I18nPipe,
     MacosAlertStripComponent,
     PopupHeaderComponent,
@@ -68,54 +66,59 @@ class ShortcutRecorderControlDirective {}
         [backAction]="backAction"
       />
 
-      <div class="tw-p-4">
-        <bit-card>
-          <bit-form-field disableMargin>
-            <bit-label>{{ "i18nShowBarwarden" | i18n }}</bit-label>
-            <button
-              #shortcutRecorder
-              bwShortcutRecorder
-              bitButton
-              buttonType="secondary"
-              type="button"
-              class="macos-form-field__control"
-              data-testid="shortcut-recorder"
-              [attr.aria-label]="recorderAccessibleLabel"
-              [disabled]="view.pending"
-              [attr.aria-pressed]="recording"
-              (click)="startRecording()"
-              (keydown)="record($event)"
-            >
-              {{ displayValue }}
-            </button>
-            <button
-              bitSuffix
-              type="button"
-              bitIconButton="bwi-close"
-              class="macos-form-field__suffix"
-              [label]="'i18nShortcutClear' | i18n"
-              [attr.aria-label]="'i18nShortcutClear' | i18n"
-              data-testid="shortcut-clear"
-              [disabled]="view.pending || view.shortcut === null"
-              (click)="clear()"
-            ></button>
-            @if (hintMessage) {
-              <bit-hint>{{ hintMessage }}</bit-hint>
-            }
-          </bit-form-field>
-          @if (operationMessage) {
-            <bw-macos-alert-strip
-              [kind]="operationAlertKind"
-              [title]="operationAlertTitle"
-              [message]="operationMessage"
-              [actionLabel]="'i18nRetry' | i18n"
-              actionTestId="shortcut-retry"
-              testId="shortcut-operation-alert"
-              (action)="retry()"
-            />
+      <section class="settings-detail-group macos-preference-group">
+        <bit-form-field
+          class="settings-detail-row macos-preference-row shortcut-preference-row"
+          disableMargin
+        >
+          <bit-label>{{ "i18nShowBarwarden" | i18n }}</bit-label>
+          <button
+            #shortcutRecorder
+            bwShortcutRecorder
+            bitButton
+            buttonType="secondary"
+            type="button"
+            class="macos-form-field__control shortcut-recorder-owner macos-hit-target"
+            data-testid="shortcut-recorder"
+            [attr.aria-label]="recorderAccessibleLabel"
+            [disabled]="view.pending"
+            [attr.aria-pressed]="recording"
+            (click)="startRecording()"
+            (keydown)="record($event)"
+          >
+            <span
+              class="shortcut-recorder__surface macos-control-visible"
+              data-testid="shortcut-recorder-surface"
+              aria-hidden="true"
+            >{{ displayValue }}</span>
+          </button>
+          <button
+            bitSuffix
+            type="button"
+            bitIconButton="bwi-close"
+            class="macos-form-field__suffix macos-hit-target"
+            [label]="'i18nShortcutClear' | i18n"
+            [attr.aria-label]="'i18nShortcutClear' | i18n"
+            data-testid="shortcut-clear"
+            [disabled]="view.pending || view.shortcut === null"
+            (click)="clear()"
+          ></button>
+          @if (hintMessage) {
+            <bit-hint>{{ hintMessage }}</bit-hint>
           }
-        </bit-card>
-      </div>
+        </bit-form-field>
+        @if (operationMessage) {
+          <bw-macos-alert-strip
+            [kind]="operationAlertKind"
+            [title]="operationAlertTitle"
+            [message]="operationMessage"
+            [actionLabel]="'i18nRetry' | i18n"
+            actionTestId="shortcut-retry"
+            testId="shortcut-operation-alert"
+            (action)="retry()"
+          />
+        }
+      </section>
     </popup-page>
   `,
 })
@@ -124,7 +127,7 @@ export class KeyboardShortcutPageComponent {
   private shortcutRecorder?: ElementRef<HTMLButtonElement>;
 
   readonly backAction: import("@bitwarden/components").FunctionReturningAwaitable = () =>
-    this.location.back();
+    this.routeCache.back();
 
   recording = false;
   private validationMessage = "";
@@ -132,7 +135,7 @@ export class KeyboardShortcutPageComponent {
 
   constructor(
     private readonly settings: GlobalShortcutSettingsService,
-    private readonly location: Location,
+    private readonly routeCache: PopupRouterCacheService,
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly destroyRef: DestroyRef,
   ) {

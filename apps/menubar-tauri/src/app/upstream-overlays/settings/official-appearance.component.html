@@ -1,79 +1,83 @@
 <popup-page>
   <popup-header slot="header" [pageTitle]="'i18nAppearance' | i18n" showBackButton [backAction]="backAction" />
 
-  <div class="tw-p-4">
-    <bit-section>
-      <bit-section-header>
-        <h2 bitTypography="h6">{{ "i18nInterface" | i18n }}</h2>
-      </bit-section-header>
-      <bit-card>
-        <bit-form-field>
-          <bit-label>{{ "i18nLanguage" | i18n }}</bit-label>
-          <bit-select
-            [attr.aria-label]="'i18nLanguage' | i18n"
-            [items]="languageOptions"
-            [ngModel]="language ?? ''"
-            (ngModelChange)="setLanguageValue($event)"
-          />
-        </bit-form-field>
-        <bit-form-field>
-          <bit-label>{{ "i18nTheme" | i18n }}</bit-label>
-          <bit-select
-            [attr.aria-label]="'i18nTheme' | i18n"
-            [items]="themeOptions"
-            [ngModel]="settings.theme"
-            (ngModelChange)="setThemeValue($event)"
-          />
-        </bit-form-field>
-        <bit-form-control>
-          <input
-            bitCheckbox
-            type="checkbox"
-            [attr.aria-label]="'i18nCompactMode' | i18n"
-            [checked]="settings.compactMode"
-            (change)="emitChecked($event, compactModeChange)"
-          />
-          <bit-label>{{ "i18nCompactMode" | i18n }}</bit-label>
-        </bit-form-control>
-        <bit-form-control disableMargin>
-          <input
-            bitCheckbox
-            type="checkbox"
-            [attr.aria-label]="'i18nAnimations' | i18n"
-            [checked]="settings.animations"
-            (change)="emitChecked($event, animationsChange)"
-          />
-          <bit-label>{{ "i18nAnimations" | i18n }}</bit-label>
-        </bit-form-control>
-      </bit-card>
-    </bit-section>
+  <section class="macos-preference-group" aria-labelledby="appearance-interface">
+    <h2 id="appearance-interface" class="settings-group__title">{{ "i18nInterface" | i18n }}</h2>
+    <bit-form-field class="macos-preference-row" disableMargin>
+      <bit-label class="macos-preference-row__copy">{{ "i18nLanguage" | i18n }}</bit-label>
+      <bit-select
+        class="macos-control-visible"
+        [attr.aria-label]="'i18nLanguage' | i18n"
+        [items]="languageOptions"
+        [ngModel]="language ?? ''"
+        (ngModelChange)="setLanguageValue($event)"
+      />
+    </bit-form-field>
+    <bit-form-field class="macos-preference-row" disableMargin>
+      <bit-label class="macos-preference-row__copy">{{ "i18nTheme" | i18n }}</bit-label>
+      <bit-select
+        class="macos-control-visible"
+        [attr.aria-label]="'i18nTheme' | i18n"
+        [items]="themeOptions"
+        [ngModel]="settings.theme"
+        (ngModelChange)="setThemeValue($event)"
+      />
+    </bit-form-field>
+  </section>
 
-    <bit-section>
-      <bit-section-header>
-        <h2 bitTypography="h6">{{ "vault" | i18n }}</h2>
-      </bit-section-header>
-      <bit-card>
-        <bit-form-control>
-          <input
-            bitCheckbox
-            type="checkbox"
-            [attr.aria-label]="'i18nShowFavicons' | i18n"
-            [checked]="settings.showFavicons"
-            (change)="emitChecked($event, showFaviconsChange)"
-          />
-          <bit-label>{{ "i18nShowFavicons" | i18n }}</bit-label>
-        </bit-form-control>
-        <bit-form-control disableMargin>
-          <input
-            bitCheckbox
-            type="checkbox"
-            [attr.aria-label]="'i18nShowQuickCopyActions' | i18n"
-            [checked]="settings.showQuickCopyActions"
-            (change)="emitChecked($event, showQuickCopyActionsChange)"
-          />
-          <bit-label>{{ "i18nShowQuickCopyActions" | i18n }}</bit-label>
-        </bit-form-control>
-      </bit-card>
-    </bit-section>
-  </div>
+  <section class="macos-preference-group" aria-labelledby="appearance-behavior">
+    <h2 id="appearance-behavior" class="settings-group__title">{{ "general" | i18n }}</h2>
+    <div class="macos-preference-row">
+      <span id="appearance-compact-label" class="macos-preference-row__copy">{{ "i18nCompactMode" | i18n }}</span>
+      <button
+        type="button"
+        class="macos-switch-owner macos-hit-target"
+        role="switch"
+        data-setting="compactMode"
+        aria-labelledby="appearance-compact-label"
+        [attr.aria-checked]="settings.compactMode"
+        (click)="toggle(compactModeChange, settings.compactMode)"
+      ><span aria-hidden="true"></span></button>
+    </div>
+    <div class="macos-preference-row">
+      <span id="appearance-animations-label" class="macos-preference-row__copy">{{ "i18nAnimations" | i18n }}</span>
+      <button
+        type="button"
+        class="macos-switch-owner macos-hit-target"
+        role="switch"
+        data-setting="animations"
+        aria-labelledby="appearance-animations-label"
+        [attr.aria-checked]="settings.animations"
+        (click)="toggle(animationsChange, settings.animations)"
+      ><span aria-hidden="true"></span></button>
+    </div>
+  </section>
+
+  <section class="macos-preference-group" aria-labelledby="appearance-vault">
+    <h2 id="appearance-vault" class="settings-group__title">{{ "vault" | i18n }}</h2>
+    <div class="macos-preference-row">
+      <span id="appearance-favicons-label" class="macos-preference-row__copy">{{ "i18nShowFavicons" | i18n }}</span>
+      <button
+        type="button"
+        class="macos-switch-owner macos-hit-target"
+        role="switch"
+        data-setting="showFavicons"
+        aria-labelledby="appearance-favicons-label"
+        [attr.aria-checked]="settings.showFavicons"
+        (click)="toggle(showFaviconsChange, settings.showFavicons)"
+      ><span aria-hidden="true"></span></button>
+    </div>
+    <div class="macos-preference-row">
+      <span id="appearance-quick-actions-label" class="macos-preference-row__copy">{{ "i18nShowQuickCopyActions" | i18n }}</span>
+      <button
+        type="button"
+        class="macos-switch-owner macos-hit-target"
+        role="switch"
+        data-setting="showQuickCopyActions"
+        aria-labelledby="appearance-quick-actions-label"
+        [attr.aria-checked]="settings.showQuickCopyActions"
+        (click)="toggle(showQuickCopyActionsChange, settings.showQuickCopyActions)"
+      ><span aria-hidden="true"></span></button>
+    </div>
+  </section>
 </popup-page>

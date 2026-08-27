@@ -51,7 +51,8 @@ export class PopupRouteReuseStrategy implements RouteReuseStrategy {
     future: ActivatedRouteSnapshot,
     current: ActivatedRouteSnapshot,
   ): boolean {
-    return !this.localeRefreshInProgress && future.routeConfig === current.routeConfig;
+    return !this.localeRefreshInProgress
+      && future.routeConfig === current.routeConfig;
   }
 
   beginLocaleRefresh(): void {

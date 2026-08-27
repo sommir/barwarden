@@ -57,10 +57,60 @@ describe("OfficialCredentialGeneratorComponent", () => {
 
     expect(host.querySelector("popup-page bw-official-generator-core")).not.toBeNull();
     expect(host.querySelector("popup-header bw-popup-header-actions")).not.toBeNull();
-    expect(host.querySelector("bit-toggle-group + bit-card bit-color-password")).not.toBeNull();
+    expect(host.querySelector(".macos-generator__result bit-color-password")).not.toBeNull();
     expect(host.querySelector('a[routerlink="/generator-history"]')).not.toBeNull();
     expect(host.querySelector("nudge-generator-spotlight")).toBeNull();
     expect(host.querySelector("bit-color-password")?.className).toMatch(/tw-break-words/);
+  });
+
+  it("puts a labelled result before mode/settings with one primary copy action", async () => {
+    const { fixture } = await createFixture();
+    await render(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const result = host.querySelector<HTMLElement>(".macos-generator__result")!;
+    const mode = host.querySelector<HTMLElement>(".macos-generator__mode")!;
+    const settings = host.querySelector<HTMLElement>(".macos-generator__settings")!;
+    const layout = host.querySelector<HTMLElement>(
+      'popup-page.macos-generator[data-generator-layout="result-first"]',
+    );
+    const copy = host.querySelector<HTMLButtonElement>('[data-testid="generator-copy"]')!;
+    const regenerate = host.querySelector<HTMLButtonElement>('[data-testid="generator-regenerate"]')!;
+
+    expect(layout).not.toBeNull();
+    expect(result.compareDocumentPosition(mode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(mode.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(result.getAttribute("aria-labelledby")).toBe("generator-result-title");
+    expect(copy.getAttribute("aria-label")).toBeTruthy();
+    expect(regenerate.getAttribute("aria-label")).toBeTruthy();
+    expect(copy.classList).toContain("macos-hit-target");
+    expect(regenerate.classList).toContain("macos-hit-target");
+    expect(copy.querySelector(":scope .bwi")?.closest("button")).toBe(copy);
+    expect(regenerate.querySelector(":scope .bwi")?.closest("button")).toBe(regenerate);
+    expect(copy.getAttribute("buttontype")).toBe("primary");
+    expect(regenerate.getAttribute("buttontype")).toBe("primaryGhost");
+    expect(host.querySelectorAll('button[buttontype="primary"]')).toHaveLength(1);
+    expect(host.querySelectorAll(".macos-generator__mode bit-toggle-group")).toHaveLength(1);
+    expect(
+      host.querySelector('.macos-generator__history-link[routerlink="/generator-history"]'),
+    ).not.toBeNull();
+  });
+
+  it("publishes structural focus keys without exposing the generated credential", async () => {
+    const sensitiveCredential = "orbit-lantern-copper-signal";
+    const service = generatorService({
+      generate: vi.fn(async () => result(sensitiveCredential, "password")),
+    });
+    const { fixture } = await createFixture(service);
+    await render(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const generatorKeys = [...host.querySelectorAll<HTMLElement>("[data-popup-focus-key]")].map(
+      (node) => node.getAttribute("data-popup-focus-key"),
+    );
+
+    expect(generatorKeys).toContain("generator:copy");
+    expect(generatorKeys).toContain("generator:history");
+    expect(generatorKeys.join("\n")).not.toContain(sensitiveCredential);
+    expect(host.querySelector("[data-bw-focus-key]")).toBeNull();
   });
 
   it("generates initially, switches mode, and regenerates from the official icon actions", async () => {

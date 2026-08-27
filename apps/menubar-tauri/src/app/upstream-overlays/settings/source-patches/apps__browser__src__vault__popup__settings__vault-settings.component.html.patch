@@ -6,7 +6,26 @@ diff --git a/apps/browser/src/vault/popup/settings/vault-settings.component.html
  <popup-page>
    <popup-header slot="header" [pageTitle]="'settingsVaultOptions' | i18n" showBackButton>
      <ng-container slot="end">
-@@ -13,49 +14,11 @@
+@@ -5,65 +6,58 @@
+     </ng-container>
+   </popup-header>
+
+-  <bit-item-group>
++  <bit-item-group
++    class="settings-detail-group macos-preference-group"
++    data-settings-detail="vault-settings"
++  >
+     <bit-item>
+-      <a bit-item-content routerLink="/folders">
++      <a
++        bit-item-content
++        [truncate]="false"
++        class="settings-detail-row macos-preference-row"
++        data-popup-focus-key="settings:folders"
++        routerLink="/folders"
++      >
+         {{ "folders" | i18n }}
+         <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
        </a>
      </bit-item>
      <bit-item>
@@ -27,7 +46,14 @@ diff --git a/apps/browser/src/vault/popup/settings/vault-settings.component.html
 -    <bit-item>
 -      <a bit-item-content routerLink="/export">
 -        {{ "exportNoun" | i18n }}
-+      <a data-test-id="archive-link" bit-item-content routerLink="/archive">
++      <a
++        bit-item-content
++        [truncate]="false"
++        class="settings-detail-row macos-preference-row"
++        data-test-id="archive-link"
++        data-popup-focus-key="settings:archive"
++        routerLink="/archive"
++      >
 +        {{ "archiveNoun" | i18n }}
          <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
        </a>
@@ -56,5 +82,30 @@ diff --git a/apps/browser/src/vault/popup/settings/vault-settings.component.html
 -      </bit-item>
 -    }
      <bit-item>
-       <a bit-item-content routerLink="/trash">
+-      <a bit-item-content routerLink="/trash">
++      <a
++        bit-item-content
++        [truncate]="false"
++        class="settings-detail-row macos-preference-row"
++        data-popup-focus-key="settings:trash"
++        routerLink="/trash"
++      >
          {{ "trash" | i18n }}
+         <i slot="end" class="bwi bwi-angle-right" aria-hidden="true"></i>
+       </a>
+     </bit-item>
+     <bit-item>
+-      <button type="button" bit-item-content [disabled]="syncLoading" (click)="sync()">
++      <button
++        type="button"
++        bit-item-content
++        [truncate]="false"
++        class="settings-detail-row macos-preference-row"
++        data-testid="vault-sync-row"
++        [disabled]="syncLoading"
++        [attr.aria-busy]="syncLoading"
++        (click)="sync()"
++      >
+         {{ "syncNow" | i18n }}
+         <span slot="secondary">{{ lastSync }}</span>
+         <span slot="end">

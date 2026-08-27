@@ -1,7 +1,7 @@
 {
   "revision": "f47b6946e01aed474875789081966d311d5b8289",
   "license": {
-    "rootPackageSha256": "b670e31d191e75483aec74a3f424d0f438e0d396e6f66ec216aacebc42e6fa99",
+    "rootPackageSha256": "c1a93edc30ab20f6c7ea825f06339118fdf6bbb874765dbbefd0fd308a5e5f29",
     "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
     "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
     "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"
@@ -43,7 +43,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/popup-header-actions.component.ts",
-      "sha256": "4634149ff5c3cd512751d0a0d7549d8dfe05d9a1911cd203dc3ce2cd45952f48"
+      "sha256": "49c3aabafdfd55ba8decc04b22ebd9e8aac40a24eb06ffad55e379b0210f07ba"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.ts",
@@ -51,15 +51,15 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account.component.html",
-      "sha256": "b860e6dc49422ccf15626b42bb7103bfc1dfacf7c087b21874fb3a76ef48829b"
+      "sha256": "614604f02ed3da1a00d607f4c700b9346b588d1762dcdb5b49f3464403cf5131"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.ts",
-      "sha256": "0c9232b6fa99f8bbd3932e391e9f7ac226a310830df0f4ea30ffd81b7cbe1293"
+      "sha256": "0bdf46e96aafb813a939ddf38a3cb3f5a2a2f5d5752a4761b4af5be7f6f4c293"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching/official-account-switcher.component.html",
-      "sha256": "cf98ccfb090cea3a3f9d9e398089733989394a4f09caffdaa677d1af6c5da240"
+      "sha256": "b1bdd1cac1b7e0fb9e90f5743132e8b62648428d8ae674503c9dee0898cd3115"
     }
   ],
   "directGraph": {

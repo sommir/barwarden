@@ -125,17 +125,26 @@ export function auditReleaseWorkflow(source) {
   if (!signedBuildStep.includes("codesign --verify")) {
     errors.push("release build must verify Developer ID signing");
   }
-  if (!signedBuildStep.includes("xcrun notarytool submit")) {
-    errors.push("release build must submit the final DMG for notarization");
-  }
-  if (!signedBuildStep.includes("xcrun stapler staple")) {
-    errors.push("release build must staple the final DMG notarization ticket");
-  }
   if (!signedBuildStep.includes("xcrun stapler validate")) {
     errors.push("release build must validate the stapled notarization ticket");
   }
   if (!signedBuildStep.includes("spctl -a")) {
     errors.push("release build must pass Gatekeeper assessment");
+  }
+  const gatekeeperLines = signedBuildStep
+    .split(/\r?\n/u)
+    .filter((line) => line.includes("spctl -a"));
+  if (gatekeeperLines.some((line) => !line.includes(">/dev/null 2>&1"))) {
+    errors.push("Gatekeeper verification output must be suppressed");
+  }
+  if (!signedBuildStep.includes("scripts/build-native-autofill-release.sh")) {
+    errors.push("release build must use the complete native AutoFill builder");
+  }
+  if (!signedBuildStep.includes("scripts/download-native-autofill-provider-profile.mjs")) {
+    errors.push("release build must download the provider profile ephemerally");
+  }
+  if (source.includes("NATIVE_AUTOFILL_PROVIDER_PROFILE_BASE64")) {
+    errors.push("provider profile must not be stored as a GitHub secret");
   }
 
   return [...new Set(errors)].sort((left, right) => left.localeCompare(right, "en"));

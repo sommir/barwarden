@@ -55,6 +55,7 @@ type ProtectedContinuation = () => void | Promise<void>;
             <bit-label>{{ "masterPass" | i18n }}</bit-label>
             <input
               #passwordInput
+              bitAutofocus
               bitInput
               type="password"
               autocomplete="current-password"
@@ -92,6 +93,8 @@ export class VaultRepromptDialogComponent implements OnDestroy {
   operationEpoch = 0;
   private continuation: ProtectedContinuation | null = null;
   private itemId = "";
+  private repromptReceipt: string | undefined;
+  private cancellation: ProtectedContinuation | null = null;
 
   constructor(
     private readonly reprompt: VaultRepromptService,
@@ -102,10 +105,14 @@ export class VaultRepromptDialogComponent implements OnDestroy {
     itemId: string,
     continuation: ProtectedContinuation,
     trigger?: HTMLElement,
+    repromptReceipt?: string,
+    cancellation?: ProtectedContinuation,
   ): void {
     this.clearTransientState();
     this.itemId = itemId;
     this.continuation = continuation;
+    this.repromptReceipt = repromptReceipt;
+    this.cancellation = cancellation ?? null;
     this.operationEpoch = this.store.beginProtectedOperation();
     if (!this.dialog) {
       return;
@@ -125,14 +132,16 @@ export class VaultRepromptDialogComponent implements OnDestroy {
     this.errorMessage = "";
     let verified = false;
     try {
-      verified = await this.reprompt.verify(masterPassword, epoch);
+      verified = this.repromptReceipt
+        ? await this.reprompt.verify(masterPassword, epoch, this.repromptReceipt)
+        : await this.reprompt.verify(masterPassword, epoch);
     } catch (error) {
       if (this.store.isCurrentProtectedOperation(epoch)) {
         this.errorMessage = error instanceof VaultRepromptError
           ? error.message
           : translateOfficialMessage("i18nUnableToVerifyMasterPassword");
       } else {
-        this.close(false);
+        this.close(this.cancellation !== null);
       }
       return;
     } finally {
@@ -141,7 +150,7 @@ export class VaultRepromptDialogComponent implements OnDestroy {
     }
 
     if (!verified || !this.store.isCurrentProtectedOperation(epoch)) {
-      this.close(false);
+      this.close(this.cancellation !== null);
       return;
     }
 
@@ -176,11 +185,13 @@ export class VaultRepromptDialogComponent implements OnDestroy {
   }
 
   private close(cancelOperation: boolean): void {
+    const cancellation = cancelOperation ? this.cancellation : null;
     if (cancelOperation) {
       this.store.cancelProtectedOperations();
     }
     this.dialog?.close();
     this.clearTransientState();
+    if (cancellation) void cancellation();
   }
 
   private clearTransientState(): void {
@@ -188,6 +199,8 @@ export class VaultRepromptDialogComponent implements OnDestroy {
     this.errorMessage = "";
     this.itemId = "";
     this.continuation = null;
+    this.repromptReceipt = undefined;
+    this.cancellation = null;
   }
 
   private clearPassword(): void {

@@ -174,7 +174,13 @@ export class OfficialPasswordLoginComponent implements OnInit, OnDestroy {
 
   restoreEmailValidationState(): void {
     const snapshot = this.emailValidationSnapshot;
+    const restorePasswordFocus = () => {
+      if (this.loginUiState === LoginUiState.MASTER_PASSWORD_ENTRY) {
+        this.focusMasterPassword();
+      }
+    };
     if (!snapshot) {
+      restorePasswordFocus();
       return;
     }
     const control = this.formGroup.controls.email;
@@ -189,6 +195,7 @@ export class OfficialPasswordLoginComponent implements OnInit, OnDestroy {
       } else {
         control.markAsPristine({ onlySelf: true });
       }
+      restorePasswordFocus();
     };
     queueMicrotask(restore);
     window.setTimeout(() => {

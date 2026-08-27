@@ -5,11 +5,15 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { beforeEach, describe, expect, it } from "vitest";
+
+import { NoSendsIcon } from "@bitwarden/assets/svg";
+import { NoItemsComponent } from "@bitwarden/components/no-items/no-items.component";
 
 const runtimePath = resolve(
   process.cwd(),
@@ -31,46 +35,156 @@ describe("OfficialSendListComponent", () => {
     expect(existsSync(runtimePath)).toBe(true);
   });
 
-  it("renders populated Text rows with only the official view-before-edit, copy, and delete commands", async () => {
+  it("isolates row, Copy link, and danger Delete in More", async () => {
     const fixture = await createFixture({ sends: [textSend({ hasPassword: true })], state: "ready" });
     const commands = outputCommands(fixture.componentInstance);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    document.body.append(host);
+    const row = host.querySelector<HTMLElement>("bit-item")!;
     expect(host.textContent).toContain("Payroll token");
     expect(host.querySelectorAll("bit-item")).toHaveLength(1);
     expect(host.querySelector('a[href*="edit-send"]')).toBeNull();
 
-    host.querySelector<HTMLButtonElement>("[bit-item-content]")?.click();
-    host.querySelector<HTMLButtonElement>('[aria-label^="复制链接"]')?.click();
-    host.querySelector<HTMLButtonElement>('[aria-label^="删除"]')?.click();
+    row.querySelector<HTMLButtonElement>("[bit-item-content]")!.click();
+    row.querySelector<HTMLButtonElement>('[aria-label^="复制链接"]')!.click();
+    const more = row.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+    expect(more).not.toBeNull();
+    expect(more.getAttribute("aria-label")).toContain("Payroll token");
+    expect(row.querySelector('[biticonbutton="bwi-trash"]')).toBeNull();
+    more.click();
+    await fixture.whenStable();
+    const menu = document.querySelector<HTMLElement>('[role="menu"][aria-label*="Payroll token"]')!;
+    const danger = menu.querySelector<HTMLButtonElement>('[role="menuitem"].tw-text-fg-danger')!;
+    expect(danger.textContent?.trim()).toBe("删除");
+    danger.click();
 
     expect(host.querySelector('[aria-label^="移除密码"]')).toBeNull();
     expect(host.querySelector('[bitIconButton="bwi-unlock"]')).toBeNull();
     expect("removePassword" in fixture.componentInstance).toBe(false);
     expect(commands).toEqual(["open:send-1", "copy:send-1", "delete:send-1"]);
+    expect(document.activeElement).toBe(more);
+
+    fixture.destroy();
+    host.remove();
+  });
+
+  it("supports keyboard menu navigation and returns focus to the contextual More trigger", async () => {
+    const fixture = await createFixture({ sends: [textSend()], state: "ready" });
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    document.body.append(host);
+    const more = host.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+    more.focus();
+    more.click();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise));
+
+    const menu = document.querySelector<HTMLElement>('[role="menu"][aria-label*="Payroll token"]')!;
+    expect(menu.getAttribute("aria-label")).toContain("Payroll token");
+    expect(document.activeElement).toBe(menu.querySelector('[role="menuitem"]'));
+
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+    );
+    fixture.detectChanges();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 170));
+
+    expect(document.querySelector('[role="menu"][aria-label*="Payroll token"]')).toBeNull();
+    expect(document.activeElement).toBe(more);
+
+    fixture.destroy();
+    host.remove();
   });
 
   it("emits search and filter commands and exposes only a Text new action", async () => {
-    const fixture = await createFixture({ sends: [textSend()], state: "ready", filtersVisible: true });
+    const fixture = await createFixture({
+      sends: [textSend()],
+      state: "ready",
+      filtersVisible: true,
+      filterType: "text",
+    });
     const commands = outputCommands(fixture.componentInstance);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
+    const select = host.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!;
+
+    expect(select.value).toBe("text");
+    fixture.componentRef.setInput("filtersVisible", false);
+    fixture.detectChanges();
+    fixture.componentRef.setInput("filtersVisible", true);
+    fixture.detectChanges();
+    const reopenedSelect = host.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!;
+    expect(reopenedSelect.value).toBe("text");
 
     const search = host.querySelector<HTMLInputElement>("bit-search input")!;
     search.value = "payroll";
     search.dispatchEvent(new Event("input"));
     await fixture.whenStable();
     host.querySelector<HTMLButtonElement>('[aria-label="筛选 Send"]')?.click();
-    host.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!.value = "text";
-    host.querySelector<HTMLSelectElement>('select[aria-label="类型"]')!.dispatchEvent(new Event("change"));
-    host.querySelector<HTMLButtonElement>('[aria-label="新增文本 Send"]')?.click();
+    reopenedSelect.value = "text";
+    reopenedSelect.dispatchEvent(new Event("change"));
+    host.querySelector<HTMLButtonElement>('[aria-label="新建 Send"]')?.click();
 
     expect(commands).toEqual(["query:payroll", "filters", "filter:text", "open:new"]);
     expect(host.textContent).not.toContain("文件 Send");
     expect(host.querySelector('[value="file"]')).toBeNull();
+  });
+
+  it("uses a Send-specific empty illustration and one visible new action label", async () => {
+    const fixture = await createFixture({ state: "empty" });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const noItems = fixture.debugElement.query(By.directive(NoItemsComponent))
+      .componentInstance as NoItemsComponent;
+    const actions = Array.from(
+      host.querySelectorAll<HTMLButtonElement>(
+        '[data-testid="send-new-action"], [data-testid="send-empty-create-action"]',
+      ),
+    );
+
+    expect(noItems.icon()).toBe(NoSendsIcon);
+    expect(actions.map((action) => action.textContent?.trim())).toEqual([
+      "新建 Send",
+      "新建 Send",
+    ]);
+    expect(actions.map((action) => action.getAttribute("aria-label"))).toEqual([
+      "新建 Send",
+      "新建 Send",
+    ]);
+  });
+
+  it("publishes structural Send focus keys without exposing visible Send values", async () => {
+    const fixture = await createFixture({
+      sends: [
+        textSend({
+          id: "m12-text-send",
+          name: "Example Send",
+          text: "secret body",
+          accessUrl: "https://send.example.test/m12-text-send",
+        }),
+      ],
+      state: "ready",
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const sendKeys = [...host.querySelectorAll<HTMLElement>("[data-popup-focus-key]")].map((node) =>
+      node.getAttribute("data-popup-focus-key"),
+    );
+
+    expect(sendKeys).toEqual(
+      expect.arrayContaining([
+        "send:search",
+        "send-item:m12-text-send",
+        "send-item:m12-text-send:copy",
+        "send-item:m12-text-send:more",
+      ]),
+    );
+    expect(sendKeys.join("\n")).not.toMatch(/Example Send|secret body|https?:\/\//);
+    expect(host.querySelector("[data-bw-focus-key]")).toBeNull();
   });
 
   it.each([
@@ -88,7 +202,7 @@ describe("OfficialSendListComponent", () => {
       : host.textContent;
     expect(renderedState).toContain(expected);
     if (inputs.disabled) {
-      expect(host.querySelector('[aria-label="新增文本 Send"]')).toBeNull();
+      expect(host.querySelector('[aria-label="新建 Send"]')).toBeNull();
     }
   });
 });
@@ -100,6 +214,7 @@ async function createFixture(inputs: Record<string, unknown>) {
   fixture.componentRef.setInput("sends", []);
   fixture.componentRef.setInput("query", "");
   fixture.componentRef.setInput("filtersVisible", false);
+  fixture.componentRef.setInput("filterType", "");
   fixture.componentRef.setInput("loading", false);
   fixture.componentRef.setInput("disabled", false);
   fixture.componentRef.setInput("state", "empty");

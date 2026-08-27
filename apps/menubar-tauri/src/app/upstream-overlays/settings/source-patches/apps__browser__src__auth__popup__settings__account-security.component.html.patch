@@ -6,7 +6,7 @@ diff --git a/apps/browser/src/auth/popup/settings/account-security.component.htm
  <popup-page>
    <popup-header slot="header" pageTitle="{{ 'accountSecurity' | i18n }}" showBackButton>
      <ng-container slot="end">
-@@ -5,174 +6,35 @@
+@@ -5,174 +6,59 @@
      </ng-container>
    </popup-header>
 
@@ -105,14 +105,19 @@ diff --git a/apps/browser/src/auth/popup/settings/account-security.component.htm
 -          }
 -        </bit-card>
 -      </bit-section>
-+  <bit-section>
-+    <bit-section-header>
-+      <h2 bitTypography="h6">{{ "sessionTimeoutHeader" | i18n }}</h2>
-+    </bit-section-header>
-+    <bit-card>
-+      <bit-session-timeout-settings [refreshTimeoutActionSettings]="refreshTimeoutSettings$" />
-+    </bit-card>
-+  </bit-section>
++  <div
++    class="settings-detail-group macos-preference-group"
++    data-settings-detail="account-security"
++  >
++    <bit-section>
++      <bit-section-header>
++        <h2 bitTypography="h6">{{ "sessionTimeoutHeader" | i18n }}</h2>
++      </bit-section-header>
++      <bit-session-timeout-settings
++        class="settings-detail-row macos-preference-row"
++        [refreshTimeoutActionSettings]="refreshTimeoutSettings$"
++      />
++    </bit-section>
 
 -      <bit-section>
 -        <bit-section-header>
@@ -188,26 +193,45 @@ diff --git a/apps/browser/src/auth/popup/settings/account-security.component.htm
 -      </bit-section>
 -    </div>
 -  }
-+  <bit-section disableMargin>
-+    <bit-section-header>
-+      <h2 bitTypography="h6">{{ "otherOptions" | i18n }}</h2>
-+    </bit-section-header>
-+    <bit-item>
-+      <button bit-item-content type="button" appStopClick (click)="openAcctFingerprintDialog()">
-+        {{ "fingerprintPhrase" | i18n }}
-+      </button>
-+    </bit-item>
-+    <bit-item>
-+      <button bit-item-content type="button" appStopClick (click)="twoStep()">
-+        {{ "twoStepLogin" | i18n }}
-+        <bit-icon slot="end" name="bwi-external-link"></bit-icon>
-+      </button>
-+    </bit-item>
-+    <bit-item>
-+      <button bit-item-content type="button" appStopClick (click)="changePassword()">
-+        {{ "changeMasterPassword" | i18n }}
-+        <bit-icon slot="end" name="bwi-external-link"></bit-icon>
-+      </button>
-+    </bit-item>
-+  </bit-section>
++    <bit-section disableMargin>
++      <bit-section-header>
++        <h2 bitTypography="h6">{{ "otherOptions" | i18n }}</h2>
++      </bit-section-header>
++      <bit-item>
++        <button
++          bit-item-content
++          type="button"
++          class="settings-detail-row macos-preference-row"
++          appStopClick
++          (click)="openAcctFingerprintDialog()"
++        >
++          {{ "fingerprintPhrase" | i18n }}
++        </button>
++      </bit-item>
++      <bit-item>
++        <button
++          bit-item-content
++          type="button"
++          class="settings-detail-row macos-preference-row"
++          appStopClick
++          (click)="twoStep()"
++        >
++          {{ "twoStepLogin" | i18n }}
++          <bit-icon slot="end" name="bwi-external-link"></bit-icon>
++        </button>
++      </bit-item>
++      <bit-item>
++        <button
++          bit-item-content
++          type="button"
++          class="settings-detail-row macos-preference-row"
++          appStopClick
++          (click)="changePassword()"
++        >
++          {{ "changeMasterPassword" | i18n }}
++          <bit-icon slot="end" name="bwi-external-link"></bit-icon>
++        </button>
++      </bit-item>
++    </bit-section>
++  </div>
  </popup-page>

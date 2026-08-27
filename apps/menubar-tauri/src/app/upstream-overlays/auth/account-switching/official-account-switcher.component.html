@@ -55,7 +55,7 @@
       urgency="assertive"
     >
       <p role="status">{{ "i18nSessionRestoreStatus" | i18n }}</p>
-      <button type="button" bitButton buttonType="secondary" (click)="recover(currentAccount.id)">
+      <button type="button" bitButton buttonType="secondary" class="macos-hit-target" (click)="recover(currentAccount.id)">
         {{ "i18nRetrySession" | i18n }}
       </button>
     </bit-callout>
@@ -68,6 +68,7 @@
         <button
           type="button"
           bit-item-content
+          class="macos-hit-target"
           (click)="lock(currentAccount.id)"
           [disabled]="(currentAuthorization$ | async) !== 'unlocked' || !activeUserCanLock"
           [title]="!activeUserCanLock ? ('unlockMethodNeeded' | i18n) : ''"
@@ -77,13 +78,13 @@
         </button>
       </bit-item>
       <bit-item>
-        <button type="button" bit-item-content (click)="logOut(currentAccount.id)">
+        <button type="button" bit-item-content class="macos-hit-target" (click)="logOut(currentAccount.id)">
           <bit-icon slot="start" name="bwi-sign-out" class="tw-text-lg tw-text-main"></bit-icon>
           {{ "logOut" | i18n }}
         </button>
       </bit-item>
       <bit-item *ngIf="showLockAll$ | async">
-        <button type="button" bit-item-content (click)="lockAll()">
+        <button type="button" bit-item-content class="macos-hit-target" (click)="lockAll()">
           <bit-icon slot="start" name="bwi-lock" class="tw-text-lg tw-text-main"></bit-icon>
           {{ "lockAll" | i18n }}
         </button>
