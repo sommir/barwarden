@@ -2517,7 +2517,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/animations",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2526,7 +2526,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/cdk",
-      "version": "21.2.9",
+      "version": "21.2.14",
       "license": "MIT",
       "documents": [
         "DOC-adb40d7d256e"
@@ -2535,7 +2535,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/common",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2544,7 +2544,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/compiler",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2553,7 +2553,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/core",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2562,7 +2562,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/forms",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2571,7 +2571,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/platform-browser",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2580,7 +2580,7 @@
     {
       "ecosystem": "npm",
       "name": "@angular/router",
-      "version": "21.2.17",
+      "version": "21.2.22",
       "license": "MIT",
       "documents": [
         "DOC-15e77c469211"
@@ -2725,7 +2725,7 @@
     {
       "ecosystem": "npm",
       "name": "tldts-core",
-      "version": "7.4.7",
+      "version": "7.4.11",
       "license": "MIT",
       "documents": [
         "DOC-c64182d48160"

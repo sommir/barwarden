@@ -16,7 +16,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - run: npm ci
+      - run: npm install --global npm@11.6.2
+      - run: npm ci --legacy-peer-deps
       - run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
       - run: npm run check:publication
       - run: cargo fetch --locked --manifest-path apps/menubar-tauri/src-tauri/Cargo.toml
@@ -38,7 +39,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - run: npm ci
+      - run: npm install --global npm@11.6.2
+      - run: npm ci --legacy-peer-deps
       - name: Build signed update artifacts
         env:
           BARWARDEN_UPDATER_ENDPOINT: https://github.com/${{ github.repository }}/releases/latest/download/latest.json

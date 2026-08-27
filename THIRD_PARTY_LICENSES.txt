@@ -243,14 +243,14 @@ cargo:zerovec@0.11.6 | Unicode-3.0 | DOC-f367c1b8e1aa
 cargo:zmij@1.0.21 | MIT | DOC-23f18e03dc49
 cargo:zune-core@0.5.1 | MIT OR Apache-2.0 OR Zlib | DOC-c71d239df917, DOC-d30047bca3b5, DOC-d201d14804d3
 cargo:zune-jpeg@0.5.15 | MIT OR Apache-2.0 OR Zlib | DOC-c71d239df917, DOC-d30047bca3b5, DOC-d201d14804d3
-npm:@angular/animations@21.2.17 | MIT | DOC-15e77c469211
-npm:@angular/cdk@21.2.9 | MIT | DOC-adb40d7d256e
-npm:@angular/common@21.2.17 | MIT | DOC-15e77c469211
-npm:@angular/compiler@21.2.17 | MIT | DOC-15e77c469211
-npm:@angular/core@21.2.17 | MIT | DOC-15e77c469211
-npm:@angular/forms@21.2.17 | MIT | DOC-15e77c469211
-npm:@angular/platform-browser@21.2.17 | MIT | DOC-15e77c469211
-npm:@angular/router@21.2.17 | MIT | DOC-15e77c469211
+npm:@angular/animations@21.2.22 | MIT | DOC-15e77c469211
+npm:@angular/cdk@21.2.14 | MIT | DOC-adb40d7d256e
+npm:@angular/common@21.2.22 | MIT | DOC-15e77c469211
+npm:@angular/compiler@21.2.22 | MIT | DOC-15e77c469211
+npm:@angular/core@21.2.22 | MIT | DOC-15e77c469211
+npm:@angular/forms@21.2.22 | MIT | DOC-15e77c469211
+npm:@angular/platform-browser@21.2.22 | MIT | DOC-15e77c469211
+npm:@angular/router@21.2.22 | MIT | DOC-15e77c469211
 npm:@bitwarden/sdk-internal@0.2.0-main.883 | GPL-3.0 | DOC-e8817b4f2d75
 npm:@ng-select/ng-select@21.8.2 | MIT | DOC-fcc3885581d3
 npm:@standard-schema/spec@1.1.0 | MIT | DOC-6c19f173cf80
@@ -266,7 +266,7 @@ npm:parse5@8.0.1 | MIT | DOC-8c535800331e
 npm:rxjs@7.8.2 | Apache-2.0 | DOC-16ac2d60374b
 npm:tagged-tag@1.0.0 | MIT | DOC-5c932d88256b
 npm:tldts@7.4.2 | MIT | DOC-c64182d48160
-npm:tldts-core@7.4.7 | MIT | DOC-c64182d48160
+npm:tldts-core@7.4.11 | MIT | DOC-c64182d48160
 npm:tslib@2.8.1 | 0BSD | DOC-598935964591
 npm:type-fest@5.8.0 | (MIT OR CC0-1.0) | DOC-a2010f343487, DOC-5c932d88256b
 npm:zone.js@0.15.1 | MIT | DOC-657b51011163, DOC-d02e959097df
@@ -1798,13 +1798,13 @@ DEALINGS IN THE SOFTWARE.
 ================================================================================
 DOC-15e77c469211 — LICENSE
 Applies to:
-- npm:@angular/animations@21.2.17
-- npm:@angular/common@21.2.17
-- npm:@angular/compiler@21.2.17
-- npm:@angular/core@21.2.17
-- npm:@angular/forms@21.2.17
-- npm:@angular/platform-browser@21.2.17
-- npm:@angular/router@21.2.17
+- npm:@angular/animations@21.2.22
+- npm:@angular/common@21.2.22
+- npm:@angular/compiler@21.2.22
+- npm:@angular/core@21.2.22
+- npm:@angular/forms@21.2.22
+- npm:@angular/platform-browser@21.2.22
+- npm:@angular/router@21.2.22
 --------------------------------------------------------------------------------
 The MIT License
 
@@ -9923,7 +9923,7 @@ limitations under the License.
 ================================================================================
 DOC-adb40d7d256e — LICENSE
 Applies to:
-- npm:@angular/cdk@21.2.9
+- npm:@angular/cdk@21.2.14
 --------------------------------------------------------------------------------
 The MIT License
 
@@ -11107,7 +11107,7 @@ licensed under the Apache License, Version 2.0 <LICENSE-APACHE> or
 ================================================================================
 DOC-c64182d48160 — LICENSE
 Applies to:
-- npm:tldts-core@7.4.7
+- npm:tldts-core@7.4.11
 - npm:tldts@7.4.2
 --------------------------------------------------------------------------------
 Copyright (c) 2017 Thomas Parisot, 2018 Rémi Berson
