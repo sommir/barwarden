@@ -599,7 +599,7 @@ describe("P1 settings pages", () => {
       "Web Vault",
       "上游 Bitwarden 源码",
     ]);
-    expect(host.textContent).toContain("Barwarden 0.1.0");
+    expect(host.textContent).toContain(`Barwarden ${__BARWARDEN_VERSION__}`);
     expect(host.textContent).toContain("应用更新");
     expect(host.textContent).toContain("检查更新");
     expect(host.textContent).toContain("故障排除");
@@ -628,7 +628,7 @@ describe("P1 settings pages", () => {
     expect(host.querySelector("dialog[open] form[bit-dialog]")).not.toBeNull();
     expect(host.textContent).toContain("GPL-3.0-only");
     expect(host.textContent).toContain("版本");
-    expect(host.textContent).toContain("0.1.0");
+    expect(host.textContent).toContain(__BARWARDEN_VERSION__);
     expect(host.textContent).toContain("上游 revision");
     expect(host.textContent).toContain("f47b6946e01aed474875789081966d311d5b8289");
     expect(host.textContent).toContain("当前 Web Vault");
