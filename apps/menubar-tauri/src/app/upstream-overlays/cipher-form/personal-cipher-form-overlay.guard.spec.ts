@@ -703,7 +703,7 @@ function resolveModule(
           );
     for (const target of targets) {
       const resolved = resolveFile(
-        resolve(root, target.replace("*", wildcard)),
+        resolve(root, target.replaceAll("*", wildcard)),
       );
       if (resolved) return resolved;
     }
