@@ -100,6 +100,10 @@ esac
 
 emit_preflight_codes || exit 1
 
+PRODUCT_VERSION="$(/usr/bin/env node "$SCRIPT_DIR/release-version.mjs" 2>/dev/null)" || \
+  fail NATIVE_AUTOFILL_VERSION_MISMATCH
+DMG_NAME="Barwarden-$PRODUCT_VERSION.dmg"
+
 OUTPUT_DIR="${NATIVE_AUTOFILL_OUTPUT_DIR:-}"
 [[ "$OUTPUT_DIR" = /* ]] || fail NATIVE_AUTOFILL_OUTPUT_DIR_INVALID
 reject_symlink_components "$OUTPUT_DIR" || fail NATIVE_AUTOFILL_OUTPUT_DIR_INVALID
@@ -210,7 +214,7 @@ DMG_STAGE="$WORK_ROOT/dmg-stage"
 /bin/mkdir -p "$DMG_STAGE"
 run_or_fail NATIVE_AUTOFILL_DMG_APP_STAGE_FAILED /usr/bin/ditto --norsrc --noqtn "$APP_PATH" "$DMG_STAGE/$APP_NAME"
 /bin/ln -s /Applications "$DMG_STAGE/Applications"
-DMG_PATH="$WORK_ROOT/Barwarden-0.1.2.dmg"
+DMG_PATH="$WORK_ROOT/$DMG_NAME"
 run_or_fail NATIVE_AUTOFILL_DMG_CREATE_FAILED \
   /usr/bin/hdiutil create -quiet -fs HFS+ -volname Barwarden -srcfolder "$DMG_STAGE" "$DMG_PATH"
 run_or_fail NATIVE_AUTOFILL_DMG_SIGN_FAILED \
@@ -252,7 +256,7 @@ run_or_fail NATIVE_AUTOFILL_STRICT_VERIFIER_FAILED \
 PROMOTION_SOURCE="$WORK_ROOT/promotion"
 /bin/mkdir "$PROMOTION_SOURCE"
 run_or_fail NATIVE_AUTOFILL_OUTPUT_APP_FAILED /usr/bin/ditto --norsrc --noqtn "$APP_PATH" "$PROMOTION_SOURCE/$APP_NAME"
-run_or_fail NATIVE_AUTOFILL_OUTPUT_DMG_FAILED /usr/bin/ditto --norsrc --noqtn "$DMG_PATH" "$PROMOTION_SOURCE/Barwarden-0.1.2.dmg"
+run_or_fail NATIVE_AUTOFILL_OUTPUT_DMG_FAILED /usr/bin/ditto --norsrc --noqtn "$DMG_PATH" "$PROMOTION_SOURCE/$DMG_NAME"
 run_or_fail NATIVE_AUTOFILL_OUTPUT_ATTESTATION_FAILED \
   /usr/bin/ditto --norsrc --noqtn "$ATTESTATION" "$PROMOTION_SOURCE/native-autofill-assembly-attestation.json"
 run_or_fail NATIVE_AUTOFILL_EVIDENCE_FAILED \

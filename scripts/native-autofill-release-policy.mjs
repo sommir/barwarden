@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 
+import { readReleaseVersion } from "./release-version.mjs";
+
 const EXPECTED_TEAM_ID = "K7LY92JY96";
 const EXPECTED_APP_GROUP = "K7LY92JY96.com.sommir.barwarden.autofill";
 const EXPECTED_MINIMUM_MACOS = "13.0";
-const EXPECTED_PRODUCT_VERSION = "0.1.2";
+const EXPECTED_PRODUCT_VERSION = readReleaseVersion();
 const EXPECTED_COMPONENTS = new Map([
   ["app", { path: ".", bundleId: "com.sommir.barwarden" }],
   [

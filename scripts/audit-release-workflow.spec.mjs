@@ -39,11 +39,13 @@ jobs:
           APPLE_API_KEY_BASE64: \${{ secrets.APPLE_API_KEY_BASE64 }}
         run: |
           api_key_path="$RUNNER_TEMP/notary-api-key.p8"
+          provider_profile_path="$RUNNER_TEMP/provider.provisionprofile"
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
-          APPLE_API_KEY_PATH="$api_key_path" npm run tauri:build:update
+          node scripts/download-native-autofill-provider-profile.mjs "$provider_profile_path"
+          NATIVE_AUTOFILL_PROVIDER_PROFILE="$provider_profile_path" scripts/build-native-autofill-release.sh
           codesign --verify --deep --strict Barwarden.app
           xcrun stapler validate Barwarden.dmg
-          spctl -a -vvv -t open --context context:primary-signature Barwarden.dmg
+          spctl -a -vvv -t open --context context:primary-signature Barwarden.dmg >/dev/null 2>&1
       - name: Publish release
         uses: softprops/action-gh-release@${releaseSha} # v2
 `;
@@ -103,12 +105,41 @@ test("requires every Apple signing and notarization secret", () => {
   );
 });
 
+test("requires the complete native AutoFill release builder and an ephemeral provider profile", () => {
+  const missingProfileDownload = safeWorkflow.replace(
+    "          node scripts/download-native-autofill-provider-profile.mjs \"$provider_profile_path\"\n",
+    "",
+  );
+  assert.match(
+    auditReleaseWorkflow(missingProfileDownload).join("\n"),
+    /release build must download the provider profile ephemerally/,
+  );
+
+  const plainTauriBuild = safeWorkflow.replace(
+    "scripts/build-native-autofill-release.sh",
+    "npm run tauri:build:update",
+  );
+  assert.match(
+    auditReleaseWorkflow(plainTauriBuild).join("\n"),
+    /release build must use the complete native AutoFill builder/,
+  );
+
+  const storedProfileSecret = safeWorkflow.replace(
+    "          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}\n",
+    "          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}\n          NATIVE_AUTOFILL_PROVIDER_PROFILE_BASE64: ${{ secrets.NATIVE_AUTOFILL_PROVIDER_PROFILE_BASE64 }}\n",
+  );
+  assert.match(
+    auditReleaseWorkflow(storedProfileSecret).join("\n"),
+    /provider profile must not be stored as a GitHub secret/,
+  );
+});
+
 test("requires signed artifacts to pass notarization and Gatekeeper verification", () => {
   const unsafe = safeWorkflow
     .replace("          codesign --verify --deep --strict Barwarden.app\n", "")
     .replace("          xcrun stapler validate Barwarden.dmg\n", "")
     .replace(
-      "          spctl -a -vvv -t open --context context:primary-signature Barwarden.dmg\n",
+      "          spctl -a -vvv -t open --context context:primary-signature Barwarden.dmg >/dev/null 2>&1\n",
       "",
     );
 
@@ -123,6 +154,14 @@ test("requires signed artifacts to pass notarization and Gatekeeper verification
   assert.match(
     auditReleaseWorkflow(unsafe).join("\n"),
     /release build must pass Gatekeeper assessment/,
+  );
+});
+
+test("requires Gatekeeper identity diagnostics to stay out of public logs", () => {
+  const unsafe = safeWorkflow.replace(" >/dev/null 2>&1", "");
+  assert.match(
+    auditReleaseWorkflow(unsafe).join("\n"),
+    /Gatekeeper verification output must be suppressed/,
   );
 });
 

@@ -237,7 +237,10 @@ AGENT_ENTITLEMENT_JSON="$(entitlement_summary "$AGENT_ENTITLEMENTS")" || fail NA
 validate_provider_profile() {
   local profile_path="$1" output_plist="$2"
   [[ -f "$profile_path" && ! -L "$profile_path" ]] || return 1
-  /usr/bin/security cms -D -i "$profile_path" >"$output_plist" 2>/dev/null || return 1
+  if ! /usr/bin/security cms -D -i "$profile_path" >"$output_plist" 2>/dev/null; then
+    /usr/bin/openssl cms -verify -inform DER -noverify \
+      -in "$profile_path" -out "$output_plist" >/dev/null 2>&1 || return 1
+  fi
   /usr/bin/plutil -convert json -o "$TEMP_ROOT/provider-profile.json" "$output_plist" 2>/dev/null || return 1
   /usr/bin/codesign -d --extract-certificates "$TEMP_ROOT/provider-signer-" "$PROVIDER_PATH" >/dev/null 2>&1 || return 1
   [[ -f "$TEMP_ROOT/provider-signer-0" ]] || return 1

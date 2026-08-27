@@ -19,7 +19,7 @@
   "properties": {
     "schemaVersion": { "const": 2 },
     "status": { "enum": ["PASS", "BLOCKED"] },
-    "productVersion": { "const": "0.1.2" },
+    "productVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
     "teamId": { "const": "K7LY92JY96" },
     "osVersion": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+){1,2}$" },
     "lowerOsRuntime": { "const": "NATIVE_AUTOFILL_LOWER_OS_RUNTIME_UNVERIFIED" },

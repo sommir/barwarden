@@ -37,6 +37,29 @@ test("creates a private native app-only overlay without changing production inpu
   }
 });
 
+test("embeds the validated GitHub updater configuration in release overlays", () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "barwarden-native-updater-config-"));
+  const output = join(temporaryRoot, "native-release.json");
+  try {
+    createNativeAutoFillConfig({
+      productionConfig,
+      productionEntitlements,
+      nativeEntitlements,
+      output,
+      updaterEndpoint: "https://github.com/sommir/barwarden/releases/latest/download/latest.json",
+      updaterPubkey: "dGVzdA==",
+    });
+    const generated = JSON.parse(readFileSync(output, "utf8"));
+    assert.equal(generated.plugins.updater.pubkey, "dGVzdA==");
+    assert.deepEqual(generated.plugins.updater.endpoints, [
+      "https://github.com/sommir/barwarden/releases/latest/download/latest.json",
+    ]);
+    assert.equal(generated.bundle.createUpdaterArtifacts, undefined);
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
 test("rejects overwriting either production input", () => {
   assert.throws(
     () =>

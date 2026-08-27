@@ -7,6 +7,8 @@ VERIFIER="$SCRIPT_DIR/verify-native-autofill-bundle.sh"
 FIXTURE_RUNNER="$SCRIPT_DIR/verify-native-autofill-inspection-fixture.mjs"
 VALID_FIXTURE="$SCRIPT_DIR/fixtures/native-autofill-release/valid-inspection.json"
 TEST_ROOT="$(mktemp -d /private/tmp/barwarden-native-release-verifier.XXXXXX)"
+PRODUCT_VERSION="$(node "$SCRIPT_DIR/release-version.mjs")"
+DMG_NAME="Barwarden-$PRODUCT_VERSION.dmg"
 trap '/bin/rm -rf "$TEST_ROOT"' EXIT
 
 fail() {
@@ -80,7 +82,7 @@ assert_rejected "$(mutate provider_profile_cert 'fixture.inventory[1].profileCer
 assert_rejected "$(mutate app_id_on_main 'fixture.inventory[0].applicationIdentifier = "K7LY92JY96.com.sommir.barwarden"; fixture.inventory[0].entitlementKeys.push("com.apple.application-identifier");')" NATIVE_AUTOFILL_ENTITLEMENT_INVENTORY_INVALID
 assert_rejected "$(mutate launch_agent 'fixture.launchAgentValid = false;')" NATIVE_AUTOFILL_LAUNCH_AGENT_INVALID
 assert_rejected "$(mutate command_surface 'fixture.registrationCommandSurfaceValid = false;')" NATIVE_AUTOFILL_AGENT_REGISTRATION_SURFACE_MISSING
-assert_rejected "$(mutate version 'fixture.productVersion = "0.1.3";')" NATIVE_AUTOFILL_VERSION_MISMATCH
+assert_rejected "$(mutate version 'fixture.productVersion = "9.9.9";')" NATIVE_AUTOFILL_VERSION_MISMATCH
 assert_rejected "$(mutate manifest_hash 'fixture.attestedAppManifestSha256 = "c".repeat(64);')" NATIVE_AUTOFILL_ATTESTATION_INVALID
 assert_rejected "$(mutate builder_policy_hash 'fixture.builderPolicyHashValid = false;')" NATIVE_AUTOFILL_ATTESTATION_INVALID
 assert_rejected "$(mutate dmg_inventory 'fixture.dmgInventoryValid = false;')" NATIVE_AUTOFILL_DMG_INVENTORY_INVALID
@@ -104,12 +106,12 @@ UNSIGNED_PROVIDER="$UNSIGNED_APP/Contents/PlugIns/BarwardenCredentialProvider.ap
 /usr/bin/plutil -create xml1 "$UNSIGNED_APP/Contents/Info.plist"
 /usr/bin/plutil -insert CFBundleIdentifier -string com.sommir.barwarden "$UNSIGNED_APP/Contents/Info.plist"
 /usr/bin/plutil -insert CFBundleExecutable -string barwarden "$UNSIGNED_APP/Contents/Info.plist"
-/usr/bin/plutil -insert CFBundleShortVersionString -string 0.1.2 "$UNSIGNED_APP/Contents/Info.plist"
+/usr/bin/plutil -insert CFBundleShortVersionString -string "$PRODUCT_VERSION" "$UNSIGNED_APP/Contents/Info.plist"
 /usr/bin/plutil -insert LSMinimumSystemVersion -string 13.0 "$UNSIGNED_APP/Contents/Info.plist"
 /usr/bin/plutil -create xml1 "$UNSIGNED_PROVIDER/Contents/Info.plist"
 /usr/bin/plutil -insert CFBundleIdentifier -string com.sommir.barwarden.credential-provider "$UNSIGNED_PROVIDER/Contents/Info.plist"
 /usr/bin/plutil -insert CFBundleExecutable -string BarwardenCredentialProvider "$UNSIGNED_PROVIDER/Contents/Info.plist"
-/usr/bin/plutil -insert CFBundleShortVersionString -string 0.1.2 "$UNSIGNED_PROVIDER/Contents/Info.plist"
+/usr/bin/plutil -insert CFBundleShortVersionString -string "$PRODUCT_VERSION" "$UNSIGNED_PROVIDER/Contents/Info.plist"
 /usr/bin/plutil -insert LSMinimumSystemVersion -string 13.0 "$UNSIGNED_PROVIDER/Contents/Info.plist"
 printf '#!/bin/sh\nexit 0\nautofill_agent_registration_status\nautofill_agent_register\nautofill_agent_unregister\n' > "$UNSIGNED_APP/Contents/MacOS/barwarden"
 printf '#!/bin/sh\nexit 0\n' > "$UNSIGNED_PROVIDER/Contents/MacOS/BarwardenCredentialProvider"
@@ -120,12 +122,12 @@ printf '#!/bin/sh\nexit 0\n' > "$UNSIGNED_APP/Contents/Helpers/BarwardenAutoFill
   "$UNSIGNED_APP/Contents/MacOS/barwarden" \
   "$UNSIGNED_PROVIDER/Contents/MacOS/BarwardenCredentialProvider" \
   "$UNSIGNED_APP/Contents/Helpers/BarwardenAutoFillAgent"
-: > "$TEST_ROOT/unsigned/Barwarden-0.1.2.dmg"
+: > "$TEST_ROOT/unsigned/$DMG_NAME"
 /bin/cp "$VALID_FIXTURE" "$TEST_ROOT/unsigned/attestation.json"
 production_output="$(
   "$VERIFIER" \
     --app "$UNSIGNED_APP" \
-    --dmg "$TEST_ROOT/unsigned/Barwarden-0.1.2.dmg" \
+    --dmg "$TEST_ROOT/unsigned/$DMG_NAME" \
     --attestation "$TEST_ROOT/unsigned/attestation.json" 2>&1 || true
 )"
 [[ "$production_output" == 'NATIVE_AUTOFILL_INNER_UNSIGNED' ]] || \
@@ -137,7 +139,7 @@ production_output="$(
 symlink_output="$(
   "$VERIFIER" \
     --app "$TEST_ROOT/symlink-app" \
-    --dmg "$TEST_ROOT/unsigned/Barwarden-0.1.2.dmg" \
+    --dmg "$TEST_ROOT/unsigned/$DMG_NAME" \
     --attestation "$TEST_ROOT/unsigned/attestation.json" 2>&1 || true
 )"
 [[ "$symlink_output" == NATIVE_AUTOFILL_SYMLINK_FORBIDDEN ]] || \
@@ -159,12 +161,12 @@ printf '%s\n' \
 /usr/bin/codesign --force --sign - "$ADHOC_APP/Contents/Helpers/BarwardenAutoFillAgent" >/dev/null 2>&1
 /usr/bin/codesign --force --sign - "$ADHOC_APP/Contents/PlugIns/BarwardenCredentialProvider.appex" >/dev/null 2>&1
 /usr/bin/codesign --force --sign - "$ADHOC_APP" >/dev/null 2>&1
-: > "$TEST_ROOT/adhoc/Barwarden-0.1.2.dmg"
+: > "$TEST_ROOT/adhoc/$DMG_NAME"
 /bin/cp "$VALID_FIXTURE" "$TEST_ROOT/adhoc/attestation.json"
 adhoc_output="$(
   "$VERIFIER" \
     --app "$ADHOC_APP" \
-    --dmg "$TEST_ROOT/adhoc/Barwarden-0.1.2.dmg" \
+    --dmg "$TEST_ROOT/adhoc/$DMG_NAME" \
     --attestation "$TEST_ROOT/adhoc/attestation.json" 2>&1 || true
 )"
 [[ "$adhoc_output" == 'NATIVE_AUTOFILL_INNER_UNSIGNED' ]] || \
@@ -174,5 +176,8 @@ deep_lines="$(rg -n '/usr/bin/codesign.*--deep' "$SCRIPT_DIR/build-native-autofi
 if [[ -n "$deep_lines" && "$deep_lines" != *'--verify --deep'* ]]; then
   fail "release builder must never use codesign --deep outside verification"
 fi
+
+rg -q '/usr/bin/openssl cms -verify -inform DER -noverify' "$VERIFIER" || \
+  fail "profile decoding must support modern macOS security cms failures"
 
 printf 'verify-native-autofill-bundle tests: PASS\n'

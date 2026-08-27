@@ -5,6 +5,9 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { promoteNativeAutoFillRelease } from "./native-autofill-atomic-promotion.mjs";
+import { readReleaseVersion, releaseDmgName } from "./release-version.mjs";
+
+const dmgName = releaseDmgName(readReleaseVersion());
 
 test("promotes the complete exact release set in one directory rename", () => {
   const root = mkdtempSync(join(tmpdir(), "barwarden-promotion-"));
@@ -13,7 +16,7 @@ test("promotes the complete exact release set in one directory rename", () => {
     const output = join(root, "release");
     mkdirSync(join(source, "Barwarden.app"), { recursive: true });
     writeFileSync(join(source, "Barwarden.app", "marker"), "app");
-    writeFileSync(join(source, "Barwarden-0.1.2.dmg"), "dmg");
+    writeFileSync(join(source, dmgName), "dmg");
     writeFileSync(join(source, "native-autofill-assembly-attestation.json"), "attestation");
     writeFileSync(join(source, "native-autofill-evidence.json"), "{}");
     writeFileSync(join(source, "native-autofill-evidence.md"), "evidence");
@@ -21,7 +24,7 @@ test("promotes the complete exact release set in one directory rename", () => {
     promoteNativeAutoFillRelease({ sourceDirectory: source, outputDirectory: output });
 
     assert.deepEqual(readdirSync(output).sort(), [
-      "Barwarden-0.1.2.dmg",
+      dmgName,
       "Barwarden.app",
       "native-autofill-assembly-attestation.json",
       "native-autofill-evidence.json",
@@ -39,7 +42,7 @@ test("missing source artifact leaves no partial output", () => {
     const source = join(root, "source");
     const output = join(root, "release");
     mkdirSync(join(source, "Barwarden.app"), { recursive: true });
-    writeFileSync(join(source, "Barwarden-0.1.2.dmg"), "dmg");
+    writeFileSync(join(source, dmgName), "dmg");
 
     assert.throws(
       () => promoteNativeAutoFillRelease({ sourceDirectory: source, outputDirectory: output }),
@@ -57,7 +60,7 @@ test("evidence generation failure leaves no release directory", () => {
     const source = join(root, "private-stage");
     const output = join(root, "release");
     mkdirSync(join(source, "Barwarden.app"), { recursive: true });
-    writeFileSync(join(source, "Barwarden-0.1.2.dmg"), "dmg");
+    writeFileSync(join(source, dmgName), "dmg");
     writeFileSync(join(source, "native-autofill-assembly-attestation.json"), "attestation");
 
     assert.throws(

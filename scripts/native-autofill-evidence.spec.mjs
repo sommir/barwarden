@@ -10,6 +10,7 @@ import {
   createBlockedNativeAutoFillEvidence,
   writeNativeAutoFillEvidence,
 } from "./record-native-autofill-evidence.mjs";
+import { readReleaseVersion } from "./release-version.mjs";
 
 const root = new URL("../", import.meta.url).pathname.replace(/\/$/, "");
 const evidencePath = join(root, "docs/autofill/native-autofill-evidence.json");
@@ -21,7 +22,7 @@ test("checked-in evidence is blocked, fixed-code-only, and schema-shaped", () =>
   assert.equal(schema.additionalProperties, false);
   assert.equal(evidence.status, "BLOCKED");
   assert.equal(evidence.teamId, "K7LY92JY96");
-  assert.equal(evidence.productVersion, "0.1.2");
+  assert.equal(evidence.productVersion, readReleaseVersion());
   assert.equal(evidence.schemaVersion, 2);
   assert.equal(evidence.artifactHashes.appSha256, null);
   assert.equal(evidence.artifactHashes.dmgSha256, null);

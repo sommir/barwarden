@@ -3,12 +3,15 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { writeJsonAtomically } from "./autofill-spike-atomic-write.mjs";
+import { createReleaseConfig } from "./create-updater-release-config.mjs";
 
 export function createNativeAutoFillConfig({
   productionConfig,
   productionEntitlements,
   nativeEntitlements,
   output,
+  updaterEndpoint,
+  updaterPubkey,
 }) {
   const resolvedOutput = resolve(output);
   if (
@@ -21,7 +24,15 @@ export function createNativeAutoFillConfig({
 
   const configBefore = readFileSync(productionConfig);
   const entitlementsBefore = readFileSync(productionEntitlements);
-  const config = JSON.parse(configBefore.toString("utf8"));
+  let config = JSON.parse(configBefore.toString("utf8"));
+  if (updaterEndpoint !== undefined || updaterPubkey !== undefined) {
+    config = createReleaseConfig({
+      baseConfig: config,
+      endpoint: updaterEndpoint,
+      pubkey: updaterPubkey,
+    });
+    delete config.bundle.createUpdaterArtifacts;
+  }
   config.bundle = { ...config.bundle, targets: ["app"] };
   config.bundle.macOS = {
     ...config.bundle.macOS,
@@ -57,6 +68,8 @@ function main() {
         "apps/menubar-tauri/src-tauri/Entitlements.native-autofill.plist",
       ),
       output: process.argv[2],
+      updaterEndpoint: process.env.BARWARDEN_UPDATER_ENDPOINT,
+      updaterPubkey: process.env.BARWARDEN_UPDATER_PUBKEY,
     });
     console.log("NATIVE_AUTOFILL_CONFIG_CREATED");
   } catch (error) {

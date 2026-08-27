@@ -2,8 +2,10 @@ import { cpSync, existsSync, lstatSync, mkdtempSync, readdirSync, renameSync, rm
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { readReleaseVersion, releaseDmgName } from "./release-version.mjs";
+
 const EXPECTED = [
-  "Barwarden-0.1.2.dmg",
+  releaseDmgName(readReleaseVersion()),
   "Barwarden.app",
   "native-autofill-assembly-attestation.json",
   "native-autofill-evidence.json",

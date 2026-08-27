@@ -3,6 +3,9 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { NATIVE_AUTOFILL_RELEASE_CODES } from "./native-autofill-release-codes.mjs";
+import { readReleaseVersion } from "./release-version.mjs";
+
+const PRODUCT_VERSION = readReleaseVersion();
 
 const LIVE_KEYS = [
   "freshInstallCurrent",
@@ -36,7 +39,7 @@ export function createBlockedNativeAutoFillEvidence({ osVersion }) {
   return {
     schemaVersion: 2,
     status: "BLOCKED",
-    productVersion: "0.1.2",
+    productVersion: PRODUCT_VERSION,
     teamId: "K7LY92JY96",
     osVersion,
     productionPromoted: false,
@@ -61,7 +64,7 @@ export function assertNativeAutoFillEvidence(evidence) {
   const invalid =
     evidence?.schemaVersion !== 2 ||
     !["PASS", "BLOCKED"].includes(evidence?.status) ||
-    evidence?.productVersion !== "0.1.2" ||
+    evidence?.productVersion !== PRODUCT_VERSION ||
     evidence?.teamId !== "K7LY92JY96" ||
     typeof evidence?.productionPromoted !== "boolean" ||
     !/^[0-9]+(?:\.[0-9]+){1,2}$/u.test(evidence?.osVersion ?? "") ||
