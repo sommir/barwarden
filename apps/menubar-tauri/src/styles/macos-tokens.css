@@ -44,6 +44,18 @@
   --mac-hit-size: 44px;
   --mac-header-height: 52px;
   --mac-tabbar-height: 52px;
+  --mac-tabbar-inline-offset: 14px;
+  --mac-tabbar-bottom-offset: 16px;
+  --mac-tabbar-occlusion-height: 96px;
+  --mac-header-action-size: 44px;
+  --mac-header-action-disc-size: 32px;
+  --mac-header-title-optical-padding-top: 2px;
+  --mac-header-title-line-height: 38px;
+  --mac-settings-select-width: 136px;
+  --mac-settings-select-owner-height: 40px;
+  --mac-settings-select-visible-height: 36px;
+  --mac-settings-select-compact-owner-height: 38px;
+  --mac-settings-select-compact-visible-height: 34px;
   --mac-row-single: 44px;
   --mac-row-double: 48px;
   --mac-row-double-compact: 44px;

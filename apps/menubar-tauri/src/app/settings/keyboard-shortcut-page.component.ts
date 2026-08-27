@@ -67,7 +67,10 @@ class ShortcutRecorderControlDirective {}
       />
 
       <section class="settings-detail-group macos-preference-group">
-        <bit-form-field class="settings-detail-row macos-preference-row" disableMargin>
+        <bit-form-field
+          class="settings-detail-row macos-preference-row shortcut-preference-row"
+          disableMargin
+        >
           <bit-label>{{ "i18nShowBarwarden" | i18n }}</bit-label>
           <button
             #shortcutRecorder

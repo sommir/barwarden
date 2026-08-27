@@ -55,7 +55,7 @@ const stylePaths = [
     <main class="macos-page">
       <bit-form-field class="macos-field" data-testid="form-field">
         <bit-label>Email</bit-label>
-        <input bitInput data-testid="form-input" aria-invalid="true" />
+        <input bitInput data-testid="form-input" />
       </bit-form-field>
 
       <bit-form-control data-testid="form-control">
@@ -143,7 +143,14 @@ describe("iOS 27 production accessibility contract", () => {
       ["INPUT", "LABEL"],
     ]);
 
-    for (const { input, owner } of productionFocusPairs(host)) {
+    for (const { input, owner, preservesBorder } of productionFocusPairs(host)) {
+      const restingOwnerStyle = getComputedStyle(owner);
+      const restingBorderColors = [
+        restingOwnerStyle.borderTopColor,
+        restingOwnerStyle.borderRightColor,
+        restingOwnerStyle.borderBottomColor,
+        restingOwnerStyle.borderLeftColor,
+      ];
       input.focus();
       expect(visibleOutlineCount(getComputedStyle(input), getComputedStyle(owner))).toBe(0);
       input.blur();
@@ -154,6 +161,22 @@ describe("iOS 27 production accessibility contract", () => {
       expect(getComputedStyle(owner).outlineStyle).toBe("solid");
       expect(getComputedStyle(owner).outlineOffset).toBe("2px");
       expect(getComputedStyle(owner).boxShadow).toBe("none");
+      if (preservesBorder !== false) {
+        const focusedOwnerStyle = getComputedStyle(owner);
+        const focusedBorderColors = [
+          focusedOwnerStyle.borderTopColor,
+          focusedOwnerStyle.borderRightColor,
+          focusedOwnerStyle.borderBottomColor,
+          focusedOwnerStyle.borderLeftColor,
+        ];
+        focusedBorderColors.forEach((color, index) => {
+          expectCssColorClose(
+            color,
+            restingBorderColors[index]!,
+            input.dataset["testid"] ?? input.tagName,
+          );
+        });
+      }
       expect(getComputedStyle(input).outlineStyle).toBe("none");
       clearFocusVisible(input);
     }
@@ -312,6 +335,7 @@ function expectOtpGeometry(
 function productionFocusPairs(host: HTMLElement): Array<{
   readonly input: HTMLInputElement;
   readonly owner: HTMLElement;
+  readonly preservesBorder?: boolean;
 }> {
   const formInput = host.querySelector<HTMLInputElement>('[data-testid="form-input"]')!;
   const checkbox = host.querySelector<HTMLInputElement>('[data-testid="checkbox"]')!;
@@ -321,7 +345,11 @@ function productionFocusPairs(host: HTMLElement): Array<{
   const rootSearch = host.querySelector<HTMLInputElement>('[data-testid="root-search"] input')!;
   return [
     { input: formInput, owner: formInput.closest<HTMLElement>("[bitfieldcontainer]")! },
-    { input: checkbox, owner: checkbox.closest<HTMLElement>("bit-form-control")!.querySelector("label")! },
+    {
+      input: checkbox,
+      owner: checkbox.closest<HTMLElement>("bit-form-control")!.querySelector("label")!,
+      preservesBorder: false,
+    },
     { input: officialSearch, owner: officialSearch.closest<HTMLElement>("[bitfieldcontainer]")! },
     { input: rootSearch, owner: rootSearch.closest<HTMLElement>(".vault-root-header__search")! },
   ];
@@ -340,6 +368,15 @@ function clearFocusVisible(input: HTMLInputElement): void {
 function visibleOutlineCount(...styles: CSSStyleDeclaration[]): number {
   return styles.filter((style) => style.outlineWidth === "2px" && style.outlineStyle === "solid")
     .length;
+}
+
+function expectCssColorClose(actual: string, expected: string, label: string): void {
+  const actualChannels = [...actual.matchAll(/[\d.]+/g)].map(([channel]) => Number(channel));
+  const expectedChannels = [...expected.matchAll(/[\d.]+/g)].map(([channel]) => Number(channel));
+  expect(actualChannels, label).toHaveLength(expectedChannels.length);
+  actualChannels.forEach((channel, index) => {
+    expect(channel, label).toBeCloseTo(expectedChannels[index]!, 4);
+  });
 }
 
 function installProductionCss(media: { readonly forcedColors?: boolean } = {}): HTMLStyleElement {

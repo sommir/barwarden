@@ -29,6 +29,18 @@ describe("detected AutoFill contracts", () => {
     })).toThrow("invalid detected AutoFill context");
   });
 
+  it("accepts the native choose presentation with no safely detected fields", () => {
+    const input = {
+      bundleId: "com.google.Chrome",
+      appName: "Google Chrome",
+      fillContextToken: token,
+      focusedField: { kind: "unknown", confidence: "low" },
+      action: { mode: "choose", fields: [] },
+    };
+
+    expect(decodeLiveAutoFillContext(input)).toEqual(input);
+  });
+
   it.each([
     ["root", (value: Record<string, unknown>) => ({ ...value, password: undefined })],
     ["focused field", (value: Record<string, unknown>) => ({

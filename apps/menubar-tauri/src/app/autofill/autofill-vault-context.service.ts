@@ -224,7 +224,7 @@ export class AutoFillVaultContextService {
     try {
       return Object.freeze({
         application: decodeAutoFillApplicationContext(entry.application),
-        context: entry.fillContext === null ? null : decodeLiveAutoFillContext(entry.fillContext),
+        context: entry.fillContext == null ? null : decodeLiveAutoFillContext(entry.fillContext),
         session: projectAutoFillAgentSession({
           accountId: session.accountId,
           generation: session.generation,

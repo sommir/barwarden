@@ -348,7 +348,7 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     harness.host.querySelector<HTMLButtonElement>("[data-testid='vault-autofill-field-action'][data-field='password']")?.click();
     expect(harness.router.navigateByUrl).not.toHaveBeenCalled();
     await vi.waitFor(() => expect(harness.fieldActions.execute).toHaveBeenCalledWith(
-      { application: APPLICATION, fillContext: CONTEXT }, SESSION, selected, "password",
+      SESSION, selected, "password",
       { mismatchConfirmed: false, requiresReprompt: false },
     ));
     expect(harness.store.snapshot().statusMessage).toBe("已填入。");
@@ -364,14 +364,14 @@ describe("VaultAutoFillSuggestionsComponent", () => {
     harness.host.querySelector<HTMLButtonElement>("[data-testid='vault-autofill-field-action']")?.click();
     await vi.waitFor(() => expect(harness.host.querySelector("[data-testid='vault-autofill-mismatch']")).not.toBeNull());
     expect(harness.fieldActions.execute).toHaveBeenCalledWith(
-      { application: APPLICATION, fillContext: CONTEXT }, SESSION, selected, "password",
+      SESSION, selected, "password",
       { mismatchConfirmed: false, requiresReprompt: false },
     );
 
     harness.host.querySelector<HTMLButtonElement>("[data-testid='vault-autofill-confirm-mismatch']")?.click();
     await vi.waitFor(() => expect(harness.store.snapshot().statusMessage).toBe("已填入。"));
     expect(harness.fieldActions.execute).toHaveBeenLastCalledWith(
-      { application: APPLICATION, fillContext: CONTEXT }, SESSION, selected, "password",
+      SESSION, selected, "password",
       { mismatchConfirmed: true, requiresReprompt: false },
     );
   });
@@ -385,6 +385,21 @@ describe("VaultAutoFillSuggestionsComponent", () => {
 
     expect(harness.fillActions.execute).not.toHaveBeenCalled();
     expect(harness.store.snapshot().statusMessage).toBe("无法确定要填入的字段。");
+  });
+
+  it("shows generic field actions but no primary fill for an ambiguous focused field", async () => {
+    const ambiguousContext: LiveAutoFillContext = Object.freeze({
+      ...CONTEXT,
+      focusedField: Object.freeze({ kind: "unknown", confidence: "low" }),
+      action: Object.freeze({ mode: "choose", fields: Object.freeze([]) }),
+    });
+    const harness = await render(ready([
+      candidate("github", "exact", "service_identifier", ["username", "password"]),
+    ], ambiguousContext));
+
+    expect(harness.host.querySelectorAll("[data-testid='vault-autofill-candidate']")).toHaveLength(1);
+    expect(harness.host.querySelectorAll("[data-testid='vault-autofill-field-action']")).toHaveLength(2);
+    expect(harness.host.querySelector("[data-testid='vault-autofill-fill']")).toBeNull();
   });
 
   it("keeps mismatch candidates behind an explicit confirmation", async () => {

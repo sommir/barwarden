@@ -105,6 +105,30 @@ describe("VaultFacade", () => {
     expect(facade.sections()[0]).toMatchObject({ forcedOpen: true });
   });
 
+  it("matches compact search terms against separated item names", () => {
+    const store = new PopupStateStore();
+    const separatedDevItems = [
+      { ...demoVaultItems[0]!, id: "dev-space", name: "Dev 1 admin" },
+      { ...demoVaultItems[0]!, id: "dev-hyphen", name: "dev-1 console" },
+      { ...demoVaultItems[0]!, id: "dev-dot", name: "DEV.1 staging" },
+      { ...demoVaultItems[0]!, id: "dev-underscore", name: "dev_1 database" },
+      { ...demoVaultItems[0]!, id: "dev-ten", name: "dev10 account" },
+    ];
+    store.setItems(separatedDevItems, demoFolders);
+    const facade = new VaultFacade(store);
+
+    facade.setSearch("dev1");
+
+    expect(facade.filteredItems().map((item) => item.id)).toEqual([
+      "dev-space",
+      "dev-hyphen",
+      "dev-dot",
+      "dev-underscore",
+      "dev-ten",
+    ]);
+    expect(facade.sections()[0]?.count).toBe(5);
+  });
+
   it("forces searched and filtered sections open without changing collapse preferences", () => {
     const store = new PopupStateStore();
     store.setItems(demoVaultItems, demoFolders);

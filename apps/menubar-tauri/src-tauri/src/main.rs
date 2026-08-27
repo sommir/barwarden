@@ -36,6 +36,25 @@ use std::io;
 
 use tauri::Manager;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MaintenanceCommand {
+    RegisterAutoFillAgent,
+}
+
+fn maintenance_command<I, S>(args: I) -> Option<MaintenanceCommand>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    let mut args = args.into_iter();
+    let command = args.next()?;
+    if args.next().is_some() {
+        return None;
+    }
+    (command.as_ref() == "--register-autofill-agent")
+        .then_some(MaintenanceCommand::RegisterAutoFillAgent)
+}
+
 fn should_show_popup_on_reopen(has_visible_windows: bool) -> bool {
     !has_visible_windows
 }
@@ -49,6 +68,20 @@ fn updater_plugin_is_configured(config: &tauri::Config) -> bool {
 }
 
 fn main() {
+    #[cfg(target_os = "macos")]
+    if maintenance_command(std::env::args_os().skip(1))
+        == Some(MaintenanceCommand::RegisterAutoFillAgent)
+    {
+        let result = login_item::autofill_agent_unregister()
+            .and_then(|_| login_item::autofill_agent_register());
+        if result == Ok("enabled") {
+            println!("NATIVE_AUTOFILL_LOCAL_AGENT_REGISTER_PASS");
+            return;
+        }
+        eprintln!("NATIVE_AUTOFILL_LOCAL_AGENT_REGISTER_FAILED");
+        std::process::exit(78);
+    }
+
     #[cfg(all(target_os = "macos", debug_assertions))]
     if let Some(output_dir) = std::env::var_os("BARWARDEN_AUTOFILL_PILL_FIXTURE_DIR") {
         autofill_floating::render_native_pill_fixture(std::path::Path::new(&output_dir))
@@ -220,7 +253,21 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{should_show_popup_on_reopen, updater_plugin_is_configured};
+    use super::{
+        maintenance_command, should_show_popup_on_reopen, updater_plugin_is_configured,
+        MaintenanceCommand,
+    };
+
+    #[test]
+    fn maintenance_command_accepts_only_the_single_agent_registration_flag() {
+        assert_eq!(
+            maintenance_command(["--register-autofill-agent"]),
+            Some(MaintenanceCommand::RegisterAutoFillAgent),
+        );
+        assert_eq!(maintenance_command(std::iter::empty::<&str>()), None);
+        assert_eq!(maintenance_command(["--unknown"]), None);
+        assert_eq!(maintenance_command(["--register-autofill-agent", "extra"]), None);
+    }
 
     #[test]
     fn reopen_recovers_a_hidden_menu_bar_popup() {

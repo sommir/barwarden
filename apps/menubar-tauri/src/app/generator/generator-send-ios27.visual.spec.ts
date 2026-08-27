@@ -1769,6 +1769,19 @@ describe("iOS 27 Generator visual contract", () => {
     expect([newAction, filterAction].map((action) => computedHitHeight(action!)))
       .toEqual([44, 44]);
     expect(newAction?.classList).toContain("macos-hit-target");
+    expect(newAction?.classList).toContain("macos-header-primary-action");
+    expect(getComputedStyle(newAction!).width).toBe("44px");
+    expect(getComputedStyle(newAction!).height).toBe("44px");
+    expect(getComputedStyle(newAction!).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    const newActionPaintLayer = newAction!.querySelector<HTMLElement>(".macos-header-action-disc")!;
+    const newActionPaint = getComputedStyle(newActionPaintLayer);
+    expect(newActionPaint.width).toBe("32px");
+    expect(newActionPaint.height).toBe("32px");
+    expect(newActionPaint.borderRadius).toBe("999px");
+    expect(newAction?.querySelector(".bwi-plus")).not.toBeNull();
+    expect(Array.from(newAction?.childNodes ?? []).some((node) =>
+      node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim().length > 0
+    )).toBe(false);
     expect(filterAction?.classList).toContain("macos-hit-target");
     expect(filterOwner).not.toBeNull();
     expect(filterSelect.value).toBe("text");

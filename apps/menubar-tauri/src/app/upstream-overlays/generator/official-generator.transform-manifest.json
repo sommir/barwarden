@@ -4580,7 +4580,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/official-ui/official-i18n.service.ts",
-        "sha256": "8cd7b0c06512584260f6d24d9c221db953906bbc81b443f2eb73f212f22ed292"
+        "sha256": "00292096156701dba09b30c085a3f337f35a8edaa7829b64ab0f2f51ce2b2749"
       },
       {
         "path": "apps/menubar-tauri/src/app/official-ui/official-logging.adapter.ts",
@@ -4684,7 +4684,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.html",
-        "sha256": "b5c92e658a6039b261d4d926c6f8c0f5a4636d2af2671cb51c3d84652c69aa86"
+        "sha256": "8b542ba9fc231a351e7561857d574f19185d1dc8d91fea28aa42d24c6b8af375"
       },
       {
         "path": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts",
@@ -4740,7 +4740,7 @@
       },
       {
         "path": "apps/menubar-tauri/src/host/tauri-host.service.ts",
-        "sha256": "3213af17bf84c13f6397097111e0503dfa247d034c9f13554d7f012024870bf6"
+        "sha256": "ec5fda3bed24e8b3ba1b522adbd6d6c543358565a5a4de7d651bc2e4cc21d33d"
       },
       {
         "path": "apps/menubar-tauri/src/host/website-context.ts",
@@ -5415,7 +5415,7 @@
         "sha256": "162dd777bc2ad6abcd19e7ce8c6c78463ebabf63a73bd22ecf6cf8a9558f5286"
       }
     ],
-    "sha256": "e859883ef1ab3fdd9013ec0f5ab82af5c40e3bac9c3da24b5dacb41524e6f99b"
+    "sha256": "38c31142c1aba455abb0c4db673a35bb24183ae8a8348bc8032cccfe725205f8"
   },
   "removedDependencies": [
     "forwarded-email provider graph",

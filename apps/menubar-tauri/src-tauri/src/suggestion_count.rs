@@ -757,7 +757,7 @@ fn eligible(group: &CandidateGroup, reason: &str) -> bool {
 fn count_eligible_responses(
     responses: &[Result<CandidateResponsePayload, AgentErrorCode>; 3],
 ) -> Option<usize> {
-    if responses.iter().any(Result::is_err) {
+    if responses.iter().all(Result::is_err) {
         return None;
     }
 
@@ -926,7 +926,7 @@ mod tests {
     }
 
     #[test]
-    fn candidate_count_fails_closed_when_any_field_query_fails() {
+    fn candidate_count_uses_successful_field_queries_when_one_field_fails() {
         let responses = [
             Ok(response(vec![candidate(
                 "a",
@@ -935,6 +935,17 @@ mod tests {
             )])),
             Err(AgentErrorCode::Unavailable),
             Ok(response(Vec::new())),
+        ];
+
+        assert_eq!(count_eligible_responses(&responses), Some(1));
+    }
+
+    #[test]
+    fn candidate_count_fails_closed_when_all_field_queries_fail() {
+        let responses = [
+            Err(AgentErrorCode::Unavailable),
+            Err(AgentErrorCode::Timeout),
+            Err(AgentErrorCode::Transport),
         ];
 
         assert_eq!(count_eligible_responses(&responses), None);

@@ -9,6 +9,7 @@ import {
 } from "@angular/platform-browser/testing";
 import { Location } from "@angular/common";
 import { OverlayContainer } from "@angular/cdk/overlay";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { ActivatedRoute, provideRouter, Router } from "@angular/router";
@@ -29,6 +30,7 @@ import { AuthFacade } from "./auth/auth.facade";
 import { OfficialAccountSwitcherAdapter } from "./auth/official-account-switcher.adapter";
 import { PopupStateStore } from "./popup-state";
 import { AvatarComponent } from "./official-ui/official-components";
+import { TooltipDirective } from "@bitwarden/components/tooltip/tooltip.directive";
 import { OfficialI18nService } from "./official-ui/official-i18n.service";
 import { PopupHeaderActionsComponent } from "./popup-header-actions.component";
 import { RetainedFolderDialogService } from "./vault/retained-new-item-dropdown.component";
@@ -60,6 +62,16 @@ const officialPopOutProviders = [
     },
   },
 ];
+
+@Component({
+  standalone: true,
+  imports: [TooltipDirective],
+  template: `
+    <button type="button" bitTooltip="First tooltip">First</button>
+    <button type="button" bitTooltip="Second tooltip">Second</button>
+  `,
+})
+class TooltipLifecycleHarnessComponent {}
 
 try {
   TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -143,7 +155,11 @@ describe("PopupHeaderActionsComponent", () => {
     expect(resolvedHeaderTargets.map((target) => [
       getComputedStyle(target).minWidth,
       getComputedStyle(target).minHeight,
-    ])).toEqual(resolvedHeaderTargets.map(() => ["44px", "44px"]));
+    ])).toEqual([
+      ["44px", "44px"],
+      ["44px", "44px"],
+      ["44px", "44px"],
+    ]);
 
     newAction.click();
     fixture.detectChanges();
@@ -295,6 +311,44 @@ describe("PopupHeaderActionsComponent", () => {
       .toBe("在新窗口中打开");
 
     window.dispatchEvent(new Event("blur"));
+    fixture.detectChanges();
+
+    expect(overlay.querySelector('[role="tooltip"]')).toBeNull();
+  });
+
+  it("keeps only the most recently requested tooltip", async () => {
+    await TestBed.configureTestingModule({
+      imports: [TooltipLifecycleHarnessComponent],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(TooltipLifecycleHarnessComponent);
+    fixture.detectChanges();
+    const overlay = TestBed.inject(OverlayContainer).getContainerElement();
+    const [first, second] = fixture.nativeElement.querySelectorAll("button") as NodeListOf<HTMLButtonElement>;
+
+    first.dispatchEvent(new Event("mouseenter"));
+    second.dispatchEvent(new Event("mouseenter"));
+    fixture.detectChanges();
+
+    expect(overlay.querySelectorAll('[role="tooltip"]')).toHaveLength(1);
+    expect(overlay.querySelector('[role="tooltip"]')?.textContent?.trim())
+      .toBe("Second tooltip");
+  });
+
+  it("removes a tooltip as soon as its scrolling context moves", async () => {
+    await TestBed.configureTestingModule({
+      imports: [TooltipLifecycleHarnessComponent],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(TooltipLifecycleHarnessComponent);
+    fixture.detectChanges();
+    const overlay = TestBed.inject(OverlayContainer).getContainerElement();
+    fixture.nativeElement.querySelector("button")
+      .dispatchEvent(new Event("mouseenter"));
+    fixture.detectChanges();
+    expect(overlay.querySelector('[role="tooltip"]')).not.toBeNull();
+
+    document.dispatchEvent(new Event("scroll"));
     fixture.detectChanges();
 
     expect(overlay.querySelector('[role="tooltip"]')).toBeNull();

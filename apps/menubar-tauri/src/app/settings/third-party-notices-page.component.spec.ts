@@ -53,7 +53,7 @@ describe("ThirdPartyNoticesPageComponent", () => {
     expect(host.textContent).toContain("npm");
     expect(host.textContent).toContain("27");
     expect(host.textContent).toContain("Cargo");
-    expect(host.textContent).toContain("218");
+    expect(host.textContent).toContain("241");
     expect(host.textContent).toContain("许可证类别");
     expect(host.textContent).toContain("查看完整许可文本");
     expect(host.querySelector("pre")).toBeNull();

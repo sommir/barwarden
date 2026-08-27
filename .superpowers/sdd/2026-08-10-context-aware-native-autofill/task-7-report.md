@@ -133,7 +133,7 @@ The build emitted only the repository's existing baseline warnings for browser-e
 
 Detailed QA: `task-7-design-qa.md` (`passed`, no P0/P1/P2).
 
-- Selected source: `$HOME/.codex/generated_images/019fd0f1-44d9-7a63-9113-1cb5583d85c4/exec-650bb844-0eb7-4264-b767-f467efeee538.png`.
+- Selected source: the local reference capture documented in `task-7-design-qa.md`.
 - Actual implementation: `task-7-implementation.png` (genuine 480 x 600 PNG from the real `VaultItemDetailPageComponent` and official Login children).
 - Combined comparison: `task-7-comparison-full.png` (960 x 600; selected source at left, actual Login detail at right).
 

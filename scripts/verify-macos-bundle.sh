@@ -410,7 +410,24 @@ fi
 
 require_command hdiutil
 require_command codesign
+require_command strings
 read_bundle_value() { plutil -extract "$2" raw -o - "$1/Contents/Info.plist"; }
+verify_native_autofill_inventory_if_exposed() {
+  local bundle="$1" label="$2" executable_path="$3"
+  if ! strings "$executable_path" | grep -Eq '^autofill_agent_(registration_status|register|unregister)$'; then
+    return 0
+  fi
+  [[ -x "$bundle/Contents/Helpers/BarwardenAutoFillAgent" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+  [[ -f "$bundle/Contents/PlugIns/BarwardenCredentialProvider.appex/Contents/Info.plist" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+  [[ -f "$bundle/Contents/Library/LaunchAgents/com.sommir.barwarden.autofill-agent.plist" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+  [[ -f "$bundle/Contents/Resources/BarwardenAutoFill/AppPresets.json" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+  [[ -f "$bundle/Contents/Resources/BarwardenAutoFill/DomainMatchRules.json" ]] || \
+    fail "$label native AutoFill sidecar inventory is missing"
+}
 verify_bundle() {
   local bundle="$1" label="$2" executable executable_entry executable_count=0
   require_file "$bundle/Contents/Info.plist"
@@ -434,6 +451,7 @@ verify_bundle() {
   [[ "$executable_count" -eq 1 ]] || fail "$label Contents/MacOS must contain only $expected_executable_name"
   [[ -f "$bundle/Contents/MacOS/$executable" && ! -L "$bundle/Contents/MacOS/$executable" && -x "$bundle/Contents/MacOS/$executable" ]] || \
     fail "$label executable is missing, not executable, or has an unsupported type"
+  verify_native_autofill_inventory_if_exposed "$bundle" "$label" "$bundle/Contents/MacOS/$executable"
   cmp -s "$license_file" "$bundle/Contents/Resources/LICENSE" || fail "$label bundled GPL license differs from source"
   cmp -s "$notice_file" "$bundle/Contents/Resources/NOTICE.md" || fail "$label bundled notice differs from source"
   cmp -s "$privacy_file" "$bundle/Contents/Resources/PRIVACY.md" || fail "$label bundled privacy disclosure differs from source"

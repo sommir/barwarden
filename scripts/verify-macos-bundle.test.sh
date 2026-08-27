@@ -582,6 +582,27 @@ assert_rejected \
   env MOCK_SIGNATURE_STATES=unsigned:adhoc "$verifier" --source-root "$fixture_root" --app "$standalone_app" --dmg "$renamed_dmg"
 rm -f "$renamed_dmg"
 
+autofill_surface_app="$fixture_root/autofill-surface/Barwarden.app"
+autofill_surface_mounted="$fixture_root/autofill-surface-mounted/Barwarden.app"
+mkdir -p "$(dirname "$autofill_surface_app")" "$(dirname "$autofill_surface_mounted")"
+cp -R "$standalone_app" "$autofill_surface_app"
+cp -R "$standalone_app" "$autofill_surface_mounted"
+for app in "$autofill_surface_app" "$autofill_surface_mounted"; do
+  cat > "$app/Contents/MacOS/barwarden" <<'SHIM'
+#!/usr/bin/env bash
+exit 0
+autofill_agent_registration_status
+autofill_agent_register
+autofill_agent_unregister
+SHIM
+  chmod 755 "$app/Contents/MacOS/barwarden"
+done
+assert_rejected \
+  "an AutoFill-capable app bundle without native sidecars" \
+  "native AutoFill sidecar inventory is missing" \
+  env MOCK_SIGNATURE_STATES=unsigned:adhoc MOCK_MOUNTED_APP="$autofill_surface_mounted" \
+  "$verifier" --source-root "$fixture_root" --app "$autofill_surface_app" --dmg "$standalone_dmg"
+
 printf '#!/usr/bin/env bash\nexit 0\n' > "$standalone_app/Contents/MacOS/legacy"
 chmod 755 "$standalone_app/Contents/MacOS/legacy"
 cp "$standalone_app/Contents/MacOS/legacy" "$mounted_template/Contents/MacOS/legacy"

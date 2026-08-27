@@ -35,6 +35,14 @@ test("local and release builders package the Agent matching catalogs beside the 
   }
 });
 
+test("local builder diagnostics are explicit while normal failures remain sanitized", () => {
+  const source = readFileSync(builder, "utf8");
+
+  assert.match(source, /NATIVE_AUTOFILL_LOCAL_DIAGNOSTICS:-0/u);
+  assert.match(source, /"\$@" >\/dev\/null 2>&1/u);
+  assert.match(source, /"\$@" 2>&1 \| \/usr\/bin\/tee/u);
+});
+
 test("local builder preflight accepts only explicit external references and warns on a missing Provider profile", () => {
   const directory = mkdtempSync("/private/tmp/barwarden-local-smoke-preflight-");
   try {
@@ -71,7 +79,7 @@ test("static local policy cannot be confused with release or deep signing", () =
     .replace(/^SIGNER_PREFIX=.*?^unset INTERMEDIATE_SHA1 ROOT_SHA1 SIGNER_PREFIX\n/msu, "")
     .concat(`
 : # security find-certificate -a -Z
-: # SHA-1 hash: 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635
+: # SHA-1 hash: 30997D113A3CA12F7403BCCCE80F3F6E55AA9772
 : # AUTHORITY_COUNT="$(/usr/bin/grep -c
 : # LEAF_AUTHORITY="$(/usr/bin/awk
 : # EXPECTED_AUTHORITY_TAIL='Authority=Developer ID Certification Authority
@@ -105,7 +113,7 @@ test("static local policy cannot be confused with release or deep signing", () =
       [
         "comment-only-signing-chain",
         source
-          .replace(/^SIGNING_CERTIFICATES=.*?^\/bin\/rm -f "\$SIGNING_CERTIFICATES"\n/msu, '# SHA-1 hash: 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635\n')
+          .replace(/^SIGNING_CERTIFICATES=.*?^\/bin\/rm -f "\$SIGNING_CERTIFICATES"\n/msu, '# SHA-1 hash: 30997D113A3CA12F7403BCCCE80F3F6E55AA9772\n')
           .replace(/^SIGNATURE_DETAILS=.*?^\/bin\/rm -f "\$SIGNATURE_DETAILS"\n/msu, '# Authority=Developer ID Certification Authority\n'),
         "NATIVE_AUTOFILL_LOCAL_OUTPUT_VERIFY_MISSING",
       ],

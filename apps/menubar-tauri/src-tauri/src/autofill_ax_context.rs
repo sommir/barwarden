@@ -2977,6 +2977,53 @@ mod tests {
     }
 
     #[test]
+    fn reader_recognizes_a_chinese_employee_id_login_form() {
+        let mut port = FakePort::login_form();
+        port.strings
+            .insert((1, "AXPlaceholderValue"), "工号".into());
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.google.Chrome", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("employee id login form");
+
+        assert_eq!(
+            capture.action,
+            DetectedAction::Form {
+                fields: vec![AutoFillSecretField::Username, AutoFillSecretField::Password],
+            }
+        );
+    }
+
+    #[test]
+    fn reader_recognizes_the_dsm_username_only_step() {
+        let mut port = FakePort::login_form();
+        port.strings.remove(&(1, "AXPlaceholderValue"));
+        port.strings.insert((1, "AXDescription"), "用户帐号".into());
+        port.children.insert(10, vec![Element(1)]);
+
+        let capture = capture_with_port(
+            &mut port,
+            Element(1),
+            test_frontmost_app("com.google.Chrome", 42, 9),
+            &[screen()],
+            7,
+        )
+        .expect("DSM username step");
+
+        assert_eq!(
+            capture.action,
+            DetectedAction::Field {
+                field: AutoFillSecretField::Username,
+            }
+        );
+    }
+
+    #[test]
     fn reader_groups_unique_aligned_login_fields_wrapped_by_different_ax_containers() {
         let mut port = FakePort::login_form();
         port.children.insert(10, vec![Element(1)]);

@@ -95,8 +95,11 @@ const replaceBrowserAccountAndPopOutWithExistingPopupHeaderSlots = [
     replacement: `  <popup-header slot="header" pageTitle="Send">
     <ng-container slot="end">
       @if (!disabled()) {
-        <button class="macos-send__new-action macos-hit-target" data-testid="send-new-action" bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
-          {{ "new" | i18n }}
+        <button class="macos-send__new-action macos-header-primary-action macos-hit-target" data-testid="send-new-action" bitButton buttonType="primary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
+          <span class="macos-header-action-disc" aria-hidden="true">
+            <i class="bwi bwi-plus"></i>
+          </span>
+          <span class="tw-sr-only">{{ "i18nAddTextSend" | i18n }}</span>
         </button>
       }
     </ng-container>
@@ -176,14 +179,14 @@ const removeFileNewSendChoice = [
   </div>`,
     replacement: `  @if (state() === "empty" && !loading()) {
     <div class="tw-flex tw-flex-col tw-h-full tw-justify-center">
-      <bit-no-items class="tw-text-main">
+      <bit-no-items [icon]="noItemIcon" class="tw-text-main">
         <ng-container slot="title">{{ "i18nSendEmptyTitle" | i18n }}</ng-container>
         <ng-container slot="description">
           <p bitTypography="body2" class="tw-mx-6 tw-mt-2">{{ "i18nSendEmptyDescription" | i18n }}</p>
         </ng-container>
         @if (!disabled()) {
           <button class="macos-send__empty-create-action macos-hit-target" data-testid="send-empty-create-action" slot="button" bitButton buttonType="secondary" type="button" [attr.aria-label]="'i18nAddTextSend' | i18n" (click)="open.emit(undefined)">
-            {{ "i18nCreateSend" | i18n }}
+            {{ "i18nAddTextSend" | i18n }}
           </button>
         }
       </bit-no-items>
@@ -623,8 +626,8 @@ export const sendTypeScriptContracts = [
     runtime: "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
     authorityClass: "SendListComponent", runtimeClass: "OfficialSendListComponent",
     authoritySha256: "34992501db328590360fa2dc4b9e935ce399afa3451757da4e5a17dba8c03aac",
-    requiredRuntimeMembers: ["sends", "query", "filtersVisible", "filterType", "loading", "disabled", "state", "queryChange", "toggleFilters", "filterChange", "open", "copyLink", "delete", "inputValue"],
-    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "@angular/forms", bindings: ["FormsModule"] }, { module: "./official-send-list-items-container.component", bindings: ["OfficialSendListItemsContainerComponent", "OfficialTextSendListItem"] }],
+    requiredRuntimeMembers: ["noItemIcon", "sends", "query", "filtersVisible", "filterType", "loading", "disabled", "state", "queryChange", "toggleFilters", "filterChange", "open", "copyLink", "delete", "inputValue"],
+    requiredImports: [{ module: "@angular/core", bindings: ["ChangeDetectionStrategy", "Component", "input", "output"] }, { module: "@angular/forms", bindings: ["FormsModule"] }, { module: "@bitwarden/assets/svg", bindings: ["NoSendsIcon"] }, { module: "./official-send-list-items-container.component", bindings: ["OfficialSendListItemsContainerComponent", "OfficialTextSendListItem"] }],
     mutationSearch: "readonly queryChange", mutationReplacement: "readonly damagedQueryChange",
     patch: listTypeScriptPatch, transforms: staticPatchTransforms(listTypeScriptPatch),
   },

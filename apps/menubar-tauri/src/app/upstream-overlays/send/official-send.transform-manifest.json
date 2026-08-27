@@ -99,15 +99,15 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.html",
-      "sha256": "668cd1880081dfcbb7afe2371fdbdaf0d0e540be0ebdd57708b5cbe5ce15d021"
+      "sha256": "4ac1c710822b433599453ed263702b480ad62ad46d2143aea2f4367a1133c1ba"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
-      "sha256": "b83f1bd786e14d8a3d960e4528db027ea92db8d35bd871e07450df9d504d83de"
+      "sha256": "f798e5740e70b206cf1e880d8f70f1ad1ec825737d88c4505a047f3f048345db"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
-      "sha256": "ecec61bf32e9549b0e965513e7565f01ed55131e7e86d218b98b552b564fc92f"
+      "sha256": "2147ffc83746d31053b3b2e3d8c50678709a72b2da1286dce0bebf128b1775ac"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-options.component.html",
@@ -155,7 +155,7 @@
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-list.component.ts.patch",
-      "sha256": "0f40297898481905a2a36a003389aab1cff5c075d15811b39dba5f0161b870a1"
+      "sha256": "9534eea1b58b1a940787580ecd278ba015f4de057d9786dfa5a12fc6965f77b5"
     },
     {
       "path": "apps/menubar-tauri/src/app/upstream-overlays/send/source-patches/official-send-options.component.html.patch",
@@ -194,7 +194,7 @@
   ],
   "transformContract": {
     "path": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-member-transforms.ts",
-    "sha256": "ecec61bf32e9549b0e965513e7565f01ed55131e7e86d218b98b552b564fc92f"
+    "sha256": "2147ffc83746d31053b3b2e3d8c50678709a72b2da1286dce0bebf128b1775ac"
   },
   "productionRoots": [
     "apps/menubar-tauri/src/app/send/send-add-edit-page.component.ts",
@@ -315,6 +315,7 @@
       "vendor/bitwarden-clients/libs/assets/src/svg/svgs/active-send.icon.ts",
       "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts",
       "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts",
+      "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-send.icon.ts",
       "vendor/bitwarden-clients/libs/common/src/platform/abstractions/i18n.service.ts",
       "vendor/bitwarden-clients/libs/common/src/tools/send/send-kdf.ts",
       "vendor/bitwarden-clients/libs/components/src/a11y/aria-disable.directive.ts",
@@ -1680,6 +1681,12 @@
       {
         "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
         "kind": "import",
+        "specifier": "@bitwarden/assets/svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts"
+      },
+      {
+        "from": "apps/menubar-tauri/src/app/upstream-overlays/send/official-send-list.component.ts",
+        "kind": "import",
         "specifier": "@bitwarden/browser-popup/layout/popup-header.component",
         "target": "apps/menubar-tauri/src/app/upstream-overlays/popup-header/popup-header.component.ts"
       },
@@ -1912,6 +1919,12 @@
         "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts"
       },
       {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/index.ts",
+        "kind": "export",
+        "specifier": "./svgs",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts"
+      },
+      {
         "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/active-send.icon.ts",
         "kind": "import",
         "specifier": "../svg",
@@ -1930,7 +1943,19 @@
         "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts"
       },
       {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/index.ts",
+        "kind": "export",
+        "specifier": "./no-send.icon",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-send.icon.ts"
+      },
+      {
         "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-results.ts",
+        "kind": "import",
+        "specifier": "../svg",
+        "target": "vendor/bitwarden-clients/libs/assets/src/svg/svg.ts"
+      },
+      {
+        "from": "vendor/bitwarden-clients/libs/assets/src/svg/svgs/no-send.icon.ts",
         "kind": "import",
         "specifier": "../svg",
         "target": "vendor/bitwarden-clients/libs/assets/src/svg/svg.ts"
@@ -3370,6 +3395,6 @@
         "target": null
       }
     ],
-    "sha256": "cee0a32d48e62a45bd1a0f29fe3df550a8b2d946d71e635979aaebeb7fe59fc4"
+    "sha256": "84af64a159614920cae1b1958ab52b13b3ec06eaa3e9b819ac91550ac5f2131b"
   }
 }

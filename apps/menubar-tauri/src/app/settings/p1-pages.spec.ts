@@ -330,7 +330,20 @@ describe("P1 settings pages", () => {
       group!.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
     );
     expect(visibleSelects).toHaveLength(2);
-    expectRealSelectGeometry(visibleSelects, "40px");
+    for (const selectHost of visibleSelects) {
+      const row = selectHost.closest<HTMLElement>("bit-form-field.macos-preference-row");
+      const internalLayout = row?.querySelector<HTMLElement>(":scope > div");
+      const defaultContent = selectHost.closest<HTMLElement>("[data-default-content]");
+      expect(row).not.toBeNull();
+      expect(internalLayout).not.toBeNull();
+      expect(defaultContent).not.toBeNull();
+      expect(getComputedStyle(internalLayout!).gridTemplateColumns.replace(/\s+/g, "")).toBe(
+        "minmax(0,1fr)104px",
+      );
+      expect(getComputedStyle(defaultContent!).display).toBe("flex");
+      expect(getComputedStyle(defaultContent!).alignItems).toBe("center");
+    }
+    expectRealSelectGeometry(visibleSelects, "30px", "104px", "32px");
     expectSharedSettingsPageInset(host);
     expect(getComputedStyle(group!).marginLeft).toBe("0px");
     expect(getComputedStyle(group!).marginRight).toBe("0px");
@@ -369,7 +382,7 @@ describe("P1 settings pages", () => {
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.dataset["bwCompactMode"] = "true";
-    expectRealSelectGeometry(visibleSelects, "36px");
+    expectRealSelectGeometry(visibleSelects, "30px", "104px", "32px");
     for (const row of preferenceRows) {
       expect(Number.parseFloat(getComputedStyle(row).minHeight)).toBeGreaterThanOrEqual(44);
     }
@@ -554,6 +567,8 @@ describe("P1 settings pages", () => {
       expect(rowStyles.minHeight).toBe("44px");
       expect(rowStyles.borderRadius).toBe("0px");
       expect(rowStyles.boxShadow).toBe("none");
+      expect(rowStyles.display).toBe("flex");
+      expect(rowStyles.width).toBe("100%");
       expect(row!.classList).toContain("macos-hit-target");
     }
     const updateCard = host.querySelector<HTMLElement>(".app-update-card")!;
@@ -561,6 +576,11 @@ describe("P1 settings pages", () => {
     expect(updateCardStyles.margin).toBe("0px");
     expect(updateCardStyles.borderRadius).toBe("0px");
     expect(updateCardStyles.boxShadow).toBe("none");
+    const updateHeaderStyles = getComputedStyle(
+      updateCard.querySelector<HTMLElement>(".app-update-card__header")!,
+    );
+    expect(updateHeaderStyles.justifyContent).toBe("flex-start");
+    expect(updateHeaderStyles.flexWrap).toBe("wrap");
     expect(updateCard.querySelectorAll('[aria-live],[role="status"],[role="alert"]')).toHaveLength(1);
     expect(getComputedStyle(host.querySelector<HTMLElement>("[data-testid='check-for-updates']")!).minHeight)
       .toBe("44px");
@@ -883,7 +903,32 @@ describe("P1 settings pages", () => {
       group!.querySelectorAll<HTMLElement>("bit-select.macos-control-visible"),
     );
     expect(visibleSelects).toHaveLength(2);
-    expectRealSelectGeometry(visibleSelects, "40px");
+    for (const selectHost of visibleSelects) {
+      const row = selectHost.closest<HTMLElement>("bit-form-field.macos-preference-row");
+      expect(row).not.toBeNull();
+      const internalLayout = row!.querySelector<HTMLElement>(":scope > div");
+      const label = row!.querySelector<HTMLElement>("bit-label.macos-preference-row__copy");
+      const labelGridItem = label?.closest<HTMLElement>("label");
+      const hint = row!.querySelector<HTMLElement>("bit-hint");
+      const selectGridItem = selectHost.closest<HTMLElement>("[bitfieldcontainer]")?.parentElement;
+      expect(internalLayout).not.toBeNull();
+      expect(label).not.toBeNull();
+      expect(labelGridItem).not.toBeNull();
+      expect(hint).not.toBeNull();
+      expect(selectGridItem).not.toBeNull();
+      expect(getComputedStyle(row!).gridTemplateColumns.replace(/\s+/g, "")).toBe(
+        "minmax(0,1fr)136px",
+      );
+      expect(getComputedStyle(internalLayout!).display).toBe("contents");
+      expect(getComputedStyle(labelGridItem!).gridColumnStart).toBe("1");
+      expect(getComputedStyle(hint!).gridColumnStart).toBe("1");
+      expect(getComputedStyle(selectGridItem!).gridColumnStart).toBe("2");
+      expect(getComputedStyle(selectGridItem!).gridRowStart).toBe("1");
+      expect(getComputedStyle(selectGridItem!).gridRowEnd).toBe("span 2");
+      expect(getComputedStyle(selectGridItem!).alignSelf).toBe("center");
+      expect(getComputedStyle(selectGridItem!).justifySelf).toBe("end");
+    }
+    expectRealSelectGeometry(visibleSelects, "36px", "136px", "40px");
     expect(
       fixture.componentInstance.clipboardClearOptions.map(
         (option) => option.value,
@@ -963,7 +1008,7 @@ describe("P1 settings pages", () => {
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.dataset["bwCompactMode"] = "true";
-    expectRealSelectGeometry(visibleSelects, "36px");
+    expectRealSelectGeometry(visibleSelects, "34px", "136px", "38px");
     expect(getComputedStyle(fieldIcon!).minHeight).toBe("44px");
     document.documentElement.removeAttribute("data-bw-compact-mode");
     expect(host.querySelectorAll("button[disabled]")).toHaveLength(0);
@@ -1114,14 +1159,14 @@ describe("P1 settings pages", () => {
       .toEqual(["grid", "grid"]);
     expect(selectRowLayouts.map((layout) =>
       getComputedStyle(layout!).gridTemplateColumns.replace(/\s+/g, ""),
-    )).toEqual(["minmax(0,1fr)160px", "minmax(0,1fr)160px"]);
+    )).toEqual(["minmax(0,1fr)136px", "minmax(0,1fr)136px"]);
     for (const selectHost of selectHosts) {
       const selectStyle = getComputedStyle(selectHost);
       const ngSelect = selectHost.querySelector<HTMLElement>("ng-select")!;
       const paintedContainer = selectHost.querySelector<HTMLElement>(".ng-select-container")!;
       expect(selectStyle.justifySelf).toBe("end");
-      expect(selectStyle.width).toBe("160px");
-      expect(selectStyle.maxWidth).toBe("160px");
+      expect(selectStyle.width).toBe("136px");
+      expect(selectStyle.maxWidth).toBe("136px");
       expect(selectStyle.minWidth).toBe("0px");
       expect(resolvedMatchedPriority(selectHost, "width")).toBe("important");
       expect(resolvedMatchedPriority(selectHost, "max-width")).toBe("important");
@@ -1132,7 +1177,7 @@ describe("P1 settings pages", () => {
       expect(getComputedStyle(paintedContainer).maxWidth).toBe("100%");
       expect(resolvedMatchedPriority(paintedContainer, "width")).toBe("important");
     }
-    expectRealSelectGeometry(Array.from(selectHosts), "40px");
+    expectRealSelectGeometry(Array.from(selectHosts), "36px", "136px", "40px");
     expect(host.matches(".macos-page--settings-detail")).toBe(true);
     expectSharedSettingsPageInset(host);
 
@@ -1196,7 +1241,7 @@ describe("P1 settings pages", () => {
     document.documentElement.style.removeProperty("font-size");
 
     document.documentElement.dataset["bwCompactMode"] = "true";
-    expectRealSelectGeometry(Array.from(selectHosts), "36px");
+    expectRealSelectGeometry(Array.from(selectHosts), "34px", "136px", "38px");
     for (const owner of switches) {
       expect(getComputedStyle(owner).minHeight).toBe("44px");
     }
@@ -1500,7 +1545,9 @@ function expectSharedSettingsPageInset(host: HTMLElement): void {
 
 function expectRealSelectGeometry(
   selectHosts: readonly HTMLElement[],
-  visibleHeight: "40px" | "36px",
+  visibleHeight: "40px" | "36px" | "34px" | "32px" | "30px",
+  visibleWidth = "136px",
+  ownerHeight: "40px" | "38px" | "34px" | "32px" = "40px",
 ): void {
   for (const selectHost of selectHosts) {
     const ngSelect = selectHost.querySelector<HTMLElement>("ng-select");
@@ -1522,8 +1569,8 @@ function expectRealSelectGeometry(
 
     for (const owner of [selectHost, ngSelect!]) {
       const ownerStyle = getComputedStyle(owner);
-      expect(Number.parseFloat(ownerStyle.minHeight)).toBeGreaterThanOrEqual(44);
-      expect(Number.parseFloat(ownerStyle.height)).toBeGreaterThanOrEqual(44);
+      expect(ownerStyle.minHeight).toBe(ownerHeight);
+      expect(ownerStyle.height).toBe(ownerHeight);
       expect(ownerStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
       expect(cssPixels(ownerStyle.borderTopWidth)).toBe(0);
       expect(cssPixels(ownerStyle.paddingTop)).toBe(0);
@@ -1531,11 +1578,11 @@ function expectRealSelectGeometry(
       expect(ownerStyle.boxShadow).toBe("none");
     }
     const selectHostStyle = getComputedStyle(selectHost);
-    expect(selectHostStyle.width).toBe("160px");
-    expect(selectHostStyle.maxWidth).toBe("160px");
+    expect(selectHostStyle.width).toBe(visibleWidth);
+    expect(selectHostStyle.maxWidth).toBe(visibleWidth);
     const ngSelectStyle = getComputedStyle(ngSelect!);
     for (const value of [ngSelectStyle.width, ngSelectStyle.maxWidth]) {
-      expect(value).toMatch(/^(100%|160px)$/);
+      expect(["100%", visibleWidth]).toContain(value);
     }
     const paintedStyle = getComputedStyle(paintedContainer!);
     expect(paintedStyle.boxSizing).toBe("border-box");
@@ -1555,6 +1602,7 @@ function expectRealSelectGeometry(
     expect(cssPixels(getComputedStyle(focusOwner!).paddingTop)).toBe(0);
     expect(cssPixels(getComputedStyle(focusOwner!).paddingBottom)).toBe(0);
 
+    const restingBorderColor = getComputedStyle(paintedContainer!).borderColor;
     focusOwner!.dataset["testFocusVisible"] = "true";
     const fieldContainer = focusOwner!.closest<HTMLElement>("[bitfieldcontainer]");
     expect(fieldContainer).not.toBeNull();
@@ -1562,6 +1610,8 @@ function expectRealSelectGeometry(
     expect(resolvedMatchedProperty(selectHost, "outline-width")).toBe("0px");
     expect(resolvedMatchedProperty(ngSelect!, "outline-width")).toBe("0px");
     expect(resolvedMatchedProperty(paintedContainer!, "outline-width")).toBe("2px");
+    expect(getComputedStyle(paintedContainer!).borderColor).toBe(restingBorderColor);
+    expect(getComputedStyle(paintedContainer!).boxShadow).toBe("none");
     delete focusOwner!.dataset["testFocusVisible"];
   }
 }

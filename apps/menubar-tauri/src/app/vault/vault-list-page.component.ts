@@ -99,7 +99,7 @@ import { VaultContextualSectionOutletComponent } from "./vault-contextual-sectio
         slot="above-scroll-area"
         [searchAriaLabel]="'searchVault' | i18n"
         [query]="vaultQuery"
-        (queryChange)="setSearch($event)"
+        (queryChange)="setSearchFromInput($event)"
       />
       <span
         class="tw-sr-only"
@@ -214,6 +214,8 @@ export class VaultListPageComponent implements OnDestroy {
   resultAnnouncementPublications: readonly { readonly revision: number }[] = [];
   readonly noResultsIcon = NoResults;
   readonly vaultIcon = VaultOpen;
+  private searchDraft = "";
+  private pendingSearchTimeout?: number;
   private resultAnnouncementRevision = 0;
 
   constructor(
@@ -241,6 +243,7 @@ export class VaultListPageComponent implements OnDestroy {
     } else if (evidenceState === "no-results") {
       this.vault.setSearch("__no_results__");
     }
+    this.searchDraft = this.vault.queryValue();
   }
 
   get sections() {
@@ -252,11 +255,11 @@ export class VaultListPageComponent implements OnDestroy {
   }
 
   get vaultQuery(): string {
-    return this.vault.queryValue();
+    return this.searchDraft;
   }
 
   get hasSearchQuery(): boolean {
-    return this.vaultQuery.trim().length > 0;
+    return this.vault.queryValue().trim().length > 0;
   }
 
   get showContextualSection(): boolean {
@@ -284,20 +287,28 @@ export class VaultListPageComponent implements OnDestroy {
   }
 
   setSearch(query: string | null | undefined): void {
-    const previousIdentity = visibleVaultResultIdentity(this.vault.filteredItems());
-    this.openMenuRowId = null;
-    this.menuCoordinator.closeAll();
-    this.vault.setSearch(query ?? "");
-    this.updateResultAnnouncement(
-      previousIdentity,
-      visibleVaultResultIdentity(this.vault.filteredItems()),
-    );
+    this.clearPendingSearch();
+    this.searchDraft = query ?? "";
+    this.closeOpenMenus();
+    this.applySearch(this.searchDraft);
+  }
+
+  setSearchFromInput(query: string | null | undefined): void {
+    this.searchDraft = query ?? "";
+    this.closeOpenMenus();
+    this.clearPendingSearch();
+    if (this.searchDraft === this.vault.queryValue()) {
+      return;
+    }
+    this.pendingSearchTimeout = window.setTimeout(() => {
+      this.pendingSearchTimeout = undefined;
+      this.applySearch(this.searchDraft);
+    }, 120);
   }
 
   @HostListener("input", ["$event"])
   clearOpenMenuOnInput(event: Event): void {
-    this.openMenuRowId = null;
-    this.menuCoordinator.closeAll();
+    this.closeOpenMenus();
   }
 
   setOpenMenu(change: VaultMenuOpenChange): void {
@@ -309,7 +320,32 @@ export class VaultListPageComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearPendingSearch();
     this.rowActions.ngOnDestroy();
+  }
+
+  private applySearch(query: string): void {
+    if (query === this.vault.queryValue()) {
+      return;
+    }
+    const previousIdentity = visibleVaultResultIdentity(this.vault.filteredItems());
+    this.vault.setSearch(query);
+    this.updateResultAnnouncement(
+      previousIdentity,
+      visibleVaultResultIdentity(this.vault.filteredItems()),
+    );
+  }
+
+  private closeOpenMenus(): void {
+    this.openMenuRowId = null;
+    this.menuCoordinator.closeAll();
+  }
+
+  private clearPendingSearch(): void {
+    if (this.pendingSearchTimeout !== undefined) {
+      window.clearTimeout(this.pendingSearchTimeout);
+      this.pendingSearchTimeout = undefined;
+    }
   }
 
   private updateResultAnnouncement(

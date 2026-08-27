@@ -19,6 +19,7 @@ const REQUIRED_DISCLOSURES = [
 const EXCLUDED_DIRECTORY_NAMES = new Set([
   ".git",
   ".agents",
+  ".playwright-cli",
   ".superpowers",
   ".worktrees",
   "logs",
@@ -31,6 +32,10 @@ const EXCLUDED_DIRECTORY_NAMES = new Set([
 
 const MAX_TEXT_FILE_BYTES = 5 * 1024 * 1024;
 const PROHIBITED_LEGACY_KEYWORD = ["wha", "le"].join("");
+const PROHIBITED_LEGACY_PATTERN = new RegExp(
+  `\\b${PROHIBITED_LEGACY_KEYWORD}\\b`,
+  "iu",
+);
 const CREDENTIAL_FILE_SUFFIXES = [
   ".cer",
   ".crt",
@@ -136,7 +141,7 @@ export function checkPublicationReadiness(root) {
       errors.push(`${relativePath}: contains a private-key header`);
     }
 
-    if (contents.toLocaleLowerCase("en").includes(PROHIBITED_LEGACY_KEYWORD)) {
+    if (PROHIBITED_LEGACY_PATTERN.test(contents)) {
       errors.push(`${relativePath}: contains a prohibited legacy keyword`);
     }
   }

@@ -719,7 +719,58 @@ describe("LockPageComponent", () => {
     fixture.detectChanges();
 
     expect(unlock).not.toHaveBeenCalled();
-    expect(unlockWithBiometric).toHaveBeenCalledOnce();
+    expect(unlockWithBiometric).not.toHaveBeenCalled();
+  });
+
+  it("does not automatically open the Touch ID system prompt on lock entry", async () => {
+    const unlockWithBiometric = vi.fn(async () => undefined);
+    await TestBed.configureTestingModule({
+      imports: [LockPageComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthFacade,
+          useValue: {
+            accounts: async () => [account],
+            unlock: vi.fn(),
+            logout: vi.fn(),
+            unlockWithPin: vi.fn(),
+            unlockWithBiometric,
+          },
+        },
+        {
+          provide: UNLOCK_METHODS_PORT,
+          useValue: {
+            availability: async () => ({
+              pinEnabled: false,
+              biometricEnabled: true,
+              biometricAvailability: "available",
+            }),
+            currentLockEpoch: () => 1,
+            consumeAutomaticBiometricPrompt: vi.fn(() => true),
+          } as unknown as UnlockMethodsPort,
+        },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(LockPageComponent);
+    fixture.detectChanges();
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const fallback = host.querySelector<HTMLButtonElement>(
+      '[data-testid="lock-switch-master-password"]',
+    );
+
+    expect(fallback).not.toBeNull();
+    expect(fallback!.disabled).toBe(false);
+
+    fallback!.click();
+    fixture.detectChanges();
+    expect(passwordInput(host)).not.toBeNull();
+
+    expect(unlockWithBiometric).not.toHaveBeenCalled();
   });
 
   it("refreshes the lock view when asynchronous method initialization completes", async () => {
@@ -811,7 +862,7 @@ describe("LockPageComponent", () => {
     expect(host.textContent).not.toContain("private Keychain detail");
   });
 
-  it("auto-prompts Touch ID only once per lock epoch", async () => {
+  it("renders Touch ID without automatically opening the system prompt", async () => {
     const consume = vi.fn()
       .mockReturnValueOnce(true)
       .mockReturnValue(false);
@@ -835,8 +886,8 @@ describe("LockPageComponent", () => {
     await secondFixture.whenStable();
     secondFixture.detectChanges();
 
-    expect(consume).toHaveBeenCalledTimes(2);
-    expect(unlockWithBiometric).toHaveBeenCalledOnce();
+    expect(consume).not.toHaveBeenCalled();
+    expect(unlockWithBiometric).not.toHaveBeenCalled();
     secondFixture.destroy();
   });
 
@@ -881,7 +932,7 @@ describe("LockPageComponent", () => {
     expect(unlockWithBiometric).not.toHaveBeenCalled();
   });
 
-  it("does not auto-reprompt after cancellation but permits a manual retry", async () => {
+  it("permits a manual Touch ID retry after cancellation", async () => {
     const unlockWithBiometric = vi.fn(async () => {
       throw new AlternativeUnlockError("biometric-cancelled");
     });
@@ -897,7 +948,7 @@ describe("LockPageComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(unlockWithBiometric).toHaveBeenCalledOnce();
+    expect(unlockWithBiometric).not.toHaveBeenCalled();
     expect(
       fixture.nativeElement.querySelector(
         '[data-testid="lock-alternative-error"]',
@@ -908,7 +959,7 @@ describe("LockPageComponent", () => {
     ) as HTMLButtonElement).click();
     await fixture.whenStable();
 
-    expect(unlockWithBiometric).toHaveBeenCalledTimes(2);
+    expect(unlockWithBiometric).toHaveBeenCalledOnce();
   });
 
   it("shows remaining PIN attempts without exposing the PIN", async () => {
@@ -1027,7 +1078,7 @@ describe("LockPageComponent", () => {
     expect(host.textContent).toContain("PIN 已失效，请使用主密码解锁。");
   });
 
-  it("falls back to PIN before master password when Touch ID is unavailable", async () => {
+  it("falls back to PIN before master password when manually triggered Touch ID is unavailable", async () => {
     const unlockWithBiometric = vi.fn(async () => {
       throw new AlternativeUnlockError("biometric-unavailable");
     });
@@ -1043,6 +1094,10 @@ describe("LockPageComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
+
+    (host.querySelector('[data-testid="lock-biometric-button"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(host.querySelector('[data-testid="lock-biometric-button"]')).toBeNull();
     expect(host.querySelector('[data-testid="lock-pin-input"]')).not.toBeNull();

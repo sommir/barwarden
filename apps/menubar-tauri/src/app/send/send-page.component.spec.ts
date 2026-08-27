@@ -268,10 +268,10 @@ describe("SendPageComponent", () => {
     expect(host.querySelector("bit-search")).toBeNull();
     expect(host.querySelector("bit-no-items")).not.toBeNull();
     expect(host.textContent).toContain("安全地发送敏感信息");
-    expect(host.textContent).toContain("创建 Send");
+    expect(host.textContent).toContain("新建 Send");
     expect(host.textContent).not.toContain("not connected");
     expect(host.querySelector(".send-unavailable")).toBeNull();
-    expect(host.querySelector('[aria-label="新增文本 Send"]')?.hasAttribute("disabled")).toBe(false);
+    expect(host.querySelector('[aria-label="新建 Send"]')?.hasAttribute("disabled")).toBe(false);
   });
 
   it("renders the official loading skeleton during initial Send sync", async () => {
@@ -310,7 +310,7 @@ describe("SendPageComponent", () => {
     expect(host.textContent).toContain("Send 已禁用");
     expect(host.textContent).toContain("组织策略已关闭 Bitwarden Send。");
     expect(host.querySelector(".primary-action")).toBeNull();
-    expect(host.querySelector('[aria-label="新增文本 Send"]')).toBeNull();
+    expect(host.querySelector('[aria-label="新建 Send"]')).toBeNull();
   });
 
   it("routes the official Text-only new action to the add host", async () => {
@@ -328,7 +328,7 @@ describe("SendPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    host.querySelector<HTMLButtonElement>('[aria-label="新增文本 Send"]')?.click();
+    host.querySelector<HTMLButtonElement>('[aria-label="新建 Send"]')?.click();
 
     expect(navigations).toEqual([
       { commands: ["/add-send"], extras: { queryParams: { type: "text" } } },
@@ -1237,7 +1237,7 @@ describe("SendAddEditPageComponent", () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector("popup-page > main")).not.toBeNull();
     expect(host.querySelector("main.detail-page")).toBeNull();
-    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("新增文本 Send");
+    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("新建 Send");
     expect(host.textContent).toContain("Send 详细信息");
     expect(host.querySelector('input[bitinput][type="text"]')).not.toBeNull();
     expect(host.querySelector('textarea[bitinput]')).not.toBeNull();
@@ -1364,7 +1364,7 @@ describe("SendAddEditPageComponent", () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("新增文本 Send");
+    expect(host.querySelector("popup-page popup-header h1")?.textContent).toContain("新建 Send");
     expect(host.querySelector('textarea[bitinput]')).not.toBeNull();
     expect(host.querySelector(".file-send-picker")).toBeNull();
   });

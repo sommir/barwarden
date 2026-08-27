@@ -1,6 +1,6 @@
 # SDD ledger — plan: docs/superpowers/plans/2026-08-08-native-app-autofill-first.md
 
-- Workspace: `$HOME/Workspace/bitwarden-menubar/.worktrees/autofill-spike`
+- Workspace: `$REPOSITORY_ROOT/.worktrees/autofill-spike`
 - Branch: `codex/autofill-spike`
 - Starting commit: `69b20135130e50b39e36266176ecdb16ca1b9110`
 - Status: Task 9 tooling complete; external signing, notarization, and live release gates blocked

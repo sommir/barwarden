@@ -157,7 +157,8 @@ describe("official popup layout primitives", () => {
     expect(action.minWidth).toBe("44px");
     expect(action.minHeight).toBe("44px");
     expect(title.fontSize).toBe("17px");
-    expect(title.lineHeight).toBe("22px");
+    expect(title.paddingTop).toBe("2px");
+    expect(title.lineHeight).toBe("38px");
     expect(title.fontWeight).toBe("650");
     expect(scroller.paddingInlineStart).toBe("16px");
     expect(scroller.paddingInlineEnd).toBe("16px");
@@ -208,6 +209,17 @@ describe("official popup layout primitives", () => {
     );
     expect(css).toMatch(
       /::-webkit-scrollbar-thumb\s*{[^}]*border-radius:\s*999px;[^}]*background:\s*linear-gradient\(/s,
+    );
+  });
+
+  it("lets routed content continue behind the floating navigation with a safe scroll ending", () => {
+    const css = readFileSync(join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"), "utf8");
+
+    expect(css).toMatch(
+      /\.popup-shell:has\(\.floating-tab-switcher\)\s+popup-page\s*{[^}]*--mac-page-bottom-safe:\s*var\(--mac-tabbar-occlusion-height\);/s,
+    );
+    expect(css).toMatch(
+      /\.popup-shell::after\s*{[^}]*inset:\s*auto 0 0;[^}]*pointer-events:\s*auto;/s,
     );
   });
 });

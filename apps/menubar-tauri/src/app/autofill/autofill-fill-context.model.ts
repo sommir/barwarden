@@ -156,7 +156,7 @@ export function decodeLiveAutoFillContext(input: unknown): LiveAutoFillContext {
     const kind = member(valueAt(focusedField, "kind"), FIELD_KINDS);
     const confidence = member(valueAt(focusedField, "confidence"), CONFIDENCES);
     const mode = member(valueAt(action, "mode"), MODES);
-    const fields = canonicalFields(valueAt(action, "fields"), false);
+    const fields = canonicalFields(valueAt(action, "fields"), mode === "choose");
     return Object.freeze({
       bundleId: boundedString(value["bundleId"], 255, false),
       appName: boundedString(value["appName"], 255, false),

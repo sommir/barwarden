@@ -6,7 +6,7 @@ Passed. No actionable P0, P1, or P2 visual findings remain for the live contextu
 
 ## Evidence
 
-- Source: `$HOME/.codex/generated_images/019fd0f1-44d9-7a63-9113-1cb5583d85c4/exec-650bb844-0eb7-4264-b767-f467efeee538.png` (1122 x 1402), normalized through the existing `task-6-reference-480x600.png` source capture.
+- Source: a local 1122 x 1402 reference capture, normalized through the existing `task-6-reference-480x600.png` source capture.
 - Actual implementation: `task-7-implementation.png` (genuine PNG, 480 x 600 CSS viewport), rendered from the real `VaultItemDetailPageComponent`, `OfficialLoginDetailComponent`, and `OfficialLoginCredentialsComponent` with application global CSS, official popup shell, existing design tokens, i18n, and BWI font icons.
 - Full comparison: `task-7-comparison-full.png` (960 x 600; reference left, actual implementation right).
 - State: zh-CN, Termius current application, high-confidence username/password Login form, exact selected active Login, main popup window, light appearance.

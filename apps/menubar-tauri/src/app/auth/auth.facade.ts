@@ -752,58 +752,47 @@ export class AuthFacade {
     result: AuthStartupResult,
   ): Promise<ProcessSessionSnapshot | null> {
     const broker = this.processSessionBroker;
-    if (!broker) {
-      return null;
-    }
     if (result === "login") {
-      return broker.mutate({ type: "logged-out" });
+      return broker ? broker.mutate({ type: "logged-out" }) : null;
     }
     const accountId =
       this.runtimeAccountId ??
       (await this.accounts()).find((account) => account.isActive)?.id ??
       null;
     if (!accountId) {
-      return broker.mutate({ type: "logged-out" });
+      return broker ? broker.mutate({ type: "logged-out" }) : null;
     }
     if (result === "locked") {
-      return broker.mutate({
+      return broker ? broker.mutate({
         type: "account-selected",
         activeAccountId: accountId,
-      });
+      }) : null;
     }
     const snapshot = this.store.snapshot();
     if (!snapshot.isUnlocked || !snapshot.activeSession) {
-      return broker.mutate({
+      return broker ? broker.mutate({
         type: "recovery-required",
         activeAccountId: accountId,
         code: "session-missing",
-      });
+      }) : null;
     }
-    try {
-      await broker.setSessionHandoff?.(snapshot.activeSession);
-    } catch {}
-    let sharedSnapshot: ReturnType<typeof encodeProcessSharedPopupState>;
-    try {
-      sharedSnapshot = encodeProcessSharedPopupState(snapshot);
-    } catch {
-      // A large local vault must not prevent this window from starting.
+    if (!broker) {
+      await this.publishLocalAutoFillProjection();
       return null;
     }
-    try {
-      return await broker.mutate({
-        type: "unlocked",
-        activeAccountId: accountId,
-        sharedSnapshot,
-      });
-    } catch (error) {
-      if (
-        error instanceof ProcessSessionBrokerError
-        && error.code === "invalid-payload"
-      ) {
-        return null;
-      }
-      throw error;
+    const publishedSnapshot = await this.publishUnlockedBrokerState(
+      broker,
+      accountId,
+      snapshot,
+    );
+    if (
+      publishedSnapshot.authorization === "unlocked" &&
+      publishedSnapshot.activeAccountId === accountId &&
+      this.projectionLifecycle
+    ) {
+      await this.publishLocalAutoFillProjection();
     }
+    return publishedSnapshot;
   }
 
   async publishProcessStateProjection(): Promise<ProcessSessionSnapshot | null | undefined> {
@@ -1393,31 +1382,69 @@ export class AuthFacade {
     const broker = this.processSessionBroker;
     const accountId = this.runtimeAccountId;
     const snapshot = this.store.snapshot();
-    if (!broker || !accountId || !snapshot.isUnlocked || !snapshot.activeSession) {
+    if (!accountId || !snapshot.isUnlocked || !snapshot.activeSession) {
       return;
     }
+    if (!broker) {
+      await this.publishLocalAutoFillProjection();
+      return;
+    }
+    let published: ProcessSessionSnapshot | null = null;
+    try {
+      published = await this.publishUnlockedBrokerState(broker, accountId, snapshot);
+    } catch {
+      return;
+    }
+    if (published?.authorization === "unlocked" && published.activeAccountId === accountId) {
+      await this.publishLocalAutoFillProjection();
+    }
+  }
+
+  private async publishUnlockedBrokerState(
+    broker: ProcessSessionBrokerPort,
+    accountId: string,
+    snapshot: PopupState,
+  ): Promise<ProcessSessionSnapshot> {
     try {
       await broker.setSessionHandoff?.(snapshot.activeSession);
     } catch {
       // The public, sanitized snapshot is still useful even if the ephemeral
       // credential handoff cannot be published.
     }
-    let sharedSnapshot: ReturnType<typeof encodeProcessSharedPopupState>;
+
+    let sharedSnapshot: ReturnType<typeof encodeProcessSharedPopupState> | null;
     try {
       sharedSnapshot = encodeProcessSharedPopupState(snapshot);
     } catch {
-      return;
+      sharedSnapshot = null;
     }
-    let published = false;
-    try {
-      const result = await broker.mutate({
-        type: "unlocked",
-        activeAccountId: accountId,
-        sharedSnapshot,
-      });
-      published = result.authorization === "unlocked" && result.activeAccountId === accountId;
-    } catch {}
-    if (!published || !this.projectionLifecycle) return;
+
+    if (sharedSnapshot !== null) {
+      try {
+        return await broker.mutate({
+          type: "unlocked",
+          activeAccountId: accountId,
+          sharedSnapshot,
+        });
+      } catch (error) {
+        if (
+          !(error instanceof ProcessSessionBrokerError) ||
+          error.code !== "invalid-payload"
+        ) {
+          throw error;
+        }
+      }
+    }
+
+    return broker.mutate({
+      type: "unlocked",
+      activeAccountId: accountId,
+      sharedSnapshot: null,
+    });
+  }
+
+  private async publishLocalAutoFillProjection(): Promise<void> {
+    if (!this.projectionLifecycle) return;
     try {
       await this.boundedRead(
         this.projectionLifecycle.reprojectCurrent(),
@@ -1538,6 +1565,7 @@ export class AuthFacade {
       );
       this.assertCurrentOperation(epoch);
       this.vaultTimeout?.start();
+      await this.publishCurrentUnlockedState();
     } catch (error) {
       if (candidateInstalled && this.isCurrentOperation(epoch)) {
         this.prepareRuntimeLock(this.store.snapshot().activeSession);

@@ -69,6 +69,7 @@ describe("KeyboardShortcutPageComponent", () => {
       .not.toBeNull();
     const row = host.querySelector<HTMLElement>("bit-form-field.macos-preference-row");
     expect(row).not.toBeNull();
+    expect(row!.classList).toContain("shortcut-preference-row");
     expect(host.textContent).toContain("唤出 Barwarden");
     expect(recorder.textContent).toContain("⌥ B");
     expect(recorder.getAttribute("aria-label")).toBe("录制唤出 Barwarden 快捷键");
@@ -118,6 +119,7 @@ describe("KeyboardShortcutPageComponent", () => {
       const recorderStyle = getComputedStyle(recorder);
       const surfaceStyle = getComputedStyle(surface);
       const clearStyle = getComputedStyle(clear);
+      const fieldContainerStyle = getComputedStyle(fieldContainer!);
       const row = host.querySelector<HTMLElement>("bit-form-field.macos-preference-row");
 
       expect(row).not.toBeNull();
@@ -131,9 +133,14 @@ describe("KeyboardShortcutPageComponent", () => {
       expect(surfaceStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
       expect(Number.parseFloat(clearStyle.minWidth)).toBeGreaterThanOrEqual(44);
       expect(Number.parseFloat(clearStyle.minHeight)).toBeGreaterThanOrEqual(44);
-      expect(recorderStyle.width).toBe("100%");
+      expect(recorderStyle.width).toBe("auto");
+      expect(surfaceStyle.minWidth).toBe("112px");
       expect(clearStyle.flexBasis).toBe("44px");
       expect(clearStyle.flexShrink).toBe("0");
+      expect(fieldContainerStyle.gap).toBe("8px");
+      expect(fieldContainerStyle.borderTopWidth).toBe("0px");
+      expect(fieldContainerStyle.borderRadius).toBe("0px");
+      expect(fieldContainerStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
       expect(clear.closest("[bitfieldcontainer]")).toBe(fieldContainer);
       expect(host.querySelectorAll('[aria-busy="true"] [role="progressbar"]').length)
         .toBeLessThanOrEqual(1);

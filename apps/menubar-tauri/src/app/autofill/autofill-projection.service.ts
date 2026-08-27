@@ -148,18 +148,25 @@ export class AutoFillProjectionService implements AutoFillProjectionLifecyclePor
     } as const;
     let projected = false;
     const pending = this.enqueue(async () => {
-      if (!this.isCurrentSnapshot(snapshot)) return;
-      const binding = await this.host.captureBinding(snapshot.accountId);
-      if (binding.accountId !== snapshot.accountId || !this.isCurrentSnapshot(snapshot)) return;
-      projected = await this.replaceWithRetry(snapshot, {
-        accountId: snapshot.accountId,
-        createdAt: this.clock().toISOString(),
-        logins: snapshot.items.flatMap((item) => projectLogin(
-          item,
-          this.matchingState.lastUsedAtFor(snapshot.accountId, item.id),
-        )),
-        ...this.matchingState.snapshot(snapshot.accountId),
-      }, binding);
+      try {
+        if (!this.isCurrentSnapshot(snapshot)) return;
+        const binding = await this.host.captureBinding(snapshot.accountId);
+        if (binding.accountId !== snapshot.accountId || !this.isCurrentSnapshot(snapshot)) return;
+        projected = await this.replaceWithRetry(snapshot, {
+          accountId: snapshot.accountId,
+          createdAt: this.clock().toISOString(),
+          logins: snapshot.items.flatMap((item) => projectLogin(
+            item,
+            this.matchingState.lastUsedAtFor(snapshot.accountId, item.id),
+          )),
+          ...this.matchingState.snapshot(snapshot.accountId),
+        }, binding);
+      } catch (error) {
+        if (this.lastItems === snapshot.items) {
+          this.lastItems = null;
+        }
+        throw error;
+      }
     }).then(() => projected);
     // State observers intentionally fire-and-forget. Keep those background
     // rejections handled while explicit callers can still await the same

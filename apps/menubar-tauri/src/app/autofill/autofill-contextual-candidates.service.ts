@@ -52,6 +52,11 @@ interface MutableCandidate {
   }>;
 }
 
+interface CandidateFieldResponse {
+  readonly field: AutoFillSecretField;
+  readonly response: AutoFillCandidateResponse;
+}
+
 @Injectable({ providedIn: "root" })
 export class AutoFillContextualCandidatesService {
   constructor(
@@ -127,12 +132,12 @@ export class AutoFillContextualCandidatesService {
         || !sessionsEqual(requestSession, projectedLiveSession)) {
       throw new AutoFillContextChangedError();
     }
-    const rejection = settled.find((result): result is PromiseRejectedResult => result.status === "rejected");
-    if (rejection) throw new AutoFillCandidatesUnavailableError();
+    const fulfilled = settled.flatMap((result, index): CandidateFieldResponse[] => result.status === "fulfilled"
+      ? [{ field: FIELDS[index], response: result.value }]
+      : []);
+    if (!fulfilled.length) throw new AutoFillCandidatesUnavailableError();
     try {
-      return mergeResponses(settled.map((result) => (
-        result as PromiseFulfilledResult<AutoFillCandidateResponse>
-      ).value));
+      return mergeResponses(fulfilled);
     } catch {
       throw new AutoFillCandidatesUnavailableError();
     }
@@ -143,11 +148,10 @@ function applicationsEqual(left: AutoFillApplicationContext, right: AutoFillAppl
   return left.bundleId === right.bundleId && left.appName === right.appName;
 }
 
-function mergeResponses(responses: readonly AutoFillCandidateResponse[]): readonly ContextualCandidate[] {
+function mergeResponses(responses: readonly CandidateFieldResponse[]): readonly ContextualCandidate[] {
   const merged = new Map<string, MutableCandidate>();
   let agentOrder = 0;
-  responses.forEach((response, fieldIndex) => {
-    const field = FIELDS[fieldIndex];
+  responses.forEach(({ field, response }) => {
     response.candidates.forEach((candidate) => {
       const existing = merged.get(candidate.cipherId);
       const authorization = Object.freeze({

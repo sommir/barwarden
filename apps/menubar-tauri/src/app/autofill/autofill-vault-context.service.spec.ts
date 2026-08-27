@@ -273,6 +273,34 @@ describe("AutoFillVaultContextService", () => {
     expect(harness.contextual.queryAll).toHaveBeenCalledWith(APPLICATION, SESSION, "", []);
   });
 
+  it("accepts native entry contexts that omit fillContext when no writable field is detected", async () => {
+    const harness = createHarness({ omitFillContext: true });
+
+    await expect(harness.service.beginFromEntry()).resolves.toMatchObject({
+      status: "ready",
+      application: APPLICATION,
+      context: null,
+      candidates: [CANDIDATE],
+    });
+    expect(harness.contextual.queryAll).toHaveBeenCalledWith(APPLICATION, SESSION, "", []);
+  });
+
+  it("keeps application-ranked suggestions when focused field detection remains ambiguous", async () => {
+    const ambiguousContext: LiveAutoFillContext = Object.freeze({
+      ...CONTEXT,
+      focusedField: Object.freeze({ kind: "unknown", confidence: "low" }),
+      action: Object.freeze({ mode: "choose", fields: Object.freeze([]) }),
+    });
+    const harness = createHarness({ fillContext: ambiguousContext });
+
+    await expect(harness.service.beginFromEntry()).resolves.toMatchObject({
+      status: "ready",
+      application: APPLICATION,
+      context: ambiguousContext,
+      candidates: [CANDIDATE],
+    });
+  });
+
   it("merges the captured browser URL into the same application candidate query", async () => {
     const browser = Object.freeze({ bundleId: "com.google.Chrome", appName: "Google Chrome" });
     const harness = createHarness({
@@ -302,15 +330,25 @@ function createHarness(options: {
   queryAll?: () => Promise<readonly ContextualCandidate[]>;
   setupState?: "disabled" | "ready" | "requiresApproval" | "requiresAccessibility" | "unavailable";
   fillContext?: LiveAutoFillContext | null;
+  omitFillContext?: boolean;
   application?: AutoFillApplicationContext;
   websiteUrl?: string;
 } = {}) {
   const native: AutoFillNativeHost = {
-    entryContext: vi.fn(async () => ({
-      status: "available",
-      application: options.application ?? APPLICATION,
-      fillContext: options.fillContext === undefined ? CONTEXT : options.fillContext,
-    })),
+    entryContext: vi.fn(async () => {
+      const entry: {
+        status: "available";
+        application: AutoFillApplicationContext;
+        fillContext?: LiveAutoFillContext | null;
+      } = {
+        status: "available",
+        application: options.application ?? APPLICATION,
+      };
+      if (!options.omitFillContext) {
+        entry.fillContext = options.fillContext === undefined ? CONTEXT : options.fillContext;
+      }
+      return entry;
+    }),
     agentSession: vi.fn(async () => ({ status: "success", ...SESSION })),
     beginReprompt: vi.fn(),
     cancelReprompt: vi.fn(),

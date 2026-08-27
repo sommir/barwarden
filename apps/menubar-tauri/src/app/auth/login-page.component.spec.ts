@@ -526,6 +526,34 @@ describe("LoginPageComponent", () => {
     expect(host.textContent).not.toContain("必须输入内容");
   });
 
+  it("returns focus to the master-password field after the environment menu closes on the password step", async () => {
+    const { fixture, official } = await createPage();
+    const host = fixture.nativeElement as HTMLElement;
+
+    official.formGroup.controls.email.setValue("person@example.com");
+    await official.continuePressed();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const environmentTrigger = host.querySelector<HTMLButtonElement>(
+      'bw-login-environment-selector button[aria-haspopup="menu"]',
+    )!;
+    const masterPassword = host.querySelector<HTMLInputElement>(
+      "[data-testid=login-master-password-input]",
+    )!;
+    environmentTrigger.focus();
+    expect(document.activeElement).toBe(environmentTrigger);
+
+    official.captureEmailValidationState();
+    official.restoreEmailValidationState();
+    await Promise.resolve();
+    await new Promise((resolve) => window.setTimeout(resolve));
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(masterPassword);
+  });
+
   it("keeps the active login email when opting out of remembered-email persistence", async () => {
     const rememberedEmail$ = new BehaviorSubject("");
     const { official } = await createPage({

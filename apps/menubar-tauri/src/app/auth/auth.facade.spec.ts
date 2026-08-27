@@ -13,7 +13,7 @@ import type {
   ProcessSessionMutation,
   ProcessSessionSnapshot,
 } from "../../host/host-api";
-import { SecureStorageError } from "../../host/host-api";
+import { ProcessSessionBrokerError, SecureStorageError } from "../../host/host-api";
 import type { VaultSyncResult } from "../../vault/vault-sync.service";
 import { PopupStateStore } from "../popup-state";
 import { SettingsService } from "../settings/settings.service";
@@ -2334,6 +2334,234 @@ describe("AuthFacade", () => {
     ).publishCurrentUnlockedState()).resolves.toBeUndefined();
 
     expect(events).toEqual(["broker-unlocked", "projection"]);
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
+  });
+
+  it("reprojects the local AutoFill projection even when process session broker is unavailable", async () => {
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => undefined),
+    };
+    const store = new PopupStateStore();
+    store.setLockedAccount("shared@example.com", "https://vault.shared.example.com");
+    store.setActiveSession(session("local-projection"));
+    store.setUnlocked("shared@example.com");
+    const facade = new AuthFacade(
+      store,
+      null,
+      syncPort(),
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      null,
+      null,
+      null,
+      projectionLifecycle,
+    );
+    setRuntimeAccount(facade, "shared");
+
+    await (
+      facade as unknown as { publishCurrentUnlockedState(): Promise<void> }
+    ).publishCurrentUnlockedState();
+
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to an unlocked broker snapshot without shared state before reprojecting", async () => {
+    const events: string[] = [];
+    const broker = new FakeProcessSessionBroker(brokerSnapshot());
+    const mutate = broker.mutate.bind(broker);
+    vi.spyOn(broker, "mutate").mockImplementation(async (mutation) => {
+      if (
+        mutation.type === "unlocked" &&
+        mutation.sharedSnapshot !== null
+      ) {
+        events.push("broker-invalid-shared-snapshot");
+        throw new ProcessSessionBrokerError("invalid-payload");
+      }
+      events.push(`broker-${mutation.type}-${mutation.type === "unlocked" && mutation.sharedSnapshot === null ? "null" : "state"}`);
+      return mutate(mutation);
+    });
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => {
+        events.push("projection");
+      }),
+    };
+    const store = new PopupStateStore();
+    store.setLockedAccount("shared@example.com", "https://vault.shared.example.com");
+    store.setActiveSession(session("fallback-null-projection"));
+    store.setUnlocked("shared@example.com");
+    const facade = new AuthFacade(
+      store,
+      null,
+      syncPort(),
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      null,
+      null,
+      broker,
+      projectionLifecycle,
+    );
+    setRuntimeAccount(facade, "shared");
+
+    await expect((
+      facade as unknown as { publishCurrentUnlockedState(): Promise<void> }
+    ).publishCurrentUnlockedState()).resolves.toBeUndefined();
+
+    expect(events).toEqual([
+      "broker-invalid-shared-snapshot",
+      "broker-unlocked-null",
+      "projection",
+    ]);
+    expect(broker.mutations.at(-1)).toEqual({
+      type: "unlocked",
+      activeAccountId: "shared",
+      sharedSnapshot: null,
+    });
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
+  });
+
+  it("reprojects after publishing an unlocked startup recovery snapshot", async () => {
+    const events: string[] = [];
+    const broker = new FakeProcessSessionBroker(brokerSnapshot());
+    const mutate = broker.mutate.bind(broker);
+    vi.spyOn(broker, "mutate").mockImplementation(async (mutation) => {
+      events.push("broker-unlocked");
+      return mutate(mutation);
+    });
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => {
+        events.push("projection");
+      }),
+    };
+    const store = new PopupStateStore();
+    store.setLockedAccount("shared@example.com", "https://vault.shared.example.com");
+    store.setActiveSession(session("startup-recovered"));
+    store.setUnlocked("shared@example.com");
+    const facade = new AuthFacade(
+      store,
+      null,
+      syncPort(),
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      null,
+      null,
+      broker,
+      projectionLifecycle,
+    );
+    setRuntimeAccount(facade, "shared");
+
+    await expect(facade.publishProcessStartupState("unlocked")).resolves.toMatchObject({
+      authorization: "unlocked",
+      activeAccountId: "shared",
+    });
+
+    expect(events).toEqual(["broker-unlocked", "projection"]);
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
+  });
+
+  it("publishes an unlocked startup recovery without shared state when the shared snapshot is rejected", async () => {
+    const events: string[] = [];
+    const broker = new FakeProcessSessionBroker(brokerSnapshot());
+    const mutate = broker.mutate.bind(broker);
+    vi.spyOn(broker, "mutate").mockImplementation(async (mutation) => {
+      if (
+        mutation.type === "unlocked" &&
+        mutation.sharedSnapshot !== null
+      ) {
+        events.push("broker-invalid-shared-snapshot");
+        throw new ProcessSessionBrokerError("invalid-payload");
+      }
+      events.push(`broker-${mutation.type}-${mutation.type === "unlocked" && mutation.sharedSnapshot === null ? "null" : "state"}`);
+      return mutate(mutation);
+    });
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => {
+        events.push("projection");
+      }),
+    };
+    const store = new PopupStateStore();
+    store.setLockedAccount("shared@example.com", "https://vault.shared.example.com");
+    store.setActiveSession(session("startup-null-projection"));
+    store.setUnlocked("shared@example.com");
+    const facade = new AuthFacade(
+      store,
+      null,
+      syncPort(),
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      null,
+      null,
+      broker,
+      projectionLifecycle,
+    );
+    setRuntimeAccount(facade, "shared");
+
+    await expect(facade.publishProcessStartupState("unlocked")).resolves.toMatchObject({
+      authorization: "unlocked",
+      activeAccountId: "shared",
+      sharedSnapshot: null,
+    });
+
+    expect(events).toEqual([
+      "broker-invalid-shared-snapshot",
+      "broker-unlocked-null",
+      "projection",
+    ]);
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
+  });
+
+  it("reprojects the local AutoFill projection during unlocked startup recovery without a process broker", async () => {
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => undefined),
+    };
+    const store = new PopupStateStore();
+    store.setLockedAccount("shared@example.com", "https://vault.shared.example.com");
+    store.setActiveSession(session("startup-local-projection"));
+    store.setUnlocked("shared@example.com");
+    const facade = new AuthFacade(
+      store,
+      null,
+      syncPort(),
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      undefined,
+      null,
+      null,
+      null,
+      null,
+      projectionLifecycle,
+    );
+    setRuntimeAccount(facade, "shared");
+
+    await expect(facade.publishProcessStartupState("unlocked")).resolves.toBeNull();
+
     expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
   });
 
@@ -4739,6 +4967,51 @@ describe("AuthFacade", () => {
       activeSession: restored,
       syncError: "",
     });
+  });
+
+  it("publishes unlocked authority and reprojects after Touch ID restores the session", async () => {
+    const events: string[] = [];
+    const store = new PopupStateStore();
+    const active = storedAccount(alternativeAccountId, "active@example.com", true);
+    const restored = session("biometric-projection-access");
+    const broker = new FakeProcessSessionBroker(brokerSnapshot());
+    const mutate = broker.mutate.bind(broker);
+    vi.spyOn(broker, "mutate").mockImplementation(async (mutation) => {
+      if (mutation.type === "unlocked") events.push("broker-unlocked");
+      return mutate(mutation);
+    });
+    const projectionLifecycle = {
+      invalidateAndLock: vi.fn(async () => undefined),
+      reprojectCurrent: vi.fn(async () => {
+        events.push("projection");
+      }),
+    };
+    const facade = new AuthFacade(
+      store,
+      null,
+      syncPort(),
+      null,
+      undefined,
+      accountPort({
+        list: async () => [active],
+        setStatus: async () => undefined,
+      }),
+      undefined,
+      null,
+      undefined,
+      null,
+      null,
+      unlockMethodsPort({ unlockWithBiometric: async () => restored }),
+      broker,
+      projectionLifecycle,
+    );
+    setRuntimeAccount(facade, active.id);
+    store.setLockedAccount(active.email, active.serverUrl);
+
+    await facade.unlockWithBiometric();
+
+    expect(events).toEqual(["broker-unlocked", "projection"]);
+    expect(projectionLifecycle.reprojectCurrent).toHaveBeenCalledOnce();
   });
 
   it("restores a PIN session through the same synchronization path", async () => {

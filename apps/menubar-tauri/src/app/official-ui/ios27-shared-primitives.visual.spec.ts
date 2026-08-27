@@ -162,4 +162,31 @@ describe("iOS 27 shared primitives", () => {
     expect(menu.boxShadow).not.toBe("none");
     expect(sheet.borderRadius).toBe("16px 16px 0 0");
   });
+
+  it("replaces the upstream menu-item focus shadow with one blue ring", () => {
+    const upstreamStyle = document.createElement("style");
+    upstreamStyle.textContent = `
+      .bit-menu-panel [role="menuitem"][data-test-focus-visible="true"] {
+        box-shadow: rgb(0 0 0) 0 0 0 2px inset;
+      }
+    `;
+    document.head.append(upstreamStyle);
+    const style = installVisualCss(document);
+    style.dataset["ios27Test"] = "true";
+    document.body.innerHTML = `
+      <div class="bit-menu-panel">
+        <div role="menu">
+          <button role="menuitem" data-test-focus-visible="true">Login</button>
+        </div>
+      </div>
+    `;
+
+    const menuItem = document.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
+    const menuItemStyle = getComputedStyle(menuItem);
+    expect(menuItemStyle.outlineWidth).toBe("2px");
+    expect(menuItemStyle.outlineColor).toBe("rgb(10, 102, 255)");
+    expect(menuItemStyle.boxShadow).toBe("none");
+
+    upstreamStyle.remove();
+  });
 });

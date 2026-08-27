@@ -123,7 +123,7 @@ export class AutoFillSetupService {
       }
       const state = await this.performReconcile();
       if (state !== "ready") return state;
-      if (this.pendingEnabledCleanupTarget && this.store.snapshot().isUnlocked) {
+      if (this.store.snapshot().isUnlocked) {
         try {
           await this.projection.reprojectCurrent();
           this.finalizeEnabledCleanupAfterProjection();

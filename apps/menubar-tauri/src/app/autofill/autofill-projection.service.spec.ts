@@ -233,6 +233,33 @@ describe("AutoFillProjectionService", () => {
     fixture.service.destroy();
   });
 
+  it("retries the same fresh vault snapshot after a bounded background native replace failure", async () => {
+    const fixture = createFixture();
+    fixture.host.replaceFailures = 3;
+
+    fixture.store.setActiveSession(session);
+    fixture.store.setUnlocked("person@example.test");
+    fixture.store.setItems([demoVaultItems[0]]);
+    await fixture.service.settled();
+
+    expect(fixture.host.replaceAttempts).toBe(3);
+    expect(fixture.host.replacements).toHaveLength(0);
+
+    const sameItems = fixture.store.snapshot().items;
+    fixture.store.setItems(
+      sameItems,
+      fixture.store.snapshot().folders,
+      new Date("2026-08-08T08:01:00.000Z"),
+      accountId,
+    );
+    await fixture.service.settled();
+
+    expect(fixture.host.replaceAttempts).toBe(4);
+    expect(fixture.host.replacements).toHaveLength(1);
+    expect(fixture.host.replacements[0].logins[0].cipherId).toBe("github");
+    fixture.service.destroy();
+  });
+
   it("serializes replacement calls and never reenters the native writer", async () => {
     let releaseFirst = () => undefined;
     const firstPending = new Promise<void>((resolve) => { releaseFirst = resolve; });
@@ -401,6 +428,8 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
   clearFailures = 0;
   lockAttempts = 0;
   lockFailures = 0;
+  replaceAttempts = 0;
+  replaceFailures = 0;
   resetAttempts = 0;
   maximumConcurrentReplacements = 0;
   onCaptureBinding: (() => void) | null = null;
@@ -414,13 +443,18 @@ class RecordingProjectionHost implements AutoFillProjectionHost {
   }
 
   async replaceProjection(input: Parameters<AutoFillProjectionHost["replaceProjection"]>[0]): Promise<void> {
+    this.replaceAttempts += 1;
     this.concurrentReplacements += 1;
     this.maximumConcurrentReplacements = Math.max(
       this.maximumConcurrentReplacements,
       this.concurrentReplacements,
     );
-    this.replacements.push(input);
     try {
+      if (this.replaceFailures > 0) {
+        this.replaceFailures -= 1;
+        throw new Error("transient replace failure");
+      }
+      this.replacements.push(input);
       await this.onReplace(this.replacements.length);
     } finally {
       this.concurrentReplacements -= 1;

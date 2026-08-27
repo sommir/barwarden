@@ -13,7 +13,7 @@
 - macOS 13.0 remains the minimum supported operating system.
 - Browser extensions, Safari WebExtension, Chromium Native Messaging, and browser store publication are deferred and do not block this plan.
 - Chrome and Edge store IDs remain `null`; upstream Bitwarden extension IDs are always forbidden.
-- The Apple Team ID is `K7LY92JY96`, derived from the external `Developer ID Application: Local Developer (K7LY92JY96)` certificate.
+- The Apple Team ID is `K7LY92JY96` and must match the machine-private packaging identity.
 - No certificate, private key, Apple API key, provisioning profile, password, or notarization credential is committed.
 - The production `tauri.conf.json` and production entitlements remain unchanged until the native packaging gate passes.
 - Only Login items participate in first-release AutoFill.
@@ -143,11 +143,9 @@ The loader always validates a non-null Team ID and validates browser IDs only wh
 
 - [ ] **Step 5: Record the verified Team ID and run GREEN**
 
-Run:
+Record the verified identity using machine-private input outside the repository, then run:
 
 ```bash
-node scripts/record-autofill-team-identity.mjs \
-  $BARWARDEN_SIGNING_DIR/developer-id.cer
 npm run test:autofill-spike:contract
 ```
 

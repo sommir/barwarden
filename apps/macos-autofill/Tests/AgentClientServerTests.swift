@@ -124,6 +124,48 @@ final class AgentClientServerTests: XCTestCase {
         XCTAssertEqual(response.error, .malformedMessage)
     }
 
+    func testMalformedRequestLogsOnlyFixedProtocolCode() throws {
+        let sockets = try SocketPair()
+        let sensitiveSentinel = "private-vault-payload-must-not-be-logged"
+        try AgentSocketIO.writeFrame(
+            try AgentFrame.encode(Data(sensitiveSentinel.utf8)),
+            to: sockets.client
+        )
+
+        let standardError = try captureStandardError {
+            AgentConnectionHandler(authorize: { _ in .mainApplication })
+                .handleAcceptedSocket(sockets.takeServer())
+        }
+
+        let lines = standardError.split(separator: "\n").map(String.init)
+        XCTAssertEqual(lines.count, 2)
+        XCTAssertTrue(lines.allSatisfy { $0.hasSuffix("failure=malformed_request") })
+        XCTAssertFalse(standardError.contains(sensitiveSentinel))
+    }
+
+    func testDecodedFailureLogsOnlyFixedOperationAndProtocolCode() throws {
+        let fixture = try ProjectionHandlerFixture()
+        let request = AgentRequest(
+            version: AgentProtocol.currentVersion,
+            requestID: UUID(),
+            operation: .status,
+            nonce: Data([9])
+        )
+        let sockets = try SocketPair()
+        try AgentSocketIO.writeFrame(try AgentFrame.encodeJSON(request), to: sockets.client)
+
+        let standardError = try captureStandardError {
+            AgentConnectionHandler(
+                authorize: { _ in .mainApplication },
+                projectionStore: fixture.store
+            ).handleAcceptedSocket(sockets.takeServer())
+        }
+
+        let lines = standardError.split(separator: "\n").map(String.init)
+        XCTAssertEqual(lines.count, 2)
+        XCTAssertTrue(lines.allSatisfy { $0.hasSuffix("operation=status failure=locked") })
+    }
+
     func testOversizedDeclaredRequestReturnsSanitizedCode() throws {
         let sockets = try SocketPair()
         try AgentSocketIO.writeAll(Data([0x00, 0x01, 0x00, 0x01]), to: sockets.client)
@@ -769,4 +811,38 @@ final class SocketPair: @unchecked Sendable {
         defer { server = -1 }
         return server
     }
+}
+
+private func captureStandardError(_ action: () throws -> Void) throws -> String {
+    var descriptors: [Int32] = [0, 0]
+    guard pipe(&descriptors) == 0 else { throw AgentProtocolError.transport }
+    let reader = descriptors[0]
+    let writer = descriptors[1]
+    let savedStandardError = dup(STDERR_FILENO)
+    guard savedStandardError >= 0 else {
+        close(reader)
+        close(writer)
+        throw AgentProtocolError.transport
+    }
+    guard dup2(writer, STDERR_FILENO) >= 0 else {
+        close(reader)
+        close(writer)
+        close(savedStandardError)
+        throw AgentProtocolError.transport
+    }
+    close(writer)
+
+    do {
+        try action()
+    } catch {
+        _ = dup2(savedStandardError, STDERR_FILENO)
+        close(savedStandardError)
+        close(reader)
+        throw error
+    }
+
+    _ = dup2(savedStandardError, STDERR_FILENO)
+    close(savedStandardError)
+    let data = FileHandle(fileDescriptor: reader, closeOnDealloc: true).readDataToEndOfFile()
+    return String(decoding: data, as: UTF8.self)
 }

@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import OSLog
 
 final class AgentRequestGate {
     private var requestIDs: Set<UUID> = []
@@ -51,7 +52,16 @@ final class BoundedConnectionExecutor {
     }
 }
 
+private struct ReportedAgentFailure: Error {
+    let error: AgentProtocolError
+}
+
 final class AgentConnectionHandler {
+    private static let logger = Logger(
+        subsystem: "com.sommir.barwarden.autofill-agent",
+        category: "protocol"
+    )
+
     private let authorize: (Int32) throws -> AuthorizedPeer
     private let requestGate: AgentRequestGate
     private let timeout: TimeInterval
@@ -107,14 +117,19 @@ final class AgentConnectionHandler {
             do {
                 peer = try authorize(socket)
             } catch {
+                reportFailure(.unauthorized)
                 try? sendFailure(.unauthorized, to: socket)
                 finishRejectedConnection(socket)
                 return
             }
             try handleAuthorizedSocket(socket, peer: peer, deadline: deadline)
+        } catch let reported as ReportedAgentFailure {
+            try? sendFailure(reported.error, to: socket)
         } catch let error as AgentProtocolError {
+            reportFailure(error)
             try? sendFailure(error, to: socket)
         } catch {
+            reportFailure(.malformedMessage)
             try? sendFailure(.malformedMessage, to: socket)
         }
     }
@@ -133,6 +148,22 @@ final class AgentConnectionHandler {
                 onProjectionKeyCleared?(projection.key)
             }
         }
+        do {
+            try handleDecodedRequest(request, peer: peer, socket: socket)
+        } catch let error as AgentProtocolError {
+            reportFailure(error, operation: request.operation)
+            throw ReportedAgentFailure(error: error)
+        } catch {
+            reportFailure(.malformedMessage, operation: request.operation)
+            throw ReportedAgentFailure(error: .malformedMessage)
+        }
+    }
+
+    private func handleDecodedRequest(
+        _ request: AgentRequest,
+        peer: AuthorizedPeer,
+        socket: Int32
+    ) throws {
         try requestGate.accept(request)
         var candidateResponse: CandidateResponsePayload?
         var sessionResponse: AgentSessionPayload?
@@ -303,6 +334,22 @@ final class AgentConnectionHandler {
         var frame = try AgentFrame.encodeJSON(AgentResponse.failure(error))
         defer { frame.resetBytes(in: frame.indices) }
         try AgentSocketIO.writeFrame(frame, to: socket)
+    }
+
+    private func reportFailure(
+        _ error: AgentProtocolError,
+        operation: AgentOperation? = nil
+    ) {
+        let prefix = operation.map { "operation=\($0.rawValue) " } ?? ""
+        let line = "BarwardenAutoFillAgent \(prefix)failure=\(error.rawValue)\n"
+        try? FileHandle.standardError.write(contentsOf: Data(line.utf8))
+        if let operation {
+            Self.logger.error(
+                "operation=\(operation.rawValue, privacy: .public) failure=\(error.rawValue, privacy: .public)"
+            )
+        } else {
+            Self.logger.error("failure=\(error.rawValue, privacy: .public)")
+        }
     }
 
     private func finishRejectedConnection(_ socket: Int32) {

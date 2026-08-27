@@ -1125,7 +1125,10 @@ function decodeLiveAutoFillContext(value: unknown): LiveAutoFillContext {
     appName: boundedAutoFillString(context["appName"], 255),
     fillContextToken: autoFillUuid(context["fillContextToken"]),
     focusedField: Object.freeze({ kind, confidence }),
-    action: Object.freeze({ mode, fields: canonicalAutoFillFields(action["fields"], false) }),
+    action: Object.freeze({
+      mode,
+      fields: canonicalAutoFillFields(action["fields"], mode === "choose"),
+    }),
   });
 }
 

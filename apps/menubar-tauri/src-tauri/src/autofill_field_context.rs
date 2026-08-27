@@ -7,8 +7,9 @@ const LINKED_TITLE_SCORE: u16 = 80;
 const TITLE_OR_PLACEHOLDER_SCORE: u16 = 70;
 const IDENTIFIER_SCORE: u16 = 55;
 const DESCRIPTION_SCORE: u16 = 45;
-const SIBLING_FORM_SCORE: u16 = 35;
+const SIBLING_FORM_SCORE: u16 = 40;
 const ALIGNMENT_SCORE: u16 = 15;
+const FOCUSED_SEMANTIC_SCORE: u16 = 15;
 const AMBIGUOUS_SCORE: u16 = 20;
 const HIGH_SCORE: u16 = 80;
 const HIGH_MARGIN: u16 = 25;
@@ -197,6 +198,9 @@ fn base_candidates(observation: &SemanticFieldObservation) -> [u16; KIND_COUNT] 
         ],
         DESCRIPTION_SCORE,
     );
+    if observation.focused {
+        add_score_to_scored_kinds(&mut scores, FOCUSED_SEMANTIC_SCORE);
+    }
     scores
 }
 
@@ -464,6 +468,37 @@ fn normalize(text: &str) -> String {
 }
 
 fn classify_text(text: &str) -> [bool; KIND_COUNT] {
+    let one_time_code = matches_phrase(
+        text,
+        &[
+            "otp",
+            "otp code",
+            "one time code",
+            "one time password",
+            "one time passcode",
+            "verification code",
+            "security code",
+            "authentication code",
+            "authenticator code",
+            "2fa code",
+            "two factor code",
+            "验证码",
+            "驗證碼",
+            "动态密码",
+            "動態密碼",
+            "动态口令",
+            "動態口令",
+            "动态码",
+            "動態碼",
+            "一次性密码",
+            "一次性密碼",
+            "一次性口令",
+            "安全令牌",
+            "安全權杖",
+            "认证码",
+            "認證碼",
+        ],
+    );
     [
         matches_phrase(
             text,
@@ -471,11 +506,31 @@ fn classify_text(text: &str) -> [bool; KIND_COUNT] {
                 "username",
                 "user name",
                 "user id",
+                "login id",
+                "login name",
+                "employee id",
+                "employee number",
+                "staff id",
+                "staff code",
                 "用户名",
                 "使用者名稱",
                 "使用者名称",
                 "帳號",
+                "賬號",
                 "账号",
+                "帐号",
+                "账户",
+                "帐户",
+                "帳戶",
+                "賬戶",
+                "工号",
+                "工號",
+                "员工号",
+                "員工號",
+                "职员号",
+                "職員號",
+                "登录名",
+                "登入名",
                 "phone",
                 "phone number",
                 "mobile",
@@ -500,21 +555,8 @@ fn classify_text(text: &str) -> [bool; KIND_COUNT] {
                 "郵箱",
             ],
         ),
-        matches_phrase(text, &["password", "pass word", "密码", "密碼"]),
-        matches_phrase(
-            text,
-            &[
-                "otp",
-                "one time code",
-                "verification code",
-                "security code",
-                "authenticator code",
-                "验证码",
-                "驗證碼",
-                "动态密码",
-                "動態密碼",
-            ],
-        ),
+        matches_phrase(text, &["password", "pass word", "密码", "密碼"]) && !one_time_code,
+        one_time_code,
     ]
 }
 
@@ -875,6 +917,129 @@ mod tests {
                 && field.secret_field == Some(AutoFillSecretField::Username)
                 && field.confidence != FieldConfidence::Low
         }));
+    }
+
+    #[test]
+    fn recognizes_simplified_account_spelling_used_by_dsm_step_login() {
+        let detected = classify_fields(&[field("AXTextField")
+            .description("用户帐号")
+            .focused()
+            .build()]);
+
+        assert_eq!(
+            detected[0].secret_field,
+            Some(AutoFillSecretField::Username)
+        );
+        assert_ne!(detected[0].confidence, FieldConfidence::Low);
+        assert_eq!(
+            detect_action(&detected),
+            DetectedAction::Field {
+                field: AutoFillSecretField::Username
+            }
+        );
+    }
+
+    #[test]
+    fn recognizes_employee_login_identifiers_and_common_otp_labels() {
+        let detected = classify_fields(&[
+            field("AXTextField").placeholder("工号").build(),
+            field("AXTextField")
+                .placeholder("Employee ID")
+                .container(2)
+                .build(),
+            field("AXTextField")
+                .placeholder("登录账号")
+                .container(3)
+                .build(),
+            field("AXTextField")
+                .placeholder("动态口令")
+                .container(4)
+                .build(),
+            field("AXTextField")
+                .placeholder("动态密码")
+                .container(5)
+                .build(),
+            field("AXTextField")
+                .placeholder("One-time password")
+                .container(6)
+                .build(),
+            field("AXTextField")
+                .placeholder("2FA code")
+                .container(7)
+                .build(),
+        ]);
+
+        assert!(detected[..3].iter().all(|field| {
+            field.secret_field == Some(AutoFillSecretField::Username)
+                && field.confidence != FieldConfidence::Low
+        }));
+        assert!(detected[3..].iter().all(|field| {
+            field.secret_field == Some(AutoFillSecretField::Totp)
+                && field.confidence != FieldConfidence::Low
+        }));
+    }
+
+    #[test]
+    fn infers_one_unknown_aligned_identity_field_from_a_unique_password_peer() {
+        let detected = classify_fields(&[
+            field("AXTextField")
+                .placeholder("Enterprise credential")
+                .focused()
+                .frame(100.0, 100.0, 180.0, 24.0)
+                .build(),
+            field("AXSecureTextField")
+                .frame(100.0, 148.0, 180.0, 24.0)
+                .build(),
+        ]);
+
+        assert_eq!(
+            detected[0].secret_field,
+            Some(AutoFillSecretField::Username)
+        );
+        assert_eq!(detected[0].confidence, FieldConfidence::Medium);
+        assert_eq!(
+            detect_action(&detected),
+            DetectedAction::Form {
+                fields: vec![AutoFillSecretField::Username, AutoFillSecretField::Password]
+            }
+        );
+    }
+
+    #[test]
+    fn structural_identity_inference_rejects_competing_or_misaligned_fields() {
+        let competing = vec![
+            field("AXTextField")
+                .placeholder("First value")
+                .focused()
+                .frame(100.0, 100.0, 180.0, 24.0)
+                .build(),
+            field("AXTextField")
+                .placeholder("Second value")
+                .frame(100.0, 124.0, 180.0, 24.0)
+                .build(),
+            field("AXSecureTextField")
+                .frame(100.0, 148.0, 180.0, 24.0)
+                .build(),
+        ];
+        let misaligned = vec![
+            field("AXTextField")
+                .placeholder("Enterprise credential")
+                .focused()
+                .frame(100.0, 100.0, 180.0, 24.0)
+                .build(),
+            field("AXSecureTextField")
+                .frame(420.0, 148.0, 180.0, 24.0)
+                .build(),
+        ];
+
+        assert_eq!(
+            detect_action(&classify_fields(&competing)),
+            DetectedAction::Choose
+        );
+        assert_eq!(
+            detect_action(&classify_fields(&misaligned)),
+            DetectedAction::Choose
+        );
     }
 
     #[test]

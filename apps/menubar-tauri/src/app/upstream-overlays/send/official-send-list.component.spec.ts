@@ -5,11 +5,15 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
 import { beforeEach, describe, expect, it } from "vitest";
+
+import { NoSendsIcon } from "@bitwarden/assets/svg";
+import { NoItemsComponent } from "@bitwarden/components/no-items/no-items.component";
 
 const runtimePath = resolve(
   process.cwd(),
@@ -123,11 +127,34 @@ describe("OfficialSendListComponent", () => {
     host.querySelector<HTMLButtonElement>('[aria-label="筛选 Send"]')?.click();
     reopenedSelect.value = "text";
     reopenedSelect.dispatchEvent(new Event("change"));
-    host.querySelector<HTMLButtonElement>('[aria-label="新增文本 Send"]')?.click();
+    host.querySelector<HTMLButtonElement>('[aria-label="新建 Send"]')?.click();
 
     expect(commands).toEqual(["query:payroll", "filters", "filter:text", "open:new"]);
     expect(host.textContent).not.toContain("文件 Send");
     expect(host.querySelector('[value="file"]')).toBeNull();
+  });
+
+  it("uses a Send-specific empty illustration and one visible new action label", async () => {
+    const fixture = await createFixture({ state: "empty" });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const noItems = fixture.debugElement.query(By.directive(NoItemsComponent))
+      .componentInstance as NoItemsComponent;
+    const actions = Array.from(
+      host.querySelectorAll<HTMLButtonElement>(
+        '[data-testid="send-new-action"], [data-testid="send-empty-create-action"]',
+      ),
+    );
+
+    expect(noItems.icon()).toBe(NoSendsIcon);
+    expect(actions.map((action) => action.textContent?.trim())).toEqual([
+      "新建 Send",
+      "新建 Send",
+    ]);
+    expect(actions.map((action) => action.getAttribute("aria-label"))).toEqual([
+      "新建 Send",
+      "新建 Send",
+    ]);
   });
 
   it("publishes structural Send focus keys without exposing visible Send values", async () => {
@@ -175,7 +202,7 @@ describe("OfficialSendListComponent", () => {
       : host.textContent;
     expect(renderedState).toContain(expected);
     if (inputs.disabled) {
-      expect(host.querySelector('[aria-label="新增文本 Send"]')).toBeNull();
+      expect(host.querySelector('[aria-label="新建 Send"]')).toBeNull();
     }
   });
 });

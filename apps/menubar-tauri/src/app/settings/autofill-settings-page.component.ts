@@ -54,7 +54,7 @@ import { AccessibilityPermissionDialogService } from "../official-ui/accessibili
       <popup-header slot="header" [pageTitle]="'i18nAutofill' | i18n" [showBackButton]="true" [backAction]="backAction" />
       <bit-section>
         <bit-section-header><h2 bitTypography="h6">{{ "i18nAutofillBehavior" | i18n }}</h2></bit-section-header>
-        <section class="settings-detail-group macos-preference-group">
+        <section class="settings-detail-group macos-preference-group" data-settings-detail="autofill">
           <bit-form-field class="settings-detail-row macos-preference-row">
             <bit-label class="macos-preference-row__copy">{{ "i18nClearClipboard" | i18n }}</bit-label>
             <bit-select class="macos-control-visible" [attr.aria-label]="'i18nClearClipboard' | i18n" [items]="clipboardClearOptions" [ngModel]="settings.clipboardClearSeconds" (ngModelChange)="setClipboardClearSecondsValue($event)" />

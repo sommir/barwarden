@@ -65,6 +65,25 @@ describe("TauriHostService", () => {
     });
   });
 
+  it("keeps the application available when native field detection cannot choose a safe field", async () => {
+    const nativeContext = {
+      status: "available",
+      application: { bundleId: "com.google.Chrome", appName: "Google Chrome" },
+      fillContext: {
+        fillContextToken: "00000000-0000-4000-8000-000000000005",
+        focusedField: { kind: "unknown", confidence: "low" },
+        action: { mode: "choose", fields: [] },
+      },
+    };
+    const host = new TauriHostService(async () => nativeContext as never);
+
+    await expect(host.entryContext()).resolves.toEqual({
+      status: "available",
+      application: nativeContext.application,
+      fillContext: { ...nativeContext.application, ...nativeContext.fillContext },
+    });
+  });
+
   it.each([
     { focusedField: { kind: "password", confidence: "high", secretField: undefined } },
     { action: { mode: "field", fields: ["password"], value: undefined } },

@@ -15,11 +15,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 
 import { BARWARDEN_BRAND } from "../brand";
+import { PopupPageComponent } from "../layout/popup-page.component";
 import { OfficialI18nService } from "../official-ui/official-i18n.service";
 import { PopupStateStore } from "../popup-state";
 import { PopupShellComponent } from "./popup-shell.component";
 
-@Component({ standalone: true, template: `<p>Route content</p>` })
+@Component({
+  standalone: true,
+  imports: [PopupPageComponent],
+  template: `<popup-page><h1>Route content</h1></popup-page>`,
+})
 class RouteContentComponent {}
 
 const testRoutes = [
@@ -175,6 +180,7 @@ describe("PopupShellComponent", () => {
     expect(shell?.classList.contains("popup-page")).toBe(false);
     expect(host.querySelector('[data-testid="popup-layout-scroll-region"]')).toBeNull();
     expect(scrollHost?.parentElement).toBe(shell);
+    expect(scrollHost?.hasAttribute("tabindex")).toBe(false);
     const switcherHost = navigation?.parentElement;
     expect(switcherHost?.parentElement).toBe(shell);
     expect(scrollHost?.nextElementSibling).toBe(switcherHost);
@@ -187,16 +193,17 @@ describe("PopupShellComponent", () => {
     expect(css).toMatch(/body\s*{[^}]*overflow:\s*hidden;/s);
     expect(css).toMatch(/\.popup-tab-scroll-host\s*{[^}]*overflow-y:\s*hidden;/s);
     expect(css).toMatch(
-      /\.popup-tab-scroll-host\s*{[^}]*flex:\s*0 0 calc\(100%\s*-\s*var\(--mac-tabbar-height\)\s*-\s*13px\);/s,
+      /\.popup-tab-scroll-host\s*{[^}]*flex:\s*1 1 auto;/s,
     );
     expect(css).toMatch(
-      /\.popup-tab-scroll-host\s*{[^}]*height:\s*calc\(100%\s*-\s*var\(--mac-tabbar-height\)\s*-\s*13px\);/s,
+      /\.popup-tab-scroll-host\s*{[^}]*height:\s*100%;/s,
     );
-    expect(css).toMatch(/\.popup-shell::after\s*{[^}]*z-index:\s*19;/s);
     expect(css).toMatch(
-      /\.popup-shell::after\s*{[^}]*height:\s*calc\(var\(--mac-tabbar-height\)\s*\+\s*13px\);/s,
+      /\.popup-shell::after\s*{[^}]*position:\s*absolute;[^}]*z-index:\s*19;[^}]*height:\s*calc\(var\(--mac-tabbar-height\) \+ var\(--mac-tabbar-bottom-offset\)\);[^}]*pointer-events:\s*auto;/s,
     );
-    expect(css).toMatch(/\.popup-shell::after\s*{[^}]*background:\s*var\(--mac-canvas\);/s);
+    expect(css).toMatch(
+      /\.popup-shell::after\s*{[^}]*backdrop-filter:\s*saturate\(1\.25\) blur\(20px\);[^}]*-webkit-backdrop-filter:\s*saturate\(1\.25\) blur\(20px\);/s,
+    );
     expect(css).toMatch(/\.floating-tab-switcher\s*{[^}]*z-index:\s*20;/s);
     expect(css).toMatch(/popup-page\s*{[^}]*height:\s*100%;/s);
     expect(css).not.toContain(".popup-page-scroll");
@@ -240,6 +247,33 @@ describe("PopupShellComponent", () => {
       expect(router.url).toBe("/tabs/settings");
     });
     expect(document.activeElement).toBe(buttons()[4]);
+  });
+
+  it("names the retained focusable scroll region from its routed page heading", async () => {
+    await TestBed.configureTestingModule({
+      imports: [PopupShellComponent],
+      providers: [
+        provideRouter(testRoutes),
+        OfficialI18nService,
+        { provide: I18nService, useExisting: OfficialI18nService },
+      ],
+    }).compileComponents();
+
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(PopupShellComponent);
+    await router.navigateByUrl("/tabs/settings");
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const heading = host.querySelector<HTMLHeadingElement>("popup-page h1")!;
+    const scrollRegion = host.querySelector<HTMLElement>(
+      'popup-page [data-testid="popup-layout-scroll-region"]',
+    )!;
+
+    expect(scrollRegion.getAttribute("tabindex")).toBe("0");
+    expect(heading.id).not.toBe("");
+    expect(scrollRegion.getAttribute("aria-labelledby")).toBe(heading.id);
   });
 
   it("does not change current state or restore focus to a target whose navigation fails", async () => {

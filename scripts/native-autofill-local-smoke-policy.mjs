@@ -105,7 +105,7 @@ export function verifyNativeAutoFillLocalSmokePolicy(source) {
     !source.includes('/usr/bin/codesign --verify --strict --verbose=2 "$OUTPUT_APP"') ||
     !source.includes('/usr/bin/codesign --verify --deep --strict --verbose=2 "$OUTPUT_APP"') ||
     !hasActiveLine("security find-certificate -a -Z") ||
-    !hasActiveLine("SHA-1 hash: 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635") ||
+    !hasActiveLine("SHA-1 hash: 30997D113A3CA12F7403BCCCE80F3F6E55AA9772") ||
     !hasActiveLine('AUTHORITY_COUNT="$(/usr/bin/grep -c') ||
     !hasActiveLine('LEAF_AUTHORITY="$(/usr/bin/awk') ||
     !hasActiveLine("EXPECTED_AUTHORITY_TAIL='Authority=Developer ID Certification Authority") ||

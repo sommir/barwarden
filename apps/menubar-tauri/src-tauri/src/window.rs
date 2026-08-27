@@ -1,6 +1,18 @@
 use crate::frontmost;
 #[cfg(target_os = "macos")]
-use objc2_app_kit::{NSColor, NSWindow};
+use block2::RcBlock;
+#[cfg(target_os = "macos")]
+use objc2::rc::Retained;
+#[cfg(target_os = "macos")]
+use objc2::MainThreadMarker;
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{
+    NSApplication, NSColor, NSEvent, NSEventMask, NSFloatingWindowLevel, NSWindow,
+};
+#[cfg(target_os = "macos")]
+use std::ptr::NonNull;
+#[cfg(target_os = "macos")]
+use std::sync::OnceLock;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc, Mutex,
@@ -32,6 +44,10 @@ const POPOUT_WINDOW_ERROR: &str = "pop-out window operation failed";
 // view and the second frame commits the Angular compositing update.
 const POPUP_RESET_AFTER: Duration = Duration::from_secs(60);
 const TRAY_CLICK_BLUR_WINDOW: Duration = Duration::from_millis(250);
+const POPUP_PRESENTATION_BLUR_GRACE: Duration = Duration::from_millis(500);
+
+#[cfg(target_os = "macos")]
+static EXTERNAL_CLICK_DISMISS_MONITOR: OnceLock<usize> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PopupEntrySource {
@@ -125,6 +141,9 @@ pub struct PopupVisibilityGuard(Arc<AtomicUsize>);
 struct PopupPresentationTimestamps {
     hidden_at: Option<Instant>,
     blurred_at: Option<Instant>,
+    presented_at: Option<Instant>,
+    presentation_revision: u64,
+    focused_revision: Option<u64>,
 }
 
 #[derive(Clone, Default)]
@@ -138,21 +157,69 @@ impl PopupPresentationState {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         timestamps.hidden_at = Some(hidden_at);
         timestamps.blurred_at = None;
+        timestamps.presented_at = None;
+        timestamps.focused_revision = None;
     }
 
     fn mark_hidden(&self) {
         self.mark_hidden_at(Instant::now());
     }
 
-    fn mark_blurred_at(&self, blurred_at: Instant) {
-        self.0
+    fn mark_presented_at(&self, presented_at: Instant) {
+        let mut timestamps = self
+            .0
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .blurred_at = Some(blurred_at);
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        timestamps.presentation_revision = timestamps.presentation_revision.wrapping_add(1);
+        timestamps.focused_revision = None;
+        timestamps.blurred_at = None;
+        timestamps.presented_at = Some(presented_at);
     }
 
-    fn mark_blurred(&self) {
-        self.mark_blurred_at(Instant::now());
+    fn mark_presented(&self) {
+        self.mark_presented_at(Instant::now());
+    }
+
+    fn mark_focused(&self) {
+        let mut timestamps = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        timestamps.focused_revision = Some(timestamps.presentation_revision);
+    }
+
+    fn begin_blur_hide_at(&self, blurred_at: Instant) -> Option<u64> {
+        let mut timestamps = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let revision = timestamps.presentation_revision;
+        if timestamps.focused_revision != Some(revision) {
+            return None;
+        }
+        if let Some(presented_at) = timestamps.presented_at {
+            let Some(elapsed) = blurred_at.checked_duration_since(presented_at) else {
+                return None;
+            };
+            if elapsed < POPUP_PRESENTATION_BLUR_GRACE {
+                return None;
+            }
+        }
+        timestamps.blurred_at = Some(blurred_at);
+        Some(revision)
+    }
+
+    fn begin_blur_hide(&self) -> Option<u64> {
+        self.begin_blur_hide_at(Instant::now())
+    }
+
+    fn blur_hide_is_current(&self, revision: u64) -> bool {
+        let timestamps = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        timestamps.presentation_revision == revision
+            && timestamps.focused_revision == Some(revision)
     }
 
     fn blurred_for_tray_click_at(&self, clicked_at: Instant) -> bool {
@@ -242,7 +309,35 @@ pub fn configure_native_popup_window(app: &tauri::AppHandle) -> Result<(), Strin
     layer.setCornerRadius(POPUP_CORNER_RADIUS);
     layer.setMasksToBounds(true);
     ns_window.invalidateShadow();
+    install_external_click_dismiss_monitor(app)?;
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn install_external_click_dismiss_monitor(app: &tauri::AppHandle) -> Result<(), String> {
+    if EXTERNAL_CLICK_DISMISS_MONITOR.get().is_some() {
+        return Ok(());
+    }
+
+    let dismiss_app = app.clone();
+    let handler = RcBlock::new(move |_event: NonNull<NSEvent>| {
+        let Some(window) = dismiss_app.get_webview_window(MAIN_WINDOW_LABEL) else {
+            return;
+        };
+        let visible = matches!(window.is_visible(), Ok(true));
+        let visibility_held = dismiss_app.state::<PopupVisibilityHold>().is_held();
+        if should_hide_after_external_mouse_down(visible, visibility_held) {
+            let _ = hide_popup_window(&dismiss_app);
+        }
+    });
+    let mask =
+        NSEventMask::LeftMouseDown | NSEventMask::RightMouseDown | NSEventMask::OtherMouseDown;
+    let monitor = NSEvent::addGlobalMonitorForEventsMatchingMask_handler(mask, &handler)
+        .ok_or_else(|| POPUP_WINDOW_ERROR.to_owned())?;
+    let monitor = Retained::into_raw(monitor) as usize;
+    EXTERNAL_CLICK_DISMISS_MONITOR
+        .set(monitor)
+        .map_err(|_| POPUP_WINDOW_ERROR.to_owned())
 }
 
 struct PopupGeometryContext {
@@ -467,7 +562,9 @@ fn present_popup_window(
     window: &WebviewWindow,
     entry_source: PopupEntrySource,
 ) -> Result<(), String> {
+    app.state::<PopupPresentationState>().mark_presented();
     window.show().map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
+    order_popup_front_regardless(window)?;
     if window.set_focus().is_err() {
         let _ = window.set_always_on_top(true);
         let _ = window.request_user_attention(Some(UserAttentionType::Informational));
@@ -484,6 +581,48 @@ fn present_popup_window(
         entry_source,
         suggestion_revision,
     ));
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn order_popup_front_regardless(window: &WebviewWindow) -> Result<(), String> {
+    if let Some(mtm) = MainThreadMarker::new() {
+        return present_native_popup(window, mtm);
+    }
+
+    let native_window = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let Some(mtm) = MainThreadMarker::new() else {
+                return;
+            };
+            let _ = present_native_popup(&native_window, mtm);
+        })
+        .map_err(|_| POPUP_WINDOW_ERROR.to_owned())
+}
+
+#[cfg(target_os = "macos")]
+fn present_native_popup(window: &WebviewWindow, mtm: MainThreadMarker) -> Result<(), String> {
+    let raw_window = window
+        .ns_window()
+        .map_err(|_| POPUP_WINDOW_ERROR.to_owned())?;
+    let ns_window = unsafe {
+        raw_window
+            .cast::<NSWindow>()
+            .as_ref()
+            .ok_or_else(|| POPUP_WINDOW_ERROR.to_owned())?
+    };
+    let application = NSApplication::sharedApplication(mtm);
+
+    ns_window.setLevel(NSFloatingWindowLevel);
+    application.activate();
+    ns_window.makeKeyAndOrderFront(None);
+    ns_window.orderFrontRegardless();
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn order_popup_front_regardless(_window: &WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
@@ -606,10 +745,10 @@ pub fn hide_popup_window(app: &tauri::AppHandle) -> Result<(), String> {
 
 pub fn popup_toggle_action(
     is_visible: bool,
-    is_focused: bool,
-    blurred_for_tray_click: bool,
+    _is_focused: bool,
+    _blurred_for_tray_click: bool,
 ) -> PopupToggleAction {
-    if is_visible && (is_focused || blurred_for_tray_click) {
+    if is_visible {
         PopupToggleAction::Hide
     } else {
         PopupToggleAction::Show
@@ -846,6 +985,10 @@ pub fn should_hide_after_popup_blur(is_focused: bool, visibility_held: bool) -> 
     !is_focused && !visibility_held
 }
 
+pub fn should_hide_after_external_mouse_down(is_visible: bool, visibility_held: bool) -> bool {
+    is_visible && !visibility_held
+}
+
 pub fn popout_dock_visibility_action(
     window_label: &str,
     event: PopupLifecycleEvent,
@@ -887,20 +1030,32 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
         apply_popout_dock_visibility(window.app_handle(), action);
     }
 
+    if window.label() == MAIN_WINDOW_LABEL && lifecycle_event == PopupLifecycleEvent::Focused(true)
+    {
+        window
+            .app_handle()
+            .state::<PopupPresentationState>()
+            .mark_focused();
+    }
+
     match popup_lifecycle_action(window.label(), lifecycle_event) {
         PopupLifecycleAction::Keep => {}
         PopupLifecycleAction::HideAfterDelay => {
-            window
-                .app_handle()
-                .state::<PopupPresentationState>()
-                .mark_blurred();
+            let presentation_state = window.app_handle().state::<PopupPresentationState>();
+            let Some(presentation_revision) = presentation_state.begin_blur_hide() else {
+                return;
+            };
             let window = window.clone();
             std::thread::spawn(move || {
                 // Let a status-item mouse-up toggle the still-visible popup first.
                 std::thread::sleep(std::time::Duration::from_millis(100));
                 let focused = matches!(window.is_focused(), Ok(true));
                 let visibility_held = window.app_handle().state::<PopupVisibilityHold>().is_held();
-                if should_hide_after_popup_blur(focused, visibility_held) {
+                let blur_hide_is_current = window
+                    .app_handle()
+                    .state::<PopupPresentationState>()
+                    .blur_hide_is_current(presentation_revision);
+                if blur_hide_is_current && should_hide_after_popup_blur(focused, visibility_held) {
                     if window.hide().is_ok() {
                         window
                             .app_handle()
@@ -1136,8 +1291,10 @@ mod tests {
         should_hide_after_popup_blur, suggestion_context_changed_script, AutoFillPopupShowStrategy,
         MonitorGeometry, PopoutDockVisibilityAction, PopupEntrySource, PopupLifecycleAction,
         PopupLifecycleEvent, PopupPresentationState, PopupToggleAction, PopupVisibilityHold,
-        POPOUT_HEIGHT, POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH, POPOUT_WIDTH, POPUP_WINDOW_ERROR,
+        POPOUT_HEIGHT, POPOUT_MIN_HEIGHT, POPOUT_MIN_WIDTH, POPOUT_WIDTH,
+        POPUP_PRESENTATION_BLUR_GRACE, POPUP_WINDOW_ERROR,
     };
+    use std::time::{Duration, Instant};
     use tauri::{LogicalPosition, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Url};
 
     fn rect(x: i32, y: i32, width: u32, height: u32) -> PhysicalRect<i32, u32> {
@@ -1531,16 +1688,49 @@ mod tests {
     }
 
     #[test]
-    fn focus_failure_keeps_popup_visible_for_secure_input_recovery() {
+    fn secure_input_recovery_orders_popup_front_before_requesting_focus() {
         let source = include_str!("window.rs");
+        let presentation = source
+            .split("fn present_popup_window(")
+            .nth(1)
+            .and_then(|source| source.split("fn safe_existing_popup_position(").next())
+            .expect("popup presentation implementation should remain discoverable");
 
         assert!(
-            !source.contains("let _ = window.hide();\n        return Err(POPUP_WINDOW_ERROR.to_owned());"),
+            !presentation.contains(
+                "let _ = window.hide();\n        return Err(POPUP_WINDOW_ERROR.to_owned());"
+            ),
             "secure password fields can deny focus; the popup must remain visible instead of hiding"
         );
-        assert!(source.contains("set_always_on_top(true)"));
-        assert!(source.contains("request_user_attention"));
-        assert!(source.contains("set_always_on_top(false)"));
+        let show = presentation
+            .find("window.show()")
+            .expect("popup should be made visible first");
+        let order_front = presentation
+            .find("order_popup_front_regardless(window)")
+            .expect("secure-input recovery must force the popup above the active application");
+        let focus = presentation
+            .find("window.set_focus()")
+            .expect("popup should still request keyboard focus");
+
+        assert!(show < order_front && order_front < focus);
+
+        let native_presentation = source
+            .split("fn order_popup_front_regardless(")
+            .nth(1)
+            .and_then(|source| source.split("fn safe_existing_popup_position(").next())
+            .expect("native popup presentation implementation should remain discoverable");
+        assert!(native_presentation.contains("MainThreadMarker::new()"));
+        assert!(native_presentation.contains("NSApplication::sharedApplication"));
+        let floating_level = native_presentation
+            .find("setLevel(NSFloatingWindowLevel)")
+            .expect("menu bar popups must remain above a secure-input browser window");
+        let order_front = native_presentation
+            .find("orderFrontRegardless")
+            .expect("popup should still be ordered to the front within its level");
+        assert!(floating_level < order_front);
+        assert!(native_presentation.contains("application.activate()"));
+        assert!(native_presentation.contains("makeKeyAndOrderFront"));
+        assert!(native_presentation.contains("orderFrontRegardless"));
     }
 
     #[test]
@@ -1554,6 +1744,63 @@ mod tests {
         assert!(hold.is_held());
         drop(second);
         assert!(!hold.is_held());
+    }
+
+    #[test]
+    fn focus_denied_after_presentation_does_not_schedule_auto_hide() {
+        let state = PopupPresentationState::default();
+
+        state.mark_presented();
+
+        assert_eq!(state.begin_blur_hide(), None);
+    }
+
+    #[test]
+    fn a_new_presentation_cancels_an_older_delayed_blur_hide() {
+        let state = PopupPresentationState::default();
+        let first_presentation = Instant::now();
+        state.mark_presented_at(first_presentation);
+        state.mark_focused();
+        let stale_revision = state
+            .begin_blur_hide_at(
+                first_presentation + POPUP_PRESENTATION_BLUR_GRACE + Duration::from_millis(1),
+            )
+            .expect("a focused popup may hide after losing focus");
+
+        state.mark_presented_at(
+            first_presentation + POPUP_PRESENTATION_BLUR_GRACE + Duration::from_millis(2),
+        );
+
+        assert!(!state.blur_hide_is_current(stale_revision));
+    }
+
+    #[test]
+    fn a_focused_presentation_still_auto_hides_after_losing_focus() {
+        let state = PopupPresentationState::default();
+        let presented_at = Instant::now();
+        state.mark_presented_at(presented_at);
+        state.mark_focused();
+
+        let revision = state
+            .begin_blur_hide_at(
+                presented_at + POPUP_PRESENTATION_BLUR_GRACE + Duration::from_millis(1),
+            )
+            .expect("a focused popup may hide after losing focus");
+
+        assert!(state.blur_hide_is_current(revision));
+    }
+
+    #[test]
+    fn transient_focus_loss_during_presentation_grace_does_not_hide_the_popup() {
+        let state = PopupPresentationState::default();
+        let presented_at = Instant::now();
+        state.mark_presented_at(presented_at);
+        state.mark_focused();
+
+        assert_eq!(
+            state.begin_blur_hide_at(presented_at + Duration::from_millis(100)),
+            None,
+        );
     }
 
     #[test]
@@ -1596,11 +1843,25 @@ mod tests {
     }
 
     #[test]
-    fn unfocused_visible_popup_toggle_requests_show() {
+    fn unfocused_visible_popup_toggle_requests_hide() {
         assert_eq!(
             popup_toggle_action(true, false, false),
-            PopupToggleAction::Show
+            PopupToggleAction::Hide
         );
+    }
+
+    #[test]
+    fn native_popup_installs_an_external_click_dismiss_monitor() {
+        let source = include_str!("window.rs");
+        let native_configuration = source
+            .split("fn configure_native_popup_window(")
+            .nth(1)
+            .and_then(|source| source.split("struct PopupGeometryContext").next())
+            .expect("native popup configuration should remain discoverable");
+
+        assert!(native_configuration.contains("install_external_click_dismiss_monitor(app)"));
+        assert!(source.contains("addGlobalMonitorForEventsMatchingMask_handler"));
+        assert!(source.contains("should_hide_after_external_mouse_down"));
     }
 
     #[test]

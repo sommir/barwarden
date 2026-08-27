@@ -5,10 +5,12 @@
 -import { ChangeDetectionStrategy, Component, computed, effect, input, output } from "@angular/core";
 +import { ChangeDetectionStrategy, Component, input, output } from "@angular/core";
 +import { FormsModule } from "@angular/forms";
-@@ -4,3 +4,10 @@
+@@ -4,3 +4,12 @@
 -import { JslibModule } from "@bitwarden/angular/jslib.module";
 -import { NoResults, NoSendsIcon } from "@bitwarden/assets/svg";
 -import { SendView } from "@bitwarden/common/tools/send/models/view/send.view";
++import { NoSendsIcon } from "@bitwarden/assets/svg";
++
 +import { PopupHeaderComponent } from "@bitwarden/browser-popup/layout/popup-header.component";
 +import { PopupPageComponent } from "@bitwarden/browser-popup/layout/popup-page.component";
 +import { ButtonComponent } from "@bitwarden/components/button/button.component";
@@ -19,7 +21,7 @@
 +import { SearchComponent } from "@bitwarden/components/search/search.component";
 +import { SkeletonComponent } from "@bitwarden/components/skeleton/skeleton.component";
 +import { I18nPipe } from "../../official-ui/official-ui-common";
-@@ -8,5 +15,4 @@
+@@ -8,5 +17,4 @@
 -  ButtonModule,
 -  NoItemsModule,
 -  SpinnerComponent,
@@ -29,7 +31,7 @@
 +  type OfficialTextSendCopyRequest,
 +  type OfficialTextSendListItem,
 +} from "./official-send-list-items-container.component";
-@@ -14,18 +19,0 @@
+@@ -14,18 +21,0 @@
 -import { SendSearchComponent } from "../send-search/send-search.component";
 -import { SendTableComponent } from "../send-table/send-table.component";
 -
@@ -48,12 +50,12 @@
 - * A container component for displaying the Send list with search, table, and empty states.
 - * Handles the presentation layer while delegating data management to services.
 - */
-@@ -33,2 +21,2 @@
+@@ -33,2 +23,2 @@
 -  selector: "tools-send-list",
 -  templateUrl: "./send-list.component.html",
 +  selector: "bw-official-send-list",
 +  standalone: true,
-@@ -36,7 +24,12 @@
+@@ -36,7 +26,12 @@
 -    CommonModule,
 -    JslibModule,
 -    ButtonModule,
@@ -73,14 +75,21 @@
 +    PopupPageComponent,
 +    SearchComponent,
 +    SkeletonComponent,
-@@ -43,0 +37 @@
+@@ -43,0 +39 @@
 +  templateUrl: "./official-send-list.component.html",
-@@ -46,4 +40,8 @@
+@@ -46 +42 @@
 -export class SendListComponent {
--  protected readonly noItemIcon = NoSendsIcon;
++export class OfficialSendListComponent {
+@@ -48,2 +43,0 @@
 -  protected readonly noResultsIcon = NoResults;
 -  protected readonly sendListState = SendListState;
-+export class OfficialSendListComponent {
+@@ -51,6 +45,7 @@
+-  readonly sends = input.required<SendView[]>();
+-  readonly loading = input<boolean>(false);
+-  readonly disableSend = input<boolean>(false);
+-  readonly listState = input<SendListState | null>(null);
+-  readonly searchText = input<string>("");
+-  readonly hideSearchBar = input<boolean>(false);
 +  readonly sends = input.required<readonly OfficialTextSendListItem[]>();
 +  readonly query = input.required<string>();
 +  readonly filtersVisible = input.required<boolean>();
@@ -88,24 +97,17 @@
 +  readonly loading = input.required<boolean>();
 +  readonly disabled = input.required<boolean>();
 +  readonly state = input.required<OfficialSendListState>();
-@@ -51,6 +49,6 @@
--  readonly sends = input.required<SendView[]>();
--  readonly loading = input<boolean>(false);
--  readonly disableSend = input<boolean>(false);
--  readonly listState = input<SendListState | null>(null);
--  readonly searchText = input<string>("");
--  readonly hideSearchBar = input<boolean>(false);
+@@ -58,3 +53,6 @@
+-  protected readonly showSearchBar = computed(
+-    () => (this.sends().length > 0 || this.searchText().length > 0) && !this.hideSearchBar(),
+-  );
 +  readonly queryChange = output<string>();
 +  readonly toggleFilters = output<void>();
 +  readonly filterChange = output<"" | "text">();
 +  readonly open = output<OfficialTextSendListItem | undefined>();
 +  readonly copyLink = output<OfficialTextSendCopyRequest>();
 +  readonly delete = output<OfficialTextSendListItem>();
-@@ -58,15 +56,2 @@
--  protected readonly showSearchBar = computed(
--    () => (this.sends().length > 0 || this.searchText().length > 0) && !this.hideSearchBar(),
--  );
--
+@@ -62,11 +60,2 @@
 -  protected readonly noSearchResults = computed(
 -    () => this.showSearchBar() && this.sends().length === 0,
 -  );
@@ -119,7 +121,7 @@
 -    });
 +  inputValue(event: Event): "" | "text" {
 +    return event.target instanceof HTMLSelectElement && event.target.value === "text" ? "text" : "";
-@@ -74,21 +58,0 @@
+@@ -74,21 +62,0 @@
 -
 -  readonly editSend = output<SendView>();
 -  readonly copySend = output<SendView>();
@@ -141,6 +143,6 @@
 -  protected onDeleteSend(send: SendView): void {
 -    this.deleteSend.emit(send);
 -  }
-@@ -95,0 +60,2 @@
+@@ -95,0 +64,2 @@
 +
 +export type OfficialSendListState = "empty" | "no-results" | "ready";

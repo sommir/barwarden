@@ -90,7 +90,7 @@ describe("mounted iOS 27 production route structure", () => {
 
       expect(nav).not.toBeNull();
       expect(getComputedStyle(page).getPropertyValue("--mac-page-bottom-safe").trim())
-        .toBe("88px");
+        .toBe("96px");
       expect(getComputedStyle(scroll).paddingBottom).toBe("var(--mac-page-bottom-safe)");
       expect(getComputedStyle(scroll).scrollPaddingBottom).toBe("var(--mac-page-bottom-safe)");
 
@@ -111,19 +111,19 @@ describe("mounted iOS 27 production route structure", () => {
       const ngSelect = select.querySelector<HTMLElement>("ng-select")!;
       const paint = select.querySelector<HTMLElement>("ng-select > .ng-select-container")!;
       const combobox = select.querySelector<HTMLElement>('input[role="combobox"]')!;
-      expect(getComputedStyle(select).width).toBe("160px");
+      expect(getComputedStyle(select).width).toBe("136px");
       expect(getComputedStyle(ngSelect).width).toBe("100%");
       expect(getComputedStyle(paint).width).toBe("100%");
       combobox.focus();
       fixture.detectChanges();
-      expect(getComputedStyle(select).width).toBe("160px");
+      expect(getComputedStyle(select).width).toBe("136px");
       expect(getComputedStyle(ngSelect).width).toBe("100%");
       expect(getComputedStyle(paint).width).toBe("100%");
       expect(getComputedStyle(select).outlineWidth).toBe("0px");
       expect(getComputedStyle(ngSelect).outlineWidth).toBe("0px");
       expect(getComputedStyle(paint).outlineWidth).toBe("2px");
-      expect(Number.parseFloat(getComputedStyle(select).height)).toBeGreaterThanOrEqual(44);
-      expect(getComputedStyle(paint).height).toBe("40px");
+      expect(getComputedStyle(select).height).toBe("40px");
+      expect(getComputedStyle(paint).height).toBe("36px");
     }
 
     fixture.destroy();

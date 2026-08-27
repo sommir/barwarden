@@ -103,6 +103,12 @@ OVERLAY_CONFIG="$(/usr/bin/mktemp "$REPOSITORY_ROOT/apps/menubar-tauri/src-tauri
 run_or_fail() {
   local code="$1"
   shift
+  if [[ "${NATIVE_AUTOFILL_LOCAL_DIAGNOSTICS:-0}" == 1 ]]; then
+    if ! "$@" 2>&1 | /usr/bin/tee "$WORK_ROOT/last-command.log" >&2; then
+      fail "$code"
+    fi
+    return
+  fi
   if ! "$@" >/dev/null 2>&1; then
     fail "$code"
   fi
@@ -120,7 +126,7 @@ SIGNING_CERTIFICATES="$WORK_ROOT/signing-certificates.txt"
   >"$SIGNING_CERTIFICATES" 2>/dev/null || \
   fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
 /usr/bin/grep -Fq \
-  'SHA-1 hash: 5B45F61068B29FCC8FFFF1A7E99B78DA9E9C4635' \
+  'SHA-1 hash: 30997D113A3CA12F7403BCCCE80F3F6E55AA9772' \
   "$SIGNING_CERTIFICATES" || fail NATIVE_AUTOFILL_LOCAL_SIGNING_CHAIN_INVALID
 /bin/rm -f "$SIGNING_CERTIFICATES"
 

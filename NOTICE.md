@@ -32,3 +32,12 @@ retained only as an upstream notice. All currently vendored source files are GPL
 v3.0 by default unless a file states otherwise. Local changes should remain
 outside the vendor tree where possible; if a vendor change is unavoidable,
 preserve its patch and notices.
+
+## Public Suffix List
+
+The native browser matching engine includes a generated form of the Public
+Suffix List from revision `e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20`.
+
+- Source: https://publicsuffix.org/list/public_suffix_list.dat
+- License: Mozilla Public License 2.0
+- Generated resource: `apps/macos-autofill/Agent/DomainMatchRules.json`

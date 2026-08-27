@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, input, output } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
+import { NoSendsIcon } from "@bitwarden/assets/svg";
+
 import { PopupHeaderComponent } from "@bitwarden/browser-popup/layout/popup-header.component";
 import { PopupPageComponent } from "@bitwarden/browser-popup/layout/popup-page.component";
 import { ButtonComponent } from "@bitwarden/components/button/button.component";
@@ -38,6 +40,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OfficialSendListComponent {
+  protected readonly noItemIcon = NoSendsIcon;
+
   readonly sends = input.required<readonly OfficialTextSendListItem[]>();
   readonly query = input.required<string>();
   readonly filtersVisible = input.required<boolean>();

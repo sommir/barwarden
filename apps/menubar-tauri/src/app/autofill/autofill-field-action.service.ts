@@ -2,12 +2,9 @@ import { Inject, Injectable, Optional } from "@angular/core";
 
 import type { AutoFillSecretField } from "./autofill-candidate.service";
 import {
-  decodeAutoFillApplicationContext,
-  decodeLiveAutoFillContext,
   projectAutoFillAgentSession,
   projectContextualCandidate,
   type ContextualCandidate,
-  type LayeredAutoFillContext,
 } from "./autofill-fill-context.model";
 import {
   AUTOFILL_NATIVE_HOST,
@@ -35,21 +32,15 @@ export class AutoFillFieldActionService {
   constructor(@Optional() @Inject(AUTOFILL_NATIVE_HOST) private readonly native: AutoFillNativeHost | null) {}
 
   async execute(
-    layered: LayeredAutoFillContext,
     session: AutoFillAgentSession,
     candidate: ContextualCandidate,
     field: AutoFillSecretField,
     options: AutoFillFieldActionOptions,
   ): Promise<AutoFillFieldActionOutcome> {
     if (!this.native) return unavailable();
-    let projected: LayeredAutoFillContext;
     let projectedSession: AutoFillAgentSession;
     let projectedCandidate: ContextualCandidate;
     try {
-      projected = Object.freeze({
-        application: decodeAutoFillApplicationContext(layered.application),
-        fillContext: layered.fillContext === null ? null : decodeLiveAutoFillContext(layered.fillContext),
-      });
       projectedSession = projectAutoFillAgentSession(session);
       projectedCandidate = projectContextualCandidate(candidate);
     } catch {
@@ -67,7 +58,7 @@ export class AutoFillFieldActionService {
       generation: projectedSession.generation,
       contextToken: authorization.contextToken,
     });
-    if (!await this.isCurrent(projected, projectedSession)) return unavailable();
+    if (!await this.isCurrentSession(projectedSession)) return unavailable();
     if (options.requiresReprompt && !options.repromptVerified) {
       const begin = await this.native.beginReprompt(scope).catch(() => ({ status: "unavailable" as const }));
       return begin.status === "pending"
@@ -75,49 +66,30 @@ export class AutoFillFieldActionService {
         : unavailable();
     }
     if (options.requiresReprompt && (!options.repromptReceipt || !options.repromptVerified)) return unavailable();
-    if (projected.fillContext !== null) {
-      const outcome = await this.native.fillDetected({
-        intent: "explicit",
-        fillContextToken: projected.fillContext.fillContextToken,
-        authorizations: [{ scope, mismatchConfirmed: authorization.requiresMismatchConfirmation }],
-        ...(options.repromptReceipt ? { repromptReceipt: options.repromptReceipt } : {}),
-      }).catch(() => null);
-      return outcome?.status === "success" && outcome.fields.length === 1 && outcome.fields[0] === field
-        ? Object.freeze({ status: "filled" as const, field })
-        : unavailable();
-    }
     const released = await this.native.releaseSecret({
       scope,
       mismatchConfirmed: authorization.requiresMismatchConfirmation,
       ...(options.repromptReceipt ? { repromptReceipt: options.repromptReceipt } : {}),
     }).catch(() => null);
     if (released?.status !== "success" || released.field !== field) return unavailable();
+    const pasted = await this.native.pasteText(released.value).then(() => true, () => false);
+    if (pasted) return Object.freeze({ status: "filled" as const, field });
     const copied = await this.native.copyText(released.value).then(() => true, () => false);
-    return copied
-      ? Object.freeze({ status: "copied" as const, field })
-      : unavailable();
+    return copied ? Object.freeze({ status: "copied" as const, field }) : unavailable();
   }
 
   async cancel(scope: AutoFillRepromptScope, receipt: string): Promise<void> {
     await this.native?.cancelReprompt(scope, receipt).catch(() => undefined);
   }
 
-  private async isCurrent(layered: LayeredAutoFillContext, session: AutoFillAgentSession): Promise<boolean> {
+  private async isCurrentSession(session: AutoFillAgentSession): Promise<boolean> {
     if (!this.native) return false;
-    const [entry, liveSession] = await Promise.all([
-      this.native.entryContext().catch(() => ({ status: "unavailable" as const })),
-      this.native.agentSession().catch(() => ({ status: "error" as const, code: "unavailable" })),
-    ]);
-    if (entry.status !== "available" || liveSession.status !== "success") return false;
-    return entry.application.bundleId === layered.application.bundleId
-      && entry.application.appName === layered.application.appName
+    const liveSession = await this.native.agentSession()
+      .catch(() => ({ status: "error" as const, code: "unavailable" }));
+    return liveSession.status === "success"
       && liveSession.accountId === session.accountId
       && liveSession.generation === session.generation
-      && liveSession.vaultRevision === session.vaultRevision
-      && (layered.fillContext === null
-        ? entry.fillContext === null
-        : entry.fillContext !== null
-          && entry.fillContext.fillContextToken === layered.fillContext.fillContextToken);
+      && liveSession.vaultRevision === session.vaultRevision;
   }
 }
 

@@ -102,6 +102,14 @@ describe("AutoFillSetupService", () => {
     expect(accessibility.startUnsupportedFallback).toHaveBeenCalledOnce();
   });
 
+  it("republishes the unlocked vault projection when recovering an already-enabled AutoFill setup", async () => {
+    const { service, projection } = harness(true, "enabled", null, "account-a");
+
+    await expect(service.recoverAtStartup()).resolves.toBe("ready");
+
+    expect(projection.reprojectCurrent).toHaveBeenCalledOnce();
+  });
+
   it("synchronizes a disabled field icon without probing or requesting Accessibility permission", async () => {
     const { service, accessibility } = harness(true, "enabled", null, "account-a", "denied", false);
 

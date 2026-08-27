@@ -279,8 +279,11 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
   }
 
   get hasPrimaryFill(): boolean {
-    return this.context?.snapshot().status === "ready"
-      && this.context.snapshot().context !== null;
+    const state = this.context?.snapshot();
+    return state?.status === "ready"
+      && state.context !== null
+      && state.context.action.mode !== "choose"
+      && state.context.action.fields.length > 0;
   }
 
   capabilityFields(candidate: ContextualCandidate): readonly AutoFillSecretField[] {
@@ -399,7 +402,6 @@ export class VaultAutoFillSuggestionsComponent implements OnDestroy {
     if (!item || !secretExists(item, field)) return;
     this.busyCipherId = candidate.cipherId;
     const outcome = await this.fieldActions.execute(
-      { application: state.application, fillContext: state.context },
       state.session,
       candidate,
       field,

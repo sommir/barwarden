@@ -5,6 +5,7 @@ apps/menubar-tauri/dist/
 apps/menubar-tauri/.generated/
 apps/menubar-tauri/src-tauri/gen/
 apps/menubar-tauri/src-tauri/target/
+apps/menubar-tauri/src-tauri/.tauri-native-autofill-local.json.*
 .DS_Store
 *.log
 logs/
@@ -41,3 +42,5 @@ design-qa.md
 .worktrees/
 output/playwright/
 test-results/
+artifacts/
+docs/ui-audit-*/

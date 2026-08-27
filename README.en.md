@@ -50,6 +50,10 @@ server's API implementation.
 
 - Stay in the menu bar and quickly open your vault, search items, and use the
   field you need.
+- Get AutoFill suggestions for the current app and domain, then fill a username,
+  password, or verification code into the previously focused input area.
+- Use macOS Password AutoFill, an optional input-field suggestion icon, and
+  either copy-only or copy-and-paste fill modes.
 - Sign in, unlock, lock, sign out, and synchronize a vault.
 - Browse and manage personal vault items; quickly copy or paste a field.
 - Generate passwords, passphrases, and usernames.
@@ -66,47 +70,31 @@ server's API implementation.
 Use only packages published by this repository. Check the corresponding Release
 for its Developer ID signing and Apple notarization status.
 
-## Supported scope
+## First setup
 
-| Item | Current support |
-| --- | --- |
-| System | macOS 13.0 (Ventura) or later |
-| Services | Bitwarden cloud or self-hosted, Vaultwarden |
-| Vault | Personal logins, cards, identities, and secure notes |
-| Distribution | GitHub Releases DMG and in-app updates |
+1. Sign in to a Bitwarden-compatible service. For a self-hosted service, set its
+   HTTPS server URL on the sign-in page first.
+2. In Barwarden, open Settings > AutoFill, choose a copy mode, and optionally
+   enable the input-field suggestion icon.
+3. To detect the current app, domain, or previously focused input area, follow
+   the in-app prompt and allow Barwarden in System Settings > Privacy & Security
+   > Accessibility.
+4. To use system Password AutoFill, enable Barwarden in the password or AutoFill
+   settings provided by your macOS version. The exact setting name varies by
+   macOS version.
+5. If Barwarden reports that its background AutoFill service needs attention,
+   allow Barwarden AutoFill in System Settings > General > Login Items, then try
+   again.
+6. Record or clear the global shortcut for opening Barwarden in Settings >
+   Keyboard Shortcuts.
 
-## Local development
-
-Requires macOS 13+, Node.js 22+, npm, Rust stable, and Xcode Command Line Tools.
-
-```bash
-npm ci
-npm run tauri:dev
-```
-
-Build a DMG:
-
-```bash
-npm run tauri:build
-```
-
-Common checks:
-
-```bash
-npm run test:brand
-npm test
-npm run build:web
-npm run check:publication
-```
-
-Build output is written to `apps/menubar-tauri/src-tauri/target/release/bundle/`
-and must not be committed.
+Accessibility permission lets Barwarden detect the current app and input area,
+then fill a selected field into the previously focused location.
 
 ## Documentation
 
 - [Contributing](CONTRIBUTING.md)
 - [Privacy](PRIVACY.md)
-- [Security reporting](SECURITY.md)
 - [License](LICENSE)
 - [Upstream and copyright notices](NOTICE.md)
 - [Third-party open-source components](THIRD_PARTY_NOTICES.md)

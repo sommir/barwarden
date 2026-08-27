@@ -855,7 +855,7 @@ describe("iOS 27 Vault workflows", () => {
     const host = fixture.nativeElement as HTMLElement;
     const group = getComputedStyle(host.querySelector<HTMLElement>("bit-item-group")!);
     const row = getComputedStyle(host.querySelector<HTMLElement>("bit-item")!);
-    expect(group.borderRadius).toBe("0px");
+    expect(group.borderRadius).toBe("12px");
     expect(group.boxShadow).toBe("none");
     expect(row.borderRadius).toBe("0px");
     expect(row.marginBottom).toBe("0px");

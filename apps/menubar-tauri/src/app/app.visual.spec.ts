@@ -9,6 +9,7 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from "@angular/platform-browser/testing";
+import { Component } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideNoopAnimations } from "@angular/platform-browser/animations";
 import { provideRouter } from "@angular/router";
@@ -19,11 +20,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GeneratorPageComponent } from "./generator/generator-page.component";
 import { GeneratorService } from "./generator/generator.service";
 import { PopupStateStore } from "./popup-state";
+import { PopupPageComponent } from "./layout/popup-page.component";
 import { SendPageComponent } from "./send/send-page.component";
 import { SettingsPageComponent } from "./settings/settings-page.component";
 import { SettingsService } from "./settings/settings.service";
 import { AuthFacade } from "./auth/auth.facade";
 import { demoVaultItems } from "./vault-demo";
+import { PopupHeaderComponent } from "./layout/popup-header.component";
 import { AccountSecurityPageComponent } from "./settings/account-security-page.component";
 import { VaultActionsService } from "./vault/vault-actions.service";
 import { VaultFacade } from "./vault/vault.facade";
@@ -33,6 +36,18 @@ import { VaultSettingsPageComponent } from "./settings/vault-settings-page.compo
 import { OfficialI18nService } from "./official-ui/official-i18n.service";
 import { officialCurrentAccountTestProviders } from "./official-ui/official-current-account.test-support";
 import { OfficialAccountSwitcherComponent } from "./upstream-overlays/auth/account-switching/official-account-switcher.component";
+
+@Component({
+  standalone: true,
+  imports: [PopupHeaderComponent, PopupPageComponent],
+  template: `
+    <popup-page class="macos-page macos-page--test">
+      <popup-header slot="header" pageTitle="测试标题"></popup-header>
+      <main data-testid="popup-content-start">内容</main>
+    </popup-page>
+  `,
+})
+class HeaderRhythmFixtureComponent {}
 
 function officialIconStyles(): string {
   return readFileSync(
@@ -123,6 +138,67 @@ describe("popup visual smoke classes", () => {
 
     root.removeAttribute("data-bw-window");
     cleanup();
+  });
+
+  it("renders a shared header/content divider for every popup header", async () => {
+    const cleanup = installVisualCss(
+      "apps/menubar-tauri/src/styles/macos-tokens.css",
+      "apps/menubar-tauri/src/styles/global.css",
+    );
+    await TestBed.configureTestingModule({
+      imports: [HeaderRhythmFixtureComponent],
+    }).compileComponents();
+
+    try {
+      const fixture = TestBed.createComponent(HeaderRhythmFixtureComponent);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const divider = host.querySelector<HTMLElement>('[data-testid="popup-header-divider"]');
+      const content = host.querySelector<HTMLElement>('[data-testid="popup-content-start"]')!;
+
+      expect(divider).not.toBeNull();
+      expect(getComputedStyle(divider!).height).toBe("1px");
+      expect(getComputedStyle(divider!).backgroundColor).toBe("rgba(92, 114, 146, 0.22)");
+      expect(getComputedStyle(content).marginTop).toBe("16px");
+
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      expect(getComputedStyle(content).marginTop).toBe("12px");
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("uses one search-to-content gap instead of stacked wrapper and scroll padding", () => {
+    const cleanup = installVisualCss(
+      "apps/menubar-tauri/src/styles/macos-tokens.css",
+      "apps/menubar-tauri/src/styles/global.css",
+    );
+    const page = document.createElement("popup-page");
+    page.innerHTML = `
+      <main>
+        <div data-testid="popup-above-scroll-area"><bw-root-search></bw-root-search></div>
+        <div data-testid="popup-layout-scroll-region"><section data-testid="first-content-section">内容</section></div>
+      </main>
+    `;
+    document.body.append(page);
+
+    try {
+      const above = page.querySelector<HTMLElement>('[data-testid="popup-above-scroll-area"]')!;
+      const scroll = page.querySelector<HTMLElement>('[data-testid="popup-layout-scroll-region"]')!;
+      expect(getComputedStyle(above).paddingTop).toBe("16px");
+      expect(getComputedStyle(above).paddingBottom).toBe("0px");
+      expect(getComputedStyle(scroll).paddingTop).toBe("0px");
+
+      document.documentElement.setAttribute("data-bw-compact-mode", "true");
+      expect(getComputedStyle(above).paddingTop).toBe("12px");
+      expect(getComputedStyle(above).paddingBottom).toBe("0px");
+      expect(getComputedStyle(scroll).paddingTop).toBe("0px");
+      document.documentElement.removeAttribute("data-bw-compact-mode");
+    } finally {
+      page.remove();
+      cleanup();
+    }
   });
 
   it("uses unboxed semantic field glyphs inside 44px action targets", () => {
@@ -242,6 +318,17 @@ describe("popup visual smoke classes", () => {
       /popup-page > main,[\s\S]*?background:\s*transparent !important;/,
     );
     expect(rootTokens).toContain("--mac-auth-background: #f4f8ff;");
+    expect(globalCss).toMatch(
+      /barwarden-root\.barwarden-root--authentication\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
+    );
+    expect(globalCss).toMatch(
+      /barwarden-root\.barwarden-root--authentication\s+:is\([\s\S]*?popup-page > main,[\s\S]*?background:\s*transparent !important;/s,
+    );
+    expect(globalCss).toMatch(
+      /body:has\(> barwarden-root\.barwarden-root--authentication\)\s*{[^}]*background:\s*var\(--mac-auth-background\) !important;/s,
+    );
+    expect(globalCss).not.toMatch(/barwarden-root:has\([^}]*bw-lock-page/s);
+    expect(globalCss).not.toContain(':root:not([data-bw-window="popout"]):has(');
   });
 
   it("uses a paint-only 2px glass scrollbar without scroll-time backdrop recomposition", () => {
@@ -273,6 +360,17 @@ describe("popup visual smoke classes", () => {
 
     expect(navigation).toContain("backdrop-filter: saturate(1.25) blur(16px);");
     expect(navigation).toContain("-webkit-backdrop-filter: saturate(1.25) blur(16px);");
+  });
+
+  it("respects reduced-transparency preferences for the bottom interaction shield", () => {
+    const globalCss = readFileSync(
+      join(process.cwd(), "apps/menubar-tauri/src/styles/global.css"),
+      "utf8",
+    );
+
+    expect(globalCss).toMatch(
+      /@media\s*\(prefers-reduced-transparency:\s*reduce\),\s*\(prefers-contrast:\s*more\)\s*{[\s\S]*?\.popup-shell::after[\s\S]*?backdrop-filter:\s*none;[\s\S]*?-webkit-backdrop-filter:\s*none;/s,
+    );
   });
 
   it("keeps the settings group canvas transparent while retaining solid setting rows", () => {
@@ -449,13 +547,13 @@ describe("popup visual smoke classes", () => {
     const indicator = cssDeclarations(globalCss, ".floating-tab-switcher__indicator");
 
     expect(switcher).toContain("position: absolute;");
-    expect(switcher).toContain("right: 14px;");
-    expect(switcher).toContain("bottom: 13px;");
-    expect(switcher).toContain("left: 14px;");
+    expect(switcher).toContain("right: var(--mac-tabbar-inline-offset);");
+    expect(switcher).toContain("bottom: var(--mac-tabbar-bottom-offset);");
+    expect(switcher).toContain("left: var(--mac-tabbar-inline-offset);");
     expect(switcher).toContain("height: var(--mac-tabbar-height);");
     expect(switcher).toContain("min-height: var(--mac-tabbar-height);");
     expect(switcher).toContain("padding: 4px 8px;");
-    expect(switcher).toContain("border-radius: 12px 12px 0 0;");
+    expect(switcher).toContain("border-radius: 12px;");
     expect(switcher).toContain("grid-template-columns: repeat(var(--segment-count), minmax(0, 1fr));");
     expect(segment).toContain("grid-template-rows: auto auto;");
     expect(segment).toContain("min-height: var(--mac-hit-size);");
@@ -489,18 +587,31 @@ describe("popup visual smoke classes", () => {
     );
 
     const heading = cssDeclarations(globalCss, ".macos-page-heading");
+    const leading = cssDeclarations(globalCss, ".macos-page-heading__leading");
+    const titles = cssDeclarations(globalCss, ".macos-page-heading__titles");
     const title = cssDeclarations(globalCss, "popup-header > header h1");
+    const projectedTitle = cssDeclarations(globalCss, "popup-header > header h1[bittypography]");
     const actions = cssDeclarations(globalCss, ".macos-page-heading__actions");
 
     expect(heading).toContain("display: grid;");
     expect(heading).toContain("grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);");
     expect(heading).toContain("width: 100%;");
-    expect(title).toContain("font-size: 17px;");
-    expect(title).toContain("line-height: 22px;");
-    expect(title).toContain("font-weight: 650;");
+    expect(leading).toContain("height: var(--mac-header-action-size);");
+    expect(titles).toContain("display: grid;");
+    expect(titles).toContain("height: var(--mac-header-action-size);");
+    expect(titles).toContain("place-items: center;");
+    expect(title).toContain("font-size: 17px !important;");
+    expect(title).toContain("box-sizing: border-box;");
+    expect(title).toContain("padding-top: var(--mac-header-title-optical-padding-top) !important;");
+    expect(title).toContain("line-height: var(--mac-header-title-line-height) !important;");
+    expect(title).toContain("font-weight: 650 !important;");
     expect(title).toContain("letter-spacing: -0.01em;");
     expect(title).toContain("text-align: center;");
+    expect(projectedTitle).toContain("font-size: 17px !important;");
+    expect(projectedTitle).toContain("line-height: var(--mac-header-title-line-height) !important;");
+    expect(projectedTitle).toContain("margin: 0 !important;");
     expect(actions).toContain("display: flex;");
+    expect(actions).toContain("height: var(--mac-header-action-size);");
     expect(actions).toContain("grid-column: 3;");
     expect(actions).toContain("justify-self: end;");
   });
@@ -674,13 +785,14 @@ describe("popup visual smoke classes", () => {
     expect(title).toContain("text-align: center;");
     expect(getComputedStyle(search).minHeight).toBe("44px");
     expect(getComputedStyle(search).borderRadius).toBe("12px");
+    expect(getComputedStyle(search).marginBottom).toBe("0px");
     expect(getComputedStyle(search).backgroundColor).toBe("rgb(234, 242, 255)");
     expect(getComputedStyle(search).boxShadow).toBe("none");
     expect(getComputedStyle(trigger).minHeight).toBe("44px");
     expect(getComputedStyle(trigger).backgroundColor).toBe("rgba(0, 0, 0, 0)");
     expect(getComputedStyle(trigger).borderTopWidth).toBe("0px");
     expect(getComputedStyle(group).borderTopWidth).toBe("0px");
-    expect(getComputedStyle(group).borderRadius).toBe("0px");
+    expect(getComputedStyle(group).borderRadius).toBe("12px");
     expect(getComputedStyle(row).minHeight).toBe("52px");
     expect(getComputedStyle(row).borderBottomWidth).toBe("1px");
     expect(getComputedStyle(row).borderRadius).toBe("0px");
@@ -691,10 +803,10 @@ describe("popup visual smoke classes", () => {
     expect(getComputedStyle(empty).borderRadius).toBe("0px");
     expect(getComputedStyle(empty).boxShadow).toBe("none");
     expect(globalCss).toMatch(
-      /popup-page\s*>\s*main\s*>\s*div:has\(bw-root-search\),[\s\S]*?popup-page\s*>\s*main\s*>\s*div:has\(bit-search\)\s*{[^}]*padding-block:\s*var\(--mac-space-2\) !important;/,
+      /popup-page\s*>\s*main\s*>\s*div:has\(bw-root-search\),[\s\S]*?popup-page\s*>\s*main\s*>\s*div:has\(bit-search\)\s*{[^}]*padding-top:\s*var\(--mac-space-4\) !important;[^}]*padding-bottom:\s*0 !important;/,
     );
     expect(globalCss).toMatch(
-      /div:has\(bw-root-search\)\s*\+\s*\[data-testid="popup-layout-scroll-region"\],[\s\S]*?div:has\(bit-search\)\s*\+\s*\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-top:\s*var\(--mac-space-2\) !important;/,
+      /div:has\(bw-root-search\)\s*\+\s*\[data-testid="popup-layout-scroll-region"\],[\s\S]*?div:has\(bit-search\)\s*\+\s*\[data-testid="popup-layout-scroll-region"\]\s*{[^}]*padding-top:\s*0 !important;/,
     );
     expect(hierarchy).toContain("display: flex;");
     expect(hierarchy).toContain("flex-direction: column;");
@@ -723,11 +835,13 @@ describe("popup visual smoke classes", () => {
       /bw-vault-hierarchy,[\s\S]*app-vault-list-items-container,[\s\S]*bw-retained-new-item-dropdown\s*{\s*display:\s*block;/,
     );
     expect(globalCss).not.toContain(".vault-progressive-loading");
-    expect(headerAdd).toContain("width: 44px;");
-    expect(headerAdd).toContain("height: 44px;");
+    expect(headerAdd).toContain("width: var(--mac-header-action-size);");
+    expect(headerAdd).toContain("height: var(--mac-header-action-size);");
     expect(headerAdd).toContain("border-radius: 999px;");
     expect(headerAdd).toContain("place-items: center;");
     expect(headerAdd).toContain("font-size: 0;");
+    expect(headerAddContent).toContain("width: var(--mac-header-action-disc-size) !important;");
+    expect(headerAddContent).toContain("height: var(--mac-header-action-disc-size) !important;");
     expect(headerAddContent).toContain("gap: 0 !important;");
     expect(headerAddLabel).toContain("display: none;");
     expect(headerAddIcon).toContain("transform: translateY(1px);");
@@ -777,7 +891,8 @@ describe("popup visual smoke classes", () => {
       "utf8",
     );
 
-    expect(menu).toContain("min-width: 156px;");
+    expect(menu).toContain("min-width: 148px;");
+    expect(menu).toContain("gap: 0;");
     expect(menu).toContain("border-radius: 12px;");
     expect(menu).toContain("box-shadow:");
     expect(menu).toContain("animation-name: macos-menu-appear;");
@@ -880,9 +995,10 @@ describe("popup visual smoke classes", () => {
     const actions = cssDeclarations(globalCss, ".app-update-card__actions");
     const notice = cssDeclarations(globalCss, ".app-update-notice");
 
-    expect(card).toContain("border: 1px solid var(--mac-border-subtle);");
-    expect(card).toContain("border-radius: var(--mac-row-radius);");
-    expect(card).toContain("background: var(--mac-surface-solid);");
+    expect(card).toContain("border: 0;");
+    expect(card).toContain("border-block: 1px solid var(--mac-border-subtle);");
+    expect(card).toContain("border-radius: 0;");
+    expect(card).toContain("background: transparent;");
     expect(header).toContain("display: flex;");
     expect(actions).toContain("justify-content: flex-end;");
     expect(notice).toContain("position: absolute;");

@@ -14,7 +14,7 @@ import { provideNoopAnimations } from "@angular/platform-browser/animations";
 import { By } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
 import { firstValueFrom, type Observable } from "rxjs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
 import { NoResults, VaultOpen } from "@bitwarden/assets/svg";
@@ -87,6 +87,10 @@ describe("VaultListPageComponent", () => {
         ...officialCurrentAccountTestProviders(),
       ],
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("uses the immediate displayed Vault count after silent external churn", async () => {
@@ -693,7 +697,8 @@ describe("VaultListPageComponent", () => {
     expect(host.textContent).toContain("GitHub");
   });
 
-  it("applies native search immediately while the initial vault is loading", async () => {
+  it("keeps native search typing immediate while the initial vault is loading", async () => {
+    vi.useFakeTimers();
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");
     store.setSyncing(true);
@@ -717,10 +722,17 @@ describe("VaultListPageComponent", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
 
+    expect(input.value).toBe("github");
+    expect(vault.queryValue()).toBe("");
+
+    await vi.advanceTimersByTimeAsync(120);
+    fixture.detectChanges();
+
     expect(vault.queryValue()).toBe("github");
   });
 
   it("shows focused search results and restores the hierarchy after clearing", async () => {
+    vi.useFakeTimers();
     const store = new PopupStateStore();
     store.setItems(demoVaultItems, demoFolders);
     await TestBed.configureTestingModule({
@@ -740,6 +752,11 @@ describe("VaultListPageComponent", () => {
     input.value = "card";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
+    expect(host.querySelector("bw-vault-hierarchy")).not.toBeNull();
+
+    await vi.advanceTimersByTimeAsync(120);
+    fixture.detectChanges();
+
     expect(host.querySelector("bw-vault-hierarchy")).toBeNull();
     expect(fixture.componentInstance.sections.flatMap((section) => section.items)
       .map((item) => item.name)).toEqual(["Travel card"]);
@@ -747,7 +764,52 @@ describe("VaultListPageComponent", () => {
     input.value = "";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
+    expect(host.querySelector("bw-vault-hierarchy")).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(120);
+    fixture.detectChanges();
+
     expect(host.querySelector("bw-vault-hierarchy")).not.toBeNull();
+  });
+
+  it("keeps typing responsive by deferring Vault filtering until search input settles", async () => {
+    vi.useFakeTimers();
+    const store = new PopupStateStore();
+    store.setItems(demoVaultItems, demoFolders);
+    await TestBed.configureTestingModule({
+      imports: [VaultListPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PopupStateStore, useValue: store },
+        VaultFacade,
+        { provide: VaultActionsService, useValue: {} },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(VaultListPageComponent);
+    const vault = TestBed.inject(VaultFacade);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const input = host.querySelector<HTMLInputElement>('[aria-label="搜索密码库"]')!;
+
+    input.value = "card";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(input.value).toBe("card");
+    expect(vault.queryValue()).toBe("");
+    expect(host.querySelector("bw-vault-hierarchy")).not.toBeNull();
+
+    await vi.advanceTimersByTimeAsync(119);
+    fixture.detectChanges();
+    expect(vault.queryValue()).toBe("");
+
+    await vi.advanceTimersByTimeAsync(1);
+    fixture.detectChanges();
+
+    expect(vault.queryValue()).toBe("card");
+    expect(host.querySelector("bw-vault-hierarchy")).toBeNull();
+    expect(fixture.componentInstance.sections.flatMap((section) => section.items)
+      .map((item) => item.name)).toEqual(["Travel card"]);
   });
 
   it("places the root header in the above-scroll slot and marks the macOS surface", async () => {
@@ -774,6 +836,44 @@ describe("VaultListPageComponent", () => {
     expect(page?.classList).toContain("macos-page--vault-list");
     expect(page?.dataset.vaultState).toBe("ready");
     expect(host.querySelector("bw-vault-hierarchy")).not.toBeNull();
+  });
+
+  it("keeps scrolling Vault rows behind an opaque search layer", async () => {
+    const cleanupVisualCss = installVaultVisualCss();
+    const store = new PopupStateStore();
+    store.setItems(demoVaultItems, demoFolders);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [VaultListPageComponent],
+        providers: [
+          provideRouter([]),
+          { provide: PopupStateStore, useValue: store },
+          VaultFacade,
+          { provide: VaultActionsService, useValue: {} },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(VaultListPageComponent);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const searchLayer = host.querySelector<HTMLElement>(
+        "popup-page.macos-page--vault-list > main > div:has(> bw-root-search)",
+      )!;
+      const searchLayerStyle = getComputedStyle(searchLayer);
+
+      expect(searchLayer).not.toBeNull();
+      expect(searchLayerStyle.position).toBe("relative");
+      expect(searchLayerStyle.zIndex).toBe("2");
+      expect(searchLayerStyle.isolation).toBe("isolate");
+      expect(searchLayerStyle.paddingBottom).toBe("8px");
+      expect(searchLayerStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+
+      fixture.destroy();
+    } finally {
+      cleanupVisualCss();
+    }
   });
 
   it("renders the title-bar New menu without legacy filter context", async () => {
@@ -1140,7 +1240,12 @@ describe("VaultListPageComponent", () => {
     const store = new PopupStateStore();
     store.setItems(
       [
-        { ...demoVaultItems[0]!, id: "search-one", name: "Search One", favorite: false },
+        {
+          ...demoVaultItems[0]!,
+          id: "search-one",
+          name: "Search One With An Intentionally Long Vault Item Name That Must Truncate",
+          favorite: false,
+        },
         { ...demoVaultItems[0]!, id: "search-two", name: "Search Two", favorite: false },
       ],
       demoFolders,
@@ -1179,6 +1284,11 @@ describe("VaultListPageComponent", () => {
       expect(getComputedStyle(rows![0]!).borderLeftWidth).toBe("0px");
       expect(getComputedStyle(rows![0]!).borderRadius).toBe("0px");
       expect(getComputedStyle(rows![0]!).boxShadow).toBe("none");
+      const itemName = rows![0]!.querySelector<HTMLElement>('[data-testid="item-name"]')!;
+      expect(itemName.textContent).toContain("Intentionally Long Vault Item Name");
+      expect(getComputedStyle(itemName).overflow).toBe("hidden");
+      expect(getComputedStyle(itemName).textOverflow).toBe("ellipsis");
+      expect(getComputedStyle(itemName).whiteSpace).toBe("nowrap");
       document.body.classList.add("tw-bit-compact");
       expect(getComputedStyle(rows![0]!).minHeight).toBe("44px");
       document.body.classList.remove("tw-bit-compact");
@@ -1216,6 +1326,7 @@ describe("VaultListPageComponent", () => {
   });
 
   it("clears row menu ownership when search hides the open row", async () => {
+    vi.useFakeTimers();
     const store = new PopupStateStore();
     store.setItems(demoVaultItems, demoFolders);
     await TestBed.configureTestingModule({
@@ -1243,10 +1354,14 @@ describe("VaultListPageComponent", () => {
     search.dispatchEvent(new Event("input", { bubbles: true }));
     fixture.detectChanges();
     expect(fixture.componentInstance.openMenuRowId).toBeNull();
+    await vi.advanceTimersByTimeAsync(120);
+    fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
     search.value = "";
     search.dispatchEvent(new Event("input", { bubbles: true }));
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(120);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();

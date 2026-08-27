@@ -122,14 +122,35 @@ describe("AutoFillContextualCandidatesService", () => {
     expect(vi.mocked(host.queryCandidates).mock.calls.every(([request]) => request.accountId === "account-a")).toBe(true);
   });
 
-  it("returns a fixed unavailable error for any field query rejection", async () => {
+  it("uses successful field query results when one field query rejects", async () => {
     const host: AutoFillCandidateHost = {
       queryCandidates: vi.fn(async (request) => {
         if (request.field === "password") throw new Error("native candidate secret detail");
-        return response(`${request.field}-token`, []);
+        return response(`${request.field}-token`, [candidate(`${request.field}-login`, "exact")]);
       }),
     };
     const service = new AutoFillContextualCandidatesService(new AutoFillCandidateService(host), liveHost());
+
+    await expect(service.queryAll(application, session, "")).resolves.toEqual([
+      expect.objectContaining({
+        cipherId: "username-login",
+        availableFields: ["username"],
+      }),
+      expect.objectContaining({
+        cipherId: "totp-login",
+        availableFields: ["totp"],
+      }),
+    ]);
+  });
+
+  it("returns a fixed unavailable error when every field query rejects", async () => {
+    const host: AutoFillCandidateHost = {
+      queryCandidates: vi.fn(async () => {
+        throw new Error("native candidate secret detail");
+      }),
+    };
+    const service = new AutoFillContextualCandidatesService(new AutoFillCandidateService(host), liveHost());
+
     await expect(service.queryAll(application, session, "")).rejects.toEqual(new AutoFillCandidatesUnavailableError());
   });
 });

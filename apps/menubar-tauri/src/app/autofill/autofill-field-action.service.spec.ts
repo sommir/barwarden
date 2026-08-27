@@ -30,54 +30,81 @@ const candidate: ContextualCandidate = {
 };
 
 describe("AutoFillFieldActionService", () => {
-  it("fills exactly the selected value into the live focused field", async () => {
+  it("pastes the selected value without classifying the previously focused input", async () => {
     const native = host();
-    vi.mocked(native.fillDetected).mockResolvedValue({ status: "success", fields: ["password"] });
+    vi.mocked(native.releaseSecret).mockResolvedValue({ status: "success", field: "password", value: "selected-password" });
+    vi.mocked(native.pasteText).mockResolvedValue(undefined);
     const service = new AutoFillFieldActionService(native);
 
-    await expect(service.execute({ application, fillContext: context }, session, candidate, "password", {
+    await expect(service.execute(session, candidate, "password", {
       mismatchConfirmed: false, requiresReprompt: false,
     })).resolves.toEqual({ status: "filled", field: "password" });
-    expect(native.fillDetected).toHaveBeenCalledWith({
-      intent: "explicit",
-      fillContextToken: context.fillContextToken,
-      authorizations: [{
-        scope: expect.objectContaining({ field: "password", contextToken: "password-token" }),
-        mismatchConfirmed: false,
-      }],
+    expect(native.releaseSecret).toHaveBeenCalledWith({
+      scope: expect.objectContaining({ field: "password", contextToken: "password-token" }),
+      mismatchConfirmed: false,
     });
-    expect(native.releaseSecret).not.toHaveBeenCalled();
+    expect(native.pasteText).toHaveBeenCalledWith("selected-password");
+    expect(native.fillDetected).not.toHaveBeenCalled();
+    expect(native.entryContext).not.toHaveBeenCalled();
   });
 
-  it("copies exactly the selected value when the application has no writable field", async () => {
+  it("pastes the selected value when no detected field context is available", async () => {
     const native = host();
     vi.mocked(native.entryContext).mockResolvedValue({ status: "available", application, fillContext: null });
     vi.mocked(native.releaseSecret).mockResolvedValue({ status: "success", field: "username", value: "person@example.test" });
-    vi.mocked(native.copyText).mockResolvedValue(undefined);
+    vi.mocked(native.pasteText).mockResolvedValue(undefined);
     const service = new AutoFillFieldActionService(native);
 
-    await expect(service.execute({ application, fillContext: null }, session, candidate, "username", {
+    await expect(service.execute(session, candidate, "username", {
       mismatchConfirmed: false, requiresReprompt: false,
-    })).resolves.toEqual({ status: "copied", field: "username" });
-    expect(native.copyText).toHaveBeenCalledWith("person@example.test");
+    })).resolves.toEqual({ status: "filled", field: "username" });
+    expect(native.pasteText).toHaveBeenCalledWith("person@example.test");
     expect(native.fillDetected).not.toHaveBeenCalled();
   });
 
-  it("fails closed when copying the released value fails", async () => {
+  it("pastes a generated TOTP through the generic field action without classifying the input", async () => {
+    const native = host();
+    const totpCandidate: ContextualCandidate = {
+      ...candidate,
+      availableFields: ["username", "password", "totp"],
+      authorizations: immutableAuthorizationMap([
+        ...candidate.authorizations.entries(),
+        ["totp", { contextToken: "totp-token", requiresMismatchConfirmation: false }],
+      ]),
+    };
+    vi.mocked(native.releaseSecret).mockResolvedValue({ status: "success", field: "totp", value: "123456" });
+    vi.mocked(native.pasteText).mockResolvedValue(undefined);
+    const service = new AutoFillFieldActionService(native);
+
+    await expect(service.execute(session, totpCandidate, "totp", {
+      mismatchConfirmed: false, requiresReprompt: false,
+    })).resolves.toEqual({ status: "filled", field: "totp" });
+    expect(native.releaseSecret).toHaveBeenCalledWith({
+      scope: expect.objectContaining({ field: "totp", contextToken: "totp-token" }),
+      mismatchConfirmed: false,
+    });
+    expect(native.pasteText).toHaveBeenCalledWith("123456");
+    expect(native.fillDetected).not.toHaveBeenCalled();
+    expect(native.entryContext).not.toHaveBeenCalled();
+  });
+
+  it("copies the released value when generic paste is unavailable", async () => {
     const native = host();
     vi.mocked(native.entryContext).mockResolvedValue({ status: "available", application, fillContext: null });
     vi.mocked(native.releaseSecret).mockResolvedValue({ status: "success", field: "username", value: "person@example.test" });
-    vi.mocked(native.copyText).mockRejectedValue(new Error("clipboard unavailable"));
+    vi.mocked(native.pasteText).mockRejectedValue(new Error("paste unavailable"));
+    vi.mocked(native.copyText).mockResolvedValue(undefined);
     const service = new AutoFillFieldActionService(native);
 
-    await expect(service.execute({ application, fillContext: null }, session, candidate, "username", {
+    await expect(service.execute(session, candidate, "username", {
       mismatchConfirmed: false, requiresReprompt: false,
-    })).resolves.toEqual({ status: "unavailable" });
+    })).resolves.toEqual({ status: "copied", field: "username" });
+    expect(native.copyText).toHaveBeenCalledWith("person@example.test");
   });
 
   it("never releases a field absent from the candidate", async () => {
     const service = new AutoFillFieldActionService(host());
-    await expect(service.execute({ application, fillContext: null }, session, candidate, "totp", {
+    await expect(service.execute(session, candidate, "totp", {
       mismatchConfirmed: false, requiresReprompt: false,
     })).resolves.toEqual({ status: "unavailable" });
   });
