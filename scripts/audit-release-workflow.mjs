@@ -12,6 +12,7 @@ const RELEASE_SECRET_NAMES = [
   "APPLE_API_KEY",
   "APPLE_API_KEY_BASE64",
 ];
+const REQUIRED_XCODE_DIR = "/Applications/Xcode_16.4.app/Contents/Developer";
 
 function extractTopLevelBlock(source, key) {
   const lines = source.split(/\r?\n/u);
@@ -79,6 +80,12 @@ export function auditReleaseWorkflow(source) {
     if (/^      contents:\s*write\s*$/mu.test(verifyJob)) {
       errors.push("verify job must not receive contents write permission");
     }
+    if (!verifyJob.includes(`DEVELOPER_DIR: ${REQUIRED_XCODE_DIR}`)) {
+      errors.push("verify job must select the supported Xcode toolchain");
+    }
+    if (!verifyJob.includes("scripts/build-native-autofill.sh")) {
+      errors.push("verify job must compile the unsigned native AutoFill components");
+    }
   }
 
   const releaseJob = extractJob(source, "release");
@@ -139,6 +146,9 @@ export function auditReleaseWorkflow(source) {
   }
   if (!signedBuildStep.includes("scripts/build-native-autofill-release.sh")) {
     errors.push("release build must use the complete native AutoFill builder");
+  }
+  if (!signedBuildStep.includes(`DEVELOPER_DIR: ${REQUIRED_XCODE_DIR}`)) {
+    errors.push("release build must select the supported Xcode toolchain");
   }
   if (!signedBuildStep.includes("scripts/download-native-autofill-provider-profile.mjs")) {
     errors.push("release build must download the provider profile ephemerally");

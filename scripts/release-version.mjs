@@ -30,6 +30,12 @@ function packageVersionFromToml(source, packageName) {
   throw new Error(`missing ${packageName} package version`);
 }
 
+function valueFromXcconfig(source, key) {
+  const match = source.match(new RegExp(`^${key}\\s*=\\s*([^\\s#]+)\\s*$`, "mu"));
+  if (!match) throw new Error(`missing ${key} in xcconfig`);
+  return match[1];
+}
+
 export function assertReleaseVersionSync(root = DEFAULT_ROOT) {
   const expected = readReleaseVersion(root);
   const tauri = JSON.parse(
@@ -43,7 +49,11 @@ export function assertReleaseVersionSync(root = DEFAULT_ROOT) {
     readFileSync(join(root, "apps/menubar-tauri/src-tauri/Cargo.lock"), "utf8"),
     "barwarden",
   );
-  for (const actual of [tauri, cargo, lock]) {
+  const nativeAutoFill = valueFromXcconfig(
+    readFileSync(join(root, "apps/macos-autofill/Config/Native.xcconfig"), "utf8"),
+    "MARKETING_VERSION",
+  );
+  for (const actual of [tauri, cargo, lock, nativeAutoFill]) {
     if (actual !== expected) throw new Error("release version mismatch");
   }
   return expected;

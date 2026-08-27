@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -21,6 +21,19 @@ jobs:
           cache: npm
       - run: npm install --global npm@11.6.2
       - run: npm ci --legacy-peer-deps
+      - name: Build unsigned native AutoFill components
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+        run: |
+          set -euo pipefail
+          work_root="$(mktemp -d "$RUNNER_TEMP/native-autofill.XXXXXX")"
+          trap 'rm -rf "$work_root"' EXIT
+          test -x "$DEVELOPER_DIR/usr/bin/xcodebuild"
+          CONFIGURATION=Release \
+          DERIVED_DATA_PATH="$work_root/derived" \
+          STAGING_DIR="$work_root/staging" \
+          CODE_SIGNING_ALLOWED=NO \
+          scripts/build-native-autofill.sh
       - run: npm run check:publication
       - run: cargo fetch --locked --manifest-path apps/menubar-tauri/src-tauri/Cargo.toml
       - run: npm run licenses:check
