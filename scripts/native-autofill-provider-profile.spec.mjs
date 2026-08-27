@@ -1,11 +1,41 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { validateNativeAutoFillProviderProfile } from "./native-autofill-provider-profile.mjs";
+import {
+  loadNativeAutoFillProviderProfile,
+  validateNativeAutoFillProviderProfile,
+} from "./native-autofill-provider-profile.mjs";
+
+test("loads provisioning profile date and certificate data without lossy whole-plist JSON conversion", () => {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-profile-plist-"));
+  try {
+    const plistPath = join(root, "profile.plist");
+    const plist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>TeamIdentifier</key><array><string>K7LY92JY96</string></array>
+  <key>ProvisionsAllDevices</key><true/>
+  <key>ExpirationDate</key><date>2099-01-01T00:00:00Z</date>
+  <key>DeveloperCertificates</key><array><data>AQID</data><data>BAUG</data></array>
+  <key>Entitlements</key><dict><key>com.apple.security.app-sandbox</key><true/></dict>
+</dict></plist>\n`;
+    writeFileSync(plistPath, plist);
+
+    assert.deepEqual(loadNativeAutoFillProviderProfile(plistPath), {
+      TeamIdentifier: ["K7LY92JY96"],
+      ProvisionsAllDevices: true,
+      ExpirationDate: "2099-01-01T00:00:00Z",
+      DeveloperCertificates: ["AQID", "BAUG"],
+      Entitlements: { "com.apple.security.app-sandbox": true },
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 function certificate(root, name, team = "K7LY92JY96") {
   const key = join(root, `${name}.key`);
@@ -65,6 +95,18 @@ test("accepts absent, exact, or Team-wildcard App Group authorization", () => {
     assert.doesNotThrow(() => validateNativeAutoFillProviderProfile(absent, signer));
     assert.doesNotThrow(() => validateNativeAutoFillProviderProfile(profile(signer), signer));
     assert.doesNotThrow(() => validateNativeAutoFillProviderProfile(wildcard, signer));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("accepts a Developer ID profile that leaves sandbox enforcement to the signed extension", () => {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-profile-sandbox-"));
+  try {
+    const signer = certificate(root, "signer");
+    const value = profile(signer);
+    delete value.Entitlements["com.apple.security.app-sandbox"];
+    assert.doesNotThrow(() => validateNativeAutoFillProviderProfile(value, signer));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

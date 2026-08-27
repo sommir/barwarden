@@ -125,8 +125,10 @@ PROVIDER_EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$
       process.exit(valid ? 0 : 1);
     } catch { process.exit(1); }
   });' || fail NATIVE_AUTOFILL_LAUNCH_AGENT_INVALID
+REGISTRATION_SYMBOLS="$(/usr/bin/nm -m "$APP_PATH/Contents/MacOS/$APP_EXECUTABLE" 2>/dev/null)" || \
+  fail NATIVE_AUTOFILL_AGENT_REGISTRATION_SURFACE_MISSING
 for command_name in autofill_agent_registration_status autofill_agent_register autofill_agent_unregister; do
-  /usr/bin/strings "$APP_PATH/Contents/MacOS/$APP_EXECUTABLE" | /usr/bin/grep -Fqx "$command_name" || \
+  [[ "$REGISTRATION_SYMBOLS" == *"$command_name"* ]] || \
     fail NATIVE_AUTOFILL_AGENT_REGISTRATION_SURFACE_MISSING
 done
 
@@ -172,7 +174,8 @@ done
   fail NATIVE_AUTOFILL_OUTER_SIGNATURE_INVALID
 for signature_file in "$TEMP_ROOT/app-signature" "$TEMP_ROOT/provider-signature" "$TEMP_ROOT/agent-signature"; do
   [[ "$(component_value TeamIdentifier "$signature_file")" == K7LY92JY96 ]] || fail NATIVE_AUTOFILL_TEAM_MISMATCH
-  /usr/bin/grep -Eq '^flags=.*\(.*runtime.*\)' "$signature_file" || fail NATIVE_AUTOFILL_HARDENED_RUNTIME_MISSING
+  /usr/bin/grep -Eq '(^|[[:space:]])flags=0x[[:xdigit:]]+\([^)]*runtime[^)]*\)' "$signature_file" || \
+    fail NATIVE_AUTOFILL_HARDENED_RUNTIME_MISSING
 done
 [[ "$(component_value Identifier "$TEMP_ROOT/app-signature")" == com.sommir.barwarden ]] || \
   fail NATIVE_AUTOFILL_BUNDLE_ID_MISMATCH
@@ -241,11 +244,10 @@ validate_provider_profile() {
     /usr/bin/openssl cms -verify -inform DER -noverify \
       -in "$profile_path" -out "$output_plist" >/dev/null 2>&1 || return 1
   fi
-  /usr/bin/plutil -convert json -o "$TEMP_ROOT/provider-profile.json" "$output_plist" 2>/dev/null || return 1
-  /usr/bin/codesign -d --extract-certificates "$TEMP_ROOT/provider-signer-" "$PROVIDER_PATH" >/dev/null 2>&1 || return 1
+  /usr/bin/codesign -d --extract-certificates="$TEMP_ROOT/provider-signer-" "$PROVIDER_PATH" >/dev/null 2>&1 || return 1
   [[ -f "$TEMP_ROOT/provider-signer-0" ]] || return 1
   PROVIDER_PROFILE_SUMMARY="$(node "$SCRIPT_DIR/native-autofill-provider-profile.mjs" \
-    "$TEMP_ROOT/provider-profile.json" "$TEMP_ROOT/provider-signer-0" 2>/dev/null)" || return 1
+    "$output_plist" "$TEMP_ROOT/provider-signer-0" 2>/dev/null)" || return 1
 }
 [[ ! -e "$APP_PATH/Contents/embedded.provisionprofile" ]] || fail NATIVE_AUTOFILL_INVENTORY_UNEXPECTED
 PROVIDER_PROFILE_SUMMARY=""
@@ -300,7 +302,7 @@ MOUNTED=1
 MOUNTED_APP_COUNT="$(/usr/bin/find -P "$MOUNT_PATH" -mindepth 1 -maxdepth 1 -type d -name '*.app' -print | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
 [[ "$MOUNTED_APP_COUNT" == 1 && -d "$MOUNT_PATH/$APP_NAME" ]] || fail NATIVE_AUTOFILL_INVENTORY_UNEXPECTED
 MOUNTED_TOP_LEVEL_COUNT="$(/usr/bin/find -P "$MOUNT_PATH" -mindepth 1 -maxdepth 1 -print | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
-[[ "$MOUNTED_TOP_LEVEL_COUNT" == 2 && -L "$MOUNT_PATH/Applications" && "$(/bin/readlink "$MOUNT_PATH/Applications")" == /Applications ]] || \
+[[ "$MOUNTED_TOP_LEVEL_COUNT" == 2 && -L "$MOUNT_PATH/Applications" && "$(/usr/bin/readlink "$MOUNT_PATH/Applications")" == /Applications ]] || \
   fail NATIVE_AUTOFILL_DMG_INVENTORY_INVALID
 /usr/bin/diff -qr "$APP_PATH" "$MOUNT_PATH/$APP_NAME" >/dev/null 2>&1 || fail NATIVE_AUTOFILL_DMG_APP_MISMATCH
 /usr/bin/hdiutil detach "$MOUNT_PATH" -quiet >"$TEMP_ROOT/hdiutil-detach" 2>&1 || fail NATIVE_AUTOFILL_DMG_DETACH_FAILED

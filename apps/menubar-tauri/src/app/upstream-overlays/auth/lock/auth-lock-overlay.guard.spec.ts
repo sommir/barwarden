@@ -11,7 +11,7 @@ const root = process.cwd();
 const vendorRoot = join(root, "vendor/bitwarden-clients");
 const overlayRoot = join(root, "apps/menubar-tauri/src/app/upstream-overlays/auth/lock");
 const manifestPath = join(overlayRoot, "official-master-password-lock.transform-manifest.json");
-const manifestDigest = "4d2be5b07356526121e1879b1541ba975acb1521e553ad53398cb6a677efaa7a";
+const manifestDigest = "c0b1710874d36bc6b2817cdfbfefb42cc5ac60faa6ab90d41a0c6f733122dea7";
 const expectedRevision = [
   "https://github.com/bitwarden/clients.git",
   "f47b6946e01aed474875789081966d311d5b8289",

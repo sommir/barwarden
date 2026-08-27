@@ -76,6 +76,7 @@ assert_rejected "$(mutate provider_profile_key 'fixture.inventory[1].profileAppl
 assert_rejected "$(mutate provider_app_id 'fixture.inventory[1].applicationIdentifier = "K7LY92JY96.com.example.provider";')" NATIVE_AUTOFILL_PROVIDER_ENTITLEMENT_INVALID
 assert_rejected "$(mutate provider_team_id 'fixture.inventory[1].developerTeamIdentifier = "OTHERTEAM1";')" NATIVE_AUTOFILL_PROVIDER_ENTITLEMENT_INVALID
 assert_passes "$(mutate provider_profile_group_absent 'fixture.inventory[1].profileEntitlementKeys = fixture.inventory[1].profileEntitlementKeys.filter((key) => key !== "com.apple.security.application-groups");')"
+assert_passes "$(mutate provider_profile_sandbox_absent 'fixture.inventory[1].profileEntitlementKeys = fixture.inventory[1].profileEntitlementKeys.filter((key) => key !== "com.apple.security.app-sandbox");')"
 assert_passes "$(mutate provider_profile_standard_extras 'fixture.inventory[1].profileEntitlementKeys.push("get-task-allow", "keychain-access-groups"); fixture.inventory[1].profileEntitlementKeys.sort();')"
 assert_rejected "$(mutate provider_profile_dangerous 'fixture.inventory[1].profileEntitlementKeys.push("com.apple.developer.networking.networkextension");')" NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID
 assert_rejected "$(mutate provider_profile_cert 'fixture.inventory[1].profileCertificateMatchesSigner = false;')" NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID
@@ -113,7 +114,18 @@ UNSIGNED_PROVIDER="$UNSIGNED_APP/Contents/PlugIns/BarwardenCredentialProvider.ap
 /usr/bin/plutil -insert CFBundleExecutable -string BarwardenCredentialProvider "$UNSIGNED_PROVIDER/Contents/Info.plist"
 /usr/bin/plutil -insert CFBundleShortVersionString -string "$PRODUCT_VERSION" "$UNSIGNED_PROVIDER/Contents/Info.plist"
 /usr/bin/plutil -insert LSMinimumSystemVersion -string 13.0 "$UNSIGNED_PROVIDER/Contents/Info.plist"
-printf '#!/bin/sh\nexit 0\nautofill_agent_registration_status\nautofill_agent_register\nautofill_agent_unregister\n' > "$UNSIGNED_APP/Contents/MacOS/barwarden"
+printf '%s\n' \
+  '#include <stdio.h>' \
+  '__attribute__((noinline)) int autofill_agent_registration_status(void) { return 1; }' \
+  '__attribute__((noinline)) int autofill_agent_register(void) { return 2; }' \
+  '__attribute__((noinline)) int autofill_agent_unregister(void) { return 3; }' \
+  'int main(void) {' \
+  '  return autofill_agent_registration_status() +' \
+  '    autofill_agent_register() + autofill_agent_unregister() == 0;' \
+  '}' \
+  > "$TEST_ROOT/registration-main.c"
+/usr/bin/xcrun clang -mmacosx-version-min=13.0 "$TEST_ROOT/registration-main.c" \
+  -o "$UNSIGNED_APP/Contents/MacOS/barwarden"
 printf '#!/bin/sh\nexit 0\n' > "$UNSIGNED_PROVIDER/Contents/MacOS/BarwardenCredentialProvider"
 printf '#!/bin/sh\nexit 0\n' > "$UNSIGNED_APP/Contents/Helpers/BarwardenAutoFillAgent"
 /bin/cp "$REPOSITORY_ROOT/apps/macos-autofill/Agent/com.sommir.barwarden.autofill-agent.plist" \
@@ -148,14 +160,6 @@ symlink_output="$(
 ADHOC_APP="$TEST_ROOT/adhoc/Barwarden.app"
 /bin/mkdir -p "$TEST_ROOT/adhoc"
 /usr/bin/ditto --norsrc --noqtn "$UNSIGNED_APP" "$ADHOC_APP"
-printf '%s\n' \
-  '#include <stdio.h>' \
-  'const char *a="autofill_agent_registration_status";' \
-  'const char *b="autofill_agent_register";' \
-  'const char *c="autofill_agent_unregister";' \
-  'int main(void) { return a[0] + b[0] + c[0] == 0; }' \
-  > "$TEST_ROOT/adhoc-main.c"
-/usr/bin/xcrun clang -mmacosx-version-min=13.0 "$TEST_ROOT/adhoc-main.c" -o "$ADHOC_APP/Contents/MacOS/barwarden"
 /bin/cp /usr/bin/true "$ADHOC_APP/Contents/PlugIns/BarwardenCredentialProvider.appex/Contents/MacOS/BarwardenCredentialProvider"
 /bin/cp /usr/bin/true "$ADHOC_APP/Contents/Helpers/BarwardenAutoFillAgent"
 /usr/bin/codesign --force --sign - "$ADHOC_APP/Contents/Helpers/BarwardenAutoFillAgent" >/dev/null 2>&1
@@ -179,5 +183,19 @@ fi
 
 rg -q '/usr/bin/openssl cms -verify -inform DER -noverify' "$VERIFIER" || \
   fail "profile decoding must support modern macOS security cms failures"
+
+if rg -q 'REGISTRATION_SYMBOLS.*\|.*grep|printf.*REGISTRATION_SYMBOLS' "$VERIFIER"; then
+  fail "registration symbol validation must not use a pipe under pipefail"
+fi
+
+if rg -q "grep -Eq '\^flags=" "$VERIFIER"; then
+  fail "hardened runtime validation must accept CodeDirectory flags output"
+fi
+
+rg -q '/usr/bin/codesign -d --extract-certificates="\$TEMP_ROOT/provider-signer-"' "$VERIFIER" || \
+  fail "provider signer extraction must use the codesign equals form"
+
+rg -q '/usr/bin/readlink "\$MOUNT_PATH/Applications"' "$VERIFIER" || \
+  fail "DMG inventory must use the macOS readlink path"
 
 printf 'verify-native-autofill-bundle tests: PASS\n'
