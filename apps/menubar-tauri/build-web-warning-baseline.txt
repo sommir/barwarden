@@ -1,5 +1,4 @@
 3 [lightningcss minify] Unknown at rule: @tailwind
 1 [plugin rolldown:vite-resolve] Module "path" has been externalized for browser compatibility, imported by "<ROOT>/vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
 1 [plugin rolldown:vite-resolve] Module "url" has been externalized for browser compatibility, imported by "<ROOT>/vendor/bitwarden-clients/libs/common/src/platform/misc/utils.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
-1 [PLUGIN_TIMINGS] Your build spent significant time in plugins. Here is a breakdown:
 1 Some chunks are larger than 500 kB after minification. Consider:

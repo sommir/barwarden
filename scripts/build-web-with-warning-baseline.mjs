@@ -34,7 +34,6 @@ function warningBaseline(output) {
     .filter((line) =>
       line.includes("externalized for browser compatibility")
       || line.includes("Unknown at rule:")
-      || line.includes("[PLUGIN_TIMINGS]")
       || line.includes("Some chunks are larger than")
       || /\bNG\d{4,}\b/.test(line),
     )
