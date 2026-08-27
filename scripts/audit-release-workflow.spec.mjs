@@ -15,13 +15,17 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@${checkoutSha} # v4
       - uses: actions/setup-node@${setupNodeSha} # v4
+      - name: Build unsigned native AutoFill components
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+        run: scripts/build-native-autofill.sh
   release:
     needs: verify
-    runs-on: macos-14
+    runs-on: macos-15
     environment: release
     permissions:
       contents: write
@@ -37,6 +41,7 @@ jobs:
           APPLE_API_ISSUER: \${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY: \${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_BASE64: \${{ secrets.APPLE_API_KEY_BASE64 }}
+          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
         run: |
           api_key_path="$RUNNER_TEMP/notary-api-key.p8"
           provider_profile_path="$RUNNER_TEMP/provider.provisionprofile"
@@ -134,6 +139,25 @@ test("requires the complete native AutoFill release builder and an ephemeral pro
   );
 });
 
+test("requires a supported Xcode toolchain and unsigned native AutoFill verification", () => {
+  const defaultXcode = safeWorkflow.replaceAll(
+    "          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer\n",
+    "",
+  );
+  const errors = auditReleaseWorkflow(defaultXcode).join("\n");
+  assert.match(errors, /verify job must select the supported Xcode toolchain/);
+  assert.match(errors, /release build must select the supported Xcode toolchain/);
+
+  const missingNativeBuild = safeWorkflow.replace(
+    "        run: scripts/build-native-autofill.sh\n",
+    "        run: npm run build:web\n",
+  );
+  assert.match(
+    auditReleaseWorkflow(missingNativeBuild).join("\n"),
+    /verify job must compile the unsigned native AutoFill components/,
+  );
+});
+
 test("requires signed artifacts to pass notarization and Gatekeeper verification", () => {
   const unsafe = safeWorkflow
     .replace("          codesign --verify --deep --strict Barwarden.app\n", "")
@@ -167,8 +191,8 @@ test("requires Gatekeeper identity diagnostics to stay out of public logs", () =
 
 test("rejects secrets in the verification job", () => {
   const unsafe = safeWorkflow.replace(
-    "  verify:\n    runs-on: macos-14",
-    "  verify:\n    runs-on: macos-14\n    env:\n      TOKEN: ${{ secrets.UNSAFE_TOKEN }}",
+    "  verify:\n    runs-on: macos-15",
+    "  verify:\n    runs-on: macos-15\n    env:\n      TOKEN: ${{ secrets.UNSAFE_TOKEN }}",
   );
 
   assert.match(

@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   verify:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -18,6 +18,19 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm install --global npm@11.6.2
       - run: npm ci --legacy-peer-deps
+      - name: Build unsigned native AutoFill components
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+        run: |
+          set -euo pipefail
+          work_root="$(mktemp -d "$RUNNER_TEMP/native-autofill.XXXXXX")"
+          trap 'rm -rf "$work_root"' EXIT
+          test -x "$DEVELOPER_DIR/usr/bin/xcodebuild"
+          CONFIGURATION=Release \
+          DERIVED_DATA_PATH="$work_root/derived" \
+          STAGING_DIR="$work_root/staging" \
+          CODE_SIGNING_ALLOWED=NO \
+          scripts/build-native-autofill.sh
       - run: npm run check:release-version
       - run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
       - run: npm run check:publication
@@ -35,7 +48,7 @@ jobs:
 
   release:
     needs: verify
-    runs-on: macos-14
+    runs-on: macos-15
     environment: release
     permissions:
       contents: write
@@ -58,6 +71,7 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
         run: |
           set -euo pipefail
           umask 077
@@ -74,6 +88,7 @@ jobs:
           }
           trap cleanup EXIT
           test ! -e "$release_dir"
+          test -x "$DEVELOPER_DIR/usr/bin/xcodebuild"
 
           printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
