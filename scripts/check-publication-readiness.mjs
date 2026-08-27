@@ -67,6 +67,10 @@ function collectFiles(root, currentDirectory = root, files = []) {
     const absolutePath = resolve(currentDirectory, entry.name);
     const relativePath = normalizeRelativePath(relative(root, absolutePath));
 
+    if (entry.name === ".git") {
+      continue;
+    }
+
     if (entry.isDirectory()) {
       if (!isExcludedDirectory(relativePath, entry.name)) {
         collectFiles(root, absolutePath, files);

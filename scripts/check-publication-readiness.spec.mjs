@@ -40,6 +40,13 @@ test("accepts a complete public-source fixture", () => {
   assert.ok(result.scannedFiles >= 6);
 });
 
+test("ignores a Git worktree metadata pointer", () => {
+  const root = createValidFixture();
+  write(root, ".git", "gitdir: /" + "Users/alice/private/repository/.git/worktrees/release\n");
+
+  assert.deepEqual(checkPublicationReadiness(root).errors, []);
+});
+
 test("reports a macOS user-home path without echoing its content", () => {
   const root = createValidFixture();
   const privatePath = "/" + "Users/alice/private/vault.json";

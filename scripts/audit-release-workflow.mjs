@@ -153,6 +153,16 @@ export function auditReleaseWorkflow(source) {
   if (!signedBuildStep.includes("scripts/download-native-autofill-provider-profile.mjs")) {
     errors.push("release build must download the provider profile ephemerally");
   }
+  if (!signedBuildStep.includes(
+    'security list-keychains -d user -s "$signing_keychain" "${original_user_keychains[@]}"',
+  )) {
+    errors.push("release build must add the temporary signing keychain to the user search list");
+  }
+  if (!signedBuildStep.includes(
+    'security list-keychains -d user -s "${original_user_keychains[@]}"',
+  )) {
+    errors.push("release cleanup must restore the original user keychain search list");
+  }
   if (source.includes("NATIVE_AUTOFILL_PROVIDER_PROFILE_BASE64")) {
     errors.push("provider profile must not be stored as a GitHub secret");
   }
