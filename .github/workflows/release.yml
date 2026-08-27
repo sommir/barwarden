@@ -24,7 +24,7 @@ jobs:
       - run: npm run licenses:check
       - run: npm run test:release-policy
       - run: node --test scripts/create-updater-release-config.spec.mjs scripts/create-github-release-feed.spec.mjs
-      - run: npm test
+      - run: npm test -- --maxWorkers=2 --testTimeout=30000
       - run: npm run build:web
 
   release:

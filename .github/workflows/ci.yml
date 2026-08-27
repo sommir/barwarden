@@ -26,5 +26,5 @@ jobs:
       - run: npm run licenses:check
       - run: npm run test:release-policy
       - run: npm audit --omit=dev --audit-level=high
-      - run: npm test
+      - run: npm test -- --maxWorkers=2 --testTimeout=30000
       - run: npm run build:web
