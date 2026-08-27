@@ -51,4 +51,3 @@ final class ApplicationNameSimilarityTests: XCTestCase {
         ApplicationNameSimilarity.compare(applicationName: applicationName, itemName: itemName)
     }
 }
-

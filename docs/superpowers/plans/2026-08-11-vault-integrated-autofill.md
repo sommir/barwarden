@@ -500,4 +500,3 @@ Record only redacted outcomes; never capture or log passwords, TOTP seeds/codes,
 git add docs/superpowers/specs/2026-08-11-vault-integrated-autofill-design-qa.md docs/superpowers/specs/2026-08-11-vault-integrated-autofill-implementation.png docs/superpowers/specs/2026-08-11-vault-integrated-autofill-comparison.png
 git commit -m "test: verify vault-integrated autofill"
 ```
-
