@@ -364,7 +364,11 @@ describe("AppComponent", () => {
       store,
       null, null, null, null, null, null, null, null, null, null, null, null, null, null,
       { recoverAtStartup: vi.fn() },
-      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+      {
+        beginFromEntry: vi.fn(),
+        beginFromVaultOpen,
+        snapshot: () => ({ status: "ready" as const }),
+      },
     ]) as AppComponent;
 
     component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
@@ -382,6 +386,43 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
+  it("refreshes an already-consumed revision when its suggestion context was invalidated", async () => {
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    let contextStatus: "idle" | "ready" = "idle";
+    const beginFromVaultOpen = vi.fn(async () => {
+      contextStatus = "ready";
+      return { status: "ready" as const };
+    });
+    const navigateByUrl = vi.fn().mockResolvedValue(true);
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl, url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      {
+        beginFromEntry: vi.fn(),
+        beginFromVaultOpen,
+        snapshot: () => ({ status: contextStatus }),
+      },
+    ]) as AppComponent;
+
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault", suggestionRevision: "7" },
+    }));
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(1));
+
+    contextStatus = "idle";
+    component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+      detail: { reset: false, entrySource: "vault", suggestionRevision: "7" },
+    }));
+
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(2));
+    component.ngOnDestroy();
+  });
+
   it("refreshes a native revision once and does not repeat it on popup entry", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.test");
@@ -393,7 +434,11 @@ describe("AppComponent", () => {
       store,
       null, null, null, null, null, null, null, null, null, null, null, null, null, null,
       { recoverAtStartup: vi.fn() },
-      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+      {
+        beginFromEntry: vi.fn(),
+        beginFromVaultOpen,
+        snapshot: () => ({ status: "ready" as const }),
+      },
     ]) as AppComponent;
 
     component.handleSuggestionContextChanged(new CustomEvent(
@@ -421,7 +466,11 @@ describe("AppComponent", () => {
       store,
       null, null, null, null, null, null, null, null, null, null, null, null, null, null,
       { recoverAtStartup: vi.fn() },
-      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+      {
+        beginFromEntry: vi.fn(),
+        beginFromVaultOpen,
+        snapshot: () => ({ status: "ready" as const }),
+      },
     ]) as AppComponent;
 
     component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
@@ -483,7 +532,11 @@ describe("AppComponent", () => {
       store,
       null, null, null, null, null, null, null, null, null, null, null, null, null, null,
       { recoverAtStartup: vi.fn() },
-      { beginFromEntry: vi.fn(), beginFromVaultOpen },
+      {
+        beginFromEntry: vi.fn(),
+        beginFromVaultOpen,
+        snapshot: () => ({ status: "ready" as const }),
+      },
     ]) as AppComponent;
 
     component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {

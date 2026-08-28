@@ -62,14 +62,19 @@ ensure_public_verification_chain() {
       fail BARWARDEN_LOCAL_PUBLIC_KEYCHAIN_DELETE_FAILED
   fi
 
-  if /usr/bin/security find-certificate -a -Z "$USER_KEYCHAIN" 2>/dev/null | \
-    /usr/bin/grep -Fq "SHA-256 hash: $DEVELOPER_ID_INTERMEDIATE_SHA256"; then
+  local installed_certificates
+  installed_certificates="$(/usr/bin/security find-certificate -a -Z \
+    "$USER_KEYCHAIN" 2>/dev/null)" || fail BARWARDEN_LOCAL_USER_KEYCHAIN_INVALID
+  if /usr/bin/grep -F "SHA-256 hash: $DEVELOPER_ID_INTERMEDIATE_SHA256" \
+      <<< "$installed_certificates" >/dev/null; then
     return 0
   fi
   /usr/bin/security import "$DEVELOPER_ID_INTERMEDIATE" -t cert \
     -k "$USER_KEYCHAIN" >/dev/null 2>&1 || true
-  /usr/bin/security find-certificate -a -Z "$USER_KEYCHAIN" 2>/dev/null | \
-    /usr/bin/grep -Fq "SHA-256 hash: $DEVELOPER_ID_INTERMEDIATE_SHA256" || \
+  installed_certificates="$(/usr/bin/security find-certificate -a -Z \
+    "$USER_KEYCHAIN" 2>/dev/null)" || fail BARWARDEN_LOCAL_USER_KEYCHAIN_INVALID
+  /usr/bin/grep -F "SHA-256 hash: $DEVELOPER_ID_INTERMEDIATE_SHA256" \
+    <<< "$installed_certificates" >/dev/null || \
     fail BARWARDEN_LOCAL_VERIFICATION_CHAIN_INSTALL_FAILED
 }
 
