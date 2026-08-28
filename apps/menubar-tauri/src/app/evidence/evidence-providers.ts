@@ -66,6 +66,8 @@ import {
   resolveGeneratorWorkflowEvidenceScenario,
 } from "./generator-workflow-evidence";
 import { createAlternativeUnlockEvidenceProviders } from "./alternative-unlock-evidence";
+import { AutoFillVaultContextService } from "../autofill/autofill-vault-context.service";
+import { createReadmeDemoAutoFillContext } from "./readme-demo-evidence";
 
 export function createEvidenceProviders(
   search: string,
@@ -125,7 +127,10 @@ export function createEvidenceProviders(
 
   const generatorInitialAlgorithm = resolveGeneratorInitialAlgorithm(search);
   const generatorWorkflowScenario = resolveGeneratorWorkflowEvidenceScenario(search);
-  const normalizedSearch = normalizeVaultEvidenceSearch(stripGeneratorEvidence(search));
+  const readmeDemo = resolveReadmeDemo(search);
+  const normalizedSearch = normalizeVaultEvidenceSearch(
+    stripReadmeDemo(stripGeneratorEvidence(search)),
+  );
   const recoveryStartup = resolveRecoveryStartup(normalizedSearch);
   const state = recoveryStartup?.state ?? resolveVaultMainEvidenceState(true, normalizedSearch);
   if (!state) {
@@ -203,9 +208,30 @@ export function createEvidenceProviders(
       useFactory: createG3EvidenceVaultCipherActionPort,
     }] : []),
     { provide: VAULT_MAIN_EVIDENCE_STATE, useValue: recoveryStartup ? null : state },
+    ...(readmeDemo === "autofill" ? [{
+      provide: AutoFillVaultContextService,
+      deps: [PopupStateStore],
+      useFactory: createReadmeDemoAutoFillContext,
+    }] : []),
     ...workflowProviders,
     ...recoveryProviders,
   ];
+}
+
+function resolveReadmeDemo(search: string): "autofill" | null {
+  const values = new URLSearchParams(search).getAll("readmeDemo");
+  if (values.length === 0) return null;
+  if (values.length !== 1 || values[0] !== "autofill") {
+    throw new Error("Invalid README demo query");
+  }
+  return "autofill";
+}
+
+function stripReadmeDemo(search: string): string {
+  const params = new URLSearchParams(search);
+  params.delete("readmeDemo");
+  const value = params.toString();
+  return value.length === 0 ? "" : `?${value}`;
 }
 
 function stripGeneratorEvidence(search: string): string {

@@ -79,7 +79,7 @@
     }
   ],
   "license": {
-    "rootPackageSha256": "6358cd2c0c7e6e9a038f96c4e536d0c63f7fa24263760c0af4ba492a6446376b",
+    "rootPackageSha256": "e0c6700efdba3253016af743ad5b34a697e8950bac581ae1ee77c1814885232a",
     "rootLicenseSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
     "upstreamPackageSha256": "4b7a570f8438e21a03e6f793ce5c11fa3c0f6b3d858edc7080ba436a5d210c84",
     "upstreamGplSha256": "b98fbb37db5b23bc5cfdcd16793206a5a7120a7b01f75374e5e0888376e4691c"

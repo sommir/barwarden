@@ -18,7 +18,7 @@ Barwarden stays in the menu bar, so you can search your vault, use a credential,
 or open the generator without switching to a full desktop app.
 
 <p align="center">
-  <img src="docs/assets/barwarden-menubar-en.gif" width="420" alt="Barwarden menu-bar mode demo">
+  <img src="docs/assets/barwarden-menubar-v016-en.gif" width="720" alt="Barwarden menu-bar AutoFill demo">
 </p>
 
 When you need more room, the same view can pop out into a standalone window
@@ -28,7 +28,7 @@ without losing its current state.
 <summary>View standalone-window mode</summary>
 
 <p align="center">
-  <img src="docs/assets/barwarden-window-en.gif" width="720" alt="Barwarden standalone-window mode demo">
+  <img src="docs/assets/barwarden-window-v016-en.gif" width="720" alt="Barwarden standalone-window mode demo">
 </p>
 
 </details>

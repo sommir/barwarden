@@ -13,6 +13,7 @@
     "prepare:sdk-runtime": "node scripts/prepare-retained-sdk-wasm.mjs",
     "dev:web": "npm run prepare:sdk-runtime && vite --config apps/menubar-tauri/vite.config.ts --host 127.0.0.1",
     "build:web": "npm run prepare:sdk-runtime && node scripts/build-web-with-warning-baseline.mjs",
+    "docs:demos": "node scripts/generate-readme-demos.mjs",
     "audit:production-bundle": "scripts/verify-production-bundle.sh",
     "test:audit-production-bundle": "scripts/verify-production-bundle.test.sh",
     "test:macos-bundle": "scripts/verify-macos-bundle.test.sh",

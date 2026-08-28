@@ -13,6 +13,7 @@ import { VAULT_CIPHER_WRITE_PORT } from "../vault/vault-cipher-write.service";
 import { VAULT_FOLDER_API, VAULT_FOLDER_CRYPTO } from "../vault/vault-folder.service";
 import { VAULT_MAIN_EVIDENCE_STATE } from "../vault/vault-main-evidence-state";
 import { VaultSessionService } from "../vault/vault-session.service";
+import { AutoFillVaultContextService } from "../autofill/autofill-vault-context.service";
 import { PopupStateStore } from "../popup-state";
 import { applyVaultMainEvidenceState } from "../vault/vault-main-evidence-preview";
 import { createEvidenceProviders } from "./evidence-providers";
@@ -70,6 +71,40 @@ describe("evidence providers", () => {
 
     expect(providerValue(providers, VAULT_MAIN_EVIDENCE_STATE)).toBe("populated");
     expect(providerFactory(providers, VaultSessionService)).toBeTypeOf("function");
+  });
+
+  it("provides a sanitized AutoFill context only for the explicit README demo", () => {
+    const providers = createEvidenceProviders(
+      "?vaultEvidence=populated&readmeDemo=autofill",
+      true,
+    );
+    const createContext = providerFactory(providers, AutoFillVaultContextService) as () => {
+      snapshot(): {
+        status: string;
+        application: { bundleId: string; appName: string };
+        candidates: readonly Array<{ cipherId: string; username: string }>;
+      };
+    };
+    const store = new PopupStateStore();
+    applyVaultMainEvidenceState(store, "populated");
+    const context = createContext(store);
+
+    expect(providerValue(providers, VAULT_MAIN_EVIDENCE_STATE)).toBe("populated");
+    expect(context.snapshot()).toMatchObject({
+      status: "ready",
+      application: { bundleId: "com.example.DemoBrowser", appName: "Demo Browser" },
+      candidates: [
+        { cipherId: "mail", username: "demo-user@example.test" },
+        { cipherId: "calendar", username: "calendar-user@example.test" },
+      ],
+    });
+  });
+
+  it("keeps the README AutoFill demo unavailable when the compile-time gate is disabled", () => {
+    expect(createEvidenceProviders(
+      "?vaultEvidence=populated&readmeDemo=autofill",
+      false,
+    )).toEqual([]);
   });
 
   it.each([
