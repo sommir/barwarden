@@ -18,7 +18,7 @@ Barwarden 常驻菜单栏，无需切换到完整桌面应用，即可快速搜�
 生成器。
 
 <p align="center">
-  <img src="docs/assets/barwarden-menubar.gif" width="420" alt="Barwarden 菜单栏模式演示">
+  <img src="docs/assets/barwarden-menubar-v016.gif" width="720" alt="Barwarden 菜单栏自动填充演示">
 </p>
 
 需要更多空间时，可以一键弹出独立窗口，功能和当前状态保持一致。
@@ -27,7 +27,7 @@ Barwarden 常驻菜单栏，无需切换到完整桌面应用，即可快速搜�
 <summary>查看独立窗口模式</summary>
 
 <p align="center">
-  <img src="docs/assets/barwarden-window.gif" width="720" alt="Barwarden 独立窗口模式演示">
+  <img src="docs/assets/barwarden-window-v016.gif" width="720" alt="Barwarden 独立窗口模式演示">
 </p>
 
 </details>
