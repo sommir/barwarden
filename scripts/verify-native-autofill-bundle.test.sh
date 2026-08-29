@@ -11,6 +11,16 @@ PRODUCT_VERSION="$(node "$SCRIPT_DIR/release-version.mjs")"
 DMG_NAME="Barwarden-$PRODUCT_VERSION.dmg"
 trap '/bin/rm -rf "$TEST_ROOT"' EXIT
 
+VERIFIER_SOURCE="$(/bin/cat "$VERIFIER")"
+[[ "$VERIFIER_SOURCE" == *'"$profile_path" "$TEMP_ROOT/provider-signer-0"'* ]] || {
+  printf '%s\n' 'verify-native-autofill-bundle tests: FAIL: embedded CMS profile is not validated directly' >&2
+  exit 1
+}
+[[ "$VERIFIER_SOURCE" != *'security cms -D -i "$profile_path"'* ]] || {
+  printf '%s\n' 'verify-native-autofill-bundle tests: FAIL: embedded CMS profile is decoded twice' >&2
+  exit 1
+}
+
 fail() {
   printf 'verify-native-autofill-bundle tests: FAIL: %s\n' "$*" >&2
   exit 1
@@ -181,8 +191,6 @@ if [[ -n "$deep_lines" && "$deep_lines" != *'--verify --deep'* ]]; then
   fail "release builder must never use codesign --deep outside verification"
 fi
 
-rg -q '/usr/bin/openssl cms -verify -inform DER -noverify' "$VERIFIER" || \
-  fail "profile decoding must support modern macOS security cms failures"
 
 if rg -q 'REGISTRATION_SYMBOLS.*\|.*grep|printf.*REGISTRATION_SYMBOLS' "$VERIFIER"; then
   fail "registration symbol validation must not use a pipe under pipefail"
