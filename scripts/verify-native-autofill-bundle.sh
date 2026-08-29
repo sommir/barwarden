@@ -237,24 +237,22 @@ APP_ENTITLEMENT_JSON="$(entitlement_summary "$APP_ENTITLEMENTS")" || fail NATIVE
 PROVIDER_ENTITLEMENT_JSON="$(entitlement_summary "$PROVIDER_ENTITLEMENTS")" || fail NATIVE_AUTOFILL_INSPECTION_INVALID
 AGENT_ENTITLEMENT_JSON="$(entitlement_summary "$AGENT_ENTITLEMENTS")" || fail NATIVE_AUTOFILL_INSPECTION_INVALID
 
+PROVIDER_PROFILE_FAILURE_CODE=NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID
 validate_provider_profile() {
-  local profile_path="$1" output_plist="$2"
+  local profile_path="$1" error_path="$TEMP_ROOT/provider-profile-error"
   [[ -f "$profile_path" && ! -L "$profile_path" ]] || return 1
-  if ! /usr/bin/security cms -D -i "$profile_path" >"$output_plist" 2>/dev/null; then
-    /usr/bin/openssl cms -verify -inform DER -noverify \
-      -in "$profile_path" -out "$output_plist" >/dev/null 2>&1 || return 1
-  fi
   /usr/bin/codesign -d --extract-certificates="$TEMP_ROOT/provider-signer-" "$PROVIDER_PATH" >/dev/null 2>&1 || return 1
   [[ -f "$TEMP_ROOT/provider-signer-0" ]] || return 1
-  PROVIDER_PROFILE_SUMMARY="$(node "$SCRIPT_DIR/native-autofill-provider-profile.mjs" \
-    "$output_plist" "$TEMP_ROOT/provider-signer-0" 2>/dev/null)" || return 1
+  if ! PROVIDER_PROFILE_SUMMARY="$(node "$SCRIPT_DIR/native-autofill-provider-profile.mjs" \
+    "$profile_path" "$TEMP_ROOT/provider-signer-0" 2>"$error_path")"; then
+    PROVIDER_PROFILE_FAILURE_CODE="$(/usr/bin/tail -n 1 "$error_path")"
+    return 1
+  fi
 }
 [[ ! -e "$APP_PATH/Contents/embedded.provisionprofile" ]] || fail NATIVE_AUTOFILL_INVENTORY_UNEXPECTED
 PROVIDER_PROFILE_SUMMARY=""
-validate_provider_profile \
-  "$PROVIDER_PATH/Contents/embedded.provisionprofile" \
-  "$TEMP_ROOT/provider-profile.plist" || \
-  fail NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID
+validate_provider_profile "$PROVIDER_PATH/Contents/embedded.provisionprofile" || \
+  fail "$PROVIDER_PROFILE_FAILURE_CODE"
 
 APP_MINIMUM="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP_INFO" 2>/dev/null)" || fail NATIVE_AUTOFILL_MACOS_FLOOR_INVALID
 PROVIDER_MINIMUM="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$PROVIDER_INFO" 2>/dev/null)" || fail NATIVE_AUTOFILL_MACOS_FLOOR_INVALID

@@ -19,12 +19,12 @@ expected_identifier="com.sommir.barwarden"
 expected_product_name="Barwarden"
 expected_package_name="barwarden"
 expected_executable_name="barwarden"
-expected_version="0.1.0"
+expected_version=""
 expected_architecture="aarch64"
 expected_minimum_macos="13.0"
 expected_icon_name="icon.icns"
 expected_app_basename="${expected_product_name}.app"
-expected_dmg_basename="${expected_product_name}_${expected_version}_${expected_architecture}.dmg"
+expected_dmg_basename=""
 expected_apple_events_description="Barwarden reads the active browser page to suggest matching logins and interacts with the target app only when you invoke a paste action."
 
 usage() {
@@ -151,6 +151,15 @@ for input_file in \
 do
   require_file "$input_file"
 done
+
+expected_version="$(node - "$package_json" <<'NODE'
+import { readFileSync } from "node:fs";
+const value = JSON.parse(readFileSync(process.argv[2], "utf8")).version;
+if (typeof value !== "string" || !/^\d+\.\d+\.\d+$/u.test(value)) process.exit(1);
+process.stdout.write(value);
+NODE
+)" || fail "package version is invalid"
+expected_dmg_basename="${expected_product_name}_${expected_version}_${expected_architecture}.dmg"
 
 schema_path="$default_source_root/node_modules/@tauri-apps/cli/config.schema.json"
 require_file "$schema_path"

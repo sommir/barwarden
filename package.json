@@ -1,6 +1,6 @@
 {
   "name": "barwarden",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "A native macOS menu bar client for Bitwarden-compatible vaults.",
   "private": true,
   "license": "GPL-3.0-only",

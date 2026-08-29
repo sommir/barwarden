@@ -4,6 +4,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 verifier="$script_dir/verify-macos-bundle.sh"
+product_version="$(node "$script_dir/release-version.mjs")"
 real_find="$(command -v find)"
 fixture_root="$(mktemp -d)"
 shim_root="$fixture_root/shims"
@@ -13,10 +14,10 @@ stapled_marker="$fixture_root/release-dmg-stapled"
 final_mounted_app_file="$fixture_root/final-mounted-app"
 mounted_template="$fixture_root/mounted-template/Barwarden.app"
 standalone_app="$fixture_root/standalone/Barwarden.app"
-standalone_dmg="$fixture_root/standalone/Barwarden_0.1.0_aarch64.dmg"
+standalone_dmg="$fixture_root/standalone/Barwarden_${product_version}_aarch64.dmg"
 release_bundle_root="$fixture_root/apps/menubar-tauri/src-tauri/target/release/bundle"
 release_app="$release_bundle_root/macos/Barwarden.app"
-release_dmg="$release_bundle_root/dmg/Barwarden_0.1.0_aarch64.dmg"
+release_dmg="$release_bundle_root/dmg/Barwarden_${product_version}_aarch64.dmg"
 test_identity_prefix="Developer ID Application:"
 test_nonce="$(date +%s)-$$"
 test_identity_subject="opaque-$test_nonce"
@@ -115,7 +116,7 @@ probe_sensitive_assignment() {
     if ! output="$("$verifier" --source-root "$fixture_root" --inputs-only 2>&1)"; then
       fail "$description was rejected: $output"
     fi
-    [[ "$output" == "INPUTS: PASS (identifier=com.sommir.barwarden version=0.1.0 targets=app,dmg minimum-macOS=13.0)" ]] || \
+    [[ "$output" == "INPUTS: PASS (identifier=com.sommir.barwarden version=$product_version targets=app,dmg minimum-macOS=13.0)" ]] || \
       fail "$description did not produce the exact accepted diagnostic: $output"
   else
     assert_rejected_with_exact_diagnostic \
@@ -129,7 +130,7 @@ write_app() {
   local app="$1"
 
   mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-  node - "$app/Contents/Info.plist" <<'NODE'
+  node - "$app/Contents/Info.plist" "$product_version" <<'NODE'
 import { writeFileSync } from "node:fs";
 
 writeFileSync(process.argv[2], `<?xml version="1.0" encoding="UTF-8"?>
@@ -137,8 +138,8 @@ writeFileSync(process.argv[2], `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>com.sommir.barwarden</string>
 <key>CFBundleName</key><string>Barwarden</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>0.1.0</string>
+<key>CFBundleShortVersionString</key><string>${process.argv[3]}</string>
+<key>CFBundleVersion</key><string>${process.argv[3]}</string>
 <key>CFBundleExecutable</key><string>barwarden</string>
 <key>CFBundleIconFile</key><string>icon.icns</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
