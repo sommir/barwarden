@@ -94,6 +94,7 @@ async function installProfile({
   profileContent,
   signerCertificateDer,
   profileMatchesSigner,
+  preserveValidationError = false,
 }) {
   const temporaryPath = `${outputPath}.${process.pid}.tmp`;
   writeFileSync(temporaryPath, profileContent, { flag: "wx", mode: 0o600 });
@@ -103,7 +104,13 @@ async function installProfile({
     }
     renameSync(temporaryPath, outputPath);
     return true;
-  } catch {
+  } catch (error) {
+    if (
+      preserveValidationError
+      && error?.message?.startsWith("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_")
+    ) {
+      throw error;
+    }
     return false;
   } finally {
     rmSync(temporaryPath, { force: true });
@@ -223,6 +230,7 @@ export async function downloadProviderProfile({
     profileContent: createdProfileContent,
     signerCertificateDer,
     profileMatchesSigner,
+    preserveValidationError: true,
   })) {
     throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
   }

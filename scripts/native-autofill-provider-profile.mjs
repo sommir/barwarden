@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual, X509Certificate } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,8 +20,8 @@ const OPTIONAL_STANDARD_ENTITLEMENT_KEYS = new Set([
   "keychain-access-groups",
 ]);
 
-function reject() {
-  throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
+function reject(reason = "PROFILE_RULES") {
+  throw new Error(`NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_${reason}`);
 }
 
 function exactArray(value, expected) {
@@ -53,20 +53,84 @@ function extractPlistValue(path, keyPath, format) {
   ], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 }
 
+function extractRequiredPlistValue(path, keyPath, format, reason) {
+  try {
+    return extractPlistValue(path, keyPath, format);
+  } catch {
+    reject(`PLIST_${reason}`);
+  }
+}
+
+function extractRequiredPlistArray(path, keyPath, reason) {
+  const values = [];
+  for (let index = 0; index < 128; index += 1) {
+    try {
+      values.push(extractPlistValue(path, `${keyPath}.${index}`, "raw"));
+    } catch {
+      break;
+    }
+  }
+  if (values.length === 0) {
+    reject(`PLIST_${reason}`);
+  }
+  return values;
+}
+
+function parseRequiredJson(value, reason) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    reject(`PLIST_${reason}`);
+  }
+}
+
+function extractRequiredJsonPlistValue(path, keyPath, reason) {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-provider-plist-value-"));
+  const extractedPath = join(root, "value.plist");
+  try {
+    execFileSync("/usr/bin/plutil", [
+      "-extract", keyPath, "xml1", "-o", extractedPath, path,
+    ], { stdio: "ignore" });
+    return parseRequiredJson(
+      execFileSync("/usr/bin/plutil", [
+        "-convert", "json", "-o", "-", extractedPath,
+      ], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }),
+      reason,
+    );
+  } catch (error) {
+    if (error?.message?.startsWith("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_")) {
+      throw error;
+    }
+    reject(`PLIST_${reason}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function decodeCmsProfile(path) {
   const root = mkdtempSync(join(tmpdir(), "barwarden-provider-profile-"));
   const decodedPath = join(root, "profile.plist");
   try {
     execFileSync("/usr/bin/security", [
-      "cms", "-D", "-i", path, "-o", decodedPath,
+      "cms", "-D", "-u", "4", "-i", path, "-o", decodedPath,
     ], { stdio: "ignore" });
+    const decoded = readFileSync(decodedPath);
+    const xmlStart = decoded.indexOf("<?xml");
+    if (
+      xmlStart > 0
+      && xmlStart <= 64
+      && decoded.subarray(0, xmlStart).every((byte) =>
+        byte === 0x09 || byte === 0x0a || byte === 0x0d || byte === 0x20)
+    ) {
+      writeFileSync(decodedPath, decoded.subarray(xmlStart), { mode: 0o600 });
+    }
     return {
       path: decodedPath,
       cleanup: () => rmSync(root, { recursive: true, force: true }),
     };
   } catch {
     rmSync(root, { recursive: true, force: true });
-    reject();
+    reject("CMS_DECODE");
   }
 }
 
@@ -90,24 +154,37 @@ export function loadNativeAutoFillProviderProfile(
         break;
       }
     }
-    const provisionsAllDevices = extractPlistValue(
+    const provisionsAllDevices = extractRequiredPlistValue(
       decoded.path,
       "ProvisionsAllDevices",
       "raw",
+      "PROVISIONS_ALL_DEVICES",
     );
     return {
-      TeamIdentifier: JSON.parse(
-        extractPlistValue(decoded.path, "TeamIdentifier", "json"),
+      TeamIdentifier: extractRequiredPlistArray(
+        decoded.path,
+        "TeamIdentifier",
+        "TEAM_IDENTIFIER",
       ),
       ProvisionsAllDevices: /^(?:1|true|yes)$/iu.test(provisionsAllDevices),
-      ExpirationDate: extractPlistValue(decoded.path, "ExpirationDate", "raw"),
+      ExpirationDate: extractRequiredPlistValue(
+        decoded.path,
+        "ExpirationDate",
+        "raw",
+        "EXPIRATION_DATE",
+      ),
       DeveloperCertificates: developerCertificates,
-      Entitlements: JSON.parse(
-        extractPlistValue(decoded.path, "Entitlements", "json"),
+      Entitlements: extractRequiredJsonPlistValue(
+        decoded.path,
+        "Entitlements",
+        "ENTITLEMENTS",
       ),
     };
-  } catch {
-    reject();
+  } catch (error) {
+    if (error?.message?.startsWith("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_")) {
+      throw error;
+    }
+    reject("PLIST_PARSE");
   } finally {
     try {
       decoded?.cleanup();
@@ -150,7 +227,7 @@ export function validateNativeAutoFillProviderProfile(profile, signerCertificate
       !new RegExp(`(?:^|\\n)OU=${TEAM_ID}(?:$|\\n)`, "u").test(signer.subject) ||
       !/(?:^|\n)CN=Developer ID Application:/u.test(signer.subject)
     ) {
-      reject();
+      reject("SIGNER_RULES");
     }
     const signerKey = publicKeyHash(signer);
     const certificateMatchesSigner = profile.DeveloperCertificates.some((encoded) => {
@@ -160,7 +237,7 @@ export function validateNativeAutoFillProviderProfile(profile, signerCertificate
       const candidateKey = publicKeyHash(candidate);
       return exactCertificate && candidateKey.length === signerKey.length && timingSafeEqual(candidateKey, signerKey);
     });
-    if (!certificateMatchesSigner) reject();
+    if (!certificateMatchesSigner) reject("CERTIFICATE_MATCH");
 
     return {
       applicationIdentifierKey: "com.apple.application-identifier",
@@ -168,7 +245,7 @@ export function validateNativeAutoFillProviderProfile(profile, signerCertificate
       entitlementKeys: keys,
     };
   } catch (error) {
-    if (error?.message === "NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID") throw error;
+    if (error?.message?.startsWith("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_")) throw error;
     reject();
   }
 }
@@ -179,8 +256,12 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const profile = loadNativeAutoFillProviderProfile(process.argv[2]);
     const summary = validateNativeAutoFillProviderProfile(profile, readFileSync(process.argv[3]));
     process.stdout.write(`${JSON.stringify(summary)}\n`);
-  } catch {
-    console.error("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
+  } catch (error) {
+    console.error(
+      error?.message?.startsWith("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_")
+        ? error.message
+        : "NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_PROFILE_RULES",
+    );
     process.exit(1);
   }
 }

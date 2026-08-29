@@ -204,6 +204,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private pendingSuggestionRevision = 0n;
   private consumedSuggestionRevision = 0n;
   private suggestionRefreshRunning = false;
+  private suggestionRefreshQueued = false;
   private suggestionInitialRefreshPending = false;
   private suggestionContextInitialized = false;
   protected readonly startupPending = signal(true);
@@ -308,6 +309,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       if (wasUnlocked && !state.isUnlocked) {
         this.autoFillVaultContext?.invalidate("lock");
         this.suggestionContextInitialized = false;
+        this.suggestionRefreshQueued = false;
         this.suggestionInitialRefreshPending = false;
       }
       wasUnlocked = state.isUnlocked;
@@ -708,7 +710,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private drainSuggestionRefresh(): void {
-    if (this.suggestionRefreshRunning || !this.canRefreshSuggestions()) return;
+    if (this.suggestionRefreshRunning) {
+      this.suggestionRefreshQueued = true;
+      return;
+    }
+    if (!this.canRefreshSuggestions()) return;
     const forceInitial = this.suggestionInitialRefreshPending
       && !this.suggestionContextInitialized;
     if (!forceInitial && this.pendingSuggestionRevision <= this.consumedSuggestionRevision) {
@@ -736,8 +742,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       this.suggestionInitialRefreshPending = true;
     }).finally(() => {
       this.suggestionRefreshRunning = false;
+      const queuedRefresh = this.suggestionRefreshQueued;
+      this.suggestionRefreshQueued = false;
       if (
-        (refreshed && this.pendingSuggestionRevision > this.consumedSuggestionRevision)
+        queuedRefresh
+        || (refreshed && this.pendingSuggestionRevision > this.consumedSuggestionRevision)
         || (!refreshed && this.pendingSuggestionRevision > targetRevision)
       ) {
         this.drainSuggestionRefresh();
