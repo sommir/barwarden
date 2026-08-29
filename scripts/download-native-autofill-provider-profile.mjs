@@ -17,6 +17,8 @@ import {
 
 const PROVIDER_IDENTIFIER = "com.sommir.barwarden.credential-provider";
 const PROFILE_FIELDS = "name,profileType,profileState,profileContent,expirationDate";
+const CERTIFICATE_FIELDS =
+  "certificateType,expirationDate,certificateContent,activated";
 
 function encodedJson(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -28,8 +30,11 @@ export function createAppleApiRequest({ keyPath, keyId, issuerId, fetchImpl = fe
   }
   const privateKey = createPrivateKey(readFileSync(keyPath));
 
-  return async (path) => {
+  return async (path, { method = "GET", body } = {}) => {
     if (typeof path !== "string" || !path.startsWith("/v1/")) {
+      throw new Error("NATIVE_AUTOFILL_APPLE_API_REQUEST_INVALID");
+    }
+    if (!new Set(["GET", "POST"]).has(method) || (method === "GET" && body !== undefined)) {
       throw new Error("NATIVE_AUTOFILL_APPLE_API_REQUEST_INVALID");
     }
     const now = Math.floor(Date.now() / 1000);
@@ -45,8 +50,12 @@ export function createAppleApiRequest({ keyPath, keyId, issuerId, fetchImpl = fe
       key: privateKey,
       dsaEncoding: "ieee-p1363",
     }).toString("base64url");
+    const headers = { Authorization: `Bearer ${signingInput}.${signature}` };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
     const response = await fetchImpl(`https://api.appstoreconnect.apple.com${path}`, {
-      headers: { Authorization: `Bearer ${signingInput}.${signature}` },
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (!response.ok) throw new Error("NATIVE_AUTOFILL_APPLE_API_REQUEST_FAILED");
     return response.json();
@@ -64,12 +73,41 @@ function decodeProfileContent(value) {
   return profile;
 }
 
+function decodeCertificateContent(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/u.test(value)) {
+    return null;
+  }
+  const certificate = Buffer.from(value, "base64");
+  return certificate.length >= 4 && certificate[0] === 0x30 ? certificate : null;
+}
+
 function matchesSigner(profileContent, signerCertificateDer, profilePath) {
   validateNativeAutoFillProviderProfile(
     loadNativeAutoFillProviderProfile(profilePath),
     signerCertificateDer,
   );
   return true;
+}
+
+async function installProfile({
+  outputPath,
+  profileContent,
+  signerCertificateDer,
+  profileMatchesSigner,
+}) {
+  const temporaryPath = `${outputPath}.${process.pid}.tmp`;
+  writeFileSync(temporaryPath, profileContent, { flag: "wx", mode: 0o600 });
+  try {
+    if (!await profileMatchesSigner(profileContent, signerCertificateDer, temporaryPath)) {
+      return false;
+    }
+    renameSync(temporaryPath, outputPath);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    rmSync(temporaryPath, { force: true });
+  }
 }
 
 export async function downloadProviderProfile({
@@ -116,7 +154,6 @@ export async function downloadProviderProfile({
     .sort((left, right) =>
       Date.parse(right.attributes.expirationDate) - Date.parse(left.attributes.expirationDate));
 
-  const temporaryPath = `${outputPath}.${process.pid}.tmp`;
   for (const candidate of candidates) {
     let profileContent;
     try {
@@ -124,19 +161,72 @@ export async function downloadProviderProfile({
     } catch {
       continue;
     }
-    writeFileSync(temporaryPath, profileContent, { flag: "wx", mode: 0o600 });
-    try {
-      if (await profileMatchesSigner(profileContent, signerCertificateDer, temporaryPath)) {
-        renameSync(temporaryPath, outputPath);
-        return;
-      }
-    } catch {
-      // Try the next active profile when this candidate does not match the signer.
-    } finally {
-      rmSync(temporaryPath, { force: true });
+    if (await installProfile({
+      outputPath,
+      profileContent,
+      signerCertificateDer,
+      profileMatchesSigner,
+    })) {
+      return;
     }
   }
-  throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING");
+
+  const certificateQuery = new URLSearchParams({
+    "fields[certificates]": CERTIFICATE_FIELDS,
+    limit: "200",
+  });
+  const certificates = await request(`/v1/certificates?${certificateQuery}`);
+  const signerCertificate = (certificates?.data ?? [])
+    .filter(({ id, attributes }) =>
+      typeof id === "string" &&
+      ["DEVELOPER_ID_APPLICATION", "DEVELOPER_ID_APPLICATION_G2"]
+        .includes(attributes?.certificateType) &&
+      attributes?.activated === true &&
+      Date.parse(attributes?.expirationDate ?? "") > now.getTime())
+    .sort((left, right) =>
+      Date.parse(right.attributes.expirationDate) - Date.parse(left.attributes.expirationDate))
+    .find(({ attributes }) =>
+      decodeCertificateContent(attributes.certificateContent)?.equals(signerCertificateDer));
+  if (!signerCertificate) {
+    throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING");
+  }
+
+  const createdProfile = await request("/v1/profiles", {
+    method: "POST",
+    body: {
+      data: {
+        type: "profiles",
+        attributes: {
+          name: `Barwarden AutoFill Release ${now.toISOString()}`,
+          profileType: "MAC_APP_DIRECT",
+        },
+        relationships: {
+          bundleId: {
+            data: { type: "bundleIds", id: bundles.data[0].id },
+          },
+          certificates: {
+            data: [{ type: "certificates", id: signerCertificate.id }],
+          },
+        },
+      },
+    },
+  });
+  let createdProfileContent;
+  try {
+    createdProfileContent = decodeProfileContent(
+      createdProfile?.data?.attributes?.profileContent,
+    );
+  } catch {
+    throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
+  }
+  if (!await installProfile({
+    outputPath,
+    profileContent: createdProfileContent,
+    signerCertificateDer,
+    profileMatchesSigner,
+  })) {
+    throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
+  }
 }
 
 async function main() {
