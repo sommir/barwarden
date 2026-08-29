@@ -55,6 +55,51 @@ function certificate(root, name, team = "K7LY92JY96") {
   return readFileSync(der);
 }
 
+function cmsProfile(root, certificateDer) {
+  const key = join(root, "cms-signer.key");
+  const certificatePem = join(root, "cms-signer.pem");
+  const identity = join(root, "cms-signer.p12");
+  const keychain = join(root, "cms-signer.keychain-db");
+  const plist = join(root, "provider.plist");
+  const signedProfile = join(root, "provider.provisionprofile");
+  execFileSync("/usr/bin/openssl", [
+    "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+    "-subj", "/CN=Profile Fixture/O=Fixture/C=US",
+    "-keyout", key, "-out", certificatePem,
+  ], { stdio: "ignore" });
+  writeFileSync(plist, `\r\n<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>TeamIdentifier</key><array><string>K7LY92JY96</string></array>
+  <key>ProvisionsAllDevices</key><true/>
+  <key>ExpirationDate</key><date>${new Date(Date.now() + 86_400_000).toISOString().replace(/\.\d{3}Z$/u, "Z")}</date>
+  <key>DeveloperCertificates</key><array><data>${certificateDer.toString("base64")}</data></array>
+  <key>Entitlements</key><dict>
+    <key>com.apple.application-identifier</key><string>K7LY92JY96.com.sommir.barwarden.credential-provider</string>
+    <key>com.apple.developer.authentication-services.autofill-credential-provider</key><true/>
+    <key>com.apple.developer.team-identifier</key><string>K7LY92JY96</string>
+  </dict>
+</dict></plist>\n`);
+  execFileSync("/usr/bin/openssl", [
+    "pkcs12", "-export", "-inkey", key, "-in", certificatePem,
+    "-out", identity, "-passout", "pass:fixture",
+  ], { stdio: "ignore" });
+  execFileSync("/usr/bin/security", ["create-keychain", "-p", "fixture", keychain]);
+  try {
+    execFileSync("/usr/bin/security", ["unlock-keychain", "-p", "fixture", keychain]);
+    execFileSync("/usr/bin/security", [
+      "import", identity, "-k", keychain, "-P", "fixture", "-T", "/usr/bin/security",
+    ], { stdio: "ignore" });
+    execFileSync("/usr/bin/security", [
+      "cms", "-S", "-N", "Profile Fixture", "-k", keychain,
+      "-i", plist, "-o", signedProfile,
+    ], { stdio: "ignore" });
+  } finally {
+    execFileSync("/usr/bin/security", ["delete-keychain", keychain], { stdio: "ignore" });
+  }
+  return signedProfile;
+}
+
 function profile(certificateDer) {
   return {
     TeamIdentifier: ["K7LY92JY96"],
@@ -86,6 +131,31 @@ test("accepts an exact unexpired Provider profile whose leaf certificate and pub
         "com.apple.security.application-groups",
       ],
     });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("loads and validates a real CMS-wrapped provisioning profile", () => {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-profile-cms-"));
+  try {
+    const signer = certificate(root, "provider-signer");
+    const signedProfile = cmsProfile(root, signer);
+    assert.deepEqual(
+      validateNativeAutoFillProviderProfile(
+        loadNativeAutoFillProviderProfile(signedProfile),
+        signer,
+      ),
+      {
+        applicationIdentifierKey: "com.apple.application-identifier",
+        certificateMatchesSigner: true,
+        entitlementKeys: [
+          "com.apple.application-identifier",
+          "com.apple.developer.authentication-services.autofill-credential-provider",
+          "com.apple.developer.team-identifier",
+        ],
+      },
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

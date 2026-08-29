@@ -647,6 +647,40 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
+  it("retries suggestions after biometric unlock when AutoFill recovery completes during the first refresh", async () => {
+    const store = new PopupStateStore();
+    const recovery = deferred<"ready">();
+    const firstRefresh = deferred<{ status: "unavailable"; reason: "setup" }>();
+    const recoverAtStartup = vi.fn(() => recovery.promise);
+    const beginFromVaultOpen = vi
+      .fn()
+      .mockImplementationOnce(() => firstRefresh.promise)
+      .mockResolvedValue({ status: "ready" as const });
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn().mockResolvedValue(true), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup },
+      {
+        beginFromEntry: vi.fn(),
+        beginFromVaultOpen,
+        snapshot: () => ({ status: "idle" as const }),
+      },
+    ]) as AppComponent;
+
+    store.setUnlocked("user@example.test");
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledOnce());
+
+    recovery.resolve("ready");
+    await recovery.promise;
+    firstRefresh.resolve({ status: "unavailable", reason: "setup" });
+
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(2));
+    component.ngOnDestroy();
+  });
+
   it("does not route away while login temporarily hides a synchronized candidate state", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.com");

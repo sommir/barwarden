@@ -211,3 +211,42 @@ test("does not create a provider profile without an exact unexpired signer certi
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("preserves the safe validation stage when a newly created profile is rejected", async () => {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-provider-profile-stage-"));
+  const signerCertificateDer = Buffer.from([0x30, 0x82, 0x03, 0x01]);
+  const createdProfile = Buffer.from([0x30, 0x82, 0x02, 0x01]);
+  try {
+    await assert.rejects(
+      downloadProviderProfile({
+        outputPath: join(root, "provider.provisionprofile"),
+        signerCertificateDer,
+        now: new Date("2026-08-28T00:00:00Z"),
+        profileMatchesSigner: () => {
+          throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_CERTIFICATE_MATCH");
+        },
+        request: async (path, options = {}) => {
+          if (path.startsWith("/v1/bundleIds?")) return { data: [{ id: "provider-bundle" }] };
+          if (path.includes("/profiles?")) return { data: [] };
+          if (path.startsWith("/v1/certificates?")) {
+            return {
+              data: [{
+                id: "signer-certificate",
+                attributes: {
+                  certificateType: "DEVELOPER_ID_APPLICATION",
+                  expirationDate: "2031-01-01T00:00:00Z",
+                  certificateContent: signerCertificateDer.toString("base64"),
+                },
+              }],
+            };
+          }
+          assert.equal(options.method, "POST");
+          return { data: { attributes: { profileContent: createdProfile.toString("base64") } } };
+        },
+      }),
+      /NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_CERTIFICATE_MATCH/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
