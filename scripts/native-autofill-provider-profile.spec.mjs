@@ -12,6 +12,7 @@ import {
 
 test("loads provisioning profile date and certificate data without lossy whole-plist JSON conversion", () => {
   const root = mkdtempSync(join(tmpdir(), "barwarden-profile-plist-"));
+  let cleaned = false;
   try {
     const plistPath = join(root, "profile.plist");
     const plist = `<?xml version="1.0" encoding="UTF-8"?>
@@ -25,13 +26,19 @@ test("loads provisioning profile date and certificate data without lossy whole-p
 </dict></plist>\n`;
     writeFileSync(plistPath, plist);
 
-    assert.deepEqual(loadNativeAutoFillProviderProfile(plistPath), {
+    assert.deepEqual(loadNativeAutoFillProviderProfile(plistPath, {
+      decodeProfile: (sourcePath) => ({
+        path: sourcePath,
+        cleanup: () => { cleaned = true; },
+      }),
+    }), {
       TeamIdentifier: ["K7LY92JY96"],
       ProvisionsAllDevices: true,
       ExpirationDate: "2099-01-01T00:00:00Z",
       DeveloperCertificates: ["AQID", "BAUG"],
       Entitlements: { "com.apple.security.app-sandbox": true },
     });
+    assert.equal(cleaned, true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

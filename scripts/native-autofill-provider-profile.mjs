@@ -1,6 +1,8 @@
 import { createHash, timingSafeEqual, X509Certificate } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const TEAM_ID = "K7LY92JY96";
@@ -51,28 +53,67 @@ function extractPlistValue(path, keyPath, format) {
   ], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 }
 
-export function loadNativeAutoFillProviderProfile(path) {
+function decodeCmsProfile(path) {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-provider-profile-"));
+  const decodedPath = join(root, "profile.plist");
   try {
+    execFileSync("/usr/bin/security", [
+      "cms", "-D", "-i", path, "-o", decodedPath,
+    ], { stdio: "ignore" });
+    return {
+      path: decodedPath,
+      cleanup: () => rmSync(root, { recursive: true, force: true }),
+    };
+  } catch {
+    rmSync(root, { recursive: true, force: true });
+    reject();
+  }
+}
+
+export function loadNativeAutoFillProviderProfile(
+  path,
+  { decodeProfile = decodeCmsProfile } = {},
+) {
+  let decoded;
+  try {
+    decoded = decodeProfile(path);
+    if (typeof decoded?.path !== "string" || typeof decoded?.cleanup !== "function") {
+      reject();
+    }
     const developerCertificates = [];
     for (let index = 0; index < 128; index += 1) {
       try {
         developerCertificates.push(
-          extractPlistValue(path, `DeveloperCertificates.${index}`, "raw"),
+          extractPlistValue(decoded.path, `DeveloperCertificates.${index}`, "raw"),
         );
       } catch {
         break;
       }
     }
-    const provisionsAllDevices = extractPlistValue(path, "ProvisionsAllDevices", "raw");
+    const provisionsAllDevices = extractPlistValue(
+      decoded.path,
+      "ProvisionsAllDevices",
+      "raw",
+    );
     return {
-      TeamIdentifier: JSON.parse(extractPlistValue(path, "TeamIdentifier", "json")),
+      TeamIdentifier: JSON.parse(
+        extractPlistValue(decoded.path, "TeamIdentifier", "json"),
+      ),
       ProvisionsAllDevices: /^(?:1|true|yes)$/iu.test(provisionsAllDevices),
-      ExpirationDate: extractPlistValue(path, "ExpirationDate", "raw"),
+      ExpirationDate: extractPlistValue(decoded.path, "ExpirationDate", "raw"),
       DeveloperCertificates: developerCertificates,
-      Entitlements: JSON.parse(extractPlistValue(path, "Entitlements", "json")),
+      Entitlements: JSON.parse(
+        extractPlistValue(decoded.path, "Entitlements", "json"),
+      ),
     };
   } catch {
     reject();
+  } finally {
+    try {
+      decoded?.cleanup();
+    } catch {
+      // Cleanup errors must not replace a validation result.
+    }
   }
 }
 
