@@ -45,12 +45,15 @@ jobs:
         run: |
           api_key_path="$RUNNER_TEMP/notary-api-key.p8"
           provider_profile_path="$RUNNER_TEMP/provider.provisionprofile"
+          signer_certificate_path="$RUNNER_TEMP/developer-id.der"
           original_user_keychains=("login.keychain-db")
           cleanup() {
             security list-keychains -d user -s "\${original_user_keychains[@]}"
           }
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
-          node scripts/download-native-autofill-provider-profile.mjs "$provider_profile_path"
+          security find-certificate -c "Developer ID Application" -p "$signing_keychain" | openssl x509 -outform der -out "$signer_certificate_path"
+          node scripts/download-native-autofill-provider-profile.mjs \
+            "$provider_profile_path" "$signer_certificate_path"
           security list-keychains -d user -s "$signing_keychain" "\${original_user_keychains[@]}"
           NATIVE_AUTOFILL_PROVIDER_PROFILE="$provider_profile_path" scripts/build-native-autofill-release.sh
           codesign --verify --deep --strict Barwarden.app
@@ -117,12 +120,21 @@ test("requires every Apple signing and notarization secret", () => {
 
 test("requires the complete native AutoFill release builder and an ephemeral provider profile", () => {
   const missingProfileDownload = safeWorkflow.replace(
-    "          node scripts/download-native-autofill-provider-profile.mjs \"$provider_profile_path\"\n",
-    "",
+    /\s*node scripts\/download-native-autofill-provider-profile\.mjs(?:\s*\\)?\s*"\$provider_profile_path"\s+"\$signer_certificate_path"\n/u,
+    "\n",
   );
   assert.match(
     auditReleaseWorkflow(missingProfileDownload).join("\n"),
     /release build must download the provider profile ephemerally/,
+  );
+
+  const unboundProfileDownload = safeWorkflow.replace(
+    ' "$signer_certificate_path"\n',
+    "\n",
+  );
+  assert.match(
+    auditReleaseWorkflow(unboundProfileDownload).join("\n"),
+    /provider profile download must match the signing certificate/,
   );
 
   const plainTauriBuild = safeWorkflow.replace(

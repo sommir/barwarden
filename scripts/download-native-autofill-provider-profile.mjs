@@ -10,6 +10,11 @@ import {
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  loadNativeAutoFillProviderProfile,
+  validateNativeAutoFillProviderProfile,
+} from "./native-autofill-provider-profile.mjs";
+
 const PROVIDER_IDENTIFIER = "com.sommir.barwarden.credential-provider";
 const PROFILE_FIELDS = "name,profileType,profileState,profileContent,expirationDate";
 
@@ -59,7 +64,21 @@ function decodeProfileContent(value) {
   return profile;
 }
 
-export async function downloadProviderProfile({ outputPath, request, now = new Date() }) {
+function matchesSigner(profileContent, signerCertificateDer, profilePath) {
+  validateNativeAutoFillProviderProfile(
+    loadNativeAutoFillProviderProfile(profilePath),
+    signerCertificateDer,
+  );
+  return true;
+}
+
+export async function downloadProviderProfile({
+  outputPath,
+  request,
+  signerCertificateDer,
+  now = new Date(),
+  profileMatchesSigner = matchesSigner,
+}) {
   if (
     !isAbsolute(outputPath ?? "") ||
     existsSync(outputPath) ||
@@ -67,6 +86,9 @@ export async function downloadProviderProfile({ outputPath, request, now = new D
     lstatSync(dirname(outputPath)).isSymbolicLink()
   ) {
     throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_OUTPUT_INVALID");
+  }
+  if (!Buffer.isBuffer(signerCertificateDer) || signerCertificateDer.length === 0) {
+    throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID");
   }
 
   const bundleQuery = new URLSearchParams({
@@ -85,39 +107,60 @@ export async function downloadProviderProfile({ outputPath, request, now = new D
   const profiles = await request(
     `/v1/bundleIds/${encodeURIComponent(bundles.data[0].id)}/profiles?${profileQuery}`,
   );
-  const selected = (profiles?.data ?? [])
+  const candidates = (profiles?.data ?? [])
     .filter(({ attributes }) =>
       attributes?.profileType === "MAC_APP_DIRECT" &&
       attributes?.profileState === "ACTIVE" &&
       Date.parse(attributes?.expirationDate ?? "") > now.getTime() &&
       typeof attributes?.profileContent === "string")
     .sort((left, right) =>
-      Date.parse(right.attributes.expirationDate) - Date.parse(left.attributes.expirationDate))[0];
-  if (!selected) throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING");
+      Date.parse(right.attributes.expirationDate) - Date.parse(left.attributes.expirationDate));
 
   const temporaryPath = `${outputPath}.${process.pid}.tmp`;
-  try {
-    writeFileSync(temporaryPath, decodeProfileContent(selected.attributes.profileContent), {
-      flag: "wx",
-      mode: 0o600,
-    });
-    renameSync(temporaryPath, outputPath);
-  } catch (error) {
-    rmSync(temporaryPath, { force: true });
-    throw error;
+  for (const candidate of candidates) {
+    let profileContent;
+    try {
+      profileContent = decodeProfileContent(candidate.attributes.profileContent);
+    } catch {
+      continue;
+    }
+    writeFileSync(temporaryPath, profileContent, { flag: "wx", mode: 0o600 });
+    try {
+      if (await profileMatchesSigner(profileContent, signerCertificateDer, temporaryPath)) {
+        renameSync(temporaryPath, outputPath);
+        return;
+      }
+    } catch {
+      // Try the next active profile when this candidate does not match the signer.
+    } finally {
+      rmSync(temporaryPath, { force: true });
+    }
   }
+  throw new Error("NATIVE_AUTOFILL_PROVIDER_PROFILE_MISSING");
 }
 
 async function main() {
   const outputPath = process.argv[2];
+  const signerCertificatePath = process.argv[3];
   try {
-    if (process.argv.length !== 3) throw new Error("NATIVE_AUTOFILL_ARGUMENT_INVALID");
+    if (
+      process.argv.length !== 4 ||
+      !isAbsolute(signerCertificatePath ?? "") ||
+      !existsSync(signerCertificatePath) ||
+      lstatSync(signerCertificatePath).isSymbolicLink()
+    ) {
+      throw new Error("NATIVE_AUTOFILL_ARGUMENT_INVALID");
+    }
     const request = createAppleApiRequest({
       keyPath: process.env.APPLE_API_KEY_PATH,
       keyId: process.env.APPLE_API_KEY_ID,
       issuerId: process.env.APPLE_API_ISSUER_ID,
     });
-    await downloadProviderProfile({ outputPath, request });
+    await downloadProviderProfile({
+      outputPath,
+      request,
+      signerCertificateDer: readFileSync(signerCertificatePath),
+    });
     console.log("NATIVE_AUTOFILL_PROVIDER_PROFILE_DOWNLOADED");
   } catch (error) {
     console.error(
