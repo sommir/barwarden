@@ -84,6 +84,29 @@ function parseRequiredJson(value, reason) {
   }
 }
 
+function extractRequiredJsonPlistValue(path, keyPath, reason) {
+  const root = mkdtempSync(join(tmpdir(), "barwarden-provider-plist-value-"));
+  const extractedPath = join(root, "value.plist");
+  try {
+    execFileSync("/usr/bin/plutil", [
+      "-extract", keyPath, "xml1", "-o", extractedPath, path,
+    ], { stdio: "ignore" });
+    return parseRequiredJson(
+      execFileSync("/usr/bin/plutil", [
+        "-convert", "json", "-o", "-", extractedPath,
+      ], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }),
+      reason,
+    );
+  } catch (error) {
+    if (error?.message?.startsWith("NATIVE_AUTOFILL_PROVIDER_PROFILE_INVALID_")) {
+      throw error;
+    }
+    reject(`PLIST_${reason}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function decodeCmsProfile(path) {
   const root = mkdtempSync(join(tmpdir(), "barwarden-provider-profile-"));
   const decodedPath = join(root, "profile.plist");
@@ -151,8 +174,9 @@ export function loadNativeAutoFillProviderProfile(
         "EXPIRATION_DATE",
       ),
       DeveloperCertificates: developerCertificates,
-      Entitlements: parseRequiredJson(
-        extractRequiredPlistValue(decoded.path, "Entitlements", "json", "ENTITLEMENTS"),
+      Entitlements: extractRequiredJsonPlistValue(
+        decoded.path,
+        "Entitlements",
         "ENTITLEMENTS",
       ),
     };
