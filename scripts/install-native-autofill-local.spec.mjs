@@ -121,7 +121,9 @@ test("installer persists only the public chain before creating its private signi
     source,
     /security import "\$DEVELOPER_ID_INTERMEDIATE"[^\n]*"\$SIGNING_KEYCHAIN"/u,
   );
+  assert.match(source, /installed_certificates=/u);
   assert.doesNotMatch(source, /security import "\$SIGNING_CERT"[^\n]*"\$USER_KEYCHAIN"/u);
+  assert.doesNotMatch(source, /security delete-certificate/u);
   assert.doesNotMatch(source, /security import "\$SIGNING_KEY"[^\n]*"\$USER_KEYCHAIN"/u);
 });
 

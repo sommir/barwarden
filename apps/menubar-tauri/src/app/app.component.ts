@@ -696,8 +696,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     if (revision !== null && revision > this.pendingSuggestionRevision) {
       this.pendingSuggestionRevision = revision;
     }
-    if (allowInitial && !this.suggestionContextInitialized) {
-      this.suggestionInitialRefreshPending = true;
+    if (allowInitial) {
+      const contextReady = this.suggestionContextInitialized
+        && this.autoFillVaultContext?.snapshot().status === "ready";
+      this.suggestionContextInitialized = contextReady;
+      if (!contextReady) {
+        this.suggestionInitialRefreshPending = true;
+      }
     }
     this.drainSuggestionRefresh();
   }
