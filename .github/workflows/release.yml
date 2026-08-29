@@ -37,6 +37,8 @@ jobs:
       - run: cargo fetch --locked --manifest-path apps/menubar-tauri/src-tauri/Cargo.toml
       - run: npm run licenses:check
       - run: npm run test:release-policy
+      - name: Test native AutoFill profile decoding
+        run: node --test scripts/native-autofill-provider-profile.spec.mjs
       - run: node --test scripts/create-updater-release-config.spec.mjs scripts/create-github-release-feed.spec.mjs
       - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=1/6
       - run: npm test -- --maxWorkers=2 --testTimeout=60000 --shard=2/6
