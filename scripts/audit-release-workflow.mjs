@@ -153,6 +153,13 @@ export function auditReleaseWorkflow(source) {
   if (!signedBuildStep.includes("scripts/download-native-autofill-provider-profile.mjs")) {
     errors.push("release build must download the provider profile ephemerally");
   }
+  if (!/scripts\/download-native-autofill-provider-profile\.mjs(?:\s*\\)?\s*"\$provider_profile_path"\s+"\$signer_certificate_path"/u.test(
+    signedBuildStep,
+  ) || !signedBuildStep.includes(
+    'openssl x509 -outform der -out "$signer_certificate_path"',
+  )) {
+    errors.push("provider profile download must match the signing certificate");
+  }
   if (!signedBuildStep.includes(
     'security list-keychains -d user -s "$signing_keychain" "${original_user_keychains[@]}"',
   )) {

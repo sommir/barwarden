@@ -14,7 +14,7 @@ const overlayRoot = join(
   "apps/menubar-tauri/src/app/upstream-overlays/auth/account-switching",
 );
 const manifestPath = join(overlayRoot, "official-account-switcher.transform-manifest.json");
-const manifestDigest = "c25a6c737ca779210bfd022bd95d26d694e79e0ded0f3a1669d1c3f5220ac9a2";
+const manifestDigest = "413155a3a3f182ff00e9449a692befe72e384f8792eabc34991491df904518c1";
 const expectedRevision = [
   "https://github.com/bitwarden/clients.git",
   "f47b6946e01aed474875789081966d311d5b8289",

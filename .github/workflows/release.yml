@@ -78,6 +78,7 @@ jobs:
           certificate_path="$RUNNER_TEMP/developer-id.p12"
           api_key_path="$RUNNER_TEMP/notary-api-key.p8"
           provider_profile_path="$RUNNER_TEMP/provider.provisionprofile"
+          signer_certificate_path="$RUNNER_TEMP/developer-id.der"
           signing_keychain="$RUNNER_TEMP/barwarden-release.keychain-db"
           signing_keychain_password="$(openssl rand -hex 32)"
           notary_profile="barwarden-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -97,7 +98,7 @@ jobs:
           cleanup() {
             restore_user_keychain_search_list >/dev/null 2>&1 || true
             security delete-keychain "$signing_keychain" >/dev/null 2>&1 || true
-            rm -f "$certificate_path" "$api_key_path" "$provider_profile_path"
+            rm -f "$certificate_path" "$api_key_path" "$provider_profile_path" "$signer_certificate_path"
           }
           trap cleanup EXIT
           test ! -e "$release_dir"
@@ -105,11 +106,6 @@ jobs:
 
           printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
-          APPLE_API_KEY_PATH="$api_key_path" \
-          APPLE_API_KEY_ID="$APPLE_API_KEY" \
-          APPLE_API_ISSUER_ID="$APPLE_API_ISSUER" \
-          node scripts/download-native-autofill-provider-profile.mjs "$provider_profile_path"
-
           security create-keychain -p "$signing_keychain_password" "$signing_keychain"
           security set-keychain-settings -lut 21600 "$signing_keychain"
           security unlock-keychain -p "$signing_keychain_password" "$signing_keychain"
@@ -119,6 +115,14 @@ jobs:
           signing_keychain_on_search_list=1
           signing_identity="$(security find-identity -v -p codesigning "$signing_keychain" | awk '/Developer ID Application/ { print $2; exit }')"
           test -n "$signing_identity"
+          security find-certificate -c "Developer ID Application" -p "$signing_keychain" | \
+            openssl x509 -outform der -out "$signer_certificate_path"
+          test -s "$signer_certificate_path"
+          APPLE_API_KEY_PATH="$api_key_path" \
+          APPLE_API_KEY_ID="$APPLE_API_KEY" \
+          APPLE_API_ISSUER_ID="$APPLE_API_ISSUER" \
+          node scripts/download-native-autofill-provider-profile.mjs \
+            "$provider_profile_path" "$signer_certificate_path"
           xcrun notarytool store-credentials "$notary_profile" \
             --key "$api_key_path" \
             --key-id "$APPLE_API_KEY" \
