@@ -181,7 +181,6 @@ export async function downloadProviderProfile({
       typeof id === "string" &&
       ["DEVELOPER_ID_APPLICATION", "DEVELOPER_ID_APPLICATION_G2"]
         .includes(attributes?.certificateType) &&
-      attributes?.activated === true &&
       Date.parse(attributes?.expirationDate ?? "") > now.getTime())
     .sort((left, right) =>
       Date.parse(right.attributes.expirationDate) - Date.parse(left.attributes.expirationDate))

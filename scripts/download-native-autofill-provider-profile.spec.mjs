@@ -132,7 +132,7 @@ test("creates a Developer ID provider profile for the exact signer when none exi
                 type: "certificates",
                 attributes: {
                   certificateType: "DEVELOPER_ID_APPLICATION",
-                  activated: true,
+                  activated: false,
                   expirationDate: "2031-01-01T00:00:00Z",
                   certificateContent: signerCertificateDer.toString("base64"),
                 },
@@ -175,7 +175,7 @@ test("creates a Developer ID provider profile for the exact signer when none exi
   }
 });
 
-test("does not create a provider profile without an exact active signer certificate", async () => {
+test("does not create a provider profile without an exact unexpired signer certificate", async () => {
   const root = mkdtempSync(join(tmpdir(), "barwarden-provider-profile-no-certificate-"));
   let created = false;
   try {
