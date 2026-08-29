@@ -61,6 +61,21 @@ function extractRequiredPlistValue(path, keyPath, format, reason) {
   }
 }
 
+function extractRequiredPlistArray(path, keyPath, reason) {
+  const values = [];
+  for (let index = 0; index < 128; index += 1) {
+    try {
+      values.push(extractPlistValue(path, `${keyPath}.${index}`, "raw"));
+    } catch {
+      break;
+    }
+  }
+  if (values.length === 0) {
+    reject(`PLIST_${reason}`);
+  }
+  return values;
+}
+
 function parseRequiredJson(value, reason) {
   try {
     return JSON.parse(value);
@@ -123,8 +138,9 @@ export function loadNativeAutoFillProviderProfile(
       "PROVISIONS_ALL_DEVICES",
     );
     return {
-      TeamIdentifier: parseRequiredJson(
-        extractRequiredPlistValue(decoded.path, "TeamIdentifier", "json", "TEAM_IDENTIFIER"),
+      TeamIdentifier: extractRequiredPlistArray(
+        decoded.path,
+        "TeamIdentifier",
         "TEAM_IDENTIFIER",
       ),
       ProvisionsAllDevices: /^(?:1|true|yes)$/iu.test(provisionsAllDevices),
