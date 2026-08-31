@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::autofill_contract::{
     AgentErrorCode, AgentSessionPayload, AutoFillSecretField, CandidateGroup,
@@ -18,6 +18,17 @@ const QUERY_FIELDS: [AutoFillSecretField; 3] = [
     AutoFillSecretField::Password,
     AutoFillSecretField::Totp,
 ];
+
+const AUTHORIZATION_REFRESH_INTERVAL: Duration = Duration::from_secs(20);
+
+pub(crate) fn authorization_refresh_due(
+    last_successful_query_at: Option<Instant>,
+    now: Instant,
+) -> bool {
+    last_successful_query_at.is_some_and(|last_successful| {
+        now.saturating_duration_since(last_successful) >= AUTHORIZATION_REFRESH_INTERVAL
+    })
+}
 
 pub(crate) fn format_tray_title(count: Option<usize>) -> String {
     match count {
@@ -172,6 +183,7 @@ struct MonitorState {
     browser_url: Option<String>,
     retry_pending: bool,
     published_revision: u64,
+    last_successful_query_at: Option<Instant>,
 }
 
 impl Default for MonitorState {
@@ -184,6 +196,7 @@ impl Default for MonitorState {
             browser_url: None,
             retry_pending: false,
             published_revision: 0,
+            last_successful_query_at: None,
         }
     }
 }
@@ -253,6 +266,7 @@ impl SuggestionCountMonitor {
             state.observed_application = Some(target);
             state.browser_url = None;
             state.retry_pending = false;
+            state.last_successful_query_at = None;
             state.observation.begin_external(identity);
             state.refresh_requested = true;
             self.inner.wake.notify_one();
@@ -346,6 +360,7 @@ impl SuggestionCountMonitor {
                 state.observed_application = Some(target.clone());
                 state.browser_url = None;
                 state.retry_pending = false;
+                state.last_successful_query_at = None;
                 state.observation.begin_external(identity.clone());
             }
         }
@@ -363,7 +378,11 @@ impl SuggestionCountMonitor {
                 .state
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if retry_decision(state.retry_pending, state.refresh_requested) == RetryDecision::Idle {
+            let periodic_refresh =
+                authorization_refresh_due(state.last_successful_query_at, Instant::now());
+            if retry_decision(state.retry_pending, state.refresh_requested) == RetryDecision::Idle
+                && !periodic_refresh
+            {
                 return;
             }
             let Some(identity) = state.observation.observed().cloned() else {
@@ -372,7 +391,7 @@ impl SuggestionCountMonitor {
             let retrying = state.retry_pending && !state.refresh_requested;
             state.refresh_requested = false;
             state.retry_pending = false;
-            if retrying {
+            if retrying || periodic_refresh {
                 state.observation.invalidate_projection();
             }
             Some((
@@ -399,14 +418,15 @@ impl SuggestionCountMonitor {
             if crate::browser_context::browser_family(&identity.bundle_id).is_none() {
                 return;
             }
-            let force_refresh = {
-                let MonitorState {
-                    refresh_requested,
-                    retry_pending,
-                    ..
-                } = &mut *state;
-                take_refresh_request(refresh_requested, retry_pending)
-            };
+            let force_refresh =
+                {
+                    let MonitorState {
+                        refresh_requested,
+                        retry_pending,
+                        ..
+                    } = &mut *state;
+                    take_refresh_request(refresh_requested, retry_pending)
+                } || authorization_refresh_due(state.last_successful_query_at, Instant::now());
             (
                 state.observation.generation(),
                 identity,
@@ -503,10 +523,17 @@ impl SuggestionCountMonitor {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let decision = match count {
                 _ if !target_is_current => PublishDecision::Stale,
-                Ok(count) => state.observation.publish(generation, count),
+                Ok(count) => {
+                    let decision = state.observation.publish(generation, count);
+                    if decision != PublishDecision::Stale {
+                        state.last_successful_query_at = Some(Instant::now());
+                    }
+                    decision
+                }
                 Err(_) if state.observation.generation() == generation => {
                     state.observation.title.clear();
                     state.retry_pending = true;
+                    state.last_successful_query_at = None;
                     PublishDecision::Apply(String::new())
                 }
                 Err(_) => PublishDecision::Stale,
@@ -531,6 +558,7 @@ impl SuggestionCountMonitor {
             }
             let had_browser_url = state.browser_url.take().is_some();
             state.retry_pending = false;
+            state.last_successful_query_at = None;
             let should_clear = !state.observation.title().is_empty();
             let revision = if had_browser_url {
                 state.observation.invalidate_projection()
@@ -580,9 +608,9 @@ impl SuggestionCountMonitor {
             state.observation.title.clear();
             state.app_name.clear();
             state.browser_url = None;
-            state.retry_pending = false;
             state.refresh_requested = false;
             state.retry_pending = false;
+            state.last_successful_query_at = None;
             if context_changed {
                 state.published_revision = revision;
             }
@@ -608,6 +636,7 @@ impl SuggestionCountMonitor {
             state.observation.title.clear();
             state.refresh_requested = false;
             state.retry_pending = false;
+            state.last_successful_query_at = None;
             if should_clear {
                 state.published_revision = revision;
             }
@@ -797,6 +826,7 @@ fn count_eligible_responses(
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
 
     use crate::autofill_contract::{
         AgentErrorCode, AgentSessionPayload, AutoFillSecretField, CandidateGroup,
@@ -806,10 +836,11 @@ mod tests {
     use crate::session_broker::AuthorizationState;
 
     use super::{
-        browser_url_decision, count_agent_suggestions, count_eligible_responses, format_tray_title,
-        lifecycle_decision, publication_target_is_current, retry_decision,
-        self_activation_decision, take_refresh_request, BrowserUrlDecision, LifecycleDecision,
-        ObservationState, ObservedIdentity, PublishDecision, RetryDecision, SelfActivationDecision,
+        authorization_refresh_due, browser_url_decision, count_agent_suggestions,
+        count_eligible_responses, format_tray_title, lifecycle_decision,
+        publication_target_is_current, retry_decision, self_activation_decision,
+        take_refresh_request, BrowserUrlDecision, LifecycleDecision, ObservationState,
+        ObservedIdentity, PublishDecision, RetryDecision, SelfActivationDecision,
         SuggestionAgentPort, SuggestionCountMonitor, MAX_VISIBLE_SUGGESTIONS,
     };
 
@@ -1093,6 +1124,20 @@ mod tests {
             ),
             BrowserUrlDecision::Query("https://login.example.com/account".to_owned()),
         );
+    }
+
+    #[test]
+    fn successful_suggestions_refresh_before_the_thirty_second_authorization_expires() {
+        let now = Instant::now();
+
+        assert!(!authorization_refresh_due(
+            Some(now - Duration::from_secs(19)),
+            now,
+        ));
+        assert!(authorization_refresh_due(
+            Some(now - Duration::from_secs(20)),
+            now,
+        ));
     }
 
     #[test]

@@ -9,7 +9,10 @@ import { bytesToBase64 } from "./bitwarden-crypto";
 import type { InstallationIdPort } from "./installation-id.service";
 import type { MasterPasswordCrypto } from "./master-password-crypto";
 import { PasswordLoginService, type PasswordLoginApi } from "./password-login.service";
-import type { TwoFactorTrustStore } from "./two-factor-trust-store";
+import {
+  SecureTwoFactorTrustStore,
+  type TwoFactorTrustStore,
+} from "./two-factor-trust-store";
 
 beforeEach(() => {
   vi.stubGlobal("crypto", webcrypto);
@@ -308,6 +311,121 @@ describe("PasswordLoginService", () => {
     });
 
     expect(api.tokenRequests[1]?.twoFactor).toEqual({
+      provider: 5,
+      token: "trusted-device-token",
+      remember: false,
+    });
+  });
+
+  it("retains a trusted-device token when the Identity request fails without a two-factor challenge", async () => {
+    const api = new RecordingPasswordLoginApi(buildBitwardenEnvironment());
+    api.rejectDesktopIdentity = true;
+    api.desktopIdentityError = new TypeError("synthetic network failure");
+    const trustStore = new MemoryTwoFactorTrustStore();
+    await trustStore.save(
+      "trusted-device@example.test",
+      api.environment.identityUrl,
+      "trusted-device-token",
+    );
+    const service = new (
+      PasswordLoginService as unknown as PasswordLoginServiceWithTrustStoreConstructor
+    )(
+      api,
+      new MemorySessionStore(),
+      new RecordingMasterPasswordCrypto(),
+      3000,
+      fixedInstallationId("77777777-7777-4777-8777-777777777777"),
+      trustStore,
+    );
+
+    await expect(service.login({
+      email: "trusted-device@example.test",
+      masterPassword: "master-password",
+    })).rejects.toBe(api.desktopIdentityError);
+
+    await expect(trustStore.get(
+      "trusted-device@example.test",
+      api.environment.identityUrl,
+    )).resolves.toBe("trusted-device-token");
+  });
+
+  it("clears a rejected trusted-device token only when Identity explicitly requires two-factor", async () => {
+    const api = new RecordingPasswordLoginApi(buildBitwardenEnvironment());
+    api.rejectDesktopIdentity = true;
+    api.desktopIdentityError = new Error(JSON.stringify({
+      TwoFactorProviders2: { 0: { MetaData: null } },
+    }));
+    const trustStore = new MemoryTwoFactorTrustStore();
+    await trustStore.save(
+      "trusted-device@example.test",
+      api.environment.identityUrl,
+      "trusted-device-token",
+    );
+    const service = new (
+      PasswordLoginService as unknown as PasswordLoginServiceWithTrustStoreConstructor
+    )(
+      api,
+      new MemorySessionStore(),
+      new RecordingMasterPasswordCrypto(),
+      3000,
+      fixedInstallationId("88888888-8888-4888-8888-888888888888"),
+      trustStore,
+    );
+
+    await expect(service.login({
+      email: "trusted-device@example.test",
+      masterPassword: "master-password",
+    })).rejects.toBe(api.desktopIdentityError);
+
+    await expect(trustStore.get(
+      "trusted-device@example.test",
+      api.environment.identityUrl,
+    )).resolves.toBeNull();
+  });
+
+  it("restores a remembered trusted-device token after the login service is reconstructed", async () => {
+    const environment = buildBitwardenEnvironment();
+    const firstApi = new RecordingPasswordLoginApi(environment);
+    firstApi.twoFactorToken = "trusted-device-token";
+    const persisted = new Map<string, string>();
+    const host = {
+      secureGet: async (key: string) => persisted.get(key) ?? null,
+      secureSet: async (key: string, value: string) => { persisted.set(key, value); },
+      secureDelete: async (key: string) => { persisted.delete(key); },
+    };
+    const first = new (
+      PasswordLoginService as unknown as PasswordLoginServiceWithTrustStoreConstructor
+    )(
+      firstApi,
+      new MemorySessionStore(),
+      new RecordingMasterPasswordCrypto(),
+      3000,
+      fixedInstallationId("99999999-9999-4999-8999-999999999999"),
+      new SecureTwoFactorTrustStore(host),
+    );
+    await first.login({
+      email: "trusted-device@example.test",
+      masterPassword: "master-password",
+      twoFactor: { provider: 0, token: "123456", remember: true },
+    });
+
+    const secondApi = new RecordingPasswordLoginApi(environment);
+    const second = new (
+      PasswordLoginService as unknown as PasswordLoginServiceWithTrustStoreConstructor
+    )(
+      secondApi,
+      new MemorySessionStore(),
+      new RecordingMasterPasswordCrypto(),
+      3000,
+      fixedInstallationId("99999999-9999-4999-8999-999999999999"),
+      new SecureTwoFactorTrustStore(host),
+    );
+    await second.login({
+      email: "trusted-device@example.test",
+      masterPassword: "master-password",
+    });
+
+    expect(secondApi.tokenRequest?.twoFactor).toEqual({
       provider: 5,
       token: "trusted-device-token",
       remember: false,

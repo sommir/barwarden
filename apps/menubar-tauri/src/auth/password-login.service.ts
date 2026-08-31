@@ -92,7 +92,7 @@ export class PasswordLoginService {
           },
         ));
       } catch (error) {
-        if (trustedDeviceToken) {
+        if (trustedDeviceToken && errorRequiresTwoFactor(error)) {
           await this.twoFactorTrustStore.clear(email, this.api.environment.identityUrl);
         }
         throw error;
@@ -241,6 +241,30 @@ function passwordTokenRequest(
 
 function trustedTwoFactorRequest(token: string | null): PasswordTokenRequest["twoFactor"] {
   return token ? { provider: 5, token, remember: false } : undefined;
+}
+
+function errorRequiresTwoFactor(error: unknown): boolean {
+  const details = errorDetails(error);
+  const providers = details && typeof details === "object"
+    ? (details as { readonly TwoFactorProviders2?: unknown }).TwoFactorProviders2
+    : null;
+  return typeof providers === "object"
+    && providers !== null
+    && Object.keys(providers).length > 0;
+}
+
+function errorDetails(error: unknown): unknown {
+  if (typeof error === "object" && error !== null && "responseJson" in error) {
+    return (error as { readonly responseJson?: unknown }).responseJson;
+  }
+  if (!(error instanceof Error)) {
+    return null;
+  }
+  try {
+    return JSON.parse(error.message) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 let defaultInstallationId: InstallationIdService | undefined;
