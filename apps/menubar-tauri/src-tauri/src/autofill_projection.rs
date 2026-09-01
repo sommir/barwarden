@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
@@ -24,6 +24,7 @@ const FORMAT_VERSION: u16 = 1;
 const NONCE_BYTES: usize = 12;
 const KEY_BYTES: usize = 32;
 const HEADER_BYTES: usize = MAGIC.len() + 2 + NONCE_BYTES;
+const MAX_PROJECTION_ENVELOPE_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Zeroize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -334,6 +335,39 @@ impl SecureDirectory {
             return Err(ProjectionError::Io);
         }
         Ok(file)
+    }
+
+    fn read_file(&self, name: &str) -> Result<Vec<u8>, ProjectionError> {
+        self.validate_path_binding()?;
+        let name = Self::name(name)?;
+        let fd = unsafe {
+            libc::openat(
+                self.directory.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            return Err(ProjectionError::Io);
+        }
+        let mut file = unsafe { File::from_raw_fd(fd) };
+        let metadata = file.metadata().map_err(|_| ProjectionError::Io)?;
+        if !Self::valid_file_metadata(&metadata)
+            || metadata.len() > MAX_PROJECTION_ENVELOPE_BYTES as u64
+        {
+            return Err(ProjectionError::Io);
+        }
+        let mut bytes = Vec::with_capacity(metadata.len() as usize);
+        Read::by_ref(&mut file)
+            .take((MAX_PROJECTION_ENVELOPE_BYTES + 1) as u64)
+            .read_to_end(&mut bytes)
+            .map_err(|_| ProjectionError::Io)?;
+        if bytes.len() > MAX_PROJECTION_ENVELOPE_BYTES {
+            bytes.zeroize();
+            return Err(ProjectionError::Io);
+        }
+        self.validate_path_binding()?;
+        Ok(bytes)
     }
 
     fn validate_existing_file(&self, name: &str) -> Result<bool, ProjectionError> {
@@ -748,7 +782,31 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
 
     fn replace_with_hook(
         &self,
+        input: AutoFillProjectionInput,
+        stage_hook: impl FnMut(ReplaceStage) -> Result<(), ProjectionError>,
+    ) -> Result<ProjectionReceipt, ProjectionError> {
+        self.replace_with_hook_mode(input, false, None, stage_hook)
+    }
+
+    fn replace_fresh_if_current(
+        &self,
+        input: AutoFillProjectionInput,
+        expected_generation: &str,
+        expected_vault_revision: u64,
+    ) -> Result<ProjectionReceipt, ProjectionError> {
+        self.replace_with_hook_mode(
+            input,
+            true,
+            Some((expected_generation, expected_vault_revision)),
+            |_| Ok(()),
+        )
+    }
+
+    fn replace_with_hook_mode(
+        &self,
         mut input: AutoFillProjectionInput,
+        force_fresh_generation: bool,
+        expected_current: Option<(&str, u64)>,
         mut stage_hook: impl FnMut(ReplaceStage) -> Result<(), ProjectionError>,
     ) -> Result<ProjectionReceipt, ProjectionError> {
         validate_input(&input)?;
@@ -756,6 +814,14 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         let mut state = self.state.lock().map_err(|_| ProjectionError::Io)?;
         self.recover_pending(&directory, &mut state, &mut stage_hook)?;
         self.retry_pending_cleanup(&directory, &mut stage_hook)?;
+        if expected_current.is_some_and(|expected| {
+            state
+                .as_ref()
+                .map(|current| (current.generation.as_str(), current.vault_revision))
+                != Some(expected)
+        }) {
+            return Err(ProjectionError::StaleRevision);
+        }
         let same_account = state
             .as_ref()
             .is_some_and(|current| current.account_id == input.account_id);
@@ -770,7 +836,7 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
             1
         };
 
-        let (generation, key) = if same_account {
+        let (generation, key) = if same_account && !force_fresh_generation {
             let current = state.as_ref().unwrap();
             (current.generation.clone(), Zeroizing::new(current.key))
         } else {
@@ -1125,6 +1191,66 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         Ok(())
     }
 
+    pub fn renew_or_reproject(&self) -> Result<(), ProjectionError> {
+        match self.renew_lease() {
+            Ok(()) => Ok(()),
+            Err(ProjectionError::AgentUnavailable | ProjectionError::StaleRevision) => {
+                let Some((generation, vault_revision, input)) =
+                    self.current_reprojection_input()?
+                else {
+                    return Ok(());
+                };
+                self.replace_fresh_if_current(input, &generation, vault_revision)
+                    .map(|_| ())
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    fn current_reprojection_input(
+        &self,
+    ) -> Result<Option<(String, u64, AutoFillProjectionInput)>, ProjectionError> {
+        let Some((generation, account_id, vault_revision, key, name, expected_path)) = self
+            .state
+            .lock()
+            .map_err(|_| ProjectionError::Io)?
+            .as_ref()
+            .map(|current| {
+                (
+                    current.generation.clone(),
+                    current.account_id.clone(),
+                    current.vault_revision,
+                    Zeroizing::new(current.key),
+                    projection_file_name(&current.account_id),
+                    current.path.clone(),
+                )
+            })
+        else {
+            return Ok(None);
+        };
+        let directory = SecureDirectory::open(&self.root)?;
+        if directory.path(&name) != expected_path {
+            return Err(ProjectionError::Io);
+        }
+        let mut envelope = directory.read_file(&name)?;
+        let projection_result = decrypt_projection(&envelope, key.as_slice());
+        envelope.zeroize();
+        let mut projection = projection_result?;
+        if projection.account_id != account_id || projection.vault_revision != vault_revision {
+            projection.zeroize();
+            return Err(ProjectionError::StaleRevision);
+        }
+        let input = AutoFillProjectionInput {
+            account_id: std::mem::take(&mut projection.account_id),
+            created_at: std::mem::take(&mut projection.created_at),
+            logins: std::mem::take(&mut projection.logins),
+            bindings: std::mem::take(&mut projection.bindings),
+            history: std::mem::take(&mut projection.history),
+        };
+        projection.zeroize();
+        Ok(Some((generation, vault_revision, input)))
+    }
+
     #[cfg(test)]
     fn replace_with_interruption_for_test(
         &self,
@@ -1210,7 +1336,7 @@ pub fn system_projection_manager(
     std::thread::spawn(move || loop {
         std::thread::sleep(std::time::Duration::from_secs(10));
         let Some(manager) = weak.upgrade() else { break };
-        let _ = manager.renew_lease();
+        let _ = manager.renew_or_reproject();
     });
     Ok(manager)
 }
@@ -1499,6 +1625,7 @@ mod tests {
         provisions: Mutex<Vec<ProjectionProvision>>,
         fail: AtomicBool,
         fail_lock: AtomicBool,
+        fail_renew: AtomicBool,
         locks: AtomicUsize,
         renewals: AtomicUsize,
     }
@@ -1527,6 +1654,9 @@ mod tests {
             _lease_seconds: u64,
         ) -> Result<(), ProjectionError> {
             self.renewals.fetch_add(1, Ordering::SeqCst);
+            if self.fail_renew.load(Ordering::SeqCst) {
+                return Err(ProjectionError::AgentUnavailable);
+            }
             Ok(())
         }
     }
@@ -1945,6 +2075,53 @@ mod tests {
         assert!(manager.state.lock().unwrap().is_none());
         assert!(!receipt.path.exists());
         assert_eq!(agent.locks.load(Ordering::SeqCst), 3);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_lease_renewal_reprojects_with_a_fresh_generation_before_retrying() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        let receipt = manager.replace(input("account-a", 1)).unwrap();
+        agent.fail_renew.store(true, Ordering::SeqCst);
+
+        manager.renew_or_reproject().unwrap();
+
+        let provisions = agent.provisions.lock().unwrap();
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 1);
+        assert_eq!(provisions.len(), 2);
+        assert_ne!(provisions[0].generation, provisions[1].generation);
+        assert_ne!(provisions[0].key, provisions[1].key);
+        assert_eq!(provisions[1].vault_revision, 2);
+        let encrypted = fs::read(&receipt.path).unwrap();
+        let recovered = decrypt_projection(&encrypted, &provisions[1].key).unwrap();
+        assert_eq!(recovered.account_id, "account-a");
+        assert_eq!(recovered.vault_revision, 2);
+        assert_eq!(recovered.logins.len(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn stale_reprojection_snapshot_cannot_overwrite_a_newer_vault_revision() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        manager.replace(input("account-a", 1)).unwrap();
+        let (generation, vault_revision, stale_input) =
+            manager.current_reprojection_input().unwrap().unwrap();
+        let current = manager.replace(input("account-a", 2)).unwrap();
+
+        assert_eq!(
+            manager.replace_fresh_if_current(stale_input, &generation, vault_revision),
+            Err(ProjectionError::StaleRevision),
+        );
+
+        let provisions = agent.provisions.lock().unwrap();
+        assert_eq!(provisions.len(), 2);
+        let encrypted = fs::read(&current.path).unwrap();
+        let projection = decrypt_projection(&encrypted, &provisions[1].key).unwrap();
+        assert_eq!(projection.vault_revision, 2);
         fs::remove_dir_all(root).unwrap();
     }
 
