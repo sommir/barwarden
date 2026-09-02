@@ -1,6 +1,6 @@
 [package]
 name = "barwarden"
-version = "0.1.16"
+version = "0.1.17"
 description = "Independent GPL-3.0-only macOS menubar client for Bitwarden-compatible services"
 authors = ["Barwarden contributors"]
 edition = "2021"

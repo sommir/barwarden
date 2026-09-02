@@ -206,7 +206,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private suggestionRefreshRunning = false;
   private suggestionRefreshQueued = false;
   private suggestionInitialRefreshPending = false;
-  private suggestionContextInitialized = false;
+  private suggestionRefreshRetryTimer: number | undefined;
+  private suggestionRefreshRetryAttempt = 0;
   protected readonly startupPending = signal(true);
   protected readonly startupFailure = signal<StartupFailurePresentation | null>(null);
   protected readonly popupRenderRecoveryActive = signal(false);
@@ -277,8 +278,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       const path = this.router.url.split(/[?#]/, 1)[0];
       if (path === "/tabs/vault") {
         this.drainSuggestionRefresh();
-      } else if (!path.startsWith("/view-cipher/")) {
-        this.suggestionContextInitialized = false;
       }
       const activeTab = mainTabFromUrl(this.router.url);
       if (activeTab) {
@@ -308,9 +307,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         this.router.url !== "/lock";
       if (wasUnlocked && !state.isUnlocked) {
         this.autoFillVaultContext?.invalidate("lock");
-        this.suggestionContextInitialized = false;
         this.suggestionRefreshQueued = false;
         this.suggestionInitialRefreshPending = false;
+        this.clearSuggestionRefreshRetry();
       }
       wasUnlocked = state.isUnlocked;
       if (becameUnlocked) {
@@ -342,6 +341,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       window.clearTimeout(this.projectionRetryTimer);
       this.projectionRetryTimer = undefined;
     }
+    this.clearSuggestionRefreshRetry();
     this.processSessionBroker?.destroy();
     this.statusFeedbackBridge?.destroy();
     this.popupRouteAnnouncer?.destroy();
@@ -694,17 +694,14 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.requestSuggestionRefresh(revision, false);
   }
 
-  private requestSuggestionRefresh(revision: bigint | null, allowInitial: boolean): void {
+  private requestSuggestionRefresh(revision: bigint | null, revalidateOnOpen: boolean): void {
     if (revision !== null && revision > this.pendingSuggestionRevision) {
       this.pendingSuggestionRevision = revision;
     }
-    if (allowInitial) {
-      const contextReady = this.suggestionContextInitialized
-        && this.autoFillVaultContext?.snapshot().status === "ready";
-      this.suggestionContextInitialized = contextReady;
-      if (!contextReady) {
-        this.suggestionInitialRefreshPending = true;
-      }
+    if (revalidateOnOpen) {
+      this.suggestionInitialRefreshPending = true;
+      this.suggestionRefreshRetryAttempt = 0;
+      this.clearSuggestionRefreshRetry(false);
     }
     this.drainSuggestionRefresh();
   }
@@ -715,30 +712,28 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (!this.canRefreshSuggestions()) return;
-    const forceInitial = this.suggestionInitialRefreshPending
-      && !this.suggestionContextInitialized;
-    if (!forceInitial && this.pendingSuggestionRevision <= this.consumedSuggestionRevision) {
+    const forceRevalidation = this.suggestionInitialRefreshPending;
+    if (!forceRevalidation && this.pendingSuggestionRevision <= this.consumedSuggestionRevision) {
       return;
     }
     const service = this.autoFillVaultContext;
     if (!service) return;
+    this.suggestionInitialRefreshPending = false;
     const targetRevision = this.pendingSuggestionRevision;
     this.suggestionRefreshRunning = true;
     let refreshed = false;
     void service.beginFromVaultOpen().then((state) => {
       if (state.status !== "ready") {
-        this.suggestionContextInitialized = false;
         this.suggestionInitialRefreshPending = true;
         return;
       }
       refreshed = true;
-      this.suggestionContextInitialized = true;
-      this.suggestionInitialRefreshPending = false;
+      this.suggestionRefreshRetryAttempt = 0;
+      this.clearSuggestionRefreshRetry(false);
       if (targetRevision > this.consumedSuggestionRevision) {
         this.consumedSuggestionRevision = targetRevision;
       }
     }).catch(() => {
-      this.suggestionContextInitialized = false;
       this.suggestionInitialRefreshPending = true;
     }).finally(() => {
       this.suggestionRefreshRunning = false;
@@ -750,8 +745,35 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         || (!refreshed && this.pendingSuggestionRevision > targetRevision)
       ) {
         this.drainSuggestionRefresh();
+      } else if (!refreshed) {
+        this.scheduleSuggestionRefreshRetry();
       }
     });
+  }
+
+  private scheduleSuggestionRefreshRetry(): void {
+    const retryDelays = [250, 1_000, 2_500] as const;
+    if (
+      this.suggestionRefreshRetryTimer !== undefined
+      || this.suggestionRefreshRetryAttempt >= retryDelays.length
+      || !this.canRefreshSuggestions()
+    ) {
+      return;
+    }
+    const delay = retryDelays[this.suggestionRefreshRetryAttempt++];
+    this.suggestionRefreshRetryTimer = window.setTimeout(() => {
+      this.suggestionRefreshRetryTimer = undefined;
+      this.suggestionInitialRefreshPending = true;
+      this.drainSuggestionRefresh();
+    }, delay);
+  }
+
+  private clearSuggestionRefreshRetry(resetAttempt = true): void {
+    if (this.suggestionRefreshRetryTimer !== undefined) {
+      window.clearTimeout(this.suggestionRefreshRetryTimer);
+      this.suggestionRefreshRetryTimer = undefined;
+    }
+    if (resetAttempt) this.suggestionRefreshRetryAttempt = 0;
   }
 
   private canRefreshSuggestions(): boolean {
@@ -793,7 +815,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       const contextState = await this.autoFillVaultContext?.beginFromEntry();
       const contextReady = contextState?.status === "ready";
-      this.suggestionContextInitialized = contextReady;
       this.suggestionInitialRefreshPending = !contextReady;
       if (suggestionRevision !== null && suggestionRevision > this.pendingSuggestionRevision) {
         this.pendingSuggestionRevision = suggestionRevision;
@@ -814,7 +835,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     } catch {
       // Keep the existing popup route usable when contextual AutoFill cannot settle.
-      this.suggestionContextInitialized = false;
       try {
         await this.router.navigateByUrl("/tabs/vault", { replaceUrl: true });
       } catch {

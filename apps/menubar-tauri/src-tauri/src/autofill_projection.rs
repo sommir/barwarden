@@ -1191,17 +1191,17 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
         Ok(())
     }
 
-    pub fn renew_or_reproject(&self) -> Result<(), ProjectionError> {
+    pub fn renew_or_reproject(&self) -> Result<bool, ProjectionError> {
         match self.renew_lease() {
-            Ok(()) => Ok(()),
+            Ok(()) => Ok(false),
             Err(ProjectionError::AgentUnavailable | ProjectionError::StaleRevision) => {
                 let Some((generation, vault_revision, input)) =
                     self.current_reprojection_input()?
                 else {
-                    return Ok(());
+                    return Ok(false);
                 };
                 self.replace_fresh_if_current(input, &generation, vault_revision)
-                    .map(|_| ())
+                    .map(|_| true)
             }
             Err(error) => Err(error),
         }
@@ -1324,21 +1324,36 @@ fn map_agent_error(error: AgentErrorCode) -> ProjectionError {
 
 pub type SystemProjectionManager = ProjectionManager<IpcProjectionAgent>;
 
+fn maintain_projection_once<A: ProjectionAgent>(
+    manager: &ProjectionManager<A>,
+    on_reprojection: &impl Fn(),
+) -> Result<(), ProjectionError> {
+    if manager.renew_or_reproject()? {
+        on_reprojection();
+    }
+    Ok(())
+}
+
 pub fn system_projection_manager(
 ) -> Result<std::sync::Arc<SystemProjectionManager>, ProjectionError> {
     let root =
         crate::autofill_ipc::system_app_group_container_path().map_err(|_| ProjectionError::Io)?;
-    let manager = std::sync::Arc::new(ProjectionManager::new(
+    Ok(std::sync::Arc::new(ProjectionManager::new(
         root,
         std::sync::Arc::new(IpcProjectionAgent),
-    ));
+    )))
+}
+
+pub fn start_projection_maintenance(
+    manager: std::sync::Arc<SystemProjectionManager>,
+    on_reprojection: impl Fn() + Send + 'static,
+) {
     let weak = std::sync::Arc::downgrade(&manager);
     std::thread::spawn(move || loop {
         std::thread::sleep(std::time::Duration::from_secs(10));
         let Some(manager) = weak.upgrade() else { break };
-        let _ = manager.renew_or_reproject();
+        let _ = maintain_projection_once(manager.as_ref(), &on_reprojection);
     });
-    Ok(manager)
 }
 
 fn command_error(error: ProjectionError) -> &'static str {
@@ -2086,7 +2101,7 @@ mod tests {
         let receipt = manager.replace(input("account-a", 1)).unwrap();
         agent.fail_renew.store(true, Ordering::SeqCst);
 
-        manager.renew_or_reproject().unwrap();
+        assert!(manager.renew_or_reproject().unwrap());
 
         let provisions = agent.provisions.lock().unwrap();
         assert_eq!(agent.renewals.load(Ordering::SeqCst), 1);
@@ -2099,6 +2114,37 @@ mod tests {
         assert_eq!(recovered.account_id, "account-a");
         assert_eq!(recovered.vault_revision, 2);
         assert_eq!(recovered.logins.len(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn successful_lease_renewal_does_not_report_a_reprojection() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        manager.replace(input("account-a", 1)).unwrap();
+
+        assert!(!manager.renew_or_reproject().unwrap());
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 1);
+        assert_eq!(agent.provisions.lock().unwrap().len(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn maintenance_notifies_after_reprojecting_an_expired_agent_lease() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        manager.replace(input("account-a", 1)).unwrap();
+        agent.fail_renew.store(true, Ordering::SeqCst);
+        let notifications = AtomicUsize::new(0);
+
+        maintain_projection_once(&manager, &|| {
+            notifications.fetch_add(1, Ordering::SeqCst);
+        })
+        .unwrap();
+
+        assert_eq!(notifications.load(Ordering::SeqCst), 1);
         fs::remove_dir_all(root).unwrap();
     }
 

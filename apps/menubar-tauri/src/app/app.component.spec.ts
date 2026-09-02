@@ -352,7 +352,7 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
-  it("does not refresh an already-consumed suggestion revision when the popup is shown again", async () => {
+  it("revalidates an already-consumed suggestion revision whenever the popup is shown again", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.test");
     const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
@@ -379,11 +379,51 @@ describe("AppComponent", () => {
     component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
       detail: { reset: false, entrySource: "vault", suggestionRevision: "7" },
     }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(beginFromVaultOpen).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(2));
 
     expect(navigateByUrl).not.toHaveBeenCalled();
     component.ngOnDestroy();
+  });
+
+  it("retries a transient suggestion refresh failure after the popup opens", async () => {
+    vi.useFakeTimers();
+    const store = new PopupStateStore();
+    store.setUnlocked("user@example.test");
+    const beginFromVaultOpen = vi.fn()
+      .mockResolvedValueOnce({ status: "unavailable" as const, reason: "session" as const })
+      .mockResolvedValue({ status: "ready" as const });
+    const component = Reflect.construct(AppComponent, [
+      { restoreStartup: vi.fn() },
+      { navigateByUrl: vi.fn(), url: "/tabs/vault", events: { subscribe: () => ({ unsubscribe() {} }) } },
+      { recordActivity: vi.fn() },
+      store,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      { recoverAtStartup: vi.fn() },
+      {
+        beginFromEntry: vi.fn(),
+        beginFromVaultOpen,
+        snapshot: () => ({ status: "idle" as const }),
+      },
+    ]) as AppComponent;
+
+    try {
+      component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
+        detail: { reset: false, entrySource: "vault", suggestionRevision: "7" },
+      }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(beginFromVaultOpen).toHaveBeenCalledOnce();
+
+      await vi.advanceTimersByTimeAsync(249);
+      expect(beginFromVaultOpen).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(beginFromVaultOpen).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(beginFromVaultOpen).toHaveBeenCalledTimes(2);
+    } finally {
+      component.ngOnDestroy();
+      vi.useRealTimers();
+    }
   });
 
   it("refreshes an already-consumed revision when its suggestion context was invalidated", async () => {
@@ -423,7 +463,7 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
-  it("refreshes a native revision once and does not repeat it on popup entry", async () => {
+  it("revalidates a native revision when the popup later opens", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.test");
     const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
@@ -450,8 +490,7 @@ describe("AppComponent", () => {
     component.handlePopupEntry(new CustomEvent("barwarden:popup-entry", {
       detail: { reset: false, entrySource: "vault", suggestionRevision: "8" },
     }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(beginFromVaultOpen).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(beginFromVaultOpen).toHaveBeenCalledTimes(2));
     component.ngOnDestroy();
   });
 
@@ -521,7 +560,7 @@ describe("AppComponent", () => {
     component.ngOnDestroy();
   });
 
-  it("uses a missing or invalid revision only for the initial suggestion load", async () => {
+  it("revalidates on every popup open even when the native revision is unavailable", async () => {
     const store = new PopupStateStore();
     store.setUnlocked("user@example.test");
     const beginFromVaultOpen = vi.fn(async () => ({ status: "ready" as const }));
@@ -548,7 +587,7 @@ describe("AppComponent", () => {
     }));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(beginFromVaultOpen).toHaveBeenCalledOnce();
+    expect(beginFromVaultOpen).toHaveBeenCalledTimes(2);
     component.ngOnDestroy();
   });
 

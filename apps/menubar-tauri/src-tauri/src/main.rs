@@ -171,6 +171,15 @@ fn main() {
                 move |revision| window::refresh_popup_suggestions(&context_app, revision),
             );
             app.manage(suggestion_monitor.clone());
+            autofill_projection::start_projection_maintenance(
+                app.state::<std::sync::Arc<autofill_projection::SystemProjectionManager>>()
+                    .inner()
+                    .clone(),
+                {
+                    let suggestion_monitor = suggestion_monitor.clone();
+                    move || suggestion_monitor.invalidate()
+                },
+            );
             #[cfg(target_os = "macos")]
             suggestion_count_macos::start(app.handle().clone(), suggestion_monitor);
             Ok(())
