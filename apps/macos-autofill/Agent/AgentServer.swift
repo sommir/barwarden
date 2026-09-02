@@ -4,12 +4,15 @@ import OSLog
 
 final class AgentRequestGate {
     private var requestIDs: Set<UUID> = []
+    private var requestOrder: [UUID?]
+    private var nextEvictionIndex = 0
     private let lock = NSLock()
     private let maximumRememberedRequestIDs: Int
 
     init(maximumRememberedRequestIDs: Int = 4_096) {
         precondition(maximumRememberedRequestIDs > 0)
         self.maximumRememberedRequestIDs = maximumRememberedRequestIDs
+        requestOrder = Array(repeating: nil, count: maximumRememberedRequestIDs)
     }
 
     func accept(_ request: AgentRequest) throws {
@@ -22,10 +25,12 @@ final class AgentRequestGate {
         guard !requestIDs.contains(request.requestID) else {
             throw AgentProtocolError.replayedRequest
         }
-        guard requestIDs.count < maximumRememberedRequestIDs else {
-            throw AgentProtocolError.requestCapacity
+        if let evicted = requestOrder[nextEvictionIndex] {
+            requestIDs.remove(evicted)
         }
         requestIDs.insert(request.requestID)
+        requestOrder[nextEvictionIndex] = request.requestID
+        nextEvictionIndex = (nextEvictionIndex + 1) % maximumRememberedRequestIDs
     }
 }
 

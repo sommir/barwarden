@@ -56,11 +56,10 @@ private func isBounded(_ value: String, minimum: Int = 0, maximum: Int) -> Bool 
 }
 
 enum AgentProtocol {
-    // Version 2 is the first contract whose candidate ranking treats a
-    // captured browser URL as exclusive evidence. Bumping the wire version
-    // also makes the main app replace an already-running pre-update Agent
-    // instead of silently continuing to use its older matching policy.
-    static let currentVersion: UInt16 = 2
+    // Version 3 requires a rolling replay window so normal long-running
+    // traffic cannot permanently exhaust the Agent. The wire bump forces an
+    // already-running Agent with the old fail-closed cache to be replaced.
+    static let currentVersion: UInt16 = 3
 }
 
 enum AgentOperation: String, Codable, Equatable {

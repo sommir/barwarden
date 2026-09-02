@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
-// Version 2 requires the browser-only matching policy. An older Agent may
-// still be alive after an in-place app replacement, so the wire boundary is
-// also the authoritative way to force Service Management reconciliation.
-pub const AGENT_PROTOCOL_VERSION: u16 = 2;
+// Version 3 requires the rolling Agent replay window. An older Agent may still
+// be alive after an in-place app replacement, so the wire boundary forces
+// Service Management reconciliation before AutoFill resumes.
+pub const AGENT_PROTOCOL_VERSION: u16 = 3;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -382,8 +382,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn current_protocol_version_invalidates_agents_built_before_browser_only_matching() {
-        assert_eq!(AGENT_PROTOCOL_VERSION, 2);
+    fn current_protocol_version_invalidates_agents_with_permanent_replay_caches() {
+        assert_eq!(AGENT_PROTOCOL_VERSION, 3);
     }
 
     #[test]
