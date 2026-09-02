@@ -141,6 +141,7 @@ pub enum ProjectionError {
     StaleRevision,
     CorruptProjection,
     AgentUnavailable,
+    AgentLocked,
     Interrupted,
     Io,
     StaleBinding,
@@ -1194,7 +1195,7 @@ impl<A: ProjectionAgent> ProjectionManager<A> {
     pub fn renew_or_reproject(&self) -> Result<bool, ProjectionError> {
         match self.renew_lease() {
             Ok(()) => Ok(false),
-            Err(ProjectionError::AgentUnavailable | ProjectionError::StaleRevision) => {
+            Err(ProjectionError::AgentLocked) => {
                 let Some((generation, vault_revision, input)) =
                     self.current_reprojection_input()?
                 else {
@@ -1318,6 +1319,7 @@ fn map_agent_error(error: AgentErrorCode) -> ProjectionError {
     match error {
         AgentErrorCode::StaleRevision => ProjectionError::StaleRevision,
         AgentErrorCode::CorruptProjection => ProjectionError::CorruptProjection,
+        AgentErrorCode::Locked => ProjectionError::AgentLocked,
         _ => ProjectionError::AgentUnavailable,
     }
 }
@@ -1361,7 +1363,7 @@ fn command_error(error: ProjectionError) -> &'static str {
         ProjectionError::InvalidInput => "invalid_input",
         ProjectionError::StaleRevision => "stale_revision",
         ProjectionError::CorruptProjection => "corrupt_projection",
-        ProjectionError::AgentUnavailable => "agent_unavailable",
+        ProjectionError::AgentUnavailable | ProjectionError::AgentLocked => "agent_unavailable",
         ProjectionError::Interrupted | ProjectionError::Io => "projection_unavailable",
         ProjectionError::StaleBinding => "stale_binding",
     }
@@ -1640,7 +1642,7 @@ mod tests {
         provisions: Mutex<Vec<ProjectionProvision>>,
         fail: AtomicBool,
         fail_lock: AtomicBool,
-        fail_renew: AtomicBool,
+        renew_error: Mutex<Option<ProjectionError>>,
         locks: AtomicUsize,
         renewals: AtomicUsize,
     }
@@ -1669,8 +1671,8 @@ mod tests {
             _lease_seconds: u64,
         ) -> Result<(), ProjectionError> {
             self.renewals.fetch_add(1, Ordering::SeqCst);
-            if self.fail_renew.load(Ordering::SeqCst) {
-                return Err(ProjectionError::AgentUnavailable);
+            if let Some(error) = *self.renew_error.lock().unwrap() {
+                return Err(error);
             }
             Ok(())
         }
@@ -2094,12 +2096,12 @@ mod tests {
     }
 
     #[test]
-    fn failed_lease_renewal_reprojects_with_a_fresh_generation_before_retrying() {
+    fn explicitly_locked_agent_reprojects_with_a_fresh_generation_before_retrying() {
         let root = temporary_directory();
         let agent = Arc::new(RecordingAgent::default());
         let manager = ProjectionManager::new(root.clone(), agent.clone());
         let receipt = manager.replace(input("account-a", 1)).unwrap();
-        agent.fail_renew.store(true, Ordering::SeqCst);
+        *agent.renew_error.lock().unwrap() = Some(ProjectionError::AgentLocked);
 
         assert!(manager.renew_or_reproject().unwrap());
 
@@ -2114,6 +2116,27 @@ mod tests {
         assert_eq!(recovered.account_id, "account-a");
         assert_eq!(recovered.vault_revision, 2);
         assert_eq!(recovered.logins.len(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn transient_lease_renewal_failure_preserves_the_live_projection_for_retry() {
+        let root = temporary_directory();
+        let agent = Arc::new(RecordingAgent::default());
+        let manager = ProjectionManager::new(root.clone(), agent.clone());
+        let receipt = manager.replace(input("account-a", 1)).unwrap();
+        *agent.renew_error.lock().unwrap() = Some(ProjectionError::AgentUnavailable);
+
+        assert_eq!(
+            manager.renew_or_reproject(),
+            Err(ProjectionError::AgentUnavailable)
+        );
+
+        assert_eq!(agent.renewals.load(Ordering::SeqCst), 1);
+        assert_eq!(agent.provisions.lock().unwrap().len(), 1);
+        assert_eq!(agent.locks.load(Ordering::SeqCst), 0);
+        assert!(manager.state.lock().unwrap().is_some());
+        assert!(receipt.path.exists());
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -2136,7 +2159,7 @@ mod tests {
         let agent = Arc::new(RecordingAgent::default());
         let manager = ProjectionManager::new(root.clone(), agent.clone());
         manager.replace(input("account-a", 1)).unwrap();
-        agent.fail_renew.store(true, Ordering::SeqCst);
+        *agent.renew_error.lock().unwrap() = Some(ProjectionError::AgentLocked);
         let notifications = AtomicUsize::new(0);
 
         maintain_projection_once(&manager, &|| {
@@ -2146,6 +2169,21 @@ mod tests {
 
         assert_eq!(notifications.load(Ordering::SeqCst), 1);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn wire_errors_distinguish_an_expired_lease_from_transient_transport_failures() {
+        assert_eq!(
+            map_agent_error(AgentErrorCode::Locked),
+            ProjectionError::AgentLocked
+        );
+        for error in [
+            AgentErrorCode::Timeout,
+            AgentErrorCode::Unavailable,
+            AgentErrorCode::Transport,
+        ] {
+            assert_eq!(map_agent_error(error), ProjectionError::AgentUnavailable);
+        }
     }
 
     #[test]
