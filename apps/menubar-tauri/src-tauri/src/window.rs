@@ -755,9 +755,19 @@ pub fn popup_toggle_action(
     }
 }
 
-pub fn toggle_popup_window(
+pub(crate) fn toggle_popup_window_from_captured_target(
     app: &tauri::AppHandle,
     event_tray_rect: Option<Rect>,
+) -> Result<(), String> {
+    toggle_popup_window_with_show(app, event_tray_rect, |app, event_tray_rect| {
+        show_popup_window_after_target_capture(app, event_tray_rect, PopupEntrySource::Vault)
+    })
+}
+
+fn toggle_popup_window_with_show(
+    app: &tauri::AppHandle,
+    event_tray_rect: Option<Rect>,
+    show: impl FnOnce(&tauri::AppHandle, Option<Rect>) -> Result<(), String>,
 ) -> Result<(), String> {
     let window = app
         .get_webview_window(MAIN_WINDOW_LABEL)
@@ -772,7 +782,7 @@ pub fn toggle_popup_window(
         .blurred_for_tray_click_at(Instant::now());
 
     match popup_toggle_action(is_visible, is_focused, blurred_for_tray_click) {
-        PopupToggleAction::Show => show_popup_window(app, event_tray_rect),
+        PopupToggleAction::Show => show(app, event_tray_rect),
         PopupToggleAction::Hide => hide_popup_window(app),
     }
 }

@@ -182,18 +182,26 @@ final class PeerIdentityVerifierTests: XCTestCase {
         }
     }
 
-    func testReplayCacheFailsClosedAtCapacityAndRetainsPriorIDs() throws {
+    func testReplayCacheRotatesAtCapacityWithoutRejectingLongRunningTraffic() throws {
         let gate = AgentRequestGate(maximumRememberedRequestIDs: 2)
         let first = request(id: UUID())
         let second = request(id: UUID())
+        let third = request(id: UUID())
 
         try gate.accept(first)
         try gate.accept(second)
-        XCTAssertThrowsError(try gate.accept(request(id: UUID()))) { error in
-            XCTAssertEqual(error as? AgentProtocolError, .requestCapacity)
-        }
-        XCTAssertThrowsError(try gate.accept(first)) { error in
+        try gate.accept(third)
+        XCTAssertThrowsError(try gate.accept(third)) { error in
             XCTAssertEqual(error as? AgentProtocolError, .replayedRequest)
+        }
+        try gate.accept(first)
+    }
+
+    func testReplayCacheAcceptsFourTimesTheProductionCapacityWithoutPermanentFailure() throws {
+        let gate = AgentRequestGate()
+
+        for _ in 0..<16_384 {
+            try gate.accept(request(id: UUID()))
         }
     }
 

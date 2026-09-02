@@ -2,8 +2,8 @@ import Foundation
 import XCTest
 
 final class AgentProtocolTests: XCTestCase {
-    func testCurrentProtocolVersionInvalidatesAgentsBuiltBeforeBrowserOnlyMatching() {
-        XCTAssertEqual(AgentProtocol.currentVersion, 2)
+    func testCurrentProtocolVersionInvalidatesAgentsWithPermanentReplayCaches() {
+        XCTAssertEqual(AgentProtocol.currentVersion, 3)
     }
 
     func testFrameRejectsPayloadOver64KiB() throws {

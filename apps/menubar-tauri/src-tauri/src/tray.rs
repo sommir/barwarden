@@ -1,6 +1,6 @@
 use crate::window::{
     hide_popup_window, show_autofill_picker_window_from_captured_target, show_popup_window,
-    toggle_popup_window, PopupEntrySource,
+    toggle_popup_window_from_captured_target, PopupEntrySource,
 };
 use tauri::image::Image;
 use tauri::menu::MenuBuilder;
@@ -30,11 +30,11 @@ pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
-            if autofill_menu_pre_capture_requested(&event) {
+            if tray_pre_capture_requested(&event) {
                 crate::frontmost::capture_current_target_app(tray.app_handle());
             }
             if let Some(rect) = primary_click_rect(&event) {
-                let _ = toggle_popup_window(tray.app_handle(), Some(rect));
+                let _ = toggle_popup_window_from_captured_target(tray.app_handle(), Some(rect));
             }
         })
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -69,12 +69,12 @@ fn is_primary_click(event: &TrayIconEvent) -> bool {
     )
 }
 
-fn autofill_menu_pre_capture_requested(event: &TrayIconEvent) -> bool {
+fn tray_pre_capture_requested(event: &TrayIconEvent) -> bool {
     matches!(
         event,
         TrayIconEvent::Click {
-            button: MouseButton::Right,
-            button_state: MouseButtonState::Down | MouseButtonState::Up,
+            button: MouseButton::Left | MouseButton::Right,
+            button_state: MouseButtonState::Down,
             ..
         }
     )
@@ -113,6 +113,37 @@ mod tests {
     }
 
     #[test]
+    fn primary_left_button_down_captures_the_target_before_popup_activation() {
+        let event = TrayIconEvent::Click {
+            id: "main".into(),
+            position: PhysicalPosition::new(0.0, 0.0),
+            rect: Rect {
+                position: Position::Physical(PhysicalPosition::new(0, 0)),
+                size: Size::Physical(PhysicalSize::new(22, 22)),
+            },
+            button: MouseButton::Left,
+            button_state: MouseButtonState::Down,
+        };
+
+        assert!(tray_pre_capture_requested(&event));
+    }
+
+    #[test]
+    fn primary_left_release_reuses_the_target_captured_on_mouse_down() {
+        let tray = include_str!("tray.rs");
+        let callback = tray
+            .split(".on_tray_icon_event")
+            .nth(1)
+            .expect("tray event callback")
+            .split(".on_menu_event")
+            .next()
+            .expect("bounded tray event callback");
+
+        assert!(callback.contains("toggle_popup_window_from_captured_target"));
+        assert!(!callback.contains("toggle_popup_window(tray.app_handle()"));
+    }
+
+    #[test]
     fn secondary_click_does_not_request_toggle() {
         let event = TrayIconEvent::Click {
             id: "main".into(),
@@ -129,8 +160,11 @@ mod tests {
     }
 
     #[test]
-    fn secondary_click_captures_the_target_before_the_autofill_menu_opens() {
-        for button_state in [MouseButtonState::Down, MouseButtonState::Up] {
+    fn secondary_click_captures_the_target_only_before_the_autofill_menu_opens() {
+        for (button_state, expected) in [
+            (MouseButtonState::Down, true),
+            (MouseButtonState::Up, false),
+        ] {
             let event = TrayIconEvent::Click {
                 id: "main".into(),
                 position: PhysicalPosition::new(0.0, 0.0),
@@ -142,7 +176,7 @@ mod tests {
                 button_state,
             };
 
-            assert!(autofill_menu_pre_capture_requested(&event));
+            assert_eq!(tray_pre_capture_requested(&event), expected);
         }
     }
 
