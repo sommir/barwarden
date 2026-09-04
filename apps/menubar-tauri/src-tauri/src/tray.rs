@@ -1,12 +1,10 @@
 use crate::window::{
-    hide_popup_window, show_autofill_picker_window_from_captured_target, show_popup_window,
-    toggle_popup_window_from_captured_target, PopupEntrySource,
+    hide_popup_window, show_popup_window, toggle_popup_window,
 };
 use tauri::image::Image;
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
-const MENU_AUTOFILL: &str = "autofill";
 const MENU_SHOW: &str = "show";
 const MENU_HIDE: &str = "hide";
 const MENU_QUIT: &str = "quit";
@@ -14,8 +12,6 @@ const BARWARDEN_TEMPLATE_ICON_PNG: &[u8] = include_bytes!("../icons/tray-templat
 
 pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let menu = MenuBuilder::new(app)
-        .text(MENU_AUTOFILL, "AutoFill…")
-        .separator()
         .text(MENU_SHOW, "Show Popup")
         .text(MENU_HIDE, "Hide Popup")
         .separator()
@@ -34,16 +30,10 @@ pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                 crate::frontmost::capture_current_target_app(tray.app_handle());
             }
             if let Some(rect) = primary_click_rect(&event) {
-                let _ = toggle_popup_window_from_captured_target(tray.app_handle(), Some(rect));
+                let _ = toggle_popup_window(tray.app_handle(), Some(rect));
             }
         })
         .on_menu_event(|app, event| match event.id().as_ref() {
-            MENU_AUTOFILL => {
-                let _ = show_autofill_picker_window_from_captured_target(
-                    app,
-                    PopupEntrySource::AutoFillMenu,
-                );
-            }
             MENU_SHOW => {
                 let _ = show_popup_window(app, None);
             }
@@ -73,7 +63,7 @@ fn tray_pre_capture_requested(event: &TrayIconEvent) -> bool {
     matches!(
         event,
         TrayIconEvent::Click {
-            button: MouseButton::Left | MouseButton::Right,
+            button: MouseButton::Right,
             button_state: MouseButtonState::Down,
             ..
         }
@@ -113,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn primary_left_button_down_captures_the_target_before_popup_activation() {
+    fn primary_left_button_down_does_not_enter_the_context_menu_path() {
         let event = TrayIconEvent::Click {
             id: "main".into(),
             position: PhysicalPosition::new(0.0, 0.0),
@@ -125,11 +115,11 @@ mod tests {
             button_state: MouseButtonState::Down,
         };
 
-        assert!(tray_pre_capture_requested(&event));
+        assert!(!tray_pre_capture_requested(&event));
     }
 
     #[test]
-    fn primary_left_release_reuses_the_target_captured_on_mouse_down() {
+    fn primary_left_release_uses_the_direct_popup_toggle() {
         let tray = include_str!("tray.rs");
         let callback = tray
             .split(".on_tray_icon_event")
@@ -139,8 +129,8 @@ mod tests {
             .next()
             .expect("bounded tray event callback");
 
-        assert!(callback.contains("toggle_popup_window_from_captured_target"));
-        assert!(!callback.contains("toggle_popup_window(tray.app_handle()"));
+        assert!(callback.contains("toggle_popup_window(tray.app_handle()"));
+        assert!(!callback.contains("toggle_popup_window_from_captured_target"));
     }
 
     #[test]
@@ -181,18 +171,15 @@ mod tests {
     }
 
     #[test]
-    fn autofill_menu_reuses_the_target_captured_before_menu_selection() {
+    fn context_menu_does_not_include_a_redundant_autofill_command() {
         let tray = include_str!("tray.rs");
-        let menu_branch = tray
-            .split("MENU_AUTOFILL =>")
-            .nth(1)
-            .expect("AutoFill menu branch")
-            .split("MENU_SHOW =>")
+        let production = tray
+            .split("#[cfg(test)]")
             .next()
-            .expect("bounded AutoFill menu branch");
+            .expect("tray production source");
 
-        assert!(menu_branch.contains("show_autofill_picker_window_from_captured_target"));
-        assert!(!menu_branch.contains("show_autofill_picker_window(app"));
+        assert!(!production.contains("MENU_AUTOFILL"));
+        assert!(!production.contains("AutoFill…"));
     }
 
     #[test]
