@@ -13,7 +13,7 @@ tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 arboard = "3.6.1"
-base64 = "0.22.1"
+base64 = "0.23.1"
 chacha20poly1305 = "0.10.1"
 keyring = "4.1.4"
 libc = "0.2"
