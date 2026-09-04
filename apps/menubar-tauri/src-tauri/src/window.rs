@@ -449,14 +449,6 @@ pub fn show_autofill_picker_window(
     show_popup_window_for_entry(app, None, source)
 }
 
-pub(crate) fn show_autofill_picker_window_from_captured_target(
-    app: &tauri::AppHandle,
-    source: PopupEntrySource,
-) -> Result<(), String> {
-    debug_assert!(source != PopupEntrySource::Vault);
-    show_popup_window_after_target_capture(app, None, source)
-}
-
 pub fn show_autofill_picker_window_for_target(
     app: &tauri::AppHandle,
     source: PopupEntrySource,
@@ -755,19 +747,9 @@ pub fn popup_toggle_action(
     }
 }
 
-pub(crate) fn toggle_popup_window_from_captured_target(
+pub fn toggle_popup_window(
     app: &tauri::AppHandle,
     event_tray_rect: Option<Rect>,
-) -> Result<(), String> {
-    toggle_popup_window_with_show(app, event_tray_rect, |app, event_tray_rect| {
-        show_popup_window_after_target_capture(app, event_tray_rect, PopupEntrySource::Vault)
-    })
-}
-
-fn toggle_popup_window_with_show(
-    app: &tauri::AppHandle,
-    event_tray_rect: Option<Rect>,
-    show: impl FnOnce(&tauri::AppHandle, Option<Rect>) -> Result<(), String>,
 ) -> Result<(), String> {
     let window = app
         .get_webview_window(MAIN_WINDOW_LABEL)
@@ -782,7 +764,7 @@ fn toggle_popup_window_with_show(
         .blurred_for_tray_click_at(Instant::now());
 
     match popup_toggle_action(is_visible, is_focused, blurred_for_tray_click) {
-        PopupToggleAction::Show => show(app, event_tray_rect),
+        PopupToggleAction::Show => show_popup_window(app, event_tray_rect),
         PopupToggleAction::Hide => hide_popup_window(app),
     }
 }
