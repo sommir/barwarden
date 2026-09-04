@@ -1,9 +1,8 @@
-use crate::window::{
-    hide_popup_window, show_popup_window, toggle_popup_window,
-};
+use crate::window::{hide_popup_window, show_popup_window, toggle_popup_window};
 use tauri::image::Image;
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::Manager;
 
 const MENU_SHOW: &str = "show";
 const MENU_HIDE: &str = "hide";
@@ -18,16 +17,20 @@ pub fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .text(MENU_QUIT, "Quit")
         .build()?;
     let icon = template_tray_icon()?;
+    let context_menu = menu.clone();
 
     TrayIconBuilder::with_id("main")
         .icon(icon)
         .icon_as_template(true)
         .tooltip(crate::brand::PRODUCT_NAME)
-        .menu(&menu)
-        .show_menu_on_left_click(false)
-        .on_tray_icon_event(|tray, event| {
+        .on_tray_icon_event(move |tray, event| {
             if tray_pre_capture_requested(&event) {
                 crate::frontmost::capture_current_target_app(tray.app_handle());
+            }
+            if context_menu_requested(&event) {
+                if let Some(window) = tray.app_handle().get_webview_window("main") {
+                    let _ = window.popup_menu(&context_menu);
+                }
             }
             if let Some(rect) = primary_click_rect(&event) {
                 let _ = toggle_popup_window(tray.app_handle(), Some(rect));
@@ -60,6 +63,10 @@ fn is_primary_click(event: &TrayIconEvent) -> bool {
 }
 
 fn tray_pre_capture_requested(event: &TrayIconEvent) -> bool {
+    context_menu_requested(event)
+}
+
+fn context_menu_requested(event: &TrayIconEvent) -> bool {
     matches!(
         event,
         TrayIconEvent::Click {
@@ -171,6 +178,29 @@ mod tests {
     }
 
     #[test]
+    fn context_menu_is_requested_only_by_right_mouse_down() {
+        for (button, button_state, expected) in [
+            (MouseButton::Left, MouseButtonState::Down, false),
+            (MouseButton::Left, MouseButtonState::Up, false),
+            (MouseButton::Right, MouseButtonState::Down, true),
+            (MouseButton::Right, MouseButtonState::Up, false),
+        ] {
+            let event = TrayIconEvent::Click {
+                id: "main".into(),
+                position: PhysicalPosition::new(0.0, 0.0),
+                rect: Rect {
+                    position: Position::Physical(PhysicalPosition::new(0, 0)),
+                    size: Size::Physical(PhysicalSize::new(22, 22)),
+                },
+                button,
+                button_state,
+            };
+
+            assert_eq!(context_menu_requested(&event), expected);
+        }
+    }
+
+    #[test]
     fn context_menu_does_not_include_a_redundant_autofill_command() {
         let tray = include_str!("tray.rs");
         let production = tray
@@ -180,6 +210,19 @@ mod tests {
 
         assert!(!production.contains("MENU_AUTOFILL"));
         assert!(!production.contains("AutoFill…"));
+    }
+
+    #[test]
+    fn macos_status_item_has_no_attached_menu_and_right_click_opens_it_explicitly() {
+        let tray = include_str!("tray.rs");
+        let production = tray
+            .split("#[cfg(test)]")
+            .next()
+            .expect("tray production source");
+
+        assert!(!production.contains(".menu(&menu)"));
+        assert!(!production.contains(".show_menu_on_left_click"));
+        assert!(production.contains("window.popup_menu(&context_menu)"));
     }
 
     #[test]
