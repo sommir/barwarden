@@ -93,7 +93,7 @@
     "core-js": "3.49.0",
     "rxjs": "7.8.2",
     "tldts": "7.4.2",
-    "zone.js": "0.15.1"
+    "zone.js": "0.16.2"
   },
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "2.6.3",
